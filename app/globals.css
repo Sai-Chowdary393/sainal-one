@@ -1,0 +1,194 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  background: #f8fafc;
+  color: #111827;
+}
+
+a {
+  text-decoration: none;
+}
+
+.landing {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0f172a, #1e3a8a);
+  color: white;
+  text-align: center;
+}
+
+.hero {
+  max-width: 800px;
+  padding: 40px;
+}
+
+.badge {
+  display: inline-block;
+  background: #2563eb;
+  padding: 8px 16px;
+  border-radius: 999px;
+  margin-bottom: 20px;
+}
+
+.hero h1 {
+  font-size: 64px;
+  margin: 0;
+}
+
+.hero p {
+  font-size: 22px;
+  color: #dbeafe;
+}
+
+.heroButtons {
+  margin-top: 30px;
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+}
+
+.primaryBtn {
+  background: #2563eb;
+  color: white;
+  padding: 12px 20px;
+  border-radius: 8px;
+  border: none;
+  font-weight: bold;
+}
+
+.secondaryBtn {
+  background: white;
+  color: #0f172a;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-weight: bold;
+}
+
+.appLayout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: 240px;
+  background: #0f172a;
+  color: white;
+  padding: 28px 24px;
+}
+
+.sidebar h2 {
+  margin-bottom: 50px;
+}
+
+.sidebar nav {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.sidebar a {
+  color: white;
+  font-weight: 600;
+}
+
+.mainContent {
+  flex: 1;
+  padding: 40px;
+}
+
+.topBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 40px;
+}
+
+.topBar input {
+  width: 320px;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+}
+
+.statCard,
+.panel {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 24px;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.06);
+}
+
+.statCard p {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.statCard h2 {
+  font-size: 36px;
+  margin: 10px 0 0;
+}
+
+.dashboardGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-top: 32px;
+}
+
+.panel h3 {
+  margin-top: 0;
+}
+
+.leadTable {
+  width: 100%;
+  background: white;
+  border-collapse: collapse;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.leadTable th,
+.leadTable td {
+  padding: 18px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+}
+
+.leadTable th {
+  background: #f1f5f9;
+}
+
+.chatBox {
+  background: white;
+  padding: 30px;
+  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+  max-width: 800px;
+}
+
+.aiMessage {
+  background: #eff6ff;
+  padding: 16px;
+  border-radius: 12px;
+}
+
+.chatBox input {
+  width: 100%;
+  margin-top: 24px;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+}
