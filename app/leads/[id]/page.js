@@ -130,12 +130,20 @@ SaiNal Technologies Ltd`);
   async function generateQuote() {
     if (!lead) return;
 
-    const quoteText = `QUOTE
+    const quoteNumber = `SNQ-${Date.now().toString().slice(-6)}`;
 
-Client: ${lead.company}
-Contact: ${lead.name}
-Email: ${lead.email}
-Phone: ${lead.phone}
+    const quoteText = `SAINAL TECHNOLOGIES LTD
+
+QUOTE
+
+Quote Number: ${quoteNumber}
+Date: ${new Date().toLocaleDateString("en-GB")}
+
+Client:
+${lead.company}
+${lead.name}
+${lead.email}
+${lead.phone}
 
 Service:
 Website Development & Business Automation
@@ -146,14 +154,16 @@ ${lead.value}
 Estimated Delivery:
 2 Weeks
 
-Status:
-Draft Quote
-
 Notes:
 ${lead.notes || "No notes added."}
 
+Payment Terms:
+25% deposit required before project starts.
+75% balance payable before go-live.
+
 Prepared By:
-SaiNal Technologies Ltd`;
+SaiNal Technologies Ltd
+www.sainaltechnologies.com`;
 
     setQuoteDraft(quoteText);
     setQuoteSaved(false);
@@ -165,6 +175,7 @@ SaiNal Technologies Ltd`;
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          quote_number: quoteNumber,
           lead_id: lead.id,
           client: lead.company,
           contact: lead.name,
@@ -197,7 +208,6 @@ SaiNal Technologies Ltd`;
         <aside className="sidebar">
           <h2>SaiNal One</h2>
         </aside>
-
         <main className="mainContent">
           <p>Loading lead...</p>
         </main>
@@ -211,7 +221,6 @@ SaiNal Technologies Ltd`;
         <aside className="sidebar">
           <h2>SaiNal One</h2>
         </aside>
-
         <main className="mainContent">
           <Link href="/leads" className="backLink">
             ← Back to Leads
@@ -277,39 +286,12 @@ SaiNal Technologies Ltd`;
 
             {editMode ? (
               <div className="editLeadForm">
-                <input
-                  name="name"
-                  value={lead.name || ""}
-                  onChange={handleChange}
-                  placeholder="Lead Name"
-                />
+                <input name="name" value={lead.name || ""} onChange={handleChange} placeholder="Lead Name" />
+                <input name="company" value={lead.company || ""} onChange={handleChange} placeholder="Company" />
+                <input name="email" value={lead.email || ""} onChange={handleChange} placeholder="Email" />
+                <input name="phone" value={lead.phone || ""} onChange={handleChange} placeholder="Phone" />
 
-                <input
-                  name="company"
-                  value={lead.company || ""}
-                  onChange={handleChange}
-                  placeholder="Company"
-                />
-
-                <input
-                  name="email"
-                  value={lead.email || ""}
-                  onChange={handleChange}
-                  placeholder="Email"
-                />
-
-                <input
-                  name="phone"
-                  value={lead.phone || ""}
-                  onChange={handleChange}
-                  placeholder="Phone"
-                />
-
-                <select
-                  name="status"
-                  value={lead.status || "New"}
-                  onChange={handleChange}
-                >
+                <select name="status" value={lead.status || "New"} onChange={handleChange}>
                   <option>New</option>
                   <option>Contacted</option>
                   <option>Proposal Sent</option>
@@ -318,12 +300,7 @@ SaiNal Technologies Ltd`;
                   <option>Lost</option>
                 </select>
 
-                <input
-                  name="value"
-                  value={lead.value || ""}
-                  onChange={handleChange}
-                  placeholder="Value e.g. £2,500"
-                />
+                <input name="value" value={lead.value || ""} onChange={handleChange} placeholder="Value e.g. £2,500" />
 
                 <textarea
                   name="notes"
@@ -335,21 +312,11 @@ SaiNal Technologies Ltd`;
               </div>
             ) : (
               <>
-                <p>
-                  <strong>Company:</strong> {lead.company}
-                </p>
-                <p>
-                  <strong>Email:</strong> {lead.email}
-                </p>
-                <p>
-                  <strong>Phone:</strong> {lead.phone}
-                </p>
-                <p>
-                  <strong>Status:</strong> {lead.status}
-                </p>
-                <p>
-                  <strong>Value:</strong> {lead.value}
-                </p>
+                <p><strong>Company:</strong> {lead.company}</p>
+                <p><strong>Email:</strong> {lead.email}</p>
+                <p><strong>Phone:</strong> {lead.phone}</p>
+                <p><strong>Status:</strong> {lead.status}</p>
+                <p><strong>Value:</strong> {lead.value}</p>
               </>
             )}
           </div>
@@ -369,26 +336,14 @@ SaiNal Technologies Ltd`;
         {emailDraft && (
           <section className="panel emailDraftPanel">
             <h3>Email Draft</h3>
-
-            <textarea
-              value={emailDraft}
-              readOnly
-              rows={10}
-              className="emailDraftBox"
-            />
+            <textarea value={emailDraft} readOnly rows={10} className="emailDraftBox" />
           </section>
         )}
 
         {quoteDraft && (
           <section className="panel quoteDraftPanel">
             <h3>Quote Draft</h3>
-
-            <textarea
-              value={quoteDraft}
-              readOnly
-              rows={16}
-              className="emailDraftBox"
-            />
+            <textarea value={quoteDraft} readOnly rows={16} className="emailDraftBox" />
 
             {quoteSaved && (
               <p className="helperText">
@@ -401,12 +356,7 @@ SaiNal Technologies Ltd`;
         <section className="detailsGrid">
           <div className="panel">
             <h3>Notes</h3>
-
-            {lead.notes ? (
-              <p>{lead.notes}</p>
-            ) : (
-              <p>No notes added yet.</p>
-            )}
+            {lead.notes ? <p>{lead.notes}</p> : <p>No notes added yet.</p>}
           </div>
 
           <div className="panel">
