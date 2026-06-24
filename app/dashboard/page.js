@@ -58,7 +58,7 @@ function Sidebar() {
         <Link href="/dashboard">Dashboard</Link>
         <Link href="/leads">Leads</Link>
         <Link href="#">Customers</Link>
-        <Link href="#">Quotes</Link>
+        <Link href="quotes">Quotes</Link>
         <Link href="/ai-assistant">AI Assistant</Link>
         <Link href="#">Settings</Link>
       </nav>
