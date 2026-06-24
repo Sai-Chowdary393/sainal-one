@@ -63,6 +63,7 @@ export default function LeadDetails() {
           phone: lead.phone,
           status: lead.status,
           value: lead.value,
+          notes: lead.notes || "",
         }),
       });
 
@@ -87,7 +88,6 @@ export default function LeadDetails() {
     if (!lead) return;
 
     const confirmed = confirm("Are you sure you want to delete this lead?");
-
     if (!confirmed) return;
 
     try {
@@ -147,6 +147,9 @@ Estimated Delivery:
 
 Status:
 Draft Quote
+
+Notes:
+${lead.notes || "No notes added."}
 
 Prepared By:
 SaiNal Technologies Ltd`);
@@ -284,6 +287,14 @@ SaiNal Technologies Ltd`);
                   onChange={handleChange}
                   placeholder="Value e.g. £2,500"
                 />
+
+                <textarea
+                  name="notes"
+                  value={lead.notes || ""}
+                  onChange={handleChange}
+                  placeholder="Lead Notes"
+                  rows={5}
+                />
               </div>
             ) : (
               <>
@@ -347,8 +358,12 @@ SaiNal Technologies Ltd`);
         <section className="detailsGrid">
           <div className="panel">
             <h3>Notes</h3>
-            <p>Initial enquiry received from website contact form.</p>
-            <p>Customer interested in business website and automation.</p>
+
+            {lead.notes ? (
+              <p>{lead.notes}</p>
+            ) : (
+              <p>No notes added yet.</p>
+            )}
           </div>
 
           <div className="panel">
