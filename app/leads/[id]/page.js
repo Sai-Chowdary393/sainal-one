@@ -158,7 +158,7 @@ SaiNal Technologies Ltd`);
             <textarea
               value={quoteDraft}
               readOnly
-              rows={12}
+              rows={16}
               className="emailDraftBox"
             />
 
