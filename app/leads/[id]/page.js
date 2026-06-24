@@ -1,45 +1,47 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 
-const leads = [
-  {
-    id: "1",
-    name: "John Smith",
-    company: "ABC Builders",
-    email: "john@abcbuilders.co.uk",
-    phone: "07123456789",
-    status: "New",
-    value: "£2,500",
-  },
-  {
-    id: "2",
-    name: "Jane Brown",
-    company: "XYZ Plumbing",
-    email: "jane@xyzplumbing.co.uk",
-    phone: "07987654321",
-    status: "Proposal Sent",
-    value: "£4,000",
-  },
-  {
-    id: "3",
-    name: "Michael Lee",
-    company: "Acme Services",
-    email: "michael@acme.co.uk",
-    phone: "07444555666",
-    status: "Follow Up",
-    value: "£1,800",
-  },
-];
-
 export default function LeadDetails({ params }) {
+  const [lead, setLead] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [emailDraft, setEmailDraft] = useState("");
   const [quoteDraft, setQuoteDraft] = useState("");
 
-  const lead = leads.find((item) => item.id === params.id) || leads[0];
+  useEffect(() => {
+    fetchLead();
+  }, []);
+
+  async function fetchLead() {
+    try {
+      const response = await fetch("/api/leads");
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || "Failed to load lead.");
+        return;
+      }
+
+      const selectedLead = data.find((item) => item.id === params.id);
+
+      if (!selectedLead) {
+        alert("Lead not found.");
+        return;
+      }
+
+      setLead(selectedLead);
+    } catch (error) {
+      alert("Error loading lead.");
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   function generateEmail() {
+    if (!lead) return;
+
     setEmailDraft(`Hi ${lead.name},
 
 Thank you for your interest in SaiNal Technologies.
@@ -54,6 +56,8 @@ SaiNal Technologies Ltd`);
   }
 
   function generateQuote() {
+    if (!lead) return;
+
     setQuoteDraft(`QUOTE
 
 Client: ${lead.company}
@@ -75,6 +79,37 @@ Draft Quote
 
 Prepared By:
 SaiNal Technologies Ltd`);
+  }
+
+  if (loading) {
+    return (
+      <div className="appLayout">
+        <aside className="sidebar">
+          <h2>SaiNal One</h2>
+        </aside>
+
+        <main className="mainContent">
+          <p>Loading lead...</p>
+        </main>
+      </div>
+    );
+  }
+
+  if (!lead) {
+    return (
+      <div className="appLayout">
+        <aside className="sidebar">
+          <h2>SaiNal One</h2>
+        </aside>
+
+        <main className="mainContent">
+          <Link href="/leads" className="backLink">
+            ← Back to Leads
+          </Link>
+          <h1>Lead not found</h1>
+        </main>
+      </div>
+    );
   }
 
   return (
@@ -105,6 +140,7 @@ SaiNal Technologies Ltd`);
         <section className="detailsGrid">
           <div className="panel">
             <h3>Lead Information</h3>
+
             <p>
               <strong>Company:</strong> {lead.company}
             </p>
