@@ -75,6 +75,7 @@ export default function Leads() {
     <div className="appLayout">
       <aside className="sidebar">
         <h2>SaiNal One</h2>
+
         <nav>
           <Link href="/dashboard">Dashboard</Link>
           <Link href="/leads">Leads</Link>
@@ -85,6 +86,7 @@ export default function Leads() {
       <main className="mainContent">
         <div className="topBar">
           <h1>Leads</h1>
+
           <button className="primaryBtn" onClick={() => setShowForm(!showForm)}>
             {showForm ? "Close" : "Add Lead"}
           </button>
@@ -161,7 +163,11 @@ export default function Leads() {
           <tbody>
             {leads.map((lead, index) => (
               <tr key={index}>
-                <td>{lead.name}</td>
+                <td>
+                  <Link href={`/leads/${index + 1}`} className="leadLink">
+                    {lead.name}
+                  </Link>
+                </td>
                 <td>{lead.company}</td>
                 <td>{lead.email}</td>
                 <td>{lead.phone}</td>
