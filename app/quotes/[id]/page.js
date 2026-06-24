@@ -33,6 +33,10 @@ export default function QuoteDetailsPage() {
     }
   }
 
+  function downloadPDF() {
+    window.print();
+  }
+
   if (loading) {
     return (
       <div className="appLayout">
@@ -66,7 +70,7 @@ export default function QuoteDetailsPage() {
 
   return (
     <div className="appLayout">
-      <aside className="sidebar">
+      <aside className="sidebar noPrint">
         <h2>SaiNal One</h2>
 
         <nav>
@@ -78,42 +82,32 @@ export default function QuoteDetailsPage() {
       </aside>
 
       <main className="mainContent">
-        <Link href="/quotes" className="backLink">
+        <Link href="/quotes" className="backLink noPrint">
           ← Back to Quotes
         </Link>
 
         <div className="topBar">
           <h1>Quote Details</h1>
+
+          <button className="primaryBtn noPrint" onClick={downloadPDF}>
+            Download PDF
+          </button>
         </div>
 
         <section className="detailsGrid">
           <div className="panel">
             <h3>Client Information</h3>
-            <p>
-              <strong>Client:</strong> {quote.client}
-            </p>
-            <p>
-              <strong>Contact:</strong> {quote.contact}
-            </p>
-            <p>
-              <strong>Email:</strong> {quote.email}
-            </p>
-            <p>
-              <strong>Phone:</strong> {quote.phone}
-            </p>
+            <p><strong>Client:</strong> {quote.client}</p>
+            <p><strong>Contact:</strong> {quote.contact}</p>
+            <p><strong>Email:</strong> {quote.email}</p>
+            <p><strong>Phone:</strong> {quote.phone}</p>
           </div>
 
           <div className="panel">
             <h3>Quote Information</h3>
-            <p>
-              <strong>Service:</strong> {quote.service}
-            </p>
-            <p>
-              <strong>Amount:</strong> {quote.amount}
-            </p>
-            <p>
-              <strong>Status:</strong> {quote.status}
-            </p>
+            <p><strong>Service:</strong> {quote.service}</p>
+            <p><strong>Amount:</strong> {quote.amount}</p>
+            <p><strong>Status:</strong> {quote.status}</p>
             <p>
               <strong>Created:</strong>{" "}
               {quote.created_at
@@ -126,12 +120,9 @@ export default function QuoteDetailsPage() {
         <section className="panel">
           <h3>Full Quote</h3>
 
-          <textarea
-            value={quote.quote_text || ""}
-            readOnly
-            rows={18}
-            className="emailDraftBox"
-          />
+          <pre className="quotePreview">
+            {quote.quote_text || ""}
+          </pre>
         </section>
       </main>
     </div>
