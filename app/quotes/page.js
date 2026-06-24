@@ -54,6 +54,7 @@ export default function QuotesPage() {
           <table className="leadTable">
             <thead>
               <tr>
+                <th>Quote No</th>
                 <th>Client</th>
                 <th>Contact</th>
                 <th>Email</th>
@@ -66,16 +67,17 @@ export default function QuotesPage() {
             <tbody>
               {quotes.length === 0 ? (
                 <tr>
-                  <td colSpan="6">No quotes found yet.</td>
+                  <td colSpan="7">No quotes found yet.</td>
                 </tr>
               ) : (
                 quotes.map((quote) => (
                   <tr key={quote.id}>
                     <td>
                       <Link href={`/quotes/${quote.id}`} className="leadLink">
-                        {quote.client}
+                        {quote.quote_number || "-"}
                       </Link>
                     </td>
+                    <td>{quote.client}</td>
                     <td>{quote.contact}</td>
                     <td>{quote.email}</td>
                     <td>{quote.amount}</td>
