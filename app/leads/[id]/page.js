@@ -2,8 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 
-export default function LeadDetails({ params }) {
+export default function LeadDetails() {
+  const params = useParams();
+  const leadId = params.id;
+
   const [lead, setLead] = useState(null);
   const [loading, setLoading] = useState(true);
   const [emailDraft, setEmailDraft] = useState("");
@@ -11,28 +15,19 @@ export default function LeadDetails({ params }) {
 
   useEffect(() => {
     fetchLead();
-  }, []);
+  }, [leadId]);
 
   async function fetchLead() {
     try {
       const response = await fetch("/api/leads");
       const data = await response.json();
 
-      if (!response.ok) {
-        alert(data.error || "Failed to load lead.");
-        return;
-      }
+      const selectedLead = data.find(
+        (item) => String(item.id) === String(leadId)
+      );
 
-      const selectedLead = data.find((item) => item.id === params.id);
-
-      if (!selectedLead) {
-        alert("Lead not found.");
-        return;
-      }
-
-      setLead(selectedLead);
+      setLead(selectedLead || null);
     } catch (error) {
-      alert("Error loading lead.");
       console.error(error);
     } finally {
       setLoading(false);
@@ -40,8 +35,6 @@ export default function LeadDetails({ params }) {
   }
 
   function generateEmail() {
-    if (!lead) return;
-
     setEmailDraft(`Hi ${lead.name},
 
 Thank you for your interest in SaiNal Technologies.
@@ -56,8 +49,6 @@ SaiNal Technologies Ltd`);
   }
 
   function generateQuote() {
-    if (!lead) return;
-
     setQuoteDraft(`QUOTE
 
 Client: ${lead.company}
@@ -87,7 +78,6 @@ SaiNal Technologies Ltd`);
         <aside className="sidebar">
           <h2>SaiNal One</h2>
         </aside>
-
         <main className="mainContent">
           <p>Loading lead...</p>
         </main>
@@ -101,11 +91,8 @@ SaiNal Technologies Ltd`);
         <aside className="sidebar">
           <h2>SaiNal One</h2>
         </aside>
-
         <main className="mainContent">
-          <Link href="/leads" className="backLink">
-            ← Back to Leads
-          </Link>
+          <Link href="/leads" className="backLink">← Back to Leads</Link>
           <h1>Lead not found</h1>
         </main>
       </div>
@@ -116,7 +103,6 @@ SaiNal Technologies Ltd`);
     <div className="appLayout">
       <aside className="sidebar">
         <h2>SaiNal One</h2>
-
         <nav>
           <Link href="/dashboard">Dashboard</Link>
           <Link href="/leads">Leads</Link>
@@ -125,13 +111,10 @@ SaiNal Technologies Ltd`);
       </aside>
 
       <main className="mainContent">
-        <Link href="/leads" className="backLink">
-          ← Back to Leads
-        </Link>
+        <Link href="/leads" className="backLink">← Back to Leads</Link>
 
         <div className="topBar">
           <h1>{lead.name}</h1>
-
           <button className="primaryBtn" onClick={generateQuote}>
             Generate Quote
           </button>
@@ -140,22 +123,11 @@ SaiNal Technologies Ltd`);
         <section className="detailsGrid">
           <div className="panel">
             <h3>Lead Information</h3>
-
-            <p>
-              <strong>Company:</strong> {lead.company}
-            </p>
-            <p>
-              <strong>Email:</strong> {lead.email}
-            </p>
-            <p>
-              <strong>Phone:</strong> {lead.phone}
-            </p>
-            <p>
-              <strong>Status:</strong> {lead.status}
-            </p>
-            <p>
-              <strong>Value:</strong> {lead.value}
-            </p>
+            <p><strong>Company:</strong> {lead.company}</p>
+            <p><strong>Email:</strong> {lead.email}</p>
+            <p><strong>Phone:</strong> {lead.phone}</p>
+            <p><strong>Status:</strong> {lead.status}</p>
+            <p><strong>Value:</strong> {lead.value}</p>
           </div>
 
           <div className="panel">
@@ -173,49 +145,16 @@ SaiNal Technologies Ltd`);
         {emailDraft && (
           <section className="panel emailDraftPanel">
             <h3>Email Draft</h3>
-
-            <textarea
-              value={emailDraft}
-              readOnly
-              rows={10}
-              className="emailDraftBox"
-            />
-
-            <p className="helperText">
-              You can copy this email and send it to the customer manually.
-            </p>
+            <textarea value={emailDraft} readOnly rows={10} className="emailDraftBox" />
           </section>
         )}
 
         {quoteDraft && (
           <section className="panel quoteDraftPanel">
             <h3>Quote Draft</h3>
-
-            <textarea
-              value={quoteDraft}
-              readOnly
-              rows={16}
-              className="emailDraftBox"
-            />
-
-            <p className="helperText">Quote generated successfully.</p>
+            <textarea value={quoteDraft} readOnly rows={16} className="emailDraftBox" />
           </section>
         )}
-
-        <section className="detailsGrid">
-          <div className="panel">
-            <h3>Notes</h3>
-            <p>Initial enquiry received from website contact form.</p>
-            <p>Customer interested in business website and automation.</p>
-          </div>
-
-          <div className="panel">
-            <h3>Activity Timeline</h3>
-            <p>Lead created</p>
-            <p>Email draft generated</p>
-            <p>Quote pending</p>
-          </div>
-        </section>
       </main>
     </div>
   );
