@@ -249,3 +249,14 @@ a {
 .quoteDraftPanel {
   margin-bottom: 24px;
 }
+.editLeadForm {
+  display: grid;
+  gap: 14px;
+}
+
+.editLeadForm input,
+.editLeadForm select {
+  padding: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+}
