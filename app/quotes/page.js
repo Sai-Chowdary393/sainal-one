@@ -71,7 +71,11 @@ export default function QuotesPage() {
               ) : (
                 quotes.map((quote) => (
                   <tr key={quote.id}>
-                    <td>{quote.client}</td>
+                    <td>
+                      <Link href={`/quotes/${quote.id}`} className="leadLink">
+                        {quote.client}
+                      </Link>
+                    </td>
                     <td>{quote.contact}</td>
                     <td>{quote.email}</td>
                     <td>{quote.amount}</td>
