@@ -227,3 +227,22 @@ a {
   gap: 24px;
   margin-bottom: 24px;
 }
+.emailDraftPanel {
+  margin-bottom: 24px;
+}
+
+.emailDraftBox {
+  width: 100%;
+  padding: 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.helperText {
+  color: #64748b;
+  font-size: 14px;
+}
