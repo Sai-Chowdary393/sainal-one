@@ -105,6 +105,7 @@ export default function QuoteDetailsPage() {
 
           <div className="panel">
             <h3>Quote Information</h3>
+            <p><strong>Quote Number:</strong> {quote.quote_number || "-"}</p>
             <p><strong>Service:</strong> {quote.service}</p>
             <p><strong>Amount:</strong> {quote.amount}</p>
             <p><strong>Status:</strong> {quote.status}</p>
