@@ -35,6 +35,7 @@ const leads = [
 
 export default function LeadDetails({ params }) {
   const [emailDraft, setEmailDraft] = useState("");
+  const [quoteDraft, setQuoteDraft] = useState("");
 
   const lead = leads.find((item) => item.id === params.id) || leads[0];
 
@@ -49,6 +50,30 @@ I would be happy to schedule a short call to discuss your requirements and provi
 
 Kind Regards,
 Sai Kumar
+SaiNal Technologies Ltd`);
+  }
+
+  function generateQuote() {
+    setQuoteDraft(`QUOTE
+
+Client: ${lead.company}
+Contact: ${lead.name}
+Email: ${lead.email}
+Phone: ${lead.phone}
+
+Service:
+Website Development & Business Automation
+
+Estimated Cost:
+${lead.value}
+
+Estimated Delivery:
+2 Weeks
+
+Status:
+Draft Quote
+
+Prepared By:
 SaiNal Technologies Ltd`);
   }
 
@@ -71,7 +96,10 @@ SaiNal Technologies Ltd`);
 
         <div className="topBar">
           <h1>{lead.name}</h1>
-          <button className="primaryBtn">Generate Quote</button>
+
+          <button className="primaryBtn" onClick={generateQuote}>
+            Generate Quote
+          </button>
         </div>
 
         <section className="detailsGrid">
@@ -120,6 +148,21 @@ SaiNal Technologies Ltd`);
             <p className="helperText">
               You can copy this email and send it to the customer manually.
             </p>
+          </section>
+        )}
+
+        {quoteDraft && (
+          <section className="panel quoteDraftPanel">
+            <h3>Quote Draft</h3>
+
+            <textarea
+              value={quoteDraft}
+              readOnly
+              rows={12}
+              className="emailDraftBox"
+            />
+
+            <p className="helperText">Quote generated successfully.</p>
           </section>
         )}
 
