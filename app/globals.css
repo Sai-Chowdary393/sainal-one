@@ -209,4 +209,21 @@ a {
   border: 1px solid #d1d5db;
   border-radius: 8px;
 }
+.backLink {
+  display: inline-block;
+  margin-bottom: 20px;
+  color: #2563eb;
+  font-weight: 700;
+}
 
+.leadLink {
+  color: #2563eb;
+  font-weight: 700;
+}
+
+.detailsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 24px;
+}
