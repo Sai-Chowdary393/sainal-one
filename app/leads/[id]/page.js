@@ -13,6 +13,7 @@ export default function LeadDetails() {
   const [loading, setLoading] = useState(true);
   const [emailDraft, setEmailDraft] = useState("");
   const [quoteDraft, setQuoteDraft] = useState("");
+  const [quoteSaved, setQuoteSaved] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -126,10 +127,10 @@ Sai Kumar
 SaiNal Technologies Ltd`);
   }
 
-  function generateQuote() {
+  async function generateQuote() {
     if (!lead) return;
 
-    setQuoteDraft(`QUOTE
+    const quoteText = `QUOTE
 
 Client: ${lead.company}
 Contact: ${lead.name}
@@ -152,7 +153,42 @@ Notes:
 ${lead.notes || "No notes added."}
 
 Prepared By:
-SaiNal Technologies Ltd`);
+SaiNal Technologies Ltd`;
+
+    setQuoteDraft(quoteText);
+    setQuoteSaved(false);
+
+    try {
+      const response = await fetch("/api/quotes", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          lead_id: lead.id,
+          client: lead.company,
+          contact: lead.name,
+          email: lead.email,
+          phone: lead.phone,
+          service: "Website Development & Business Automation",
+          amount: lead.value,
+          status: "Draft Quote",
+          quote_text: quoteText,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || "Failed to save quote.");
+        return;
+      }
+
+      setQuoteSaved(true);
+    } catch (error) {
+      console.error(error);
+      alert("Error saving quote.");
+    }
   }
 
   if (loading) {
@@ -352,6 +388,12 @@ SaiNal Technologies Ltd`);
               rows={16}
               className="emailDraftBox"
             />
+
+            {quoteSaved && (
+              <p className="helperText">
+                Quote saved successfully to Supabase.
+              </p>
+            )}
           </section>
         )}
 
