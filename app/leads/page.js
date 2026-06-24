@@ -1,37 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 
 export default function Leads() {
   const [showForm, setShowForm] = useState(false);
-
-  const [leads, setLeads] = useState([
-    {
-      name: "John Smith",
-      company: "ABC Builders",
-      email: "john@abcbuilders.co.uk",
-      phone: "07123456789",
-      status: "New",
-      value: "£2,500",
-    },
-    {
-      name: "Jane Brown",
-      company: "XYZ Plumbing",
-      email: "jane@xyzplumbing.co.uk",
-      phone: "07987654321",
-      status: "Proposal Sent",
-      value: "£4,000",
-    },
-    {
-      name: "Michael Lee",
-      company: "Acme Services",
-      email: "michael@acme.co.uk",
-      phone: "07444555666",
-      status: "Follow Up",
-      value: "£1,800",
-    },
-  ]);
+  const [leads, setLeads] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -42,6 +17,29 @@ export default function Leads() {
     value: "",
   });
 
+  useEffect(() => {
+    fetchLeads();
+  }, []);
+
+  async function fetchLeads() {
+    try {
+      const response = await fetch("/api/leads");
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || "Failed to load leads.");
+        return;
+      }
+
+      setLeads(data);
+    } catch (error) {
+      alert("Error loading leads.");
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function handleChange(e) {
     setFormData({
       ...formData,
@@ -49,7 +47,7 @@ export default function Leads() {
     });
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
 
     if (!formData.name || !formData.company) {
@@ -57,18 +55,38 @@ export default function Leads() {
       return;
     }
 
-    setLeads([...leads, formData]);
+    try {
+      const response = await fetch("/api/leads", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
 
-    setFormData({
-      name: "",
-      company: "",
-      email: "",
-      phone: "",
-      status: "New",
-      value: "",
-    });
+      const data = await response.json();
 
-    setShowForm(false);
+      if (!response.ok) {
+        alert(data.error || "Failed to save lead.");
+        return;
+      }
+
+      setLeads([data[0], ...leads]);
+
+      setFormData({
+        name: "",
+        company: "",
+        email: "",
+        phone: "",
+        status: "New",
+        value: "",
+      });
+
+      setShowForm(false);
+    } catch (error) {
+      alert("Error saving lead.");
+      console.error(error);
+    }
   }
 
   return (
@@ -148,35 +166,45 @@ export default function Leads() {
           </form>
         )}
 
-        <table className="leadTable">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Company</th>
-              <th>Email</th>
-              <th>Phone</th>
-              <th>Status</th>
-              <th>Value</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {leads.map((lead, index) => (
-              <tr key={index}>
-                <td>
-                  <Link href={`/leads/${index + 1}`} className="leadLink">
-                    {lead.name}
-                  </Link>
-                </td>
-                <td>{lead.company}</td>
-                <td>{lead.email}</td>
-                <td>{lead.phone}</td>
-                <td>{lead.status}</td>
-                <td>{lead.value}</td>
+        {loading ? (
+          <p>Loading leads...</p>
+        ) : (
+          <table className="leadTable">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Company</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Status</th>
+                <th>Value</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+
+            <tbody>
+              {leads.length === 0 ? (
+                <tr>
+                  <td colSpan="6">No leads found. Add your first lead.</td>
+                </tr>
+              ) : (
+                leads.map((lead) => (
+                  <tr key={lead.id}>
+                    <td>
+                      <Link href={`/leads/${lead.id}`} className="leadLink">
+                        {lead.name}
+                      </Link>
+                    </td>
+                    <td>{lead.company}</td>
+                    <td>{lead.email}</td>
+                    <td>{lead.phone}</td>
+                    <td>{lead.status}</td>
+                    <td>{lead.value}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        )}
       </main>
     </div>
   );
