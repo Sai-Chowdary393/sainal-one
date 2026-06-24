@@ -5,17 +5,10 @@
     "start": "next start"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.56.0",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest"
   },
   "devDependencies": {}
-}
-{
-  "dependencies": {
-    "@supabase/supabase-js": "^2.56.0",
-    "next": "...",
-    "react": "...",
-    "react-dom": "..."
-  }
 }
