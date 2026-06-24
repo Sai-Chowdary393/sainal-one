@@ -14,6 +14,7 @@ export default function LeadDetails() {
   const [emailDraft, setEmailDraft] = useState("");
   const [quoteDraft, setQuoteDraft] = useState("");
   const [quoteSaved, setQuoteSaved] = useState(false);
+  const [customerCreated, setCustomerCreated] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -108,6 +109,40 @@ export default function LeadDetails() {
     } catch (error) {
       console.error(error);
       alert("Error deleting lead.");
+    }
+  }
+
+  async function convertToCustomer() {
+    if (!lead) return;
+
+    try {
+      const response = await fetch("/api/customers", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          lead_id: lead.id,
+          customer_name: lead.name,
+          company: lead.company,
+          email: lead.email,
+          phone: lead.phone,
+          status: "Active",
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || "Failed to create customer.");
+        return;
+      }
+
+      setCustomerCreated(true);
+      alert("Customer created successfully.");
+    } catch (error) {
+      console.error(error);
+      alert("Error creating customer.");
     }
   }
 
@@ -278,8 +313,18 @@ www.sainaltechnologies.com`;
             <button className="primaryBtn" onClick={generateQuote}>
               Generate Quote
             </button>
+
+            <button className="primaryBtn" onClick={convertToCustomer}>
+              Convert To Customer
+            </button>
           </div>
         </div>
+
+        {customerCreated && (
+          <p className="helperText">
+            Customer created successfully. You can view it in Customers.
+          </p>
+        )}
 
         <section className="detailsGrid">
           <div className="panel">
@@ -287,12 +332,39 @@ www.sainaltechnologies.com`;
 
             {editMode ? (
               <div className="editLeadForm">
-                <input name="name" value={lead.name || ""} onChange={handleChange} placeholder="Lead Name" />
-                <input name="company" value={lead.company || ""} onChange={handleChange} placeholder="Company" />
-                <input name="email" value={lead.email || ""} onChange={handleChange} placeholder="Email" />
-                <input name="phone" value={lead.phone || ""} onChange={handleChange} placeholder="Phone" />
+                <input
+                  name="name"
+                  value={lead.name || ""}
+                  onChange={handleChange}
+                  placeholder="Lead Name"
+                />
 
-                <select name="status" value={lead.status || "New"} onChange={handleChange}>
+                <input
+                  name="company"
+                  value={lead.company || ""}
+                  onChange={handleChange}
+                  placeholder="Company"
+                />
+
+                <input
+                  name="email"
+                  value={lead.email || ""}
+                  onChange={handleChange}
+                  placeholder="Email"
+                />
+
+                <input
+                  name="phone"
+                  value={lead.phone || ""}
+                  onChange={handleChange}
+                  placeholder="Phone"
+                />
+
+                <select
+                  name="status"
+                  value={lead.status || "New"}
+                  onChange={handleChange}
+                >
                   <option>New</option>
                   <option>Contacted</option>
                   <option>Proposal Sent</option>
@@ -301,7 +373,12 @@ www.sainaltechnologies.com`;
                   <option>Lost</option>
                 </select>
 
-                <input name="value" value={lead.value || ""} onChange={handleChange} placeholder="Value e.g. £2,500" />
+                <input
+                  name="value"
+                  value={lead.value || ""}
+                  onChange={handleChange}
+                  placeholder="Value e.g. £2,500"
+                />
 
                 <textarea
                   name="notes"
@@ -313,11 +390,21 @@ www.sainaltechnologies.com`;
               </div>
             ) : (
               <>
-                <p><strong>Company:</strong> {lead.company}</p>
-                <p><strong>Email:</strong> {lead.email}</p>
-                <p><strong>Phone:</strong> {lead.phone}</p>
-                <p><strong>Status:</strong> {lead.status}</p>
-                <p><strong>Value:</strong> {lead.value}</p>
+                <p>
+                  <strong>Company:</strong> {lead.company}
+                </p>
+                <p>
+                  <strong>Email:</strong> {lead.email}
+                </p>
+                <p>
+                  <strong>Phone:</strong> {lead.phone}
+                </p>
+                <p>
+                  <strong>Status:</strong> {lead.status}
+                </p>
+                <p>
+                  <strong>Value:</strong> {lead.value}
+                </p>
               </>
             )}
           </div>
@@ -337,14 +424,24 @@ www.sainaltechnologies.com`;
         {emailDraft && (
           <section className="panel emailDraftPanel">
             <h3>Email Draft</h3>
-            <textarea value={emailDraft} readOnly rows={10} className="emailDraftBox" />
+            <textarea
+              value={emailDraft}
+              readOnly
+              rows={10}
+              className="emailDraftBox"
+            />
           </section>
         )}
 
         {quoteDraft && (
           <section className="panel quoteDraftPanel">
             <h3>Quote Draft</h3>
-            <textarea value={quoteDraft} readOnly rows={16} className="emailDraftBox" />
+            <textarea
+              value={quoteDraft}
+              readOnly
+              rows={16}
+              className="emailDraftBox"
+            />
 
             {quoteSaved && (
               <p className="helperText">
