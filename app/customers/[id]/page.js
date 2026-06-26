@@ -33,6 +33,8 @@ export default function CustomerDetailsPage() {
       if (selectedCustomer) {
         const customerQuotes = quotesData.filter(
           (quote) =>
+            String(quote.customer_id) === String(selectedCustomer.id) ||
+            String(quote.lead_id) === String(selectedCustomer.lead_id) ||
             quote.email === selectedCustomer.email ||
             quote.client === selectedCustomer.company
         );
