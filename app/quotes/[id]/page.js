@@ -54,7 +54,7 @@ export default function QuoteDetailsPage() {
           description: `Project created from quote ${quote.quote_number || quote.id}.`,
           status: "Planning",
           start_date: new Date().toISOString().split("T")[0],
-          due_date: "",
+          due_date: null,
           amount: quote.amount,
         }),
       });
