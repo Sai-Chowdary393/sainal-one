@@ -10,6 +10,7 @@ export default function QuoteDetailsPage() {
 
   const [quote, setQuote] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [projectCreated, setProjectCreated] = useState(false);
 
   useEffect(() => {
     fetchQuote();
@@ -35,6 +36,42 @@ export default function QuoteDetailsPage() {
 
   function downloadPDF() {
     window.print();
+  }
+
+  async function startProject() {
+    if (!quote) return;
+
+    try {
+      const response = await fetch("/api/projects", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          customer_id: quote.customer_id || null,
+          quote_id: quote.id,
+          project_name: `${quote.client} - ${quote.service}`,
+          description: `Project created from quote ${quote.quote_number || quote.id}.`,
+          status: "Planning",
+          start_date: new Date().toISOString().split("T")[0],
+          due_date: "",
+          amount: quote.amount,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || "Failed to start project.");
+        return;
+      }
+
+      setProjectCreated(true);
+      alert("Project started successfully.");
+    } catch (error) {
+      console.error(error);
+      alert("Error starting project.");
+    }
   }
 
   if (loading) {
@@ -91,10 +128,22 @@ export default function QuoteDetailsPage() {
         <div className="topBar">
           <h1>Quote Details</h1>
 
-          <button className="primaryBtn noPrint" onClick={downloadPDF}>
-            Download PDF
-          </button>
+          <div style={{ display: "flex", gap: "10px" }}>
+            <button className="primaryBtn noPrint" onClick={downloadPDF}>
+              Download PDF
+            </button>
+
+            <button className="primaryBtn noPrint" onClick={startProject}>
+              Start Project
+            </button>
+          </div>
         </div>
+
+        {projectCreated && (
+          <p className="helperText">
+            Project started successfully. You can view it in Projects.
+          </p>
+        )}
 
         <section className="detailsGrid">
           <div className="panel">
