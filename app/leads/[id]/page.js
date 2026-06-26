@@ -55,9 +55,7 @@ export default function LeadDetails() {
     try {
       const response = await fetch(`/api/leads/${lead.id}`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: lead.name,
           company: lead.company,
@@ -118,9 +116,7 @@ export default function LeadDetails() {
     try {
       const response = await fetch("/api/customers", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           lead_id: lead.id,
           customer_name: lead.name,
@@ -204,14 +200,23 @@ www.sainaltechnologies.com`;
     setQuoteSaved(false);
 
     try {
+      const customersResponse = await fetch("/api/customers");
+      const customersData = await customersResponse.json();
+
+      const matchedCustomer = customersData.find(
+        (customer) =>
+          String(customer.lead_id) === String(lead.id) ||
+          customer.email === lead.email ||
+          customer.company === lead.company
+      );
+
       const response = await fetch("/api/quotes", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           quote_number: quoteNumber,
           lead_id: lead.id,
+          customer_id: matchedCustomer ? matchedCustomer.id : null,
           client: lead.company,
           contact: lead.name,
           email: lead.email,
@@ -257,9 +262,7 @@ www.sainaltechnologies.com`;
           <h2>SaiNal One</h2>
         </aside>
         <main className="mainContent">
-          <Link href="/leads" className="backLink">
-            ← Back to Leads
-          </Link>
+          <Link href="/leads" className="backLink">← Back to Leads</Link>
           <h1>Lead not found</h1>
         </main>
       </div>
@@ -281,42 +284,25 @@ www.sainaltechnologies.com`;
       </aside>
 
       <main className="mainContent">
-        <Link href="/leads" className="backLink">
-          ← Back to Leads
-        </Link>
+        <Link href="/leads" className="backLink">← Back to Leads</Link>
 
         <div className="topBar">
           <h1>{editMode ? "Edit Lead" : lead.name}</h1>
 
           <div style={{ display: "flex", gap: "10px" }}>
-            <button
-              className="primaryBtn"
-              onClick={() => setEditMode(!editMode)}
-            >
+            <button className="primaryBtn" onClick={() => setEditMode(!editMode)}>
               {editMode ? "Cancel" : "Edit Lead"}
             </button>
 
             {editMode && (
-              <button
-                className="primaryBtn"
-                onClick={updateLead}
-                disabled={saving}
-              >
+              <button className="primaryBtn" onClick={updateLead} disabled={saving}>
                 {saving ? "Saving..." : "Save Changes"}
               </button>
             )}
 
-            <button className="primaryBtn" onClick={deleteLead}>
-              Delete Lead
-            </button>
-
-            <button className="primaryBtn" onClick={generateQuote}>
-              Generate Quote
-            </button>
-
-            <button className="primaryBtn" onClick={convertToCustomer}>
-              Convert To Customer
-            </button>
+            <button className="primaryBtn" onClick={deleteLead}>Delete Lead</button>
+            <button className="primaryBtn" onClick={generateQuote}>Generate Quote</button>
+            <button className="primaryBtn" onClick={convertToCustomer}>Convert To Customer</button>
           </div>
         </div>
 
@@ -332,39 +318,12 @@ www.sainaltechnologies.com`;
 
             {editMode ? (
               <div className="editLeadForm">
-                <input
-                  name="name"
-                  value={lead.name || ""}
-                  onChange={handleChange}
-                  placeholder="Lead Name"
-                />
+                <input name="name" value={lead.name || ""} onChange={handleChange} placeholder="Lead Name" />
+                <input name="company" value={lead.company || ""} onChange={handleChange} placeholder="Company" />
+                <input name="email" value={lead.email || ""} onChange={handleChange} placeholder="Email" />
+                <input name="phone" value={lead.phone || ""} onChange={handleChange} placeholder="Phone" />
 
-                <input
-                  name="company"
-                  value={lead.company || ""}
-                  onChange={handleChange}
-                  placeholder="Company"
-                />
-
-                <input
-                  name="email"
-                  value={lead.email || ""}
-                  onChange={handleChange}
-                  placeholder="Email"
-                />
-
-                <input
-                  name="phone"
-                  value={lead.phone || ""}
-                  onChange={handleChange}
-                  placeholder="Phone"
-                />
-
-                <select
-                  name="status"
-                  value={lead.status || "New"}
-                  onChange={handleChange}
-                >
+                <select name="status" value={lead.status || "New"} onChange={handleChange}>
                   <option>New</option>
                   <option>Contacted</option>
                   <option>Proposal Sent</option>
@@ -373,12 +332,7 @@ www.sainaltechnologies.com`;
                   <option>Lost</option>
                 </select>
 
-                <input
-                  name="value"
-                  value={lead.value || ""}
-                  onChange={handleChange}
-                  placeholder="Value e.g. £2,500"
-                />
+                <input name="value" value={lead.value || ""} onChange={handleChange} placeholder="Value e.g. £2,500" />
 
                 <textarea
                   name="notes"
@@ -390,21 +344,11 @@ www.sainaltechnologies.com`;
               </div>
             ) : (
               <>
-                <p>
-                  <strong>Company:</strong> {lead.company}
-                </p>
-                <p>
-                  <strong>Email:</strong> {lead.email}
-                </p>
-                <p>
-                  <strong>Phone:</strong> {lead.phone}
-                </p>
-                <p>
-                  <strong>Status:</strong> {lead.status}
-                </p>
-                <p>
-                  <strong>Value:</strong> {lead.value}
-                </p>
+                <p><strong>Company:</strong> {lead.company}</p>
+                <p><strong>Email:</strong> {lead.email}</p>
+                <p><strong>Phone:</strong> {lead.phone}</p>
+                <p><strong>Status:</strong> {lead.status}</p>
+                <p><strong>Value:</strong> {lead.value}</p>
               </>
             )}
           </div>
@@ -424,24 +368,14 @@ www.sainaltechnologies.com`;
         {emailDraft && (
           <section className="panel emailDraftPanel">
             <h3>Email Draft</h3>
-            <textarea
-              value={emailDraft}
-              readOnly
-              rows={10}
-              className="emailDraftBox"
-            />
+            <textarea value={emailDraft} readOnly rows={10} className="emailDraftBox" />
           </section>
         )}
 
         {quoteDraft && (
           <section className="panel quoteDraftPanel">
             <h3>Quote Draft</h3>
-            <textarea
-              value={quoteDraft}
-              readOnly
-              rows={16}
-              className="emailDraftBox"
-            />
+            <textarea value={quoteDraft} readOnly rows={16} className="emailDraftBox" />
 
             {quoteSaved && (
               <p className="helperText">
