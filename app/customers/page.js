@@ -40,6 +40,7 @@ export default function CustomersPage() {
           <Link href="/leads">Leads</Link>
           <Link href="/quotes">Quotes</Link>
           <Link href="/customers">Customers</Link>
+          <Link href="/projects">Projects</Link>
           <Link href="/ai-assistant">AI Assistant</Link>
         </nav>
       </aside>
