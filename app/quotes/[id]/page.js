@@ -42,13 +42,29 @@ export default function QuoteDetailsPage() {
     if (!quote) return;
 
     try {
+      const customersResponse = await fetch("/api/customers");
+      const customersData = await customersResponse.json();
+
+      const matchedCustomer = customersData.find(
+        (customer) =>
+          String(customer.id) === String(quote.customer_id) ||
+          String(customer.lead_id) === String(quote.lead_id) ||
+          customer.email === quote.email ||
+          customer.company === quote.client
+      );
+
+      if (!matchedCustomer) {
+        alert("Please convert this lead to customer first, then start project.");
+        return;
+      }
+
       const response = await fetch("/api/projects", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          customer_id: quote.customer_id || null,
+          customer_id: matchedCustomer.id,
           quote_id: quote.id,
           project_name: `${quote.client} - ${quote.service}`,
           description: `Project created from quote ${quote.quote_number || quote.id}.`,
