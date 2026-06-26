@@ -72,7 +72,14 @@ export default function CustomersPage() {
               ) : (
                 customers.map((customer) => (
                   <tr key={customer.id}>
-                    <td>{customer.customer_name}</td>
+                    <td>
+                      <Link
+                        href={`/customers/${customer.id}`}
+                        className="leadLink"
+                      >
+                        {customer.customer_name}
+                      </Link>
+                    </td>
                     <td>{customer.company}</td>
                     <td>{customer.email}</td>
                     <td>{customer.phone}</td>
