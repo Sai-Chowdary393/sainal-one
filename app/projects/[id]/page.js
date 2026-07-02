@@ -96,7 +96,8 @@ export default function ProjectDetailsPage() {
       });
 
       setShowTaskForm(false);
-      fetchProjectDetails();
+      await fetchProjectDetails();
+      await updateProjectStatus();
       alert("Task added successfully.");
     } catch (error) {
       console.error(error);
@@ -123,7 +124,8 @@ export default function ProjectDetailsPage() {
         return;
       }
 
-      fetchProjectDetails();
+      await fetchProjectDetails();
+      await updateProjectStatus();
     } catch (error) {
       console.error(error);
       alert("Error updating task.");
@@ -146,11 +148,68 @@ export default function ProjectDetailsPage() {
         return;
       }
 
-      fetchProjectDetails();
+      await fetchProjectDetails();
+      await updateProjectStatus();
       alert("Task deleted successfully.");
     } catch (error) {
       console.error(error);
       alert("Error deleting task.");
+    }
+  }
+
+  async function updateProjectStatus() {
+    try {
+      const tasksResponse = await fetch("/api/tasks");
+      const tasksData = await tasksResponse.json();
+
+      const projectTasks = tasksData.filter(
+        (task) => String(task.project_id) === String(projectId)
+      );
+
+      let newStatus = "Planning";
+
+      if (projectTasks.length > 0) {
+        const completedTasks = projectTasks.filter(
+          (task) => task.status === "Completed"
+        ).length;
+
+        if (completedTasks === projectTasks.length) {
+          newStatus = "Completed";
+        } else if (completedTasks > 0) {
+          newStatus = "In Progress";
+        } else {
+          const hasStarted = projectTasks.some(
+            (task) => task.status === "In Progress"
+          );
+
+          newStatus = hasStarted ? "In Progress" : "Planning";
+        }
+      }
+
+      const response = await fetch(`/api/projects/${projectId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          status: newStatus,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || "Failed to update project status.");
+        return;
+      }
+
+      setProject((previousProject) => ({
+        ...previousProject,
+        status: newStatus,
+      }));
+    } catch (error) {
+      console.error(error);
+      alert("Error updating project status.");
     }
   }
 
