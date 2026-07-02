@@ -104,6 +104,56 @@ export default function ProjectDetailsPage() {
     }
   }
 
+  async function updateTaskStatus(taskId, newStatus) {
+    try {
+      const response = await fetch(`/api/tasks/${taskId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          status: newStatus,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || "Failed to update task.");
+        return;
+      }
+
+      fetchProjectDetails();
+    } catch (error) {
+      console.error(error);
+      alert("Error updating task.");
+    }
+  }
+
+  async function deleteTask(taskId) {
+    const confirmed = confirm("Are you sure you want to delete this task?");
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch(`/api/tasks/${taskId}`, {
+        method: "DELETE",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || "Failed to delete task.");
+        return;
+      }
+
+      fetchProjectDetails();
+      alert("Task deleted successfully.");
+    } catch (error) {
+      console.error(error);
+      alert("Error deleting task.");
+    }
+  }
+
   function calculateProgress() {
     if (tasks.length === 0) return 0;
 
@@ -252,6 +302,7 @@ export default function ProjectDetailsPage() {
                   <th>Status</th>
                   <th>Due Date</th>
                   <th>Created</th>
+                  <th>Action</th>
                 </tr>
               </thead>
 
@@ -260,12 +311,32 @@ export default function ProjectDetailsPage() {
                   <tr key={task.id}>
                     <td>{task.task_name}</td>
                     <td>{task.description || "-"}</td>
-                    <td>{task.status}</td>
+                    <td>
+                      <select
+                        value={task.status || "To Do"}
+                        onChange={(e) =>
+                          updateTaskStatus(task.id, e.target.value)
+                        }
+                      >
+                        <option>To Do</option>
+                        <option>In Progress</option>
+                        <option>Completed</option>
+                        <option>Blocked</option>
+                      </select>
+                    </td>
                     <td>{task.due_date || "-"}</td>
                     <td>
                       {task.created_at
                         ? new Date(task.created_at).toLocaleDateString("en-GB")
                         : "-"}
+                    </td>
+                    <td>
+                      <button
+                        className="primaryBtn"
+                        onClick={() => deleteTask(task.id)}
+                      >
+                        Delete
+                      </button>
                     </td>
                   </tr>
                 ))}
