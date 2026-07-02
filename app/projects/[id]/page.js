@@ -9,28 +9,109 @@ export default function ProjectDetailsPage() {
   const projectId = params.id;
 
   const [project, setProject] = useState(null);
+  const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showTaskForm, setShowTaskForm] = useState(false);
+
+  const [taskForm, setTaskForm] = useState({
+    task_name: "",
+    description: "",
+    status: "To Do",
+    due_date: "",
+  });
 
   useEffect(() => {
-    fetchProject();
+    fetchProjectDetails();
   }, [projectId]);
 
-  async function fetchProject() {
+  async function fetchProjectDetails() {
     try {
-      const response = await fetch("/api/projects");
-      const data = await response.json();
+      const projectsResponse = await fetch("/api/projects");
+      const tasksResponse = await fetch("/api/tasks");
 
-      const selectedProject = data.find(
+      const projectsData = await projectsResponse.json();
+      const tasksData = await tasksResponse.json();
+
+      const selectedProject = projectsData.find(
         (item) => String(item.id) === String(projectId)
       );
 
       setProject(selectedProject || null);
+
+      const projectTasks = tasksData.filter(
+        (task) => String(task.project_id) === String(projectId)
+      );
+
+      setTasks(projectTasks);
     } catch (error) {
       console.error(error);
-      alert("Error loading project.");
+      alert("Error loading project details.");
     } finally {
       setLoading(false);
     }
+  }
+
+  function handleTaskChange(e) {
+    setTaskForm({
+      ...taskForm,
+      [e.target.name]: e.target.value,
+    });
+  }
+
+  async function addTask(e) {
+    e.preventDefault();
+
+    if (!taskForm.task_name) {
+      alert("Please enter task name.");
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/tasks", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          project_id: projectId,
+          task_name: taskForm.task_name,
+          description: taskForm.description,
+          status: taskForm.status,
+          due_date: taskForm.due_date || null,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || "Failed to add task.");
+        return;
+      }
+
+      setTaskForm({
+        task_name: "",
+        description: "",
+        status: "To Do",
+        due_date: "",
+      });
+
+      setShowTaskForm(false);
+      fetchProjectDetails();
+      alert("Task added successfully.");
+    } catch (error) {
+      console.error(error);
+      alert("Error adding task.");
+    }
+  }
+
+  function calculateProgress() {
+    if (tasks.length === 0) return 0;
+
+    const completedTasks = tasks.filter(
+      (task) => task.status === "Completed"
+    ).length;
+
+    return Math.round((completedTasks / tasks.length) * 100);
   }
 
   if (loading) {
@@ -64,6 +145,8 @@ export default function ProjectDetailsPage() {
     );
   }
 
+  const progress = calculateProgress();
+
   return (
     <div className="appLayout">
       <aside className="sidebar">
@@ -86,6 +169,13 @@ export default function ProjectDetailsPage() {
 
         <div className="topBar">
           <h1>{project.project_name}</h1>
+
+          <button
+            className="primaryBtn"
+            onClick={() => setShowTaskForm(!showTaskForm)}
+          >
+            {showTaskForm ? "Close" : "Add Task"}
+          </button>
         </div>
 
         <section className="detailsGrid">
@@ -98,14 +188,90 @@ export default function ProjectDetailsPage() {
           </div>
 
           <div className="panel">
-            <h3>Project Summary</h3>
-            <p>{project.description || "No description added yet."}</p>
+            <h3>Project Progress</h3>
+            <h2>{progress}%</h2>
+            <p>{tasks.length} total tasks</p>
+            <p>
+              {tasks.filter((task) => task.status === "Completed").length} completed
+            </p>
           </div>
         </section>
 
+        {showTaskForm && (
+          <form className="leadForm" onSubmit={addTask}>
+            <input
+              name="task_name"
+              placeholder="Task Name"
+              value={taskForm.task_name}
+              onChange={handleTaskChange}
+            />
+
+            <textarea
+              name="description"
+              placeholder="Task Description"
+              value={taskForm.description}
+              onChange={handleTaskChange}
+              rows={4}
+            />
+
+            <select
+              name="status"
+              value={taskForm.status}
+              onChange={handleTaskChange}
+            >
+              <option>To Do</option>
+              <option>In Progress</option>
+              <option>Completed</option>
+              <option>Blocked</option>
+            </select>
+
+            <input
+              type="date"
+              name="due_date"
+              value={taskForm.due_date}
+              onChange={handleTaskChange}
+            />
+
+            <button className="primaryBtn" type="submit">
+              Save Task
+            </button>
+          </form>
+        )}
+
         <section className="panel">
           <h3>Project Tasks</h3>
-          <p>No tasks added yet.</p>
+
+          {tasks.length === 0 ? (
+            <p>No tasks added yet.</p>
+          ) : (
+            <table className="leadTable">
+              <thead>
+                <tr>
+                  <th>Task</th>
+                  <th>Description</th>
+                  <th>Status</th>
+                  <th>Due Date</th>
+                  <th>Created</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {tasks.map((task) => (
+                  <tr key={task.id}>
+                    <td>{task.task_name}</td>
+                    <td>{task.description || "-"}</td>
+                    <td>{task.status}</td>
+                    <td>{task.due_date || "-"}</td>
+                    <td>
+                      {task.created_at
+                        ? new Date(task.created_at).toLocaleDateString("en-GB")
+                        : "-"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </section>
       </main>
     </div>
