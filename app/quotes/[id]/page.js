@@ -11,6 +11,7 @@ export default function QuoteDetailsPage() {
   const [quote, setQuote] = useState(null);
   const [loading, setLoading] = useState(true);
   const [projectCreated, setProjectCreated] = useState(false);
+  const [customerCreated, setCustomerCreated] = useState(false);
 
   useEffect(() => {
     fetchQuote();
@@ -38,6 +39,56 @@ export default function QuoteDetailsPage() {
     window.print();
   }
 
+  async function convertToCustomer() {
+    if (!quote) return;
+
+    try {
+      const customersResponse = await fetch("/api/customers");
+      const customersData = await customersResponse.json();
+
+      const existingCustomer = customersData.find(
+        (customer) =>
+          String(customer.lead_id) === String(quote.lead_id) ||
+          customer.email === quote.email ||
+          customer.company === quote.client
+      );
+
+      if (existingCustomer) {
+        setCustomerCreated(true);
+        alert("Customer already exists.");
+        return;
+      }
+
+      const response = await fetch("/api/customers", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          lead_id: quote.lead_id || null,
+          customer_name: quote.contact,
+          company: quote.client,
+          email: quote.email,
+          phone: quote.phone,
+          status: "Active",
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || "Failed to create customer.");
+        return;
+      }
+
+      setCustomerCreated(true);
+      alert("Customer created successfully.");
+    } catch (error) {
+      console.error(error);
+      alert("Error creating customer.");
+    }
+  }
+
   async function startProject() {
     if (!quote) return;
 
@@ -54,7 +105,7 @@ export default function QuoteDetailsPage() {
       );
 
       if (!matchedCustomer) {
-        alert("Please convert this lead to customer first, then start project.");
+        alert("Please convert this quote to customer first, then start project.");
         return;
       }
 
@@ -149,11 +200,21 @@ export default function QuoteDetailsPage() {
               Download PDF
             </button>
 
+            <button className="primaryBtn noPrint" onClick={convertToCustomer}>
+              Convert To Customer
+            </button>
+
             <button className="primaryBtn noPrint" onClick={startProject}>
               Start Project
             </button>
           </div>
         </div>
+
+        {customerCreated && (
+          <p className="helperText">
+            Customer is ready. You can now start the project.
+          </p>
+        )}
 
         {projectCreated && (
           <p className="helperText">
