@@ -11,6 +11,7 @@ export default function CustomerDetailsPage() {
   const [customer, setCustomer] = useState(null);
   const [quotes, setQuotes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [projectCreated, setProjectCreated] = useState(false);
 
   useEffect(() => {
     fetchCustomerDetails();
@@ -46,6 +47,49 @@ export default function CustomerDetailsPage() {
       alert("Error loading customer details.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function startProject() {
+    if (!customer) return;
+
+    if (quotes.length === 0) {
+      alert("No quote found for this customer. Please create a quote first.");
+      return;
+    }
+
+    const latestQuote = quotes[0];
+
+    try {
+      const response = await fetch("/api/projects", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          customer_id: customer.id,
+          quote_id: latestQuote.id,
+          project_name: `${customer.company} - ${latestQuote.service}`,
+          description: `Project created from quote ${latestQuote.quote_number || latestQuote.id}.`,
+          status: "Planning",
+          start_date: new Date().toISOString().split("T")[0],
+          due_date: null,
+          amount: latestQuote.amount,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || "Failed to start project.");
+        return;
+      }
+
+      setProjectCreated(true);
+      alert("Project started successfully.");
+    } catch (error) {
+      console.error(error);
+      alert("Error starting project.");
     }
   }
 
@@ -102,7 +146,17 @@ export default function CustomerDetailsPage() {
 
         <div className="topBar">
           <h1>{customer.customer_name}</h1>
+
+          <button className="primaryBtn" onClick={startProject}>
+            Start Project
+          </button>
         </div>
+
+        {projectCreated && (
+          <p className="helperText">
+            Project started successfully. You can view it in Projects.
+          </p>
+        )}
 
         <section className="detailsGrid">
           <div className="panel">
