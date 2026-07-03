@@ -13,52 +13,6 @@ a {
   text-decoration: none;
 }
 
-/* Landing Page */
-
-.landing {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #1c1c1c, #2b2b2b);
-  color: white;
-  text-align: center;
-}
-
-.hero {
-  max-width: 800px;
-  padding: 40px;
-}
-
-.badge {
-  display: inline-block;
-  background: #d4af37;
-  color: #1c1c1c;
-  padding: 8px 16px;
-  border-radius: 999px;
-  margin-bottom: 20px;
-  font-weight: bold;
-}
-
-.hero h1 {
-  font-size: 64px;
-  margin: 0;
-}
-
-.hero p {
-  font-size: 22px;
-  color: #f5f5f5;
-}
-
-.heroButtons {
-  margin-top: 30px;
-  display: flex;
-  justify-content: center;
-  gap: 16px;
-}
-
-/* Buttons */
-
 .primaryBtn {
   background: #d4af37;
   color: #1c1c1c;
@@ -81,14 +35,10 @@ a {
   font-weight: bold;
 }
 
-/* Layout */
-
 .appLayout {
   display: flex;
   min-height: 100vh;
 }
-
-/* Sidebar */
 
 .sidebar {
   width: 280px;
@@ -115,14 +65,11 @@ a {
 .sidebar a {
   color: white;
   font-weight: 600;
-  transition: .3s;
 }
 
 .sidebar a:hover {
   color: #d4af37;
 }
-
-/* Main */
 
 .mainContent {
   flex: 1;
@@ -143,11 +90,11 @@ a {
   border: 1px solid #ddd;
 }
 
-/* Dashboard Cards */
-
-.cardGrid {
+/* Dashboard cards fixed */
+.cardGrid,
+.dashboardCards {
   display: grid;
-  grid-template-columns: repeat(4,1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 24px;
 }
 
@@ -157,7 +104,7 @@ a {
   border-radius: 18px;
   padding: 30px;
   border: 1px solid #eee;
-  box-shadow: 0 10px 35px rgba(0,0,0,.05);
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.05);
 }
 
 .statCard p {
@@ -166,13 +113,13 @@ a {
 }
 
 .statCard h2 {
-  font-size: 56px;
-  margin-top: 10px;
+  font-size: 42px;
+  margin: 10px 0 0;
 }
 
 .dashboardGrid {
   display: grid;
-  grid-template-columns: repeat(2,1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 24px;
   margin-top: 30px;
 }
@@ -181,8 +128,6 @@ a {
   margin-top: 0;
   font-size: 20px;
 }
-
-/* Tables */
 
 .leadTable {
   width: 100%;
@@ -200,12 +145,16 @@ a {
   background: #f5f5f5;
 }
 
-.leadLink {
+.leadLink,
+.backLink {
   color: #b8860b;
   font-weight: bold;
 }
 
-/* Forms */
+.backLink {
+  display: inline-block;
+  margin-bottom: 20px;
+}
 
 .leadForm {
   background: white;
@@ -213,12 +162,13 @@ a {
   border-radius: 14px;
   margin-bottom: 30px;
   display: grid;
-  grid-template-columns: repeat(3,1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 16px;
 }
 
 .leadForm input,
 .leadForm select,
+.leadForm textarea,
 .editLeadForm input,
 .editLeadForm select,
 .editLeadForm textarea,
@@ -228,20 +178,12 @@ a {
   padding: 14px;
   border-radius: 10px;
   border: 1px solid #ddd;
-}
-
-/* Details */
-
-.backLink {
-  display: inline-block;
-  margin-bottom: 20px;
-  color: #b8860b;
-  font-weight: bold;
+  font-family: Arial, Helvetica, sans-serif;
 }
 
 .detailsGrid {
   display: grid;
-  grid-template-columns: repeat(2,1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 24px;
   margin-bottom: 24px;
 }
@@ -250,8 +192,6 @@ a {
   white-space: pre-wrap;
   line-height: 1.7;
 }
-
-/* AI */
 
 .chatBox {
   background: white;
@@ -266,13 +206,19 @@ a {
   border-radius: 10px;
 }
 
-/* Helper */
-
 .helperText {
   color: #666;
 }
 
-/* Status */
+.emailDraftPanel,
+.quoteDraftPanel {
+  margin-bottom: 24px;
+}
+
+.editLeadForm {
+  display: grid;
+  gap: 14px;
+}
 
 .statusBadge {
   display: inline-block;
@@ -307,8 +253,6 @@ a {
   color: #374151;
 }
 
-/* Progress */
-
 .progressWrapper {
   display: flex;
   align-items: center;
@@ -329,10 +273,7 @@ a {
   border-radius: 999px;
 }
 
-/* Print */
-
 @media print {
-
   .sidebar,
   .noPrint {
     display: none !important;
@@ -348,5 +289,4 @@ a {
     box-shadow: none;
     border: 1px solid #ddd;
   }
-
 }
