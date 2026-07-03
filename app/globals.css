@@ -4,9 +4,9 @@
 
 body {
   margin: 0;
-  font-family: Arial, Helvetica, sans-serif;
-  background: #f8fafc;
-  color: #111827;
+  font-family: "Inter", Arial, Helvetica, sans-serif;
+  background: #faf9f6;
+  color: #222222;
 }
 
 a {
@@ -18,7 +18,7 @@ a {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #0f172a, #1e3a8a);
+  background: linear-gradient(135deg, #1a1a1a, #3a2f12);
   color: white;
   text-align: center;
 }
@@ -30,10 +30,12 @@ a {
 
 .badge {
   display: inline-block;
-  background: #2563eb;
+  background: #d4af37;
+  color: #111;
   padding: 8px 16px;
   border-radius: 999px;
   margin-bottom: 20px;
+  font-weight: 700;
 }
 
 .hero h1 {
@@ -43,7 +45,7 @@ a {
 
 .hero p {
   font-size: 22px;
-  color: #dbeafe;
+  color: #f5e6b3;
 }
 
 .heroButtons {
@@ -54,18 +56,24 @@ a {
 }
 
 .primaryBtn {
-  background: #2563eb;
+  background: linear-gradient(135deg, #d4af37, #b8860b);
   color: white;
-  padding: 12px 20px;
-  border-radius: 8px;
+  padding: 13px 24px;
+  border-radius: 10px;
   border: none;
-  font-weight: bold;
+  font-weight: 700;
   cursor: pointer;
+  transition: 0.3s;
+}
+
+.primaryBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 25px rgba(212, 175, 55, 0.35);
 }
 
 .secondaryBtn {
   background: white;
-  color: #0f172a;
+  color: #111;
   padding: 12px 20px;
   border-radius: 8px;
   font-weight: bold;
@@ -77,30 +85,41 @@ a {
 }
 
 .sidebar {
-  width: 240px;
-  background: #0f172a;
+  width: 250px;
+  background: #1a1a1a;
   color: white;
-  padding: 28px 24px;
+  padding: 32px 24px;
 }
 
 .sidebar h2 {
   margin-bottom: 50px;
+  color: #d4af37;
+  font-size: 34px;
+  font-weight: 800;
 }
 
 .sidebar nav {
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 18px;
 }
 
 .sidebar a {
-  color: white;
+  color: #f5f5f5;
   font-weight: 600;
+  padding: 12px;
+  border-radius: 10px;
+  transition: 0.25s;
+}
+
+.sidebar a:hover {
+  background: #d4af37;
+  color: #111;
 }
 
 .mainContent {
   flex: 1;
-  padding: 40px;
+  padding: 45px;
 }
 
 .topBar {
@@ -111,10 +130,10 @@ a {
 }
 
 .topBar input {
-  width: 320px;
-  padding: 12px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  width: 360px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid #ddd;
 }
 
 .cardGrid,
@@ -127,20 +146,21 @@ a {
 .statCard,
 .panel {
   background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 14px;
-  padding: 24px;
-  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.06);
+  border-radius: 18px;
+  padding: 28px;
+  border: none;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
 }
 
 .statCard p {
-  color: #64748b;
+  color: #6b7280;
   font-weight: 600;
 }
 
 .statCard h2 {
-  font-size: 36px;
-  margin: 10px 0 0;
+  font-size: 42px;
+  margin-top: 15px;
+  color: #111;
 }
 
 .dashboardGrid {
@@ -170,7 +190,8 @@ a {
 }
 
 .leadTable th {
-  background: #f1f5f9;
+  background: #f8f5ec;
+  color: #6b5500;
 }
 
 .chatBox {
@@ -182,7 +203,7 @@ a {
 }
 
 .aiMessage {
-  background: #eff6ff;
+  background: #fff7d6;
   padding: 16px;
   border-radius: 12px;
 }
@@ -218,12 +239,12 @@ a {
 .backLink {
   display: inline-block;
   margin-bottom: 20px;
-  color: #2563eb;
+  color: #b8860b;
   font-weight: 700;
 }
 
 .leadLink {
-  color: #2563eb;
+  color: #b8860b;
   font-weight: 700;
 }
 
@@ -251,7 +272,7 @@ a {
 }
 
 .helperText {
-  color: #64748b;
+  color: #6b7280;
   font-size: 14px;
 }
 
@@ -297,8 +318,8 @@ a {
 }
 
 .statusWarning {
-  background: #fef3c7;
-  color: #92400e;
+  background: #fff3c4;
+  color: #8a6500;
 }
 
 .statusDanger {
@@ -327,7 +348,7 @@ a {
 
 .progressFill {
   height: 100%;
-  background: #111827;
+  background: linear-gradient(135deg, #d4af37, #b8860b);
   border-radius: 999px;
 }
 
