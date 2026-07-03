@@ -289,4 +289,57 @@ a {
     box-shadow: none;
     border: 1px solid #ddd;
   }
+.statusBadge {
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
 }
+
+.statusSuccess {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.statusInfo {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.statusWarning {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.statusDanger {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.statusDefault {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.progressWrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.progressTrack {
+  width: 180px;
+  height: 10px;
+  background: #e5e7eb;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: #111827;
+  border-radius: 999px;
+}
+
+  
