@@ -10,7 +10,6 @@ export default function QuoteDetailsPage() {
 
   const [quote, setQuote] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [projectCreated, setProjectCreated] = useState(false);
   const [customerCreated, setCustomerCreated] = useState(false);
 
   useEffect(() => {
@@ -89,58 +88,6 @@ export default function QuoteDetailsPage() {
     }
   }
 
-  async function startProject() {
-    if (!quote) return;
-
-    try {
-      const customersResponse = await fetch("/api/customers");
-      const customersData = await customersResponse.json();
-
-      const matchedCustomer = customersData.find(
-        (customer) =>
-          String(customer.id) === String(quote.customer_id) ||
-          String(customer.lead_id) === String(quote.lead_id) ||
-          customer.email === quote.email ||
-          customer.company === quote.client
-      );
-
-      if (!matchedCustomer) {
-        alert("Please convert this quote to customer first, then start project.");
-        return;
-      }
-
-      const response = await fetch("/api/projects", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          customer_id: matchedCustomer.id,
-          quote_id: quote.id,
-          project_name: `${quote.client} - ${quote.service}`,
-          description: `Project created from quote ${quote.quote_number || quote.id}.`,
-          status: "Planning",
-          start_date: new Date().toISOString().split("T")[0],
-          due_date: null,
-          amount: quote.amount,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        alert(data.error || "Failed to start project.");
-        return;
-      }
-
-      setProjectCreated(true);
-      alert("Project started successfully.");
-    } catch (error) {
-      console.error(error);
-      alert("Error starting project.");
-    }
-  }
-
   if (loading) {
     return (
       <div className="appLayout">
@@ -203,22 +150,12 @@ export default function QuoteDetailsPage() {
             <button className="primaryBtn noPrint" onClick={convertToCustomer}>
               Convert To Customer
             </button>
-
-            <button className="primaryBtn noPrint" onClick={startProject}>
-              Start Project
-            </button>
           </div>
         </div>
 
         {customerCreated && (
           <p className="helperText">
-            Customer is ready. You can now start the project.
-          </p>
-        )}
-
-        {projectCreated && (
-          <p className="helperText">
-            Project started successfully. You can view it in Projects.
+            Customer is ready. Go to Customers to start the project.
           </p>
         )}
 
