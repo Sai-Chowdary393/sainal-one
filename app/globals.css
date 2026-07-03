@@ -177,6 +177,10 @@ a {
   gap: 24px;
 }
 
+.secondaryStats {
+  margin-top: 24px;
+}
+
 .statCard,
 .panel {
   background: white;
@@ -206,6 +210,61 @@ a {
 .panel h3 {
   margin-top: 0;
   font-size: 20px;
+}
+
+/* Dashboard 2.0 */
+
+.dashboardProjectItem {
+  display: grid;
+  grid-template-columns: 1.5fr auto 220px;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.dashboardProjectItem:last-child {
+  border-bottom: none;
+}
+
+.taskRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.taskRow:last-child {
+  border-bottom: none;
+}
+
+.dashboardActivity {
+  margin-top: 30px;
+}
+
+.activityGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+.activityGrid div {
+  background: #f7f5f0;
+  padding: 20px;
+  border-radius: 14px;
+}
+
+.activityGrid strong {
+  font-size: 28px;
+  color: #b8860b;
+}
+
+.activityGrid p {
+  margin-bottom: 0;
+  color: #64748b;
+  font-weight: 600;
 }
 
 /* Tables */
