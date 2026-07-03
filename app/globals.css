@@ -13,6 +13,82 @@ a {
   text-decoration: none;
 }
 
+/* Landing page */
+
+.landing {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #1c1c1c, #2c2410);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px;
+}
+
+.hero {
+  max-width: 1100px;
+  text-align: center;
+}
+
+.badge {
+  display: inline-block;
+  background: #d4af37;
+  color: #1c1c1c;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-weight: bold;
+  margin-bottom: 22px;
+}
+
+.hero h1 {
+  font-size: 72px;
+  margin: 0 0 20px;
+  color: white;
+}
+
+.hero p {
+  font-size: 22px;
+  line-height: 1.6;
+  color: #f5f5f5;
+  max-width: 850px;
+  margin: 0 auto;
+}
+
+.heroButtons {
+  margin-top: 32px;
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+}
+
+.featureGrid {
+  margin-top: 60px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 22px;
+}
+
+.featureCard {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 24px;
+  border-radius: 16px;
+  text-align: left;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.featureCard h3 {
+  color: #d4af37;
+  margin-top: 0;
+}
+
+.featureCard p {
+  font-size: 15px;
+  color: #f5f5f5;
+  line-height: 1.6;
+}
+
+/* Buttons */
+
 .primaryBtn {
   background: #d4af37;
   color: #1c1c1c;
@@ -34,6 +110,8 @@ a {
   border-radius: 8px;
   font-weight: bold;
 }
+
+/* App layout */
 
 .appLayout {
   display: flex;
@@ -90,7 +168,8 @@ a {
   border: 1px solid #ddd;
 }
 
-/* Dashboard cards fixed */
+/* Dashboard cards */
+
 .cardGrid,
 .dashboardCards {
   display: grid;
@@ -129,6 +208,8 @@ a {
   font-size: 20px;
 }
 
+/* Tables */
+
 .leadTable {
   width: 100%;
   border-collapse: collapse;
@@ -156,6 +237,8 @@ a {
   margin-bottom: 20px;
 }
 
+/* Forms */
+
 .leadForm {
   background: white;
   padding: 24px;
@@ -181,6 +264,8 @@ a {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* Details */
+
 .detailsGrid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -192,6 +277,8 @@ a {
   white-space: pre-wrap;
   line-height: 1.7;
 }
+
+/* AI */
 
 .chatBox {
   background: white;
@@ -206,6 +293,8 @@ a {
   border-radius: 10px;
 }
 
+/* Helpers */
+
 .helperText {
   color: #666;
 }
@@ -219,6 +308,8 @@ a {
   display: grid;
   gap: 14px;
 }
+
+/* Status */
 
 .statusBadge {
   display: inline-block;
@@ -253,6 +344,8 @@ a {
   color: #374151;
 }
 
+/* Progress */
+
 .progressWrapper {
   display: flex;
   align-items: center;
@@ -272,6 +365,8 @@ a {
   background: #d4af37;
   border-radius: 999px;
 }
+
+/* Print */
 
 @media print {
   .sidebar,
