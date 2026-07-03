@@ -2,10 +2,16 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Sidebar from "@/components/Sidebar";
+import StatusBadge from "@/components/StatusBadge";
+import ProgressBar from "@/components/ProgressBar";
 
 export default function Dashboard() {
   const [leads, setLeads] = useState([]);
   const [quotes, setQuotes] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -14,14 +20,31 @@ export default function Dashboard() {
 
   async function fetchDashboardData() {
     try {
-      const leadsResponse = await fetch("/api/leads");
-      const quotesResponse = await fetch("/api/quotes");
+      const [
+        leadsResponse,
+        quotesResponse,
+        customersResponse,
+        projectsResponse,
+        tasksResponse,
+      ] = await Promise.all([
+        fetch("/api/leads"),
+        fetch("/api/quotes"),
+        fetch("/api/customers"),
+        fetch("/api/projects"),
+        fetch("/api/tasks"),
+      ]);
 
       const leadsData = await leadsResponse.json();
       const quotesData = await quotesResponse.json();
+      const customersData = await customersResponse.json();
+      const projectsData = await projectsResponse.json();
+      const tasksData = await tasksResponse.json();
 
       setLeads(leadsData || []);
       setQuotes(quotesData || []);
+      setCustomers(customersData || []);
+      setProjects(projectsData || []);
+      setTasks(tasksData || []);
     } catch (error) {
       console.error(error);
       alert("Error loading dashboard data.");
@@ -30,19 +53,57 @@ export default function Dashboard() {
     }
   }
 
+  function getMoneyValue(value) {
+    if (!value) return 0;
+    return Number(String(value).replace(/[^0-9.]/g, "")) || 0;
+  }
+
   function getTotalQuoteValue() {
     return quotes.reduce((total, quote) => {
-      const amount = quote.amount || "0";
-      const number = Number(amount.replace(/[^0-9.]/g, ""));
-      return total + number;
+      return total + getMoneyValue(quote.amount);
     }, 0);
+  }
+
+  function getProjectProgress(projectId) {
+    const projectTasks = tasks.filter(
+      (task) => String(task.project_id) === String(projectId)
+    );
+
+    if (projectTasks.length === 0) return 0;
+
+    const completedTasks = projectTasks.filter(
+      (task) => task.status === "Completed"
+    ).length;
+
+    return Math.round((completedTasks / projectTasks.length) * 100);
   }
 
   const totalLeads = leads.length;
   const totalQuotes = quotes.length;
+  const totalCustomers = customers.length;
+  const totalProjects = projects.length;
   const pipelineValue = getTotalQuoteValue();
-  const latestLeads = leads.slice(0, 3);
-  const latestQuotes = quotes.slice(0, 3);
+
+  const completedTasks = tasks.filter(
+    (task) => task.status === "Completed"
+  ).length;
+
+  const pendingTasks = tasks.filter(
+    (task) => task.status !== "Completed"
+  ).length;
+
+  const activeProjects = projects.filter(
+    (project) => project.status !== "Completed"
+  ).length;
+
+  const completedProjects = projects.filter(
+    (project) => project.status === "Completed"
+  ).length;
+
+  const latestLeads = leads.slice(0, 4);
+  const latestQuotes = quotes.slice(0, 4);
+  const latestProjects = projects.slice(0, 4);
+  const latestTasks = tasks.slice(0, 5);
 
   return (
     <div className="appLayout">
@@ -50,11 +111,16 @@ export default function Dashboard() {
 
       <main className="mainContent">
         <div className="topBar">
-          <h1>Dashboard</h1>
+          <div>
+            <h1>Dashboard</h1>
+            <p className="helperText">
+              Welcome back. Here is your SaiNal One business overview.
+            </p>
+          </div>
 
           <input
             className="searchBox"
-            placeholder="Search leads, customers..."
+            placeholder="Search leads, customers, projects..."
           />
         </div>
 
@@ -74,13 +140,35 @@ export default function Dashboard() {
               </div>
 
               <div className="statCard">
+                <p>Customers</p>
+                <h2>{totalCustomers}</h2>
+              </div>
+
+              <div className="statCard">
+                <p>Projects</p>
+                <h2>{totalProjects}</h2>
+              </div>
+            </section>
+
+            <section className="dashboardCards secondaryStats">
+              <div className="statCard">
                 <p>Pipeline Value</p>
                 <h2>£{pipelineValue.toLocaleString("en-GB")}</h2>
               </div>
 
               <div className="statCard">
-                <p>AI Insights</p>
-                <h2>{totalLeads + totalQuotes}</h2>
+                <p>Active Projects</p>
+                <h2>{activeProjects}</h2>
+              </div>
+
+              <div className="statCard">
+                <p>Completed Projects</p>
+                <h2>{completedProjects}</h2>
+              </div>
+
+              <div className="statCard">
+                <p>Pending Tasks</p>
+                <h2>{pendingTasks}</h2>
               </div>
             </section>
 
@@ -119,26 +207,83 @@ export default function Dashboard() {
                 )}
               </div>
             </section>
+
+            <section className="dashboardGrid">
+              <div className="panel">
+                <h3>Active Projects</h3>
+
+                {latestProjects.length === 0 ? (
+                  <p>No projects yet.</p>
+                ) : (
+                  latestProjects.map((project) => (
+                    <div key={project.id} className="dashboardProjectItem">
+                      <div>
+                        <Link
+                          href={`/projects/${project.id}`}
+                          className="leadLink"
+                        >
+                          {project.project_name}
+                        </Link>
+                        <p className="helperText">{project.amount}</p>
+                      </div>
+
+                      <StatusBadge status={project.status} />
+                      <ProgressBar value={getProjectProgress(project.id)} />
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="panel">
+                <h3>Recent Tasks</h3>
+
+                {latestTasks.length === 0 ? (
+                  <p>No tasks yet.</p>
+                ) : (
+                  latestTasks.map((task) => (
+                    <div key={task.id} className="taskRow">
+                      <div>
+                        <strong>{task.task_name}</strong>
+                        <p className="helperText">
+                          Due: {task.due_date || "No due date"}
+                        </p>
+                      </div>
+
+                      <StatusBadge status={task.status} />
+                    </div>
+                  ))
+                )}
+              </div>
+            </section>
+
+            <section className="panel dashboardActivity">
+              <h3>Business Activity</h3>
+
+              <div className="activityGrid">
+                <div>
+                  <strong>{completedTasks}</strong>
+                  <p>Tasks Completed</p>
+                </div>
+
+                <div>
+                  <strong>{pendingTasks}</strong>
+                  <p>Tasks Pending</p>
+                </div>
+
+                <div>
+                  <strong>{activeProjects}</strong>
+                  <p>Projects Running</p>
+                </div>
+
+                <div>
+                  <strong>£{pipelineValue.toLocaleString("en-GB")}</strong>
+                  <p>Total Quote Pipeline</p>
+                </div>
+              </div>
+            </section>
           </>
         )}
       </main>
     </div>
-  );
-}
-
-function Sidebar() {
-  return (
-    <aside className="sidebar">
-      <h2>SaiNal One</h2>
-
-      <nav>
-        <Link href="/dashboard">Dashboard</Link>
-        <Link href="/leads">Leads</Link>
-        <Link href="/quotes">Quotes</Link>
-        <Link href="/customers">Customers</Link>
-        <Link href="/projects">Projects</Link>
-        <Link href="/ai-assistant">AI Assistant</Link>
-      </nav>
-    </aside>
   );
 }
