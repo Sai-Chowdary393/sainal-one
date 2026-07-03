@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Sidebar from "@/components/Sidebar";
-import StatusBadge from "@/components/StatusBadge";
-import ProgressBar from "@/components/ProgressBar";
+import Sidebar from "../../components/Sidebar";
+import StatusBadge from "../../components/StatusBadge";
+import ProgressBar from "../../components/ProgressBar";
 
 export default function Dashboard() {
   const [leads, setLeads] = useState([]);
