@@ -14,7 +14,6 @@ export default function LeadDetails() {
   const [emailDraft, setEmailDraft] = useState("");
   const [quoteDraft, setQuoteDraft] = useState("");
   const [quoteSaved, setQuoteSaved] = useState(false);
-  const [customerCreated, setCustomerCreated] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -110,38 +109,6 @@ export default function LeadDetails() {
     }
   }
 
-  async function convertToCustomer() {
-    if (!lead) return;
-
-    try {
-      const response = await fetch("/api/customers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          lead_id: lead.id,
-          customer_name: lead.name,
-          company: lead.company,
-          email: lead.email,
-          phone: lead.phone,
-          status: "Active",
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        alert(data.error || "Failed to create customer.");
-        return;
-      }
-
-      setCustomerCreated(true);
-      alert("Customer created successfully.");
-    } catch (error) {
-      console.error(error);
-      alert("Error creating customer.");
-    }
-  }
-
   function generateEmail() {
     if (!lead) return;
 
@@ -200,23 +167,13 @@ www.sainaltechnologies.com`;
     setQuoteSaved(false);
 
     try {
-      const customersResponse = await fetch("/api/customers");
-      const customersData = await customersResponse.json();
-
-      const matchedCustomer = customersData.find(
-        (customer) =>
-          String(customer.lead_id) === String(lead.id) ||
-          customer.email === lead.email ||
-          customer.company === lead.company
-      );
-
       const response = await fetch("/api/quotes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           quote_number: quoteNumber,
           lead_id: lead.id,
-          customer_id: matchedCustomer ? matchedCustomer.id : null,
+          customer_id: null,
           client: lead.company,
           contact: lead.name,
           email: lead.email,
@@ -303,15 +260,8 @@ www.sainaltechnologies.com`;
 
             <button className="primaryBtn" onClick={deleteLead}>Delete Lead</button>
             <button className="primaryBtn" onClick={generateQuote}>Generate Quote</button>
-            <button className="primaryBtn" onClick={convertToCustomer}>Convert To Customer</button>
           </div>
         </div>
-
-        {customerCreated && (
-          <p className="helperText">
-            Customer created successfully. You can view it in Customers.
-          </p>
-        )}
 
         <section className="detailsGrid">
           <div className="panel">
@@ -380,7 +330,7 @@ www.sainaltechnologies.com`;
 
             {quoteSaved && (
               <p className="helperText">
-                Quote saved successfully to Supabase.
+                Quote saved successfully. Go to Quotes to convert it to a customer.
               </p>
             )}
           </section>
@@ -395,7 +345,6 @@ www.sainaltechnologies.com`;
           <div className="panel">
             <h3>Activity Timeline</h3>
             <p>Lead created</p>
-            <p>Email draft generated</p>
             <p>Quote pending</p>
           </div>
         </section>
