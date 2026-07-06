@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Sidebar from "../../components/Sidebar";
+import StatusBadge from "../../components/StatusBadge";
 
 export default function QuotesPage() {
   const [quotes, setQuotes] = useState([]);
@@ -32,18 +34,7 @@ export default function QuotesPage() {
 
   return (
     <div className="appLayout">
-      <aside className="sidebar">
-        <h2>SaiNal One</h2>
-
-        <nav>
-          <Link href="/dashboard">Dashboard</Link>
-          <Link href="/leads">Leads</Link>
-          <Link href="/quotes">Quotes</Link>
-          <Link href="/customers">Customers</Link>
-          <Link href="/projects">Projects</Link>
-          <Link href="/ai-assistant">AI Assistant</Link>
-        </nav>
-      </aside>
+      <Sidebar />
 
       <main className="mainContent">
         <div className="topBar">
@@ -83,7 +74,9 @@ export default function QuotesPage() {
                     <td>{quote.contact}</td>
                     <td>{quote.email}</td>
                     <td>{quote.amount}</td>
-                    <td>{quote.status}</td>
+                    <td>
+                      <StatusBadge status={quote.status} />
+                    </td>
                     <td>
                       {quote.created_at
                         ? new Date(quote.created_at).toLocaleDateString("en-GB")
