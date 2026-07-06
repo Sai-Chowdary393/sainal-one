@@ -9,14 +9,10 @@ export async function GET() {
       .order("created_at", { ascending: false });
 
     if (error) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json(data);
-
   } catch (error) {
     return NextResponse.json(
       { error: "Failed to fetch invoices" },
@@ -25,39 +21,47 @@ export async function GET() {
   }
 }
 
-
 export async function POST(request) {
   try {
     const body = await request.json();
 
-    const invoiceNumber =
-      "SNI-" + Math.floor(100000 + Math.random() * 900000);
+    const year = new Date().getFullYear();
+    const invoiceNumber = `SNI-${year}-${Math.floor(
+      1000 + Math.random() * 9000
+    )}`;
+
+    const subtotal = body.subtotal || body.amount || "£0";
+    const vatRate = body.vat_rate || "0%";
+    const vatAmount = body.vat_amount || "£0";
+    const totalAmount = body.total_amount || body.amount || "£0";
 
     const { data, error } = await supabase
       .from("invoices")
       .insert([
         {
-          customer_id: body.customer_id,
-          project_id: body.project_id,
+          customer_id: body.customer_id || null,
+          project_id: body.project_id || null,
           invoice_number: invoiceNumber,
           client: body.client,
           service: body.service,
-          amount: body.amount,
+          amount: totalAmount,
+          subtotal: subtotal,
+          vat_rate: vatRate,
+          vat_amount: vatAmount,
+          total_amount: totalAmount,
           status: "Draft Invoice",
-          due_date: body.due_date,
+          due_date: body.due_date || null,
+          payment_terms:
+            body.payment_terms || "Payment due within 14 days of invoice date.",
         },
       ])
       .select();
 
     if (error) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json(data);
-
   } catch (error) {
     return NextResponse.json(
       { error: "Failed to create invoice" },
