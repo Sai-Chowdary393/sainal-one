@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-
 import Sidebar from "../../../components/Sidebar";
 import StatusBadge from "../../../components/StatusBadge";
 
@@ -14,11 +13,9 @@ export default function InvoiceDetailsPage() {
   const [invoice, setInvoice] = useState(null);
   const [loading, setLoading] = useState(true);
 
-
   useEffect(() => {
     fetchInvoice();
   }, [invoiceId]);
-
 
   async function fetchInvoice() {
     try {
@@ -30,7 +27,6 @@ export default function InvoiceDetailsPage() {
       );
 
       setInvoice(selectedInvoice || null);
-
     } catch (error) {
       console.error(error);
       alert("Error loading invoice.");
@@ -39,7 +35,6 @@ export default function InvoiceDetailsPage() {
     }
   }
 
-
   async function updateInvoiceStatus(status) {
     try {
       const response = await fetch(`/api/invoices/${invoiceId}`, {
@@ -47,41 +42,33 @@ export default function InvoiceDetailsPage() {
         headers: {
           "Content-Type": "application/json",
         },
-
         body: JSON.stringify({
           status: status,
         }),
       });
 
-
       const data = await response.json();
-
 
       if (!response.ok) {
         alert(data.error || "Failed updating invoice.");
         return;
       }
 
-
       setInvoice({
         ...invoice,
         status: status,
       });
 
-
       alert(`Invoice marked as ${status}`);
-
     } catch (error) {
       console.error(error);
       alert("Error updating invoice.");
     }
   }
 
-
   function downloadPDF() {
     window.print();
   }
-
 
   if (loading) {
     return (
@@ -95,207 +82,141 @@ export default function InvoiceDetailsPage() {
     );
   }
 
-
   if (!invoice) {
     return (
       <div className="appLayout">
         <Sidebar />
 
         <main className="mainContent">
-
           <Link href="/invoices" className="backLink">
             ← Back to Invoices
           </Link>
 
           <h1>Invoice not found</h1>
-
         </main>
       </div>
     );
   }
 
-
+  const createdDate = invoice.created_at
+    ? new Date(invoice.created_at).toLocaleDateString("en-GB")
+    : "-";
 
   return (
-
     <div className="appLayout">
-
       <Sidebar />
 
-
       <main className="mainContent">
-
-
         <Link href="/invoices" className="backLink noPrint">
           ← Back to Invoices
         </Link>
 
-
-        <div className="topBar">
-
+        <div className="topBar noPrint">
           <h1>Invoice Details</h1>
 
-
-          <div 
-            className="noPrint"
-            style={{ display: "flex", gap: "12px" }}
-          >
-
-            <button
-              className="primaryBtn"
-              onClick={downloadPDF}
-            >
+          <div style={{ display: "flex", gap: "12px" }}>
+            <button className="primaryBtn" onClick={downloadPDF}>
               Download PDF
             </button>
 
-
             <button
               className="primaryBtn"
-              onClick={() =>
-                updateInvoiceStatus("Sent")
-              }
+              onClick={() => updateInvoiceStatus("Sent")}
             >
               Mark Sent
             </button>
 
-
             <button
               className="primaryBtn"
-              onClick={() =>
-                updateInvoiceStatus("Paid")
-              }
+              onClick={() => updateInvoiceStatus("Paid")}
             >
               Mark Paid
             </button>
-
-
           </div>
-
         </div>
 
+        <section className="invoiceDocument">
+          <div className="invoiceHeader">
+            <div>
+              <h1>SaiNal Technologies Ltd</h1>
+              <p>Digital Solutions & Automation</p>
+              <p>United Kingdom</p>
+              <p>www.sainaltechnologies.com</p>
+            </div>
 
-
-
-        <section className="detailsGrid">
-
-
-          <div className="panel">
-
-            <h3>Client Information</h3>
-
-            <p>
-              <strong>Client:</strong>{" "}
-              {invoice.client}
-            </p>
-
-
-            <p>
-              <strong>Service:</strong>{" "}
-              {invoice.service}
-            </p>
-
-
-            <p>
-              <strong>Amount:</strong>{" "}
-              {invoice.amount}
-            </p>
-
-
+            <div className="invoiceMeta">
+              <h2>INVOICE</h2>
+              <p>
+                <strong>Invoice No:</strong> {invoice.invoice_number}
+              </p>
+              <p>
+                <strong>Date:</strong> {createdDate}
+              </p>
+              <p>
+                <strong>Due Date:</strong> {invoice.due_date || "-"}
+              </p>
+              <p>
+                <strong>Status:</strong>{" "}
+                <StatusBadge status={invoice.status} />
+              </p>
+            </div>
           </div>
 
+          <div className="invoiceDivider" />
 
+          <div className="invoiceBillGrid">
+            <div>
+              <h3>Bill To</h3>
+              <p>{invoice.client}</p>
+            </div>
 
-          <div className="panel">
-
-
-            <h3>Invoice Information</h3>
-
-
-            <p>
-              <strong>Invoice No:</strong>{" "}
-              {invoice.invoice_number}
-            </p>
-
-
-            <p>
-              <strong>Status:</strong>{" "}
-              <StatusBadge status={invoice.status} />
-            </p>
-
-
-            <p>
-              <strong>Due Date:</strong>{" "}
-              {invoice.due_date || "-"}
-            </p>
-
-
-            <p>
-              <strong>Created:</strong>{" "}
-              {
-                invoice.created_at
-                  ? new Date(
-                      invoice.created_at
-                    ).toLocaleDateString("en-GB")
-                  : "-"
-              }
-            </p>
-
-
+            <div>
+              <h3>Project / Service</h3>
+              <p>{invoice.service}</p>
+            </div>
           </div>
 
+          <table className="invoiceTable">
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th>Qty</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
 
+            <tbody>
+              <tr>
+                <td>{invoice.service}</td>
+                <td>1</td>
+                <td>{invoice.amount}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div className="invoiceTotals">
+            <div>
+              <p>
+                <strong>Payment Terms:</strong>
+              </p>
+              <p>Payment due as agreed with the client.</p>
+              <p>Thank you for your business.</p>
+            </div>
+
+            <div className="totalBox">
+              <p>Total Amount</p>
+              <h2>{invoice.amount}</h2>
+            </div>
+          </div>
+
+          <div className="invoiceFooter">
+            <p>
+              This invoice was generated by SaiNal One — AI-powered Business
+              Operating System.
+            </p>
+          </div>
         </section>
-
-
-
-
-        <section className="panel">
-
-          <h3>Invoice</h3>
-
-
-          <pre className="quotePreview">
-
-{`
-SAINAL TECHNOLOGIES LTD
-
-
-INVOICE
-
-Invoice Number: ${invoice.invoice_number}
-
-Client:
-${invoice.client}
-
-
-Service:
-${invoice.service}
-
-
-Total Amount:
-${invoice.amount}
-
-
-Status:
-${invoice.status}
-
-
-
-Thank you for your business.
-
-`}
-
-          </pre>
-
-
-        </section>
-
-
-
       </main>
-
-
     </div>
-
   );
 }
