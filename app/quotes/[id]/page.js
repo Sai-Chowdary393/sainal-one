@@ -65,6 +65,7 @@ export default function QuoteDetailsPage() {
         headers: {
           "Content-Type": "application/json",
         },
+
         body: JSON.stringify({
           lead_id: quote.lead_id || null,
           customer_name: quote.contact,
@@ -90,57 +91,81 @@ export default function QuoteDetailsPage() {
     }
   }
 
+
   if (loading) {
     return (
       <div className="appLayout">
+
         <Sidebar />
 
         <main className="mainContent">
           <p>Loading quote...</p>
         </main>
+
       </div>
     );
   }
+
 
   if (!quote) {
     return (
       <div className="appLayout">
+
         <Sidebar />
 
         <main className="mainContent">
+
           <Link href="/quotes" className="backLink">
             ← Back to Quotes
           </Link>
+
           <h1>Quote not found</h1>
+
         </main>
+
       </div>
     );
   }
 
+
   return (
     <div className="appLayout">
-      <div className="noPrint">
-        <Sidebar />
-      </div>
+
+      <Sidebar />
 
       <main className="mainContent">
+
         <Link href="/quotes" className="backLink noPrint">
           ← Back to Quotes
         </Link>
 
+
         <div className="topBar">
+
           <h1>Quote Details</h1>
 
-          <div style={{ display: "flex", gap: "10px" }}>
-            <button className="primaryBtn noPrint" onClick={downloadPDF}>
+
+          <div style={{ display:"flex", gap:"10px" }}>
+
+            <button 
+              className="primaryBtn noPrint"
+              onClick={downloadPDF}
+            >
               Download PDF
             </button>
 
-            <button className="primaryBtn noPrint" onClick={convertToCustomer}>
+
+            <button
+              className="primaryBtn noPrint"
+              onClick={convertToCustomer}
+            >
               Convert To Customer
             </button>
+
           </div>
+
         </div>
+
 
         {customerCreated && (
           <p className="helperText">
@@ -148,41 +173,82 @@ export default function QuoteDetailsPage() {
           </p>
         )}
 
+
         <section className="detailsGrid">
-          <div className="panel">
-            <h3>Client Information</h3>
-            <p><strong>Client:</strong> {quote.client}</p>
-            <p><strong>Contact:</strong> {quote.contact}</p>
-            <p><strong>Email:</strong> {quote.email}</p>
-            <p><strong>Phone:</strong> {quote.phone}</p>
-          </div>
 
           <div className="panel">
+
+            <h3>Client Information</h3>
+
+            <p><strong>Client:</strong> {quote.client}</p>
+
+            <p><strong>Contact:</strong> {quote.contact}</p>
+
+            <p><strong>Email:</strong> {quote.email}</p>
+
+            <p><strong>Phone:</strong> {quote.phone}</p>
+
+          </div>
+
+
+
+          <div className="panel">
+
             <h3>Quote Information</h3>
-            <p><strong>Quote Number:</strong> {quote.quote_number || "-"}</p>
-            <p><strong>Service:</strong> {quote.service}</p>
-            <p><strong>Amount:</strong> {quote.amount}</p>
+
+            <p>
+              <strong>Quote Number:</strong>{" "}
+              {quote.quote_number || "-"}
+            </p>
+
+
+            <p>
+              <strong>Service:</strong>{" "}
+              {quote.service}
+            </p>
+
+
+            <p>
+              <strong>Amount:</strong>{" "}
+              {quote.amount}
+            </p>
+
+
             <p>
               <strong>Status:</strong>{" "}
               <StatusBadge status={quote.status} />
             </p>
+
+
             <p>
               <strong>Created:</strong>{" "}
               {quote.created_at
-                ? new Date(quote.created_at).toLocaleDateString("en-GB")
+                ? new Date(
+                    quote.created_at
+                  ).toLocaleDateString("en-GB")
                 : "-"}
             </p>
+
           </div>
+
         </section>
 
+
         <section className="panel">
+
           <h3>Full Quote</h3>
 
           <pre className="quotePreview">
+
             {quote.quote_text || ""}
+
           </pre>
+
         </section>
+
+
       </main>
+
     </div>
   );
 }
