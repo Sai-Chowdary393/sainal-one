@@ -216,6 +216,39 @@ export default function ProjectDetailsPage() {
     }
   }
 
+  async function generateInvoice() {
+    if (!project) return;
+
+    try {
+      const response = await fetch("/api/invoices", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          project_id: project.id,
+          customer_id: project.customer_id,
+          client: project.project_name,
+          service: project.description || "Project Service",
+          amount: project.amount,
+          due_date: null,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || "Failed to create invoice.");
+        return;
+      }
+
+      alert("Invoice generated successfully.");
+    } catch (error) {
+      console.error(error);
+      alert("Error generating invoice.");
+    }
+  }
+
   function calculateProgress() {
     if (tasks.length === 0) return 0;
 
@@ -267,12 +300,20 @@ export default function ProjectDetailsPage() {
         <div className="topBar">
           <h1>{project.project_name}</h1>
 
-          <button
-            className="primaryBtn"
-            onClick={() => setShowTaskForm(!showTaskForm)}
-          >
-            {showTaskForm ? "Close" : "Add Task"}
-          </button>
+          <div style={{ display: "flex", gap: "12px" }}>
+            <button
+              className="primaryBtn"
+              onClick={() => setShowTaskForm(!showTaskForm)}
+            >
+              {showTaskForm ? "Close" : "Add Task"}
+            </button>
+
+            {project.status === "Completed" && (
+              <button className="primaryBtn" onClick={generateInvoice}>
+                Generate Invoice
+              </button>
+            )}
+          </div>
         </div>
 
         <section className="detailsGrid">
