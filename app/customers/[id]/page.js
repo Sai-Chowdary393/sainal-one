@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import Sidebar from "../../../components/Sidebar";
+import StatusBadge from "../../../components/StatusBadge";
 
 export default function CustomerDetailsPage() {
   const params = useParams();
@@ -96,9 +98,7 @@ export default function CustomerDetailsPage() {
   if (loading) {
     return (
       <div className="appLayout">
-        <aside className="sidebar">
-          <h2>SaiNal One</h2>
-        </aside>
+        <Sidebar />
 
         <main className="mainContent">
           <p>Loading customer...</p>
@@ -110,9 +110,7 @@ export default function CustomerDetailsPage() {
   if (!customer) {
     return (
       <div className="appLayout">
-        <aside className="sidebar">
-          <h2>SaiNal One</h2>
-        </aside>
+        <Sidebar />
 
         <main className="mainContent">
           <Link href="/customers" className="backLink">
@@ -126,18 +124,7 @@ export default function CustomerDetailsPage() {
 
   return (
     <div className="appLayout">
-      <aside className="sidebar">
-        <h2>SaiNal One</h2>
-
-        <nav>
-          <Link href="/dashboard">Dashboard</Link>
-          <Link href="/leads">Leads</Link>
-          <Link href="/quotes">Quotes</Link>
-          <Link href="/customers">Customers</Link>
-          <Link href="/projects">Projects</Link>
-          <Link href="/ai-assistant">AI Assistant</Link>
-        </nav>
-      </aside>
+      <Sidebar />
 
       <main className="mainContent">
         <Link href="/customers" className="backLink">
@@ -164,14 +151,19 @@ export default function CustomerDetailsPage() {
             <p><strong>Company:</strong> {customer.company}</p>
             <p><strong>Email:</strong> {customer.email}</p>
             <p><strong>Phone:</strong> {customer.phone}</p>
-            <p><strong>Status:</strong> {customer.status}</p>
+            <p>
+              <strong>Status:</strong>{" "}
+              <StatusBadge status={customer.status} />
+            </p>
           </div>
 
           <div className="panel">
             <h3>Activity Summary</h3>
             <p>Customer created</p>
             <p>Total Quotes: {quotes.length}</p>
-            <p>Status: {customer.status}</p>
+            <p>
+              Status: <StatusBadge status={customer.status} />
+            </p>
           </div>
         </section>
 
@@ -202,7 +194,9 @@ export default function CustomerDetailsPage() {
                     </td>
                     <td>{quote.service}</td>
                     <td>{quote.amount}</td>
-                    <td>{quote.status}</td>
+                    <td>
+                      <StatusBadge status={quote.status} />
+                    </td>
                     <td>
                       {quote.created_at
                         ? new Date(quote.created_at).toLocaleDateString("en-GB")
