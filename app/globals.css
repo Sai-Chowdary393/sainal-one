@@ -425,26 +425,6 @@ a {
   border-radius: 999px;
 }
 
-/* Print */
-
-@media print {
-  .sidebar,
-  .noPrint {
-    display: none !important;
-  }
-
-  .mainContent {
-    width: 100%;
-    margin: 0;
-    padding: 30px;
-  }
-
-  .panel {
-    box-shadow: none;
-    border: 1px solid #ddd;
-  }
-}
-
 /* Dashboard final improvements */
 
 .dashboardCards .statCard {
@@ -459,59 +439,9 @@ a {
   background: white;
 }
 
-@media (max-width: 1200px) {
-  .dashboardCards {
-    grid-template-columns: repeat(2, 1fr);
-  }
+/* Invoice PDF Design */
 
-  .dashboardGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .activityGrid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .dashboardProjectItem {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 700px) {
-  .appLayout {
-    flex-direction: column;
-  }
-
-  .sidebar {
-    width: 100%;
-  }
-
-  .mainContent {
-    padding: 20px;
-  }
-
-  .dashboardCards {
-    grid-template-columns: 1fr;
-  }
-
-  .leadForm {
-    grid-template-columns: 1fr;
-  }
-
-  .detailsGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .topBar {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 20px;
-  }
-
-  .topBar input {
-    width: 100%;
-  }
- .invoiceDocument {
+.invoiceDocument {
   background: white;
   border-radius: 18px;
   padding: 42px;
@@ -611,10 +541,98 @@ a {
   font-size: 14px;
 }
 
+/* Print */
+
 @media print {
+  .sidebar,
+  .noPrint {
+    display: none !important;
+  }
+
+  .mainContent {
+    width: 100%;
+    margin: 0;
+    padding: 30px;
+  }
+
+  .panel {
+    box-shadow: none;
+    border: 1px solid #ddd;
+  }
+
   .invoiceDocument {
     box-shadow: none;
     border-radius: 0;
     padding: 20px;
+  }
+
+  .invoiceFooter {
+    margin-top: 30px;
+  }
+}
+
+/* Responsive */
+
+@media (max-width: 1200px) {
+  .dashboardCards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .dashboardGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .activityGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .dashboardProjectItem {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .appLayout {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+  }
+
+  .mainContent {
+    padding: 20px;
+  }
+
+  .dashboardCards {
+    grid-template-columns: 1fr;
+  }
+
+  .leadForm {
+    grid-template-columns: 1fr;
+  }
+
+  .detailsGrid,
+  .invoiceBillGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .invoiceHeader,
+  .invoiceTotals {
+    flex-direction: column;
+  }
+
+  .invoiceMeta {
+    text-align: left;
+  }
+
+  .topBar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 20px;
+  }
+
+  .topBar input {
+    width: 100%;
   }
 }
