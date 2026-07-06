@@ -12,6 +12,7 @@ export default function Sidebar() {
         <Link href="/customers">🏢 Customers</Link>
         <Link href="/projects">📁 Projects</Link>
         <Link href="/invoices">💷 Invoices</Link>
+        <Link href="/follow-ups">⏰ Follow-ups</Link>
         <Link href="/ai-assistant">🤖 AI Assistant</Link>
       </nav>
     </aside>
