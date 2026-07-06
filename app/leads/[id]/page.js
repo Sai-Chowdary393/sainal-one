@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import Sidebar from "../../../components/Sidebar";
+import StatusBadge from "../../../components/StatusBadge";
 
 export default function LeadDetails() {
   const params = useParams();
@@ -202,9 +204,8 @@ www.sainaltechnologies.com`;
   if (loading) {
     return (
       <div className="appLayout">
-        <aside className="sidebar">
-          <h2>SaiNal One</h2>
-        </aside>
+        <Sidebar />
+
         <main className="mainContent">
           <p>Loading lead...</p>
         </main>
@@ -215,11 +216,12 @@ www.sainaltechnologies.com`;
   if (!lead) {
     return (
       <div className="appLayout">
-        <aside className="sidebar">
-          <h2>SaiNal One</h2>
-        </aside>
+        <Sidebar />
+
         <main className="mainContent">
-          <Link href="/leads" className="backLink">← Back to Leads</Link>
+          <Link href="/leads" className="backLink">
+            ← Back to Leads
+          </Link>
           <h1>Lead not found</h1>
         </main>
       </div>
@@ -228,21 +230,12 @@ www.sainaltechnologies.com`;
 
   return (
     <div className="appLayout">
-      <aside className="sidebar">
-        <h2>SaiNal One</h2>
-
-        <nav>
-          <Link href="/dashboard">Dashboard</Link>
-          <Link href="/leads">Leads</Link>
-          <Link href="/quotes">Quotes</Link>
-          <Link href="/customers">Customers</Link>
-          <Link href="/projects">Projects</Link>
-          <Link href="/ai-assistant">AI Assistant</Link>
-        </nav>
-      </aside>
+      <Sidebar />
 
       <main className="mainContent">
-        <Link href="/leads" className="backLink">← Back to Leads</Link>
+        <Link href="/leads" className="backLink">
+          ← Back to Leads
+        </Link>
 
         <div className="topBar">
           <h1>{editMode ? "Edit Lead" : lead.name}</h1>
@@ -258,8 +251,13 @@ www.sainaltechnologies.com`;
               </button>
             )}
 
-            <button className="primaryBtn" onClick={deleteLead}>Delete Lead</button>
-            <button className="primaryBtn" onClick={generateQuote}>Generate Quote</button>
+            <button className="primaryBtn" onClick={deleteLead}>
+              Delete Lead
+            </button>
+
+            <button className="primaryBtn" onClick={generateQuote}>
+              Generate Quote
+            </button>
           </div>
         </div>
 
@@ -269,12 +267,39 @@ www.sainaltechnologies.com`;
 
             {editMode ? (
               <div className="editLeadForm">
-                <input name="name" value={lead.name || ""} onChange={handleChange} placeholder="Lead Name" />
-                <input name="company" value={lead.company || ""} onChange={handleChange} placeholder="Company" />
-                <input name="email" value={lead.email || ""} onChange={handleChange} placeholder="Email" />
-                <input name="phone" value={lead.phone || ""} onChange={handleChange} placeholder="Phone" />
+                <input
+                  name="name"
+                  value={lead.name || ""}
+                  onChange={handleChange}
+                  placeholder="Lead Name"
+                />
 
-                <select name="status" value={lead.status || "New"} onChange={handleChange}>
+                <input
+                  name="company"
+                  value={lead.company || ""}
+                  onChange={handleChange}
+                  placeholder="Company"
+                />
+
+                <input
+                  name="email"
+                  value={lead.email || ""}
+                  onChange={handleChange}
+                  placeholder="Email"
+                />
+
+                <input
+                  name="phone"
+                  value={lead.phone || ""}
+                  onChange={handleChange}
+                  placeholder="Phone"
+                />
+
+                <select
+                  name="status"
+                  value={lead.status || "New"}
+                  onChange={handleChange}
+                >
                   <option>New</option>
                   <option>Contacted</option>
                   <option>Proposal Sent</option>
@@ -283,7 +308,12 @@ www.sainaltechnologies.com`;
                   <option>Lost</option>
                 </select>
 
-                <input name="value" value={lead.value || ""} onChange={handleChange} placeholder="Value e.g. £2,500" />
+                <input
+                  name="value"
+                  value={lead.value || ""}
+                  onChange={handleChange}
+                  placeholder="Value e.g. £2,500"
+                />
 
                 <textarea
                   name="notes"
@@ -298,7 +328,10 @@ www.sainaltechnologies.com`;
                 <p><strong>Company:</strong> {lead.company}</p>
                 <p><strong>Email:</strong> {lead.email}</p>
                 <p><strong>Phone:</strong> {lead.phone}</p>
-                <p><strong>Status:</strong> {lead.status}</p>
+                <p>
+                  <strong>Status:</strong>{" "}
+                  <StatusBadge status={lead.status} />
+                </p>
                 <p><strong>Value:</strong> {lead.value}</p>
               </>
             )}
@@ -319,14 +352,24 @@ www.sainaltechnologies.com`;
         {emailDraft && (
           <section className="panel emailDraftPanel">
             <h3>Email Draft</h3>
-            <textarea value={emailDraft} readOnly rows={10} className="emailDraftBox" />
+            <textarea
+              value={emailDraft}
+              readOnly
+              rows={10}
+              className="emailDraftBox"
+            />
           </section>
         )}
 
         {quoteDraft && (
           <section className="panel quoteDraftPanel">
             <h3>Quote Draft</h3>
-            <textarea value={quoteDraft} readOnly rows={16} className="emailDraftBox" />
+            <textarea
+              value={quoteDraft}
+              readOnly
+              rows={16}
+              className="emailDraftBox"
+            />
 
             {quoteSaved && (
               <p className="helperText">
