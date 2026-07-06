@@ -13,8 +13,10 @@ export default function InvoicesPage() {
   const [formData, setFormData] = useState({
     client: "",
     service: "",
-    amount: "",
+    subtotal: "",
+    vat_rate: "0",
     due_date: "",
+    payment_terms: "Payment due within 14 days of invoice date.",
   });
 
   useEffect(() => {
@@ -47,11 +49,27 @@ export default function InvoicesPage() {
     });
   }
 
+  function getNumber(value) {
+    return Number(String(value).replace(/[^0-9.]/g, "")) || 0;
+  }
+
+  function formatCurrency(value) {
+    return `£${Number(value || 0).toLocaleString("en-GB", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  }
+
+  const subtotalNumber = getNumber(formData.subtotal);
+  const vatRateNumber = getNumber(formData.vat_rate);
+  const vatAmountNumber = subtotalNumber * (vatRateNumber / 100);
+  const totalAmountNumber = subtotalNumber + vatAmountNumber;
+
   async function createInvoice(e) {
     e.preventDefault();
 
-    if (!formData.client || !formData.service || !formData.amount) {
-      alert("Please enter client, service and amount.");
+    if (!formData.client || !formData.service || !formData.subtotal) {
+      alert("Please enter client, service and subtotal.");
       return;
     }
 
@@ -66,8 +84,13 @@ export default function InvoicesPage() {
           project_id: null,
           client: formData.client,
           service: formData.service,
-          amount: formData.amount,
+          amount: formatCurrency(totalAmountNumber),
+          subtotal: formatCurrency(subtotalNumber),
+          vat_rate: `${vatRateNumber}%`,
+          vat_amount: formatCurrency(vatAmountNumber),
+          total_amount: formatCurrency(totalAmountNumber),
           due_date: formData.due_date || null,
+          payment_terms: formData.payment_terms,
         }),
       });
 
@@ -81,8 +104,10 @@ export default function InvoicesPage() {
       setFormData({
         client: "",
         service: "",
-        amount: "",
+        subtotal: "",
+        vat_rate: "0",
         due_date: "",
+        payment_terms: "Payment due within 14 days of invoice date.",
       });
 
       setShowForm(false);
@@ -125,9 +150,16 @@ export default function InvoicesPage() {
             />
 
             <input
-              name="amount"
-              placeholder="Amount e.g. £2,500"
-              value={formData.amount}
+              name="subtotal"
+              placeholder="Subtotal e.g. £2,500"
+              value={formData.subtotal}
+              onChange={handleChange}
+            />
+
+            <input
+              name="vat_rate"
+              placeholder="VAT Rate e.g. 20"
+              value={formData.vat_rate}
               onChange={handleChange}
             />
 
@@ -137,6 +169,25 @@ export default function InvoicesPage() {
               value={formData.due_date}
               onChange={handleChange}
             />
+
+            <input
+              name="payment_terms"
+              placeholder="Payment Terms"
+              value={formData.payment_terms}
+              onChange={handleChange}
+            />
+
+            <div className="panel">
+              <p>
+                <strong>Subtotal:</strong> {formatCurrency(subtotalNumber)}
+              </p>
+              <p>
+                <strong>VAT:</strong> {formatCurrency(vatAmountNumber)}
+              </p>
+              <p>
+                <strong>Total:</strong> {formatCurrency(totalAmountNumber)}
+              </p>
+            </div>
 
             <button className="primaryBtn" type="submit">
               Save Invoice
@@ -175,7 +226,7 @@ export default function InvoicesPage() {
                     </td>
                     <td>{invoice.client}</td>
                     <td>{invoice.service}</td>
-                    <td>{invoice.amount}</td>
+                    <td>{invoice.total_amount || invoice.amount}</td>
                     <td>
                       <StatusBadge status={invoice.status} />
                     </td>
