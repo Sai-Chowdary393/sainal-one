@@ -1,30 +1,27 @@
-import Link from "next/link";
+import Sidebar from "../../components/Sidebar";
 
 export default function AIAssistant() {
   return (
     <div className="appLayout">
-      <aside className="sidebar">
-        <h2>SaiNal One</h2>
-        <nav>
-          <Link href="/dashboard">Dashboard</Link>
-          <Link href="/leads">Leads</Link>
-          <Link href="/quotes">Quotes</Link>
-          <Link href="/customers">Customers</Link>
-          <Link href="/projects">Projects</Link>
-          <Link href="/ai-assistant">AI Assistant</Link>
-        </nav>
-      </aside>
+      <Sidebar />
 
       <main className="mainContent">
-        <h1>AI Assistant</h1>
+        <div className="topBar">
+          <div>
+            <h1>AI Assistant</h1>
+            <p className="helperText">
+              Generate emails, quotes, project plans and business insights.
+            </p>
+          </div>
+        </div>
 
         <div className="chatBox">
           <p className="aiMessage">
-            Hello, I can help you write follow-up emails, generate quotes and
-            analyse leads.
+            Hello, I can help you write follow-up emails, generate quotes,
+            create project tasks and analyse your business workflow.
           </p>
 
-          <input placeholder="Ask AI to create a quote or follow-up email..." />
+          <input placeholder="Ask AI to create a quote, email, task list or follow-up..." />
         </div>
       </main>
     </div>
