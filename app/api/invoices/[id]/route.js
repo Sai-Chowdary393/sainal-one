@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { supabase } from "../../../../lib/supabase";
 
-export async function PATCH(request, { params }) {
+export async function PATCH(request, context) {
   try {
-    const { id } = params;
+    const params = await context.params;
+    const id = params.id;
+
     const body = await request.json();
 
     const { data, error } = await supabase
@@ -28,9 +30,10 @@ export async function PATCH(request, { params }) {
   }
 }
 
-export async function DELETE(request, { params }) {
+export async function DELETE(request, context) {
   try {
-    const { id } = params;
+    const params = await context.params;
+    const id = params.id;
 
     const { data, error } = await supabase
       .from("invoices")
