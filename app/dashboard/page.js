@@ -12,6 +12,7 @@ export default function Dashboard() {
   const [customers, setCustomers] = useState([]);
   const [projects, setProjects] = useState([]);
   const [tasks, setTasks] = useState([]);
+  const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -26,12 +27,14 @@ export default function Dashboard() {
         customersResponse,
         projectsResponse,
         tasksResponse,
+        invoicesResponse,
       ] = await Promise.all([
         fetch("/api/leads"),
         fetch("/api/quotes"),
         fetch("/api/customers"),
         fetch("/api/projects"),
         fetch("/api/tasks"),
+        fetch("/api/invoices"),
       ]);
 
       const leadsData = await leadsResponse.json();
@@ -39,12 +42,14 @@ export default function Dashboard() {
       const customersData = await customersResponse.json();
       const projectsData = await projectsResponse.json();
       const tasksData = await tasksResponse.json();
+      const invoicesData = await invoicesResponse.json();
 
       setLeads(leadsData || []);
       setQuotes(quotesData || []);
       setCustomers(customersData || []);
       setProjects(projectsData || []);
       setTasks(tasksData || []);
+      setInvoices(invoicesData || []);
     } catch (error) {
       console.error(error);
       alert("Error loading dashboard data.");
@@ -56,12 +61,6 @@ export default function Dashboard() {
   function getMoneyValue(value) {
     if (!value) return 0;
     return Number(String(value).replace(/[^0-9.]/g, "")) || 0;
-  }
-
-  function getTotalQuoteValue() {
-    return quotes.reduce((total, quote) => {
-      return total + getMoneyValue(quote.amount);
-    }, 0);
   }
 
   function getProjectProgress(projectId) {
@@ -82,7 +81,30 @@ export default function Dashboard() {
   const totalQuotes = quotes.length;
   const totalCustomers = customers.length;
   const totalProjects = projects.length;
-  const pipelineValue = getTotalQuoteValue();
+  const totalInvoices = invoices.length;
+
+  const pipelineValue = quotes.reduce(
+    (total, quote) => total + getMoneyValue(quote.amount),
+    0
+  );
+
+  const paidInvoices = invoices.filter(
+    (invoice) => invoice.status === "Paid"
+  );
+
+  const pendingInvoices = invoices.filter(
+    (invoice) => invoice.status !== "Paid"
+  );
+
+  const paidRevenue = paidInvoices.reduce(
+    (total, invoice) => total + getMoneyValue(invoice.amount),
+    0
+  );
+
+  const pendingPayments = pendingInvoices.reduce(
+    (total, invoice) => total + getMoneyValue(invoice.amount),
+    0
+  );
 
   const completedTasks = tasks.filter(
     (task) => task.status === "Completed"
@@ -104,6 +126,7 @@ export default function Dashboard() {
   const latestQuotes = quotes.slice(0, 4);
   const latestProjects = projects.slice(0, 4);
   const latestTasks = tasks.slice(0, 5);
+  const latestInvoices = invoices.slice(0, 5);
 
   return (
     <div className="appLayout">
@@ -157,6 +180,23 @@ export default function Dashboard() {
               </div>
 
               <div className="statCard">
+                <p>Total Invoices</p>
+                <h2>{totalInvoices}</h2>
+              </div>
+
+              <div className="statCard">
+                <p>Paid Revenue</p>
+                <h2>£{paidRevenue.toLocaleString("en-GB")}</h2>
+              </div>
+
+              <div className="statCard">
+                <p>Pending Payments</p>
+                <h2>£{pendingPayments.toLocaleString("en-GB")}</h2>
+              </div>
+            </section>
+
+            <section className="dashboardCards secondaryStats">
+              <div className="statCard">
                 <p>Active Projects</p>
                 <h2>{activeProjects}</h2>
               </div>
@@ -169,6 +209,11 @@ export default function Dashboard() {
               <div className="statCard">
                 <p>Pending Tasks</p>
                 <h2>{pendingTasks}</h2>
+              </div>
+
+              <div className="statCard">
+                <p>Paid Invoices</p>
+                <h2>{paidInvoices.length}</h2>
               </div>
             </section>
 
@@ -253,6 +298,60 @@ export default function Dashboard() {
                     </div>
                   ))
                 )}
+              </div>
+            </section>
+
+            <section className="dashboardGrid">
+              <div className="panel">
+                <h3>Recent Invoices</h3>
+
+                {latestInvoices.length === 0 ? (
+                  <p>No invoices yet.</p>
+                ) : (
+                  latestInvoices.map((invoice) => (
+                    <div key={invoice.id} className="taskRow">
+                      <div>
+                        <Link
+                          href={`/invoices/${invoice.id}`}
+                          className="leadLink"
+                        >
+                          {invoice.invoice_number}
+                        </Link>
+                        <p className="helperText">
+                          {invoice.client} - {invoice.amount}
+                        </p>
+                      </div>
+
+                      <StatusBadge status={invoice.status} />
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="panel">
+                <h3>Finance Summary</h3>
+
+                <div className="activityGrid">
+                  <div>
+                    <strong>{totalInvoices}</strong>
+                    <p>Total Invoices</p>
+                  </div>
+
+                  <div>
+                    <strong>{paidInvoices.length}</strong>
+                    <p>Paid</p>
+                  </div>
+
+                  <div>
+                    <strong>{pendingInvoices.length}</strong>
+                    <p>Pending</p>
+                  </div>
+
+                  <div>
+                    <strong>£{paidRevenue.toLocaleString("en-GB")}</strong>
+                    <p>Revenue</p>
+                  </div>
+                </div>
               </div>
             </section>
 
