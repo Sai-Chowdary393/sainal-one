@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Sidebar from "../../components/Sidebar";
+import StatusBadge from "../../components/StatusBadge";
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState([]);
@@ -32,18 +34,7 @@ export default function CustomersPage() {
 
   return (
     <div className="appLayout">
-      <aside className="sidebar">
-        <h2>SaiNal One</h2>
-
-        <nav>
-          <Link href="/dashboard">Dashboard</Link>
-          <Link href="/leads">Leads</Link>
-          <Link href="/quotes">Quotes</Link>
-          <Link href="/customers">Customers</Link>
-          <Link href="/projects">Projects</Link>
-          <Link href="/ai-assistant">AI Assistant</Link>
-        </nav>
-      </aside>
+      <Sidebar />
 
       <main className="mainContent">
         <div className="topBar">
@@ -84,7 +75,9 @@ export default function CustomersPage() {
                     <td>{customer.company}</td>
                     <td>{customer.email}</td>
                     <td>{customer.phone}</td>
-                    <td>{customer.status}</td>
+                    <td>
+                      <StatusBadge status={customer.status} />
+                    </td>
                     <td>
                       {customer.created_at
                         ? new Date(customer.created_at).toLocaleDateString("en-GB")
