@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import Sidebar from "../../../components/Sidebar";
+import StatusBadge from "../../../components/StatusBadge";
+import ProgressBar from "../../../components/ProgressBar";
 
 export default function ProjectDetailsPage() {
   const params = useParams();
@@ -226,9 +229,7 @@ export default function ProjectDetailsPage() {
   if (loading) {
     return (
       <div className="appLayout">
-        <aside className="sidebar">
-          <h2>SaiNal One</h2>
-        </aside>
+        <Sidebar />
 
         <main className="mainContent">
           <p>Loading project...</p>
@@ -240,9 +241,7 @@ export default function ProjectDetailsPage() {
   if (!project) {
     return (
       <div className="appLayout">
-        <aside className="sidebar">
-          <h2>SaiNal One</h2>
-        </aside>
+        <Sidebar />
 
         <main className="mainContent">
           <Link href="/projects" className="backLink">
@@ -258,18 +257,7 @@ export default function ProjectDetailsPage() {
 
   return (
     <div className="appLayout">
-      <aside className="sidebar">
-        <h2>SaiNal One</h2>
-
-        <nav>
-          <Link href="/dashboard">Dashboard</Link>
-          <Link href="/leads">Leads</Link>
-          <Link href="/quotes">Quotes</Link>
-          <Link href="/customers">Customers</Link>
-          <Link href="/projects">Projects</Link>
-          <Link href="/ai-assistant">AI Assistant</Link>
-        </nav>
-      </aside>
+      <Sidebar />
 
       <main className="mainContent">
         <Link href="/projects" className="backLink">
@@ -290,7 +278,10 @@ export default function ProjectDetailsPage() {
         <section className="detailsGrid">
           <div className="panel">
             <h3>Project Information</h3>
-            <p><strong>Status:</strong> {project.status}</p>
+            <p>
+              <strong>Status:</strong>{" "}
+              <StatusBadge status={project.status} />
+            </p>
             <p><strong>Amount:</strong> {project.amount}</p>
             <p><strong>Start Date:</strong> {project.start_date || "-"}</p>
             <p><strong>Due Date:</strong> {project.due_date || "-"}</p>
@@ -298,7 +289,7 @@ export default function ProjectDetailsPage() {
 
           <div className="panel">
             <h3>Project Progress</h3>
-            <h2>{progress}%</h2>
+            <ProgressBar value={progress} />
             <p>{tasks.length} total tasks</p>
             <p>
               {tasks.filter((task) => task.status === "Completed").length} completed
