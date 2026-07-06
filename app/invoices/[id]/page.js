@@ -102,6 +102,13 @@ export default function InvoiceDetailsPage() {
     ? new Date(invoice.created_at).toLocaleDateString("en-GB")
     : "-";
 
+  const subtotal = invoice.subtotal || invoice.amount || "£0.00";
+  const vatRate = invoice.vat_rate || "0%";
+  const vatAmount = invoice.vat_amount || "£0.00";
+  const totalAmount = invoice.total_amount || invoice.amount || "£0.00";
+  const paymentTerms =
+    invoice.payment_terms || "Payment due within 14 days of invoice date.";
+
   return (
     <div className="appLayout">
       <Sidebar />
@@ -181,7 +188,9 @@ export default function InvoiceDetailsPage() {
               <tr>
                 <th>Description</th>
                 <th>Qty</th>
-                <th>Amount</th>
+                <th>Subtotal</th>
+                <th>VAT</th>
+                <th>Total</th>
               </tr>
             </thead>
 
@@ -189,7 +198,11 @@ export default function InvoiceDetailsPage() {
               <tr>
                 <td>{invoice.service}</td>
                 <td>1</td>
-                <td>{invoice.amount}</td>
+                <td>{subtotal}</td>
+                <td>
+                  {vatAmount} ({vatRate})
+                </td>
+                <td>{totalAmount}</td>
               </tr>
             </tbody>
           </table>
@@ -199,13 +212,19 @@ export default function InvoiceDetailsPage() {
               <p>
                 <strong>Payment Terms:</strong>
               </p>
-              <p>Payment due as agreed with the client.</p>
+              <p>{paymentTerms}</p>
               <p>Thank you for your business.</p>
             </div>
 
             <div className="totalBox">
+              <p>Subtotal</p>
+              <h3>{subtotal}</h3>
+
+              <p>VAT</p>
+              <h3>{vatAmount}</h3>
+
               <p>Total Amount</p>
-              <h2>{invoice.amount}</h2>
+              <h2>{totalAmount}</h2>
             </div>
           </div>
 
