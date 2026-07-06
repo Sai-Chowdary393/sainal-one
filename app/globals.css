@@ -511,4 +511,110 @@ a {
   .topBar input {
     width: 100%;
   }
+ .invoiceDocument {
+  background: white;
+  border-radius: 18px;
+  padding: 42px;
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.05);
+}
+
+.invoiceHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 40px;
+}
+
+.invoiceHeader h1 {
+  margin: 0;
+  color: #1c1c1c;
+}
+
+.invoiceHeader p {
+  margin: 6px 0;
+  color: #64748b;
+}
+
+.invoiceMeta {
+  text-align: right;
+}
+
+.invoiceMeta h2 {
+  color: #b8860b;
+  letter-spacing: 2px;
+}
+
+.invoiceDivider {
+  height: 2px;
+  background: #d4af37;
+  margin: 32px 0;
+}
+
+.invoiceBillGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  margin-bottom: 32px;
+}
+
+.invoiceBillGrid h3 {
+  color: #b8860b;
+}
+
+.invoiceTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+}
+
+.invoiceTable th {
+  background: #f7f5f0;
+  text-align: left;
+  padding: 16px;
+}
+
+.invoiceTable td {
+  padding: 18px 16px;
+  border-bottom: 1px solid #eee;
+}
+
+.invoiceTotals {
+  display: flex;
+  justify-content: space-between;
+  gap: 32px;
+  margin-top: 36px;
+}
+
+.totalBox {
+  background: #1c1c1c;
+  color: white;
+  padding: 24px 32px;
+  border-radius: 16px;
+  min-width: 260px;
+  text-align: right;
+}
+
+.totalBox p {
+  margin: 0;
+  color: #d4af37;
+  font-weight: bold;
+}
+
+.totalBox h2 {
+  margin-bottom: 0;
+}
+
+.invoiceFooter {
+  margin-top: 42px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+  color: #64748b;
+  font-size: 14px;
+}
+
+@media print {
+  .invoiceDocument {
+    box-shadow: none;
+    border-radius: 0;
+    padding: 20px;
+  }
 }
