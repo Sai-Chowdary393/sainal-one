@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Sidebar from "../../components/Sidebar";
+import StatusBadge from "../../components/StatusBadge";
 
 export default function Leads() {
   const [showForm, setShowForm] = useState(false);
@@ -91,18 +93,7 @@ export default function Leads() {
 
   return (
     <div className="appLayout">
-      <aside className="sidebar">
-        <h2>SaiNal One</h2>
-
-        <nav>
-          <Link href="/dashboard">Dashboard</Link>
-          <Link href="/leads">Leads</Link>
-          <Link href="/quotes">Quotes</Link>
-          <Link href="/customers">Customers</Link>
-          <Link href="/projects">Projects</Link>
-          <Link href="/ai-assistant">AI Assistant</Link>
-        </nav>
-      </aside>
+      <Sidebar />
 
       <main className="mainContent">
         <div className="topBar">
@@ -200,7 +191,9 @@ export default function Leads() {
                     <td>{lead.company}</td>
                     <td>{lead.email}</td>
                     <td>{lead.phone}</td>
-                    <td>{lead.status}</td>
+                    <td>
+                      <StatusBadge status={lead.status} />
+                    </td>
                     <td>{lead.value}</td>
                   </tr>
                 ))
