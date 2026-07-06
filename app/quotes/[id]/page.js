@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import Sidebar from "../../../components/Sidebar";
+import StatusBadge from "../../../components/StatusBadge";
 
 export default function QuoteDetailsPage() {
   const params = useParams();
@@ -91,9 +93,7 @@ export default function QuoteDetailsPage() {
   if (loading) {
     return (
       <div className="appLayout">
-        <aside className="sidebar">
-          <h2>SaiNal One</h2>
-        </aside>
+        <Sidebar />
 
         <main className="mainContent">
           <p>Loading quote...</p>
@@ -105,9 +105,7 @@ export default function QuoteDetailsPage() {
   if (!quote) {
     return (
       <div className="appLayout">
-        <aside className="sidebar">
-          <h2>SaiNal One</h2>
-        </aside>
+        <Sidebar />
 
         <main className="mainContent">
           <Link href="/quotes" className="backLink">
@@ -121,18 +119,9 @@ export default function QuoteDetailsPage() {
 
   return (
     <div className="appLayout">
-      <aside className="sidebar noPrint">
-        <h2>SaiNal One</h2>
-
-        <nav>
-          <Link href="/dashboard">Dashboard</Link>
-          <Link href="/leads">Leads</Link>
-          <Link href="/quotes">Quotes</Link>
-          <Link href="/customers">Customers</Link>
-          <Link href="/projects">Projects</Link>
-          <Link href="/ai-assistant">AI Assistant</Link>
-        </nav>
-      </aside>
+      <div className="noPrint">
+        <Sidebar />
+      </div>
 
       <main className="mainContent">
         <Link href="/quotes" className="backLink noPrint">
@@ -173,7 +162,10 @@ export default function QuoteDetailsPage() {
             <p><strong>Quote Number:</strong> {quote.quote_number || "-"}</p>
             <p><strong>Service:</strong> {quote.service}</p>
             <p><strong>Amount:</strong> {quote.amount}</p>
-            <p><strong>Status:</strong> {quote.status}</p>
+            <p>
+              <strong>Status:</strong>{" "}
+              <StatusBadge status={quote.status} />
+            </p>
             <p>
               <strong>Created:</strong>{" "}
               {quote.created_at
