@@ -8,6 +8,14 @@ import StatusBadge from "../../components/StatusBadge";
 export default function InvoicesPage() {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+
+  const [formData, setFormData] = useState({
+    client: "",
+    service: "",
+    amount: "",
+    due_date: "",
+  });
 
   useEffect(() => {
     fetchInvoices();
@@ -32,6 +40,61 @@ export default function InvoicesPage() {
     }
   }
 
+  function handleChange(e) {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
+  }
+
+  async function createInvoice(e) {
+    e.preventDefault();
+
+    if (!formData.client || !formData.service || !formData.amount) {
+      alert("Please enter client, service and amount.");
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/invoices", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          customer_id: null,
+          project_id: null,
+          client: formData.client,
+          service: formData.service,
+          amount: formData.amount,
+          due_date: formData.due_date || null,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || "Failed to create invoice.");
+        return;
+      }
+
+      setFormData({
+        client: "",
+        service: "",
+        amount: "",
+        due_date: "",
+      });
+
+      setShowForm(false);
+      await fetchInvoices();
+
+      alert("Invoice created successfully.");
+    } catch (error) {
+      console.error(error);
+      alert("Error creating invoice.");
+    }
+  }
+
   return (
     <div className="appLayout">
       <Sidebar />
@@ -39,7 +102,47 @@ export default function InvoicesPage() {
       <main className="mainContent">
         <div className="topBar">
           <h1>Invoices</h1>
+
+          <button className="primaryBtn" onClick={() => setShowForm(!showForm)}>
+            {showForm ? "Close" : "Add Invoice"}
+          </button>
         </div>
+
+        {showForm && (
+          <form className="leadForm" onSubmit={createInvoice}>
+            <input
+              name="client"
+              placeholder="Client / Company Name"
+              value={formData.client}
+              onChange={handleChange}
+            />
+
+            <input
+              name="service"
+              placeholder="Service / Project Description"
+              value={formData.service}
+              onChange={handleChange}
+            />
+
+            <input
+              name="amount"
+              placeholder="Amount e.g. £2,500"
+              value={formData.amount}
+              onChange={handleChange}
+            />
+
+            <input
+              type="date"
+              name="due_date"
+              value={formData.due_date}
+              onChange={handleChange}
+            />
+
+            <button className="primaryBtn" type="submit">
+              Save Invoice
+            </button>
+          </form>
+        )}
 
         {loading ? (
           <p>Loading invoices...</p>
