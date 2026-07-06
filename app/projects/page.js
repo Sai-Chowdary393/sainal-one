@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Sidebar from "../../components/Sidebar";
+import StatusBadge from "../../components/StatusBadge";
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState([]);
@@ -32,20 +34,10 @@ export default function ProjectsPage() {
 
   return (
     <div className="appLayout">
-      <aside className="sidebar">
-        <h2>SaiNal One</h2>
-
-        <nav>
-          <Link href="/dashboard">Dashboard</Link>
-          <Link href="/leads">Leads</Link>
-          <Link href="/quotes">Quotes</Link>
-          <Link href="/customers">Customers</Link>
-          <Link href="/projects">Projects</Link>
-          <Link href="/ai-assistant">AI Assistant</Link>
-        </nav>
-      </aside>
+      <Sidebar />
 
       <main className="mainContent">
+
         <div className="topBar">
           <h1>Projects</h1>
         </div>
@@ -54,6 +46,7 @@ export default function ProjectsPage() {
           <p>Loading projects...</p>
         ) : (
           <table className="leadTable">
+
             <thead>
               <tr>
                 <th>Project</th>
@@ -66,33 +59,63 @@ export default function ProjectsPage() {
             </thead>
 
             <tbody>
+
               {projects.length === 0 ? (
+
                 <tr>
-                  <td colSpan="6">No projects found yet.</td>
+                  <td colSpan="6">
+                    No projects found yet.
+                  </td>
                 </tr>
+
               ) : (
+
                 projects.map((project) => (
+
                   <tr key={project.id}>
+
                     <td>
-                      <Link href={`/projects/${project.id}`} className="leadLink">
+                      <Link
+                        href={`/projects/${project.id}`}
+                        className="leadLink"
+                      >
                         {project.project_name}
                       </Link>
                     </td>
-                    <td>{project.status}</td>
+
+                    <td>
+                      <StatusBadge status={project.status} />
+                    </td>
+
                     <td>{project.amount}</td>
-                    <td>{project.start_date || "-"}</td>
-                    <td>{project.due_date || "-"}</td>
+
+                    <td>
+                      {project.start_date || "-"}
+                    </td>
+
+                    <td>
+                      {project.due_date || "-"}
+                    </td>
+
                     <td>
                       {project.created_at
-                        ? new Date(project.created_at).toLocaleDateString("en-GB")
+                        ? new Date(
+                            project.created_at
+                          ).toLocaleDateString("en-GB")
                         : "-"}
                     </td>
+
                   </tr>
+
                 ))
+
               )}
+
             </tbody>
+
           </table>
         )}
+
       </main>
     </div>
   );
