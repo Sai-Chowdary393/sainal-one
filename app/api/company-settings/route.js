@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { supabase } from "../../../lib/supabase";
 
+const ORGANIZATION_ID = "9d5bbb05-866b-4c38-b2ac-3019e7cf88e5";
+
 export async function GET() {
   try {
     const { data, error } = await supabase
       .from("company_settings")
       .select("*")
-      .order("created_at", { ascending: false })
+      .eq("organization_id", ORGANIZATION_ID)
       .limit(1);
 
     if (error) {
@@ -29,6 +31,7 @@ export async function POST(request) {
     const { data: existing } = await supabase
       .from("company_settings")
       .select("*")
+      .eq("organization_id", ORGANIZATION_ID)
       .limit(1);
 
     if (existing && existing.length > 0) {
@@ -43,6 +46,7 @@ export async function POST(request) {
           default_vat_rate: body.default_vat_rate,
           invoice_prefix: body.invoice_prefix,
           payment_terms: body.payment_terms,
+          organization_id: ORGANIZATION_ID,
           updated_at: new Date().toISOString(),
         })
         .eq("id", existing[0].id)
@@ -57,7 +61,12 @@ export async function POST(request) {
 
     const { data, error } = await supabase
       .from("company_settings")
-      .insert([body])
+      .insert([
+        {
+          ...body,
+          organization_id: ORGANIZATION_ID,
+        },
+      ])
       .select();
 
     if (error) {
