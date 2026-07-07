@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+
 import Sidebar from "../../components/Sidebar";
 import StatusBadge from "../../components/StatusBadge";
+import ProtectedRoute from "../../components/ProtectedRoute";
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState([]);
@@ -23,7 +25,7 @@ export default function CustomersPage() {
         return;
       }
 
-      setCustomers(data);
+      setCustomers(data || []);
     } catch (error) {
       console.error(error);
       alert("Error loading customers.");
@@ -33,63 +35,70 @@ export default function CustomersPage() {
   }
 
   return (
-    <div className="appLayout">
-      <Sidebar />
+    <ProtectedRoute>
+      <div className="appLayout">
+        <Sidebar />
 
-      <main className="mainContent">
-        <div className="topBar">
-          <h1>Customers</h1>
-        </div>
+        <main className="mainContent">
+          <div className="topBar">
+            <h1>Customers</h1>
+          </div>
 
-        {loading ? (
-          <p>Loading customers...</p>
-        ) : (
-          <table className="leadTable">
-            <thead>
-              <tr>
-                <th>Customer Name</th>
-                <th>Company</th>
-                <th>Email</th>
-                <th>Phone</th>
-                <th>Status</th>
-                <th>Created</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {customers.length === 0 ? (
+          {loading ? (
+            <p>Loading customers...</p>
+          ) : (
+            <table className="leadTable">
+              <thead>
                 <tr>
-                  <td colSpan="6">No customers found yet.</td>
+                  <th>Customer Name</th>
+                  <th>Company</th>
+                  <th>Email</th>
+                  <th>Phone</th>
+                  <th>Status</th>
+                  <th>Created</th>
                 </tr>
-              ) : (
-                customers.map((customer) => (
-                  <tr key={customer.id}>
-                    <td>
-                      <Link
-                        href={`/customers/${customer.id}`}
-                        className="leadLink"
-                      >
-                        {customer.customer_name}
-                      </Link>
-                    </td>
-                    <td>{customer.company}</td>
-                    <td>{customer.email}</td>
-                    <td>{customer.phone}</td>
-                    <td>
-                      <StatusBadge status={customer.status} />
-                    </td>
-                    <td>
-                      {customer.created_at
-                        ? new Date(customer.created_at).toLocaleDateString("en-GB")
-                        : "-"}
-                    </td>
+              </thead>
+
+              <tbody>
+                {customers.length === 0 ? (
+                  <tr>
+                    <td colSpan="6">No customers found yet.</td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        )}
-      </main>
-    </div>
+                ) : (
+                  customers.map((customer) => (
+                    <tr key={customer.id}>
+                      <td>
+                        <Link
+                          href={`/customers/${customer.id}`}
+                          className="leadLink"
+                        >
+                          {customer.customer_name}
+                        </Link>
+                      </td>
+
+                      <td>{customer.company}</td>
+                      <td>{customer.email}</td>
+                      <td>{customer.phone}</td>
+
+                      <td>
+                        <StatusBadge status={customer.status} />
+                      </td>
+
+                      <td>
+                        {customer.created_at
+                          ? new Date(customer.created_at).toLocaleDateString(
+                              "en-GB"
+                            )
+                          : "-"}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          )}
+        </main>
+      </div>
+    </ProtectedRoute>
   );
 }
