@@ -1,6 +1,14 @@
+"use client";
+
 import Link from "next/link";
+import { supabase } from "../lib/supabase";
 
 export default function Sidebar() {
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    window.location.href = "/login";
+  }
+
   return (
     <aside className="sidebar">
       <h2>SaiNal One</h2>
@@ -14,6 +22,10 @@ export default function Sidebar() {
         <Link href="/invoices">💷 Invoices</Link>
         <Link href="/follow-ups">⏰ Follow-ups</Link>
         <Link href="/ai-assistant">🤖 AI Assistant</Link>
+
+        <button className="logoutBtn" onClick={handleLogout}>
+          Logout
+        </button>
       </nav>
     </aside>
   );
