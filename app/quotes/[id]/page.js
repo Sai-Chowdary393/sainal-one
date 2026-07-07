@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import Sidebar from "../../../components/Sidebar";
 import StatusBadge from "../../../components/StatusBadge";
+import ProtectedRoute from "../../../components/ProtectedRoute";
 
 export default function QuoteDetailsPage() {
   const params = useParams();
@@ -65,7 +66,6 @@ export default function QuoteDetailsPage() {
         headers: {
           "Content-Type": "application/json",
         },
-
         body: JSON.stringify({
           lead_id: quote.lead_id || null,
           customer_name: quote.contact,
@@ -91,164 +91,106 @@ export default function QuoteDetailsPage() {
     }
   }
 
-
   if (loading) {
     return (
-      <div className="appLayout">
+      <ProtectedRoute>
+        <div className="appLayout">
+          <Sidebar />
 
-        <Sidebar />
-
-        <main className="mainContent">
-          <p>Loading quote...</p>
-        </main>
-
-      </div>
+          <main className="mainContent">
+            <p>Loading quote...</p>
+          </main>
+        </div>
+      </ProtectedRoute>
     );
   }
-
 
   if (!quote) {
     return (
-      <div className="appLayout">
+      <ProtectedRoute>
+        <div className="appLayout">
+          <Sidebar />
 
-        <Sidebar />
+          <main className="mainContent">
+            <Link href="/quotes" className="backLink">
+              ← Back to Quotes
+            </Link>
 
-        <main className="mainContent">
-
-          <Link href="/quotes" className="backLink">
-            ← Back to Quotes
-          </Link>
-
-          <h1>Quote not found</h1>
-
-        </main>
-
-      </div>
+            <h1>Quote not found</h1>
+          </main>
+        </div>
+      </ProtectedRoute>
     );
   }
 
-
   return (
-    <div className="appLayout">
+    <ProtectedRoute>
+      <div className="appLayout">
+        <Sidebar />
 
-      <Sidebar />
+        <main className="mainContent">
+          <Link href="/quotes" className="backLink noPrint">
+            ← Back to Quotes
+          </Link>
 
-      <main className="mainContent">
+          <div className="topBar">
+            <h1>Quote Details</h1>
 
-        <Link href="/quotes" className="backLink noPrint">
-          ← Back to Quotes
-        </Link>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button className="primaryBtn noPrint" onClick={downloadPDF}>
+                Download PDF
+              </button>
 
-
-        <div className="topBar">
-
-          <h1>Quote Details</h1>
-
-
-          <div style={{ display:"flex", gap:"10px" }}>
-
-            <button 
-              className="primaryBtn noPrint"
-              onClick={downloadPDF}
-            >
-              Download PDF
-            </button>
-
-
-            <button
-              className="primaryBtn noPrint"
-              onClick={convertToCustomer}
-            >
-              Convert To Customer
-            </button>
-
+              <button
+                className="primaryBtn noPrint"
+                onClick={convertToCustomer}
+              >
+                Convert To Customer
+              </button>
+            </div>
           </div>
 
-        </div>
-
-
-        {customerCreated && (
-          <p className="helperText">
-            Customer is ready. Go to Customers to start the project.
-          </p>
-        )}
-
-
-        <section className="detailsGrid">
-
-          <div className="panel">
-
-            <h3>Client Information</h3>
-
-            <p><strong>Client:</strong> {quote.client}</p>
-
-            <p><strong>Contact:</strong> {quote.contact}</p>
-
-            <p><strong>Email:</strong> {quote.email}</p>
-
-            <p><strong>Phone:</strong> {quote.phone}</p>
-
-          </div>
-
-
-
-          <div className="panel">
-
-            <h3>Quote Information</h3>
-
-            <p>
-              <strong>Quote Number:</strong>{" "}
-              {quote.quote_number || "-"}
+          {customerCreated && (
+            <p className="helperText">
+              Customer is ready. Go to Customers to start the project.
             </p>
+          )}
 
+          <section className="detailsGrid">
+            <div className="panel">
+              <h3>Client Information</h3>
 
-            <p>
-              <strong>Service:</strong>{" "}
-              {quote.service}
-            </p>
+              <p><strong>Client:</strong> {quote.client}</p>
+              <p><strong>Contact:</strong> {quote.contact}</p>
+              <p><strong>Email:</strong> {quote.email}</p>
+              <p><strong>Phone:</strong> {quote.phone}</p>
+            </div>
 
+            <div className="panel">
+              <h3>Quote Information</h3>
 
-            <p>
-              <strong>Amount:</strong>{" "}
-              {quote.amount}
-            </p>
+              <p><strong>Quote Number:</strong> {quote.quote_number || "-"}</p>
+              <p><strong>Service:</strong> {quote.service}</p>
+              <p><strong>Amount:</strong> {quote.amount}</p>
+              <p>
+                <strong>Status:</strong>{" "}
+                <StatusBadge status={quote.status} />
+              </p>
+              <p>
+                <strong>Created:</strong>{" "}
+                {quote.created_at
+                  ? new Date(quote.created_at).toLocaleDateString("en-GB")
+                  : "-"}
+              </p>
+            </div>
+          </section>
 
-
-            <p>
-              <strong>Status:</strong>{" "}
-              <StatusBadge status={quote.status} />
-            </p>
-
-
-            <p>
-              <strong>Created:</strong>{" "}
-              {quote.created_at
-                ? new Date(
-                    quote.created_at
-                  ).toLocaleDateString("en-GB")
-                : "-"}
-            </p>
-
-          </div>
-
-        </section>
-
-
-        <section className="panel">
-
-          <h3>Full Quote</h3>
-
-          <pre className="quotePreview">
-
-            {quote.quote_text || ""}
-
-          </pre>
-
-        </section>
-
-
-      </main>
-
-    </div>
+          <section className="panel">
+            <h3>Full Quote</h3>
+            <pre className="quotePreview">{quote.quote_text || ""}</pre>
+          </section>
+        </main>
+      </div>
+    </ProtectedRoute>
   );
 }
