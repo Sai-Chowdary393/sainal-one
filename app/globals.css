@@ -636,3 +636,18 @@ a {
     width: 100%;
   }
 }
+.logoutBtn {
+  background: transparent;
+  border: 1px solid #d4af37;
+  color: #d4af37;
+  padding: 12px;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  text-align: left;
+}
+
+.logoutBtn:hover {
+  background: #d4af37;
+  color: #1c1c1c;
+}
