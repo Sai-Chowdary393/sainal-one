@@ -12,6 +12,7 @@ export default function InvoiceDetailsPage() {
   const invoiceId = params.id;
 
   const [invoice, setInvoice] = useState(null);
+  const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -20,14 +21,18 @@ export default function InvoiceDetailsPage() {
 
   async function fetchInvoice() {
     try {
-      const response = await fetch("/api/invoices");
-      const data = await response.json();
+      const invoiceResponse = await fetch("/api/invoices");
+      const settingsResponse = await fetch("/api/company-settings");
 
-      const selectedInvoice = data.find(
+      const invoicesData = await invoiceResponse.json();
+      const settingsData = await settingsResponse.json();
+
+      const selectedInvoice = invoicesData.find(
         (item) => String(item.id) === String(invoiceId)
       );
 
       setInvoice(selectedInvoice || null);
+      setSettings(settingsData || null);
     } catch (error) {
       console.error(error);
       alert("Error loading invoice.");
@@ -103,6 +108,11 @@ export default function InvoiceDetailsPage() {
     );
   }
 
+  const companyName = settings?.company_name || "SaiNal Technologies Ltd";
+  const companyWebsite = settings?.website || "www.sainaltechnologies.com";
+  const companyAddress = settings?.address || "United Kingdom";
+  const vatNumber = settings?.vat_number || "";
+
   const createdDate = invoice.created_at
     ? new Date(invoice.created_at).toLocaleDateString("en-GB")
     : "-";
@@ -112,7 +122,9 @@ export default function InvoiceDetailsPage() {
   const vatAmount = invoice.vat_amount || "£0.00";
   const totalAmount = invoice.total_amount || invoice.amount || "£0.00";
   const paymentTerms =
-    invoice.payment_terms || "Payment due within 14 days of invoice date.";
+    invoice.payment_terms ||
+    settings?.payment_terms ||
+    "Payment due within 14 days of invoice date.";
 
   return (
     <ProtectedRoute>
@@ -151,10 +163,12 @@ export default function InvoiceDetailsPage() {
           <section className="invoiceDocument">
             <div className="invoiceHeader">
               <div>
-                <h1>SaiNal Technologies Ltd</h1>
+                <h1>{companyName}</h1>
                 <p>Digital Solutions & Automation</p>
-                <p>United Kingdom</p>
-                <p>www.sainaltechnologies.com</p>
+                <p>{companyAddress}</p>
+                <p>{companyWebsite}</p>
+
+                {vatNumber && <p>VAT No: {vatNumber}</p>}
               </div>
 
               <div className="invoiceMeta">
