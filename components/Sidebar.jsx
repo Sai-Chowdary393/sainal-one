@@ -23,6 +23,7 @@ export default function Sidebar() {
         <Link href="/follow-ups">⏰ Follow-ups</Link>
         <Link href="/ai-assistant">🤖 AI Assistant</Link>
         <Link href="/profile">👤 Profile</Link>
+        <Link href="/settings">⚙️ Settings</Link>
 
         <button className="logoutBtn" onClick={handleLogout}>
           Logout
