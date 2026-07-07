@@ -22,6 +22,7 @@ export default function Sidebar() {
         <Link href="/invoices">💷 Invoices</Link>
         <Link href="/follow-ups">⏰ Follow-ups</Link>
         <Link href="/ai-assistant">🤖 AI Assistant</Link>
+        <Link href="/profile">👤 Profile</Link>
 
         <button className="logoutBtn" onClick={handleLogout}>
           Logout
