@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import Sidebar from "../../../components/Sidebar";
 import StatusBadge from "../../../components/StatusBadge";
+import ProtectedRoute from "../../../components/ProtectedRoute";
 
 export default function CustomerDetailsPage() {
   const params = useParams();
@@ -97,18 +98,37 @@ export default function CustomerDetailsPage() {
 
   if (loading) {
     return (
-      <div className="appLayout">
-        <Sidebar />
+      <ProtectedRoute>
+        <div className="appLayout">
+          <Sidebar />
 
-        <main className="mainContent">
-          <p>Loading customer...</p>
-        </main>
-      </div>
+          <main className="mainContent">
+            <p>Loading customer...</p>
+          </main>
+        </div>
+      </ProtectedRoute>
     );
   }
 
   if (!customer) {
     return (
+      <ProtectedRoute>
+        <div className="appLayout">
+          <Sidebar />
+
+          <main className="mainContent">
+            <Link href="/customers" className="backLink">
+              ← Back to Customers
+            </Link>
+            <h1>Customer not found</h1>
+          </main>
+        </div>
+      </ProtectedRoute>
+    );
+  }
+
+  return (
+    <ProtectedRoute>
       <div className="appLayout">
         <Sidebar />
 
@@ -116,99 +136,86 @@ export default function CustomerDetailsPage() {
           <Link href="/customers" className="backLink">
             ← Back to Customers
           </Link>
-          <h1>Customer not found</h1>
+
+          <div className="topBar">
+            <h1>{customer.customer_name}</h1>
+
+            <button className="primaryBtn" onClick={startProject}>
+              Start Project
+            </button>
+          </div>
+
+          {projectCreated && (
+            <p className="helperText">
+              Project started successfully. You can view it in Projects.
+            </p>
+          )}
+
+          <section className="detailsGrid">
+            <div className="panel">
+              <h3>Customer Information</h3>
+              <p><strong>Company:</strong> {customer.company}</p>
+              <p><strong>Email:</strong> {customer.email}</p>
+              <p><strong>Phone:</strong> {customer.phone}</p>
+              <p>
+                <strong>Status:</strong>{" "}
+                <StatusBadge status={customer.status} />
+              </p>
+            </div>
+
+            <div className="panel">
+              <h3>Activity Summary</h3>
+              <p>Customer created</p>
+              <p>Total Quotes: {quotes.length}</p>
+              <p>
+                Status: <StatusBadge status={customer.status} />
+              </p>
+            </div>
+          </section>
+
+          <section className="panel">
+            <h3>Customer Quotes</h3>
+
+            {quotes.length === 0 ? (
+              <p>No quotes found for this customer.</p>
+            ) : (
+              <table className="leadTable">
+                <thead>
+                  <tr>
+                    <th>Quote No</th>
+                    <th>Service</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {quotes.map((quote) => (
+                    <tr key={quote.id}>
+                      <td>
+                        <Link href={`/quotes/${quote.id}`} className="leadLink">
+                          {quote.quote_number || "Quote"}
+                        </Link>
+                      </td>
+                      <td>{quote.service}</td>
+                      <td>{quote.amount}</td>
+                      <td>
+                        <StatusBadge status={quote.status} />
+                      </td>
+                      <td>
+                        {quote.created_at
+                          ? new Date(quote.created_at).toLocaleDateString("en-GB")
+                          : "-"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </section>
         </main>
       </div>
-    );
-  }
-
-  return (
-    <div className="appLayout">
-      <Sidebar />
-
-      <main className="mainContent">
-        <Link href="/customers" className="backLink">
-          ← Back to Customers
-        </Link>
-
-        <div className="topBar">
-          <h1>{customer.customer_name}</h1>
-
-          <button className="primaryBtn" onClick={startProject}>
-            Start Project
-          </button>
-        </div>
-
-        {projectCreated && (
-          <p className="helperText">
-            Project started successfully. You can view it in Projects.
-          </p>
-        )}
-
-        <section className="detailsGrid">
-          <div className="panel">
-            <h3>Customer Information</h3>
-            <p><strong>Company:</strong> {customer.company}</p>
-            <p><strong>Email:</strong> {customer.email}</p>
-            <p><strong>Phone:</strong> {customer.phone}</p>
-            <p>
-              <strong>Status:</strong>{" "}
-              <StatusBadge status={customer.status} />
-            </p>
-          </div>
-
-          <div className="panel">
-            <h3>Activity Summary</h3>
-            <p>Customer created</p>
-            <p>Total Quotes: {quotes.length}</p>
-            <p>
-              Status: <StatusBadge status={customer.status} />
-            </p>
-          </div>
-        </section>
-
-        <section className="panel">
-          <h3>Customer Quotes</h3>
-
-          {quotes.length === 0 ? (
-            <p>No quotes found for this customer.</p>
-          ) : (
-            <table className="leadTable">
-              <thead>
-                <tr>
-                  <th>Quote No</th>
-                  <th>Service</th>
-                  <th>Amount</th>
-                  <th>Status</th>
-                  <th>Created</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {quotes.map((quote) => (
-                  <tr key={quote.id}>
-                    <td>
-                      <Link href={`/quotes/${quote.id}`} className="leadLink">
-                        {quote.quote_number || "Quote"}
-                      </Link>
-                    </td>
-                    <td>{quote.service}</td>
-                    <td>{quote.amount}</td>
-                    <td>
-                      <StatusBadge status={quote.status} />
-                    </td>
-                    <td>
-                      {quote.created_at
-                        ? new Date(quote.created_at).toLocaleDateString("en-GB")
-                        : "-"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </section>
-      </main>
-    </div>
+    </ProtectedRoute>
   );
 }
