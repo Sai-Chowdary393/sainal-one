@@ -2,93 +2,220 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+
 import Sidebar from "../../components/Sidebar";
 import StatusBadge from "../../components/StatusBadge";
+import ProtectedRoute from "../../components/ProtectedRoute";
+
 
 export default function QuotesPage() {
+
   const [quotes, setQuotes] = useState([]);
   const [loading, setLoading] = useState(true);
+
 
   useEffect(() => {
     fetchQuotes();
   }, []);
 
+
+
   async function fetchQuotes() {
+
     try {
+
       const response = await fetch("/api/quotes");
+
       const data = await response.json();
 
+
       if (!response.ok) {
+
         alert(data.error || "Failed to load quotes.");
         return;
+
       }
 
-      setQuotes(data);
+
+      setQuotes(data || []);
+
+
     } catch (error) {
+
       console.error(error);
+
       alert("Error loading quotes.");
+
+
     } finally {
+
       setLoading(false);
+
     }
+
   }
 
+
+
   return (
-    <div className="appLayout">
-      <Sidebar />
 
-      <main className="mainContent">
-        <div className="topBar">
-          <h1>Quotes</h1>
-        </div>
+    <ProtectedRoute>
 
-        {loading ? (
-          <p>Loading quotes...</p>
-        ) : (
-          <table className="leadTable">
-            <thead>
-              <tr>
-                <th>Quote No</th>
-                <th>Client</th>
-                <th>Contact</th>
-                <th>Email</th>
-                <th>Amount</th>
-                <th>Status</th>
-                <th>Created</th>
-              </tr>
-            </thead>
+      <div className="appLayout">
 
-            <tbody>
-              {quotes.length === 0 ? (
+
+        <Sidebar />
+
+
+
+        <main className="mainContent">
+
+
+          <div className="topBar">
+
+            <h1>Quotes</h1>
+
+          </div>
+
+
+
+
+          {loading ? (
+
+
+            <p>Loading quotes...</p>
+
+
+          ) : (
+
+
+            <table className="leadTable">
+
+
+              <thead>
+
                 <tr>
-                  <td colSpan="7">No quotes found yet.</td>
+
+                  <th>Quote No</th>
+
+                  <th>Client</th>
+
+                  <th>Contact</th>
+
+                  <th>Email</th>
+
+                  <th>Amount</th>
+
+                  <th>Status</th>
+
+                  <th>Created</th>
+
                 </tr>
-              ) : (
-                quotes.map((quote) => (
-                  <tr key={quote.id}>
-                    <td>
-                      <Link href={`/quotes/${quote.id}`} className="leadLink">
-                        {quote.quote_number || "-"}
-                      </Link>
+
+              </thead>
+
+
+
+
+              <tbody>
+
+
+                {quotes.length === 0 ? (
+
+
+                  <tr>
+
+                    <td colSpan="7">
+
+                      No quotes found yet.
+
                     </td>
-                    <td>{quote.client}</td>
-                    <td>{quote.contact}</td>
-                    <td>{quote.email}</td>
-                    <td>{quote.amount}</td>
-                    <td>
-                      <StatusBadge status={quote.status} />
-                    </td>
-                    <td>
-                      {quote.created_at
-                        ? new Date(quote.created_at).toLocaleDateString("en-GB")
-                        : "-"}
-                    </td>
+
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        )}
-      </main>
-    </div>
+
+
+                ) : (
+
+
+
+                  quotes.map((quote) => (
+
+
+                    <tr key={quote.id}>
+
+
+                      <td>
+
+                        <Link
+                          href={`/quotes/${quote.id}`}
+                          className="leadLink"
+                        >
+
+                          {quote.quote_number || "-"}
+
+                        </Link>
+
+                      </td>
+
+
+
+                      <td>{quote.client}</td>
+
+                      <td>{quote.contact}</td>
+
+                      <td>{quote.email}</td>
+
+                      <td>{quote.amount}</td>
+
+
+                      <td>
+
+                        <StatusBadge 
+                          status={quote.status}
+                        />
+
+                      </td>
+
+
+                      <td>
+
+                        {
+                          quote.created_at
+                            ? new Date(
+                                quote.created_at
+                              ).toLocaleDateString("en-GB")
+                            : "-"
+                        }
+
+                      </td>
+
+
+                    </tr>
+
+
+                  ))
+
+
+                )}
+
+
+              </tbody>
+
+
+            </table>
+
+
+          )}
+
+
+        </main>
+
+
+      </div>
+
+
+    </ProtectedRoute>
+
   );
+
 }
