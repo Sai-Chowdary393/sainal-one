@@ -5,6 +5,7 @@ import Link from "next/link";
 import Sidebar from "../../components/Sidebar";
 import StatusBadge from "../../components/StatusBadge";
 import ProgressBar from "../../components/ProgressBar";
+import ProtectedRoute from "../../components/ProtectedRoute";
 
 export default function Dashboard() {
   const [leads, setLeads] = useState([]);
@@ -88,13 +89,8 @@ export default function Dashboard() {
     0
   );
 
-  const paidInvoices = invoices.filter(
-    (invoice) => invoice.status === "Paid"
-  );
-
-  const pendingInvoices = invoices.filter(
-    (invoice) => invoice.status !== "Paid"
-  );
+  const paidInvoices = invoices.filter((invoice) => invoice.status === "Paid");
+  const pendingInvoices = invoices.filter((invoice) => invoice.status !== "Paid");
 
   const paidRevenue = paidInvoices.reduce(
     (total, invoice) => total + getMoneyValue(invoice.amount),
@@ -106,13 +102,8 @@ export default function Dashboard() {
     0
   );
 
-  const completedTasks = tasks.filter(
-    (task) => task.status === "Completed"
-  ).length;
-
-  const pendingTasks = tasks.filter(
-    (task) => task.status !== "Completed"
-  ).length;
+  const completedTasks = tasks.filter((task) => task.status === "Completed").length;
+  const pendingTasks = tasks.filter((task) => task.status !== "Completed").length;
 
   const activeProjects = projects.filter(
     (project) => project.status !== "Completed"
@@ -129,260 +120,262 @@ export default function Dashboard() {
   const latestInvoices = invoices.slice(0, 5);
 
   return (
-    <div className="appLayout">
-      <Sidebar />
+    <ProtectedRoute>
+      <div className="appLayout">
+        <Sidebar />
 
-      <main className="mainContent">
-        <div className="topBar">
-          <div>
-            <h1>Dashboard</h1>
-            <p className="helperText">
-              Welcome back. Here is your SaiNal One business overview.
-            </p>
+        <main className="mainContent">
+          <div className="topBar">
+            <div>
+              <h1>Dashboard</h1>
+              <p className="helperText">
+                Welcome back. Here is your SaiNal One business overview.
+              </p>
+            </div>
+
+            <input
+              className="searchBox"
+              placeholder="Search leads, customers, projects..."
+            />
           </div>
 
-          <input
-            className="searchBox"
-            placeholder="Search leads, customers, projects..."
-          />
-        </div>
+          {loading ? (
+            <p>Loading dashboard...</p>
+          ) : (
+            <>
+              <section className="dashboardCards">
+                <div className="statCard">
+                  <p>Total Leads</p>
+                  <h2>{totalLeads}</h2>
+                </div>
 
-        {loading ? (
-          <p>Loading dashboard...</p>
-        ) : (
-          <>
-            <section className="dashboardCards">
-              <div className="statCard">
-                <p>Total Leads</p>
-                <h2>{totalLeads}</h2>
-              </div>
+                <div className="statCard">
+                  <p>Total Quotes</p>
+                  <h2>{totalQuotes}</h2>
+                </div>
 
-              <div className="statCard">
-                <p>Total Quotes</p>
-                <h2>{totalQuotes}</h2>
-              </div>
+                <div className="statCard">
+                  <p>Customers</p>
+                  <h2>{totalCustomers}</h2>
+                </div>
 
-              <div className="statCard">
-                <p>Customers</p>
-                <h2>{totalCustomers}</h2>
-              </div>
+                <div className="statCard">
+                  <p>Projects</p>
+                  <h2>{totalProjects}</h2>
+                </div>
+              </section>
 
-              <div className="statCard">
-                <p>Projects</p>
-                <h2>{totalProjects}</h2>
-              </div>
-            </section>
+              <section className="dashboardCards secondaryStats">
+                <div className="statCard">
+                  <p>Pipeline Value</p>
+                  <h2>£{pipelineValue.toLocaleString("en-GB")}</h2>
+                </div>
 
-            <section className="dashboardCards secondaryStats">
-              <div className="statCard">
-                <p>Pipeline Value</p>
-                <h2>£{pipelineValue.toLocaleString("en-GB")}</h2>
-              </div>
+                <div className="statCard">
+                  <p>Total Invoices</p>
+                  <h2>{totalInvoices}</h2>
+                </div>
 
-              <div className="statCard">
-                <p>Total Invoices</p>
-                <h2>{totalInvoices}</h2>
-              </div>
+                <div className="statCard">
+                  <p>Paid Revenue</p>
+                  <h2>£{paidRevenue.toLocaleString("en-GB")}</h2>
+                </div>
 
-              <div className="statCard">
-                <p>Paid Revenue</p>
-                <h2>£{paidRevenue.toLocaleString("en-GB")}</h2>
-              </div>
+                <div className="statCard">
+                  <p>Pending Payments</p>
+                  <h2>£{pendingPayments.toLocaleString("en-GB")}</h2>
+                </div>
+              </section>
 
-              <div className="statCard">
-                <p>Pending Payments</p>
-                <h2>£{pendingPayments.toLocaleString("en-GB")}</h2>
-              </div>
-            </section>
+              <section className="dashboardCards secondaryStats">
+                <div className="statCard">
+                  <p>Active Projects</p>
+                  <h2>{activeProjects}</h2>
+                </div>
 
-            <section className="dashboardCards secondaryStats">
-              <div className="statCard">
-                <p>Active Projects</p>
-                <h2>{activeProjects}</h2>
-              </div>
+                <div className="statCard">
+                  <p>Completed Projects</p>
+                  <h2>{completedProjects}</h2>
+                </div>
 
-              <div className="statCard">
-                <p>Completed Projects</p>
-                <h2>{completedProjects}</h2>
-              </div>
+                <div className="statCard">
+                  <p>Pending Tasks</p>
+                  <h2>{pendingTasks}</h2>
+                </div>
 
-              <div className="statCard">
-                <p>Pending Tasks</p>
-                <h2>{pendingTasks}</h2>
-              </div>
+                <div className="statCard">
+                  <p>Paid Invoices</p>
+                  <h2>{paidInvoices.length}</h2>
+                </div>
+              </section>
 
-              <div className="statCard">
-                <p>Paid Invoices</p>
-                <h2>{paidInvoices.length}</h2>
-              </div>
-            </section>
+              <section className="dashboardGrid">
+                <div className="panel">
+                  <h3>Recent Leads</h3>
 
-            <section className="dashboardGrid">
-              <div className="panel">
-                <h3>Recent Leads</h3>
+                  {latestLeads.length === 0 ? (
+                    <p>No leads yet.</p>
+                  ) : (
+                    latestLeads.map((lead) => (
+                      <p key={lead.id}>
+                        <Link href={`/leads/${lead.id}`} className="leadLink">
+                          {lead.name}
+                        </Link>{" "}
+                        - {lead.company}
+                      </p>
+                    ))
+                  )}
+                </div>
 
-                {latestLeads.length === 0 ? (
-                  <p>No leads yet.</p>
-                ) : (
-                  latestLeads.map((lead) => (
-                    <p key={lead.id}>
-                      <Link href={`/leads/${lead.id}`} className="leadLink">
-                        {lead.name}
-                      </Link>{" "}
-                      - {lead.company}
-                    </p>
-                  ))
-                )}
-              </div>
+                <div className="panel">
+                  <h3>Recent Quotes</h3>
 
-              <div className="panel">
-                <h3>Recent Quotes</h3>
+                  {latestQuotes.length === 0 ? (
+                    <p>No quotes yet.</p>
+                  ) : (
+                    latestQuotes.map((quote) => (
+                      <p key={quote.id}>
+                        <Link href={`/quotes/${quote.id}`} className="leadLink">
+                          {quote.quote_number || "Quote"}
+                        </Link>{" "}
+                        - {quote.client} - {quote.amount}
+                      </p>
+                    ))
+                  )}
+                </div>
+              </section>
 
-                {latestQuotes.length === 0 ? (
-                  <p>No quotes yet.</p>
-                ) : (
-                  latestQuotes.map((quote) => (
-                    <p key={quote.id}>
-                      <Link href={`/quotes/${quote.id}`} className="leadLink">
-                        {quote.quote_number || "Quote"}
-                      </Link>{" "}
-                      - {quote.client} - {quote.amount}
-                    </p>
-                  ))
-                )}
-              </div>
-            </section>
+              <section className="dashboardGrid">
+                <div className="panel">
+                  <h3>Active Projects</h3>
 
-            <section className="dashboardGrid">
-              <div className="panel">
-                <h3>Active Projects</h3>
+                  {latestProjects.length === 0 ? (
+                    <p>No projects yet.</p>
+                  ) : (
+                    latestProjects.map((project) => (
+                      <div key={project.id} className="dashboardProjectItem">
+                        <div>
+                          <Link
+                            href={`/projects/${project.id}`}
+                            className="leadLink"
+                          >
+                            {project.project_name}
+                          </Link>
+                          <p className="helperText">{project.amount}</p>
+                        </div>
 
-                {latestProjects.length === 0 ? (
-                  <p>No projects yet.</p>
-                ) : (
-                  latestProjects.map((project) => (
-                    <div key={project.id} className="dashboardProjectItem">
-                      <div>
-                        <Link
-                          href={`/projects/${project.id}`}
-                          className="leadLink"
-                        >
-                          {project.project_name}
-                        </Link>
-                        <p className="helperText">{project.amount}</p>
+                        <StatusBadge status={project.status} />
+                        <ProgressBar value={getProjectProgress(project.id)} />
                       </div>
+                    ))
+                  )}
+                </div>
 
-                      <StatusBadge status={project.status} />
-                      <ProgressBar value={getProjectProgress(project.id)} />
-                    </div>
-                  ))
-                )}
-              </div>
+                <div className="panel">
+                  <h3>Recent Tasks</h3>
 
-              <div className="panel">
-                <h3>Recent Tasks</h3>
+                  {latestTasks.length === 0 ? (
+                    <p>No tasks yet.</p>
+                  ) : (
+                    latestTasks.map((task) => (
+                      <div key={task.id} className="taskRow">
+                        <div>
+                          <strong>{task.task_name}</strong>
+                          <p className="helperText">
+                            Due: {task.due_date || "No due date"}
+                          </p>
+                        </div>
 
-                {latestTasks.length === 0 ? (
-                  <p>No tasks yet.</p>
-                ) : (
-                  latestTasks.map((task) => (
-                    <div key={task.id} className="taskRow">
-                      <div>
-                        <strong>{task.task_name}</strong>
-                        <p className="helperText">
-                          Due: {task.due_date || "No due date"}
-                        </p>
+                        <StatusBadge status={task.status} />
                       </div>
+                    ))
+                  )}
+                </div>
+              </section>
 
-                      <StatusBadge status={task.status} />
-                    </div>
-                  ))
-                )}
-              </div>
-            </section>
+              <section className="dashboardGrid">
+                <div className="panel">
+                  <h3>Recent Invoices</h3>
 
-            <section className="dashboardGrid">
-              <div className="panel">
-                <h3>Recent Invoices</h3>
+                  {latestInvoices.length === 0 ? (
+                    <p>No invoices yet.</p>
+                  ) : (
+                    latestInvoices.map((invoice) => (
+                      <div key={invoice.id} className="taskRow">
+                        <div>
+                          <Link
+                            href={`/invoices/${invoice.id}`}
+                            className="leadLink"
+                          >
+                            {invoice.invoice_number}
+                          </Link>
+                          <p className="helperText">
+                            {invoice.client} - {invoice.amount}
+                          </p>
+                        </div>
 
-                {latestInvoices.length === 0 ? (
-                  <p>No invoices yet.</p>
-                ) : (
-                  latestInvoices.map((invoice) => (
-                    <div key={invoice.id} className="taskRow">
-                      <div>
-                        <Link
-                          href={`/invoices/${invoice.id}`}
-                          className="leadLink"
-                        >
-                          {invoice.invoice_number}
-                        </Link>
-                        <p className="helperText">
-                          {invoice.client} - {invoice.amount}
-                        </p>
+                        <StatusBadge status={invoice.status} />
                       </div>
+                    ))
+                  )}
+                </div>
 
-                      <StatusBadge status={invoice.status} />
+                <div className="panel">
+                  <h3>Finance Summary</h3>
+
+                  <div className="activityGrid">
+                    <div>
+                      <strong>{totalInvoices}</strong>
+                      <p>Total Invoices</p>
                     </div>
-                  ))
-                )}
-              </div>
 
-              <div className="panel">
-                <h3>Finance Summary</h3>
+                    <div>
+                      <strong>{paidInvoices.length}</strong>
+                      <p>Paid</p>
+                    </div>
+
+                    <div>
+                      <strong>{pendingInvoices.length}</strong>
+                      <p>Pending</p>
+                    </div>
+
+                    <div>
+                      <strong>£{paidRevenue.toLocaleString("en-GB")}</strong>
+                      <p>Revenue</p>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section className="panel dashboardActivity">
+                <h3>Business Activity</h3>
 
                 <div className="activityGrid">
                   <div>
-                    <strong>{totalInvoices}</strong>
-                    <p>Total Invoices</p>
+                    <strong>{completedTasks}</strong>
+                    <p>Tasks Completed</p>
                   </div>
 
                   <div>
-                    <strong>{paidInvoices.length}</strong>
-                    <p>Paid</p>
+                    <strong>{pendingTasks}</strong>
+                    <p>Tasks Pending</p>
                   </div>
 
                   <div>
-                    <strong>{pendingInvoices.length}</strong>
-                    <p>Pending</p>
+                    <strong>{activeProjects}</strong>
+                    <p>Projects Running</p>
                   </div>
 
                   <div>
-                    <strong>£{paidRevenue.toLocaleString("en-GB")}</strong>
-                    <p>Revenue</p>
+                    <strong>£{pipelineValue.toLocaleString("en-GB")}</strong>
+                    <p>Total Quote Pipeline</p>
                   </div>
                 </div>
-              </div>
-            </section>
-
-            <section className="panel dashboardActivity">
-              <h3>Business Activity</h3>
-
-              <div className="activityGrid">
-                <div>
-                  <strong>{completedTasks}</strong>
-                  <p>Tasks Completed</p>
-                </div>
-
-                <div>
-                  <strong>{pendingTasks}</strong>
-                  <p>Tasks Pending</p>
-                </div>
-
-                <div>
-                  <strong>{activeProjects}</strong>
-                  <p>Projects Running</p>
-                </div>
-
-                <div>
-                  <strong>£{pipelineValue.toLocaleString("en-GB")}</strong>
-                  <p>Total Quote Pipeline</p>
-                </div>
-              </div>
-            </section>
-          </>
-        )}
-      </main>
-    </div>
+              </section>
+            </>
+          )}
+        </main>
+      </div>
+    </ProtectedRoute>
   );
 }
