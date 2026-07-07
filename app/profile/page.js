@@ -4,20 +4,25 @@ import { useEffect, useState } from "react";
 import Sidebar from "../../components/Sidebar";
 import ProtectedRoute from "../../components/ProtectedRoute";
 import { supabase } from "../../lib/supabase";
+import { getCurrentOrganization } from "../../lib/getOrganization";
 
 export default function ProfilePage() {
   const [user, setUser] = useState(null);
+  const [organization, setOrganization] = useState(null);
 
   useEffect(() => {
-    fetchUser();
+    fetchUserAndOrganization();
   }, []);
 
-  async function fetchUser() {
+  async function fetchUserAndOrganization() {
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
+    const org = await getCurrentOrganization();
+
     setUser(user);
+    setOrganization(org);
   }
 
   return (
@@ -58,10 +63,27 @@ export default function ProfilePage() {
             </div>
 
             <div className="panel">
-              <h3>Account Status</h3>
-              <p>Authentication: Active</p>
-              <p>Provider: Email Login</p>
-              <p>Workspace: SaiNal One</p>
+              <h3>Workspace</h3>
+
+              <p>
+                <strong>Company:</strong>{" "}
+                {organization?.company_name || "No organization found"}
+              </p>
+
+              <p>
+                <strong>Plan:</strong>{" "}
+                {organization?.subscription_plan || "-"}
+              </p>
+
+              <p>
+                <strong>Status:</strong>{" "}
+                {organization?.status || "-"}
+              </p>
+
+              <p>
+                <strong>Organization ID:</strong>{" "}
+                {organization?.id || "-"}
+              </p>
             </div>
           </section>
         </main>
