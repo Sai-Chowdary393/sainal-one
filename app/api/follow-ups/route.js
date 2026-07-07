@@ -1,18 +1,24 @@
 import { NextResponse } from "next/server";
 import { supabase } from "../../../lib/supabase";
 
+const ORGANIZATION_ID = "9d5bbb05-866b-4c38-b2ac-3019e7cf88e5";
+
 export async function GET() {
   try {
     const { data, error } = await supabase
       .from("follow_ups")
       .select("*")
+      .eq("organization_id", ORGANIZATION_ID)
       .order("due_date", { ascending: true });
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json(
+        { error: error.message },
+        { status: 500 }
+      );
     }
 
-    return NextResponse.json(data);
+    return NextResponse.json(data || []);
   } catch (error) {
     return NextResponse.json(
       { error: "Failed to fetch follow-ups." },
@@ -20,6 +26,7 @@ export async function GET() {
     );
   }
 }
+
 
 export async function POST(request) {
   try {
@@ -29,6 +36,7 @@ export async function POST(request) {
       .from("follow_ups")
       .insert([
         {
+          organization_id: ORGANIZATION_ID,
           related_type: body.related_type || "General",
           related_id: body.related_id || null,
           title: body.title,
@@ -40,10 +48,14 @@ export async function POST(request) {
       .select();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json(
+        { error: error.message },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json(data);
+
   } catch (error) {
     return NextResponse.json(
       { error: "Failed to create follow-up." },
