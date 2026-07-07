@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import Sidebar from "../../../components/Sidebar";
 import StatusBadge from "../../../components/StatusBadge";
+import ProtectedRoute from "../../../components/ProtectedRoute";
 
 export default function LeadDetails() {
   const params = useParams();
@@ -203,18 +204,37 @@ www.sainaltechnologies.com`;
 
   if (loading) {
     return (
-      <div className="appLayout">
-        <Sidebar />
+      <ProtectedRoute>
+        <div className="appLayout">
+          <Sidebar />
 
-        <main className="mainContent">
-          <p>Loading lead...</p>
-        </main>
-      </div>
+          <main className="mainContent">
+            <p>Loading lead...</p>
+          </main>
+        </div>
+      </ProtectedRoute>
     );
   }
 
   if (!lead) {
     return (
+      <ProtectedRoute>
+        <div className="appLayout">
+          <Sidebar />
+
+          <main className="mainContent">
+            <Link href="/leads" className="backLink">
+              ← Back to Leads
+            </Link>
+            <h1>Lead not found</h1>
+          </main>
+        </div>
+      </ProtectedRoute>
+    );
+  }
+
+  return (
+    <ProtectedRoute>
       <div className="appLayout">
         <Sidebar />
 
@@ -222,176 +242,112 @@ www.sainaltechnologies.com`;
           <Link href="/leads" className="backLink">
             ← Back to Leads
           </Link>
-          <h1>Lead not found</h1>
+
+          <div className="topBar">
+            <h1>{editMode ? "Edit Lead" : lead.name}</h1>
+
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button className="primaryBtn" onClick={() => setEditMode(!editMode)}>
+                {editMode ? "Cancel" : "Edit Lead"}
+              </button>
+
+              {editMode && (
+                <button className="primaryBtn" onClick={updateLead} disabled={saving}>
+                  {saving ? "Saving..." : "Save Changes"}
+                </button>
+              )}
+
+              <button className="primaryBtn" onClick={deleteLead}>
+                Delete Lead
+              </button>
+
+              <button className="primaryBtn" onClick={generateQuote}>
+                Generate Quote
+              </button>
+            </div>
+          </div>
+
+          <section className="detailsGrid">
+            <div className="panel">
+              <h3>Lead Information</h3>
+
+              {editMode ? (
+                <div className="editLeadForm">
+                  <input name="name" value={lead.name || ""} onChange={handleChange} placeholder="Lead Name" />
+                  <input name="company" value={lead.company || ""} onChange={handleChange} placeholder="Company" />
+                  <input name="email" value={lead.email || ""} onChange={handleChange} placeholder="Email" />
+                  <input name="phone" value={lead.phone || ""} onChange={handleChange} placeholder="Phone" />
+
+                  <select name="status" value={lead.status || "New"} onChange={handleChange}>
+                    <option>New</option>
+                    <option>Contacted</option>
+                    <option>Proposal Sent</option>
+                    <option>Follow Up</option>
+                    <option>Won</option>
+                    <option>Lost</option>
+                  </select>
+
+                  <input name="value" value={lead.value || ""} onChange={handleChange} placeholder="Value e.g. £2,500" />
+
+                  <textarea name="notes" value={lead.notes || ""} onChange={handleChange} placeholder="Lead Notes" rows={5} />
+                </div>
+              ) : (
+                <>
+                  <p><strong>Company:</strong> {lead.company}</p>
+                  <p><strong>Email:</strong> {lead.email}</p>
+                  <p><strong>Phone:</strong> {lead.phone}</p>
+                  <p><strong>Status:</strong> <StatusBadge status={lead.status} /></p>
+                  <p><strong>Value:</strong> {lead.value}</p>
+                </>
+              )}
+            </div>
+
+            <div className="panel">
+              <h3>AI Recommendations</h3>
+              <p>Prepare a follow-up email for this lead.</p>
+              <p>Suggest a quote based on project value.</p>
+              <p>Schedule follow-up in 2 days.</p>
+
+              <button className="primaryBtn" onClick={generateEmail}>
+                Generate Email
+              </button>
+            </div>
+          </section>
+
+          {emailDraft && (
+            <section className="panel emailDraftPanel">
+              <h3>Email Draft</h3>
+              <textarea value={emailDraft} readOnly rows={10} className="emailDraftBox" />
+            </section>
+          )}
+
+          {quoteDraft && (
+            <section className="panel quoteDraftPanel">
+              <h3>Quote Draft</h3>
+              <textarea value={quoteDraft} readOnly rows={16} className="emailDraftBox" />
+
+              {quoteSaved && (
+                <p className="helperText">
+                  Quote saved successfully. Go to Quotes to convert it to a customer.
+                </p>
+              )}
+            </section>
+          )}
+
+          <section className="detailsGrid">
+            <div className="panel">
+              <h3>Notes</h3>
+              {lead.notes ? <p>{lead.notes}</p> : <p>No notes added yet.</p>}
+            </div>
+
+            <div className="panel">
+              <h3>Activity Timeline</h3>
+              <p>Lead created</p>
+              <p>Quote pending</p>
+            </div>
+          </section>
         </main>
       </div>
-    );
-  }
-
-  return (
-    <div className="appLayout">
-      <Sidebar />
-
-      <main className="mainContent">
-        <Link href="/leads" className="backLink">
-          ← Back to Leads
-        </Link>
-
-        <div className="topBar">
-          <h1>{editMode ? "Edit Lead" : lead.name}</h1>
-
-          <div style={{ display: "flex", gap: "10px" }}>
-            <button className="primaryBtn" onClick={() => setEditMode(!editMode)}>
-              {editMode ? "Cancel" : "Edit Lead"}
-            </button>
-
-            {editMode && (
-              <button className="primaryBtn" onClick={updateLead} disabled={saving}>
-                {saving ? "Saving..." : "Save Changes"}
-              </button>
-            )}
-
-            <button className="primaryBtn" onClick={deleteLead}>
-              Delete Lead
-            </button>
-
-            <button className="primaryBtn" onClick={generateQuote}>
-              Generate Quote
-            </button>
-          </div>
-        </div>
-
-        <section className="detailsGrid">
-          <div className="panel">
-            <h3>Lead Information</h3>
-
-            {editMode ? (
-              <div className="editLeadForm">
-                <input
-                  name="name"
-                  value={lead.name || ""}
-                  onChange={handleChange}
-                  placeholder="Lead Name"
-                />
-
-                <input
-                  name="company"
-                  value={lead.company || ""}
-                  onChange={handleChange}
-                  placeholder="Company"
-                />
-
-                <input
-                  name="email"
-                  value={lead.email || ""}
-                  onChange={handleChange}
-                  placeholder="Email"
-                />
-
-                <input
-                  name="phone"
-                  value={lead.phone || ""}
-                  onChange={handleChange}
-                  placeholder="Phone"
-                />
-
-                <select
-                  name="status"
-                  value={lead.status || "New"}
-                  onChange={handleChange}
-                >
-                  <option>New</option>
-                  <option>Contacted</option>
-                  <option>Proposal Sent</option>
-                  <option>Follow Up</option>
-                  <option>Won</option>
-                  <option>Lost</option>
-                </select>
-
-                <input
-                  name="value"
-                  value={lead.value || ""}
-                  onChange={handleChange}
-                  placeholder="Value e.g. £2,500"
-                />
-
-                <textarea
-                  name="notes"
-                  value={lead.notes || ""}
-                  onChange={handleChange}
-                  placeholder="Lead Notes"
-                  rows={5}
-                />
-              </div>
-            ) : (
-              <>
-                <p><strong>Company:</strong> {lead.company}</p>
-                <p><strong>Email:</strong> {lead.email}</p>
-                <p><strong>Phone:</strong> {lead.phone}</p>
-                <p>
-                  <strong>Status:</strong>{" "}
-                  <StatusBadge status={lead.status} />
-                </p>
-                <p><strong>Value:</strong> {lead.value}</p>
-              </>
-            )}
-          </div>
-
-          <div className="panel">
-            <h3>AI Recommendations</h3>
-            <p>Prepare a follow-up email for this lead.</p>
-            <p>Suggest a quote based on project value.</p>
-            <p>Schedule follow-up in 2 days.</p>
-
-            <button className="primaryBtn" onClick={generateEmail}>
-              Generate Email
-            </button>
-          </div>
-        </section>
-
-        {emailDraft && (
-          <section className="panel emailDraftPanel">
-            <h3>Email Draft</h3>
-            <textarea
-              value={emailDraft}
-              readOnly
-              rows={10}
-              className="emailDraftBox"
-            />
-          </section>
-        )}
-
-        {quoteDraft && (
-          <section className="panel quoteDraftPanel">
-            <h3>Quote Draft</h3>
-            <textarea
-              value={quoteDraft}
-              readOnly
-              rows={16}
-              className="emailDraftBox"
-            />
-
-            {quoteSaved && (
-              <p className="helperText">
-                Quote saved successfully. Go to Quotes to convert it to a customer.
-              </p>
-            )}
-          </section>
-        )}
-
-        <section className="detailsGrid">
-          <div className="panel">
-            <h3>Notes</h3>
-            {lead.notes ? <p>{lead.notes}</p> : <p>No notes added yet.</p>}
-          </div>
-
-          <div className="panel">
-            <h3>Activity Timeline</h3>
-            <p>Lead created</p>
-            <p>Quote pending</p>
-          </div>
-        </section>
-      </main>
-    </div>
+    </ProtectedRoute>
   );
 }
