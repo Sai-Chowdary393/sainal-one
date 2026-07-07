@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import Sidebar from "../../../components/Sidebar";
 import StatusBadge from "../../../components/StatusBadge";
+import ProtectedRoute from "../../../components/ProtectedRoute";
 
 export default function InvoiceDetailsPage() {
   const params = useParams();
@@ -72,29 +73,33 @@ export default function InvoiceDetailsPage() {
 
   if (loading) {
     return (
-      <div className="appLayout">
-        <Sidebar />
+      <ProtectedRoute>
+        <div className="appLayout">
+          <Sidebar />
 
-        <main className="mainContent">
-          <p>Loading invoice...</p>
-        </main>
-      </div>
+          <main className="mainContent">
+            <p>Loading invoice...</p>
+          </main>
+        </div>
+      </ProtectedRoute>
     );
   }
 
   if (!invoice) {
     return (
-      <div className="appLayout">
-        <Sidebar />
+      <ProtectedRoute>
+        <div className="appLayout">
+          <Sidebar />
 
-        <main className="mainContent">
-          <Link href="/invoices" className="backLink">
-            ← Back to Invoices
-          </Link>
+          <main className="mainContent">
+            <Link href="/invoices" className="backLink">
+              ← Back to Invoices
+            </Link>
 
-          <h1>Invoice not found</h1>
-        </main>
-      </div>
+            <h1>Invoice not found</h1>
+          </main>
+        </div>
+      </ProtectedRoute>
     );
   }
 
@@ -110,132 +115,134 @@ export default function InvoiceDetailsPage() {
     invoice.payment_terms || "Payment due within 14 days of invoice date.";
 
   return (
-    <div className="appLayout">
-      <Sidebar />
+    <ProtectedRoute>
+      <div className="appLayout">
+        <Sidebar />
 
-      <main className="mainContent">
-        <Link href="/invoices" className="backLink noPrint">
-          ← Back to Invoices
-        </Link>
+        <main className="mainContent">
+          <Link href="/invoices" className="backLink noPrint">
+            ← Back to Invoices
+          </Link>
 
-        <div className="topBar noPrint">
-          <h1>Invoice Details</h1>
+          <div className="topBar noPrint">
+            <h1>Invoice Details</h1>
 
-          <div style={{ display: "flex", gap: "12px" }}>
-            <button className="primaryBtn" onClick={downloadPDF}>
-              Download PDF
-            </button>
+            <div style={{ display: "flex", gap: "12px" }}>
+              <button className="primaryBtn" onClick={downloadPDF}>
+                Download PDF
+              </button>
 
-            <button
-              className="primaryBtn"
-              onClick={() => updateInvoiceStatus("Sent")}
-            >
-              Mark Sent
-            </button>
+              <button
+                className="primaryBtn"
+                onClick={() => updateInvoiceStatus("Sent")}
+              >
+                Mark Sent
+              </button>
 
-            <button
-              className="primaryBtn"
-              onClick={() => updateInvoiceStatus("Paid")}
-            >
-              Mark Paid
-            </button>
-          </div>
-        </div>
-
-        <section className="invoiceDocument">
-          <div className="invoiceHeader">
-            <div>
-              <h1>SaiNal Technologies Ltd</h1>
-              <p>Digital Solutions & Automation</p>
-              <p>United Kingdom</p>
-              <p>www.sainaltechnologies.com</p>
-            </div>
-
-            <div className="invoiceMeta">
-              <h2>INVOICE</h2>
-              <p>
-                <strong>Invoice No:</strong> {invoice.invoice_number}
-              </p>
-              <p>
-                <strong>Date:</strong> {createdDate}
-              </p>
-              <p>
-                <strong>Due Date:</strong> {invoice.due_date || "-"}
-              </p>
-              <p>
-                <strong>Status:</strong>{" "}
-                <StatusBadge status={invoice.status} />
-              </p>
+              <button
+                className="primaryBtn"
+                onClick={() => updateInvoiceStatus("Paid")}
+              >
+                Mark Paid
+              </button>
             </div>
           </div>
 
-          <div className="invoiceDivider" />
+          <section className="invoiceDocument">
+            <div className="invoiceHeader">
+              <div>
+                <h1>SaiNal Technologies Ltd</h1>
+                <p>Digital Solutions & Automation</p>
+                <p>United Kingdom</p>
+                <p>www.sainaltechnologies.com</p>
+              </div>
 
-          <div className="invoiceBillGrid">
-            <div>
-              <h3>Bill To</h3>
-              <p>{invoice.client}</p>
+              <div className="invoiceMeta">
+                <h2>INVOICE</h2>
+                <p>
+                  <strong>Invoice No:</strong> {invoice.invoice_number}
+                </p>
+                <p>
+                  <strong>Date:</strong> {createdDate}
+                </p>
+                <p>
+                  <strong>Due Date:</strong> {invoice.due_date || "-"}
+                </p>
+                <p>
+                  <strong>Status:</strong>{" "}
+                  <StatusBadge status={invoice.status} />
+                </p>
+              </div>
             </div>
 
-            <div>
-              <h3>Project / Service</h3>
-              <p>{invoice.service}</p>
+            <div className="invoiceDivider" />
+
+            <div className="invoiceBillGrid">
+              <div>
+                <h3>Bill To</h3>
+                <p>{invoice.client}</p>
+              </div>
+
+              <div>
+                <h3>Project / Service</h3>
+                <p>{invoice.service}</p>
+              </div>
             </div>
-          </div>
 
-          <table className="invoiceTable">
-            <thead>
-              <tr>
-                <th>Description</th>
-                <th>Qty</th>
-                <th>Subtotal</th>
-                <th>VAT</th>
-                <th>Total</th>
-              </tr>
-            </thead>
+            <table className="invoiceTable">
+              <thead>
+                <tr>
+                  <th>Description</th>
+                  <th>Qty</th>
+                  <th>Subtotal</th>
+                  <th>VAT</th>
+                  <th>Total</th>
+                </tr>
+              </thead>
 
-            <tbody>
-              <tr>
-                <td>{invoice.service}</td>
-                <td>1</td>
-                <td>{subtotal}</td>
-                <td>
-                  {vatAmount} ({vatRate})
-                </td>
-                <td>{totalAmount}</td>
-              </tr>
-            </tbody>
-          </table>
+              <tbody>
+                <tr>
+                  <td>{invoice.service}</td>
+                  <td>1</td>
+                  <td>{subtotal}</td>
+                  <td>
+                    {vatAmount} ({vatRate})
+                  </td>
+                  <td>{totalAmount}</td>
+                </tr>
+              </tbody>
+            </table>
 
-          <div className="invoiceTotals">
-            <div>
+            <div className="invoiceTotals">
+              <div>
+                <p>
+                  <strong>Payment Terms:</strong>
+                </p>
+                <p>{paymentTerms}</p>
+                <p>Thank you for your business.</p>
+              </div>
+
+              <div className="totalBox">
+                <p>Subtotal</p>
+                <h3>{subtotal}</h3>
+
+                <p>VAT</p>
+                <h3>{vatAmount}</h3>
+
+                <p>Total Amount</p>
+                <h2>{totalAmount}</h2>
+              </div>
+            </div>
+
+            <div className="invoiceFooter">
               <p>
-                <strong>Payment Terms:</strong>
+                This invoice was generated by SaiNal One — AI-powered Business
+                Operating System.
               </p>
-              <p>{paymentTerms}</p>
-              <p>Thank you for your business.</p>
             </div>
-
-            <div className="totalBox">
-              <p>Subtotal</p>
-              <h3>{subtotal}</h3>
-
-              <p>VAT</p>
-              <h3>{vatAmount}</h3>
-
-              <p>Total Amount</p>
-              <h2>{totalAmount}</h2>
-            </div>
-          </div>
-
-          <div className="invoiceFooter">
-            <p>
-              This invoice was generated by SaiNal One — AI-powered Business
-              Operating System.
-            </p>
-          </div>
-        </section>
-      </main>
-    </div>
+          </section>
+        </main>
+      </div>
+    </ProtectedRoute>
   );
 }
