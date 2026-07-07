@@ -1,18 +1,21 @@
 import { NextResponse } from "next/server";
 import { supabase } from "../../../lib/supabase";
 
+const ORGANIZATION_ID = "9d5bbb05-866b-4c38-b2ac-3019e7cf88e5";
+
 export async function GET() {
   try {
     const { data, error } = await supabase
       .from("invoices")
       .select("*")
+      .eq("organization_id", ORGANIZATION_ID)
       .order("created_at", { ascending: false });
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json(data);
+    return NextResponse.json(data || []);
   } catch (error) {
     return NextResponse.json(
       { error: "Failed to fetch invoices" },
@@ -41,6 +44,7 @@ export async function POST(request) {
         {
           customer_id: body.customer_id || null,
           project_id: body.project_id || null,
+          organization_id: ORGANIZATION_ID,
           invoice_number: invoiceNumber,
           client: body.client,
           service: body.service,
