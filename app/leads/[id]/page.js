@@ -49,6 +49,16 @@ export default function LeadDetails() {
     });
   }
 
+  function getAiScoreLabel(score) {
+    if (!score) return "No AI score";
+
+    if (score.toLowerCase().includes("hot")) return "🔥 Hot Lead";
+    if (score.toLowerCase().includes("warm")) return "🟡 Warm Lead";
+    if (score.toLowerCase().includes("cold")) return "❄️ Cold Lead";
+
+    return score;
+  }
+
   async function updateLead() {
     if (!lead) return;
 
@@ -207,7 +217,6 @@ www.sainaltechnologies.com`;
       <ProtectedRoute>
         <div className="appLayout">
           <Sidebar />
-
           <main className="mainContent">
             <p>Loading lead...</p>
           </main>
@@ -221,7 +230,6 @@ www.sainaltechnologies.com`;
       <ProtectedRoute>
         <div className="appLayout">
           <Sidebar />
-
           <main className="mainContent">
             <Link href="/leads" className="backLink">
               ← Back to Leads
@@ -297,19 +305,31 @@ www.sainaltechnologies.com`;
                   <p><strong>Email:</strong> {lead.email}</p>
                   <p><strong>Phone:</strong> {lead.phone}</p>
                   <p><strong>Status:</strong> <StatusBadge status={lead.status} /></p>
-                  <p><strong>Value:</strong> {lead.value}</p>
+                  <p><strong>Value:</strong> {lead.value || "-"}</p>
+                  <p><strong>Source:</strong> {lead.source || "Manual"}</p>
                 </>
               )}
             </div>
 
             <div className="panel">
-              <h3>AI Recommendations</h3>
-              <p>Prepare a follow-up email for this lead.</p>
-              <p>Suggest a quote based on project value.</p>
-              <p>Schedule follow-up in 2 days.</p>
+              <h3>AI Lead Analysis</h3>
+
+              <p>
+                <strong>Score:</strong> {getAiScoreLabel(lead.ai_score)}
+              </p>
+
+              <p>
+                <strong>Summary:</strong>
+              </p>
+              <p>{lead.ai_summary || "No AI summary available."}</p>
+
+              <p>
+                <strong>Recommended Next Action:</strong>
+              </p>
+              <p>{lead.ai_next_action || "No AI recommendation available."}</p>
 
               <button className="primaryBtn" onClick={generateEmail}>
-                Generate Email
+                Generate Follow-up Email
               </button>
             </div>
           </section>
@@ -343,6 +363,7 @@ www.sainaltechnologies.com`;
             <div className="panel">
               <h3>Activity Timeline</h3>
               <p>Lead created</p>
+              <p>AI analysed lead</p>
               <p>Quote pending</p>
             </div>
           </section>
