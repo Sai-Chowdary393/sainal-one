@@ -10,12 +10,19 @@ export default function SettingsPage() {
 
   const [formData, setFormData] = useState({
     company_name: "SaiNal Technologies Ltd",
+    company_email: "",
+    company_phone: "",
     website: "www.sainaltechnologies.com",
     address: "United Kingdom",
+    company_registration_number: "",
     vat_number: "",
     default_currency: "GBP",
     default_vat_rate: "20",
     invoice_prefix: "SNI",
+    bank_name: "",
+    bank_account_name: "",
+    bank_sort_code: "",
+    bank_account_number: "",
     payment_terms: "Payment due within 14 days of invoice date.",
   });
 
@@ -31,12 +38,19 @@ export default function SettingsPage() {
       if (data) {
         setFormData({
           company_name: data.company_name || "",
+          company_email: data.company_email || "",
+          company_phone: data.company_phone || "",
           website: data.website || "",
           address: data.address || "",
+          company_registration_number: data.company_registration_number || "",
           vat_number: data.vat_number || "",
           default_currency: data.default_currency || "GBP",
           default_vat_rate: data.default_vat_rate || "20",
           invoice_prefix: data.invoice_prefix || "SNI",
+          bank_name: data.bank_name || "",
+          bank_account_name: data.bank_account_name || "",
+          bank_sort_code: data.bank_sort_code || "",
+          bank_account_number: data.bank_account_number || "",
           payment_terms:
             data.payment_terms || "Payment due within 14 days of invoice date.",
         });
@@ -95,7 +109,8 @@ export default function SettingsPage() {
             <div>
               <h1>Company Settings</h1>
               <p className="helperText">
-                Manage your company details used across invoices and documents.
+                Manage branding, invoice details, payment terms and business
+                information.
               </p>
             </div>
           </div>
@@ -103,62 +118,161 @@ export default function SettingsPage() {
           {loading ? (
             <p>Loading settings...</p>
           ) : (
-            <form className="leadForm" onSubmit={saveSettings}>
-              <input
-                name="company_name"
-                placeholder="Company Name"
-                value={formData.company_name}
-                onChange={handleChange}
-              />
+            <form onSubmit={saveSettings}>
+              <section className="panel settingsSection">
+                <h3>Company Profile</h3>
 
-              <input
-                name="website"
-                placeholder="Website"
-                value={formData.website}
-                onChange={handleChange}
-              />
+                <div className="settingsGrid">
+                  <label>
+                    Company Name
+                    <input
+                      name="company_name"
+                      value={formData.company_name}
+                      onChange={handleChange}
+                    />
+                  </label>
 
-              <input
-                name="address"
-                placeholder="Address"
-                value={formData.address}
-                onChange={handleChange}
-              />
+                  <label>
+                    Company Email
+                    <input
+                      name="company_email"
+                      value={formData.company_email}
+                      onChange={handleChange}
+                    />
+                  </label>
 
-              <input
-                name="vat_number"
-                placeholder="VAT Number"
-                value={formData.vat_number}
-                onChange={handleChange}
-              />
+                  <label>
+                    Company Phone
+                    <input
+                      name="company_phone"
+                      value={formData.company_phone}
+                      onChange={handleChange}
+                    />
+                  </label>
 
-              <input
-                name="default_currency"
-                placeholder="Currency e.g. GBP"
-                value={formData.default_currency}
-                onChange={handleChange}
-              />
+                  <label>
+                    Website
+                    <input
+                      name="website"
+                      value={formData.website}
+                      onChange={handleChange}
+                    />
+                  </label>
 
-              <input
-                name="default_vat_rate"
-                placeholder="Default VAT Rate e.g. 20"
-                value={formData.default_vat_rate}
-                onChange={handleChange}
-              />
+                  <label className="fullWidth">
+                    Address
+                    <textarea
+                      name="address"
+                      rows={4}
+                      value={formData.address}
+                      onChange={handleChange}
+                    />
+                  </label>
+                </div>
+              </section>
 
-              <input
-                name="invoice_prefix"
-                placeholder="Invoice Prefix e.g. SNI"
-                value={formData.invoice_prefix}
-                onChange={handleChange}
-              />
+              <section className="panel settingsSection">
+                <h3>Legal & Tax</h3>
 
-              <input
-                name="payment_terms"
-                placeholder="Payment Terms"
-                value={formData.payment_terms}
-                onChange={handleChange}
-              />
+                <div className="settingsGrid">
+                  <label>
+                    Company Registration Number
+                    <input
+                      name="company_registration_number"
+                      value={formData.company_registration_number}
+                      onChange={handleChange}
+                    />
+                  </label>
+
+                  <label>
+                    VAT Number
+                    <input
+                      name="vat_number"
+                      value={formData.vat_number}
+                      onChange={handleChange}
+                    />
+                  </label>
+
+                  <label>
+                    Currency
+                    <input
+                      name="default_currency"
+                      value={formData.default_currency}
+                      onChange={handleChange}
+                    />
+                  </label>
+
+                  <label>
+                    Default VAT Rate
+                    <input
+                      name="default_vat_rate"
+                      value={formData.default_vat_rate}
+                      onChange={handleChange}
+                    />
+                  </label>
+                </div>
+              </section>
+
+              <section className="panel settingsSection">
+                <h3>Invoice Settings</h3>
+
+                <div className="settingsGrid">
+                  <label>
+                    Invoice Prefix
+                    <input
+                      name="invoice_prefix"
+                      value={formData.invoice_prefix}
+                      onChange={handleChange}
+                    />
+                  </label>
+
+                  <label>
+                    Bank Name
+                    <input
+                      name="bank_name"
+                      value={formData.bank_name}
+                      onChange={handleChange}
+                    />
+                  </label>
+
+                  <label>
+                    Bank Account Name
+                    <input
+                      name="bank_account_name"
+                      value={formData.bank_account_name}
+                      onChange={handleChange}
+                    />
+                  </label>
+
+                  <label>
+                    Sort Code
+                    <input
+                      name="bank_sort_code"
+                      value={formData.bank_sort_code}
+                      onChange={handleChange}
+                    />
+                  </label>
+
+                  <label>
+                    Account Number
+                    <input
+                      name="bank_account_number"
+                      value={formData.bank_account_number}
+                      onChange={handleChange}
+                    />
+                  </label>
+
+                  <label className="fullWidth">
+                    Payment Terms
+                    <textarea
+                      name="payment_terms"
+                      rows={4}
+                      value={formData.payment_terms}
+                      onChange={handleChange}
+                    />
+                  </label>
+                </div>
+              </section>
 
               <button className="primaryBtn" type="submit">
                 {saving ? "Saving..." : "Save Settings"}
