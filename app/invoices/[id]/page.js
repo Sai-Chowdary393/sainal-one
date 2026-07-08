@@ -45,12 +45,8 @@ export default function InvoiceDetailsPage() {
     try {
       const response = await fetch(`/api/invoices/${invoiceId}`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          status: status,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
       });
 
       const data = await response.json();
@@ -60,11 +56,7 @@ export default function InvoiceDetailsPage() {
         return;
       }
 
-      setInvoice({
-        ...invoice,
-        status: status,
-      });
-
+      setInvoice({ ...invoice, status });
       alert(`Invoice marked as ${status}`);
     } catch (error) {
       console.error(error);
@@ -81,7 +73,6 @@ export default function InvoiceDetailsPage() {
       <ProtectedRoute>
         <div className="appLayout">
           <Sidebar />
-
           <main className="mainContent">
             <p>Loading invoice...</p>
           </main>
@@ -95,12 +86,10 @@ export default function InvoiceDetailsPage() {
       <ProtectedRoute>
         <div className="appLayout">
           <Sidebar />
-
           <main className="mainContent">
             <Link href="/invoices" className="backLink">
               ← Back to Invoices
             </Link>
-
             <h1>Invoice not found</h1>
           </main>
         </div>
@@ -111,7 +100,16 @@ export default function InvoiceDetailsPage() {
   const companyName = settings?.company_name || "SaiNal Technologies Ltd";
   const companyWebsite = settings?.website || "www.sainaltechnologies.com";
   const companyAddress = settings?.address || "United Kingdom";
+  const companyEmail = settings?.company_email || "";
+  const companyPhone = settings?.company_phone || "";
   const vatNumber = settings?.vat_number || "";
+  const companyRegistrationNumber =
+    settings?.company_registration_number || "";
+
+  const bankName = settings?.bank_name || "";
+  const bankAccountName = settings?.bank_account_name || "";
+  const bankSortCode = settings?.bank_sort_code || "";
+  const bankAccountNumber = settings?.bank_account_number || "";
 
   const createdDate = invoice.created_at
     ? new Date(invoice.created_at).toLocaleDateString("en-GB")
@@ -121,6 +119,7 @@ export default function InvoiceDetailsPage() {
   const vatRate = invoice.vat_rate || "0%";
   const vatAmount = invoice.vat_amount || "£0.00";
   const totalAmount = invoice.total_amount || invoice.amount || "£0.00";
+
   const paymentTerms =
     invoice.payment_terms ||
     settings?.payment_terms ||
@@ -168,6 +167,11 @@ export default function InvoiceDetailsPage() {
                 <p>{companyAddress}</p>
                 <p>{companyWebsite}</p>
 
+                {companyEmail && <p>Email: {companyEmail}</p>}
+                {companyPhone && <p>Phone: {companyPhone}</p>}
+                {companyRegistrationNumber && (
+                  <p>Company No: {companyRegistrationNumber}</p>
+                )}
                 {vatNumber && <p>VAT No: {vatNumber}</p>}
               </div>
 
@@ -233,6 +237,24 @@ export default function InvoiceDetailsPage() {
                   <strong>Payment Terms:</strong>
                 </p>
                 <p>{paymentTerms}</p>
+
+                {(bankName ||
+                  bankAccountName ||
+                  bankSortCode ||
+                  bankAccountNumber) && (
+                  <div style={{ marginTop: "24px" }}>
+                    <p>
+                      <strong>Bank Details:</strong>
+                    </p>
+                    {bankName && <p>Bank: {bankName}</p>}
+                    {bankAccountName && <p>Account Name: {bankAccountName}</p>}
+                    {bankSortCode && <p>Sort Code: {bankSortCode}</p>}
+                    {bankAccountNumber && (
+                      <p>Account Number: {bankAccountNumber}</p>
+                    )}
+                  </div>
+                )}
+
                 <p>Thank you for your business.</p>
               </div>
 
