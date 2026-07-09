@@ -14,6 +14,60 @@ function getTomorrowDate() {
   return date.toISOString().split("T")[0];
 }
 
+async function analyseLead({ name, company, email, phone, notes }) {
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4.1-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are SaiNal One AI Operations Manager. Analyse SME leads and return short practical output only.",
+        },
+        {
+          role: "user",
+          content: `
+Analyse this lead.
+
+Name: ${name}
+Company: ${company}
+Email: ${email}
+Phone: ${phone}
+Requirement: ${notes}
+
+Return exactly in this format:
+
+Score: Hot/Warm/Cold
+Summary: short summary
+Next Action: recommended next step
+          `,
+        },
+      ],
+    });
+
+    const text = completion.choices[0].message.content || "";
+
+    const scoreMatch = text.match(/Score:\s*(.*)/i);
+    const summaryMatch = text.match(/Summary:\s*(.*)/i);
+    const actionMatch = text.match(/Next Action:\s*(.*)/i);
+
+    return {
+      ai_score: scoreMatch?.[1]?.trim() || "Warm",
+      ai_summary: summaryMatch?.[1]?.trim() || "Lead created by AI Assistant.",
+      ai_next_action:
+        actionMatch?.[1]?.trim() || "Review and follow up with the lead.",
+    };
+  } catch (error) {
+    console.error("AI lead analysis failed:", error);
+
+    return {
+      ai_score: "Warm",
+      ai_summary: "Lead created by AI Assistant.",
+      ai_next_action: "Review and follow up with the lead.",
+    };
+  }
+}
+
 async function createFollowUpFromPrompt(prompt, leads) {
   const matchedLead = leads?.find((lead) =>
     prompt.toLowerCase().includes(String(lead.name || "").toLowerCase())
@@ -55,9 +109,7 @@ async function createFollowUpFromPrompt(prompt, leads) {
     ])
     .select();
 
-  if (error) {
-    throw new Error(error.message);
-  }
+  if (error) throw new Error(error.message);
 
   return {
     alreadyExists: false,
@@ -67,7 +119,9 @@ async function createFollowUpFromPrompt(prompt, leads) {
 
 async function createTaskFromPrompt(prompt, projects) {
   const matchedProject = projects?.find((project) =>
-    prompt.toLowerCase().includes(String(project.project_name || "").toLowerCase())
+    prompt
+      .toLowerCase()
+      .includes(String(project.project_name || "").toLowerCase())
   );
 
   const taskName = prompt
@@ -108,9 +162,7 @@ async function createTaskFromPrompt(prompt, projects) {
     ])
     .select();
 
-  if (error) {
-    throw new Error(error.message);
-  }
+  if (error) throw new Error(error.message);
 
   return {
     alreadyExists: false,
@@ -128,22 +180,20 @@ async function createLeadFromPrompt(prompt) {
   let company = "Unknown Company";
 
   const nameMatch = prompt.match(/for\s+(.*?)\s+from/i);
-
-  if (nameMatch) {
-    name = nameMatch[1].trim();
-  }
+  if (nameMatch) name = nameMatch[1].trim();
 
   const companyMatch = prompt.match(/from\s+(.*?)(email|phone|value|needs|$)/i);
+  if (companyMatch) company = companyMatch[1].trim();
 
-  if (companyMatch) {
-    company = companyMatch[1].trim();
-  }
+  const email = emailMatch?.[0] || "";
+  const phone = phoneMatch?.[0] || "";
+  const value = valueMatch?.[0] || "";
 
   const { data: existingLead } = await supabase
     .from("leads")
     .select("*")
     .eq("organization_id", ORGANIZATION_ID)
-    .eq("email", emailMatch?.[0] || "")
+    .eq("email", email)
     .limit(1);
 
   if (existingLead && existingLead.length > 0) {
@@ -153,6 +203,14 @@ async function createLeadFromPrompt(prompt) {
     };
   }
 
+  const aiAnalysis = await analyseLead({
+    name,
+    company,
+    email,
+    phone,
+    notes: prompt,
+  });
+
   const { data, error } = await supabase
     .from("leads")
     .insert([
@@ -160,19 +218,20 @@ async function createLeadFromPrompt(prompt) {
         organization_id: ORGANIZATION_ID,
         name,
         company,
-        email: emailMatch?.[0] || "",
-        phone: phoneMatch?.[0] || "",
-        value: valueMatch?.[0] || "",
+        email,
+        phone,
+        value,
         status: "New",
         notes: prompt,
         source: "AI Assistant",
+        ai_score: aiAnalysis.ai_score,
+        ai_summary: aiAnalysis.ai_summary,
+        ai_next_action: aiAnalysis.ai_next_action,
       },
     ])
     .select();
 
-  if (error) {
-    throw new Error(error.message);
-  }
+  if (error) throw new Error(error.message);
 
   return {
     alreadyExists: false,
@@ -306,7 +365,10 @@ Company: ${result.created.company}
 Email: ${result.created.email}
 Phone: ${result.created.phone}
 Value: ${result.created.value}
-Status: ${result.created.status}`,
+Status: ${result.created.status}
+AI Score: ${result.created.ai_score}
+AI Summary: ${result.created.ai_summary}
+Next Action: ${result.created.ai_next_action}`,
       });
     }
 
@@ -380,12 +442,8 @@ ${body.prompt}
     console.error(error);
 
     return NextResponse.json(
-      {
-        error: "AI Assistant failed",
-      },
-      {
-        status: 500,
-      }
+      { error: "AI Assistant failed" },
+      { status: 500 }
     );
   }
 }
