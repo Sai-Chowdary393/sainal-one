@@ -20,9 +20,25 @@ async function createFollowUpFromPrompt(prompt, leads) {
   );
 
   const leadName = matchedLead?.name || "Lead";
+
   const dueDate = prompt.toLowerCase().includes("tomorrow")
     ? getTomorrowDate()
     : null;
+
+  const { data: existingFollowUps } = await supabase
+    .from("follow_ups")
+    .select("*")
+    .eq("organization_id", ORGANIZATION_ID)
+    .eq("related_type", "Lead")
+    .eq("related_id", matchedLead?.id || null)
+    .eq("status", "Pending");
+
+  if (existingFollowUps && existingFollowUps.length > 0) {
+    return {
+      alreadyExists: true,
+      existing: existingFollowUps[0],
+    };
+  }
 
   const { data, error } = await supabase
     .from("follow_ups")
@@ -43,7 +59,10 @@ async function createFollowUpFromPrompt(prompt, leads) {
     throw new Error(error.message);
   }
 
-  return data?.[0];
+  return {
+    alreadyExists: false,
+    created: data?.[0],
+  };
 }
 
 async function createLeadFromPrompt(prompt) {
@@ -120,15 +139,27 @@ export async function POST(request) {
       prompt.includes("add follow-up") ||
       prompt.includes("add follow up")
     ) {
-      const followUp = await createFollowUpFromPrompt(body.prompt, leads || []);
+      const result = await createFollowUpFromPrompt(body.prompt, leads || []);
+
+      if (result.alreadyExists) {
+        return NextResponse.json({
+          answer: `⚠️ Follow-up already exists.
+
+Title: ${result.existing.title}
+Status: ${result.existing.status}
+Due Date: ${result.existing.due_date || "No date"}
+
+No duplicate was created.`,
+        });
+      }
 
       return NextResponse.json({
         answer: `✅ Follow-up created successfully.
 
-Title: ${followUp.title}
-Status: ${followUp.status}
-Due Date: ${followUp.due_date || "No due date"}
-Note: ${followUp.note}`,
+Title: ${result.created.title}
+Status: ${result.created.status}
+Due Date: ${result.created.due_date || "No date"}
+Note: ${result.created.note}`,
       });
     }
 
