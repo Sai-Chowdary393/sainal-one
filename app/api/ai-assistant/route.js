@@ -65,6 +65,62 @@ async function createFollowUpFromPrompt(prompt, leads) {
   };
 }
 
+async function createTaskFromPrompt(prompt, projects) {
+  const matchedProject = projects?.find((project) =>
+    prompt.toLowerCase().includes(
+      String(project.project_name || "").toLowerCase()
+    )
+  );
+
+  const taskName = prompt
+    .replace(/create task/gi, "")
+    .replace(/add task/gi, "")
+    .replace(/for/gi, "")
+    .trim();
+
+  const finalTaskName = taskName || "AI Created Task";
+
+  const { data: existingTasks } = await supabase
+    .from("tasks")
+    .select("*")
+    .eq("organization_id", ORGANIZATION_ID)
+    .eq("project_id", matchedProject?.id || null)
+    .ilike("task_name", finalTaskName)
+    .eq("status", "Pending");
+
+  if (existingTasks && existingTasks.length > 0) {
+    return {
+      alreadyExists: true,
+      existing: existingTasks[0],
+    };
+  }
+
+  const { data, error } = await supabase
+    .from("tasks")
+    .insert([
+      {
+        organization_id: ORGANIZATION_ID,
+        project_id: matchedProject?.id || null,
+        task_name: finalTaskName,
+        status: "Pending",
+        due_date: prompt.toLowerCase().includes("tomorrow")
+          ? getTomorrowDate()
+          : null,
+      },
+    ])
+    .select();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return {
+    alreadyExists: false,
+    created: data?.[0],
+    project: matchedProject || null,
+  };
+}
+
 async function createLeadFromPrompt(prompt) {
   const { data, error } = await supabase
     .from("leads")
@@ -123,6 +179,11 @@ export async function POST(request) {
       .select("*")
       .eq("organization_id", ORGANIZATION_ID);
 
+    const { data: tasks } = await supabase
+      .from("tasks")
+      .select("*")
+      .eq("organization_id", ORGANIZATION_ID);
+
     const { data: invoices } = await supabase
       .from("invoices")
       .select("*")
@@ -163,6 +224,34 @@ Note: ${result.created.note}`,
       });
     }
 
+    if (
+      prompt.includes("create task") ||
+      prompt.includes("add task")
+    ) {
+      const result = await createTaskFromPrompt(body.prompt, projects || []);
+
+      if (result.alreadyExists) {
+        return NextResponse.json({
+          answer: `⚠️ Task already exists.
+
+Task: ${result.existing.task_name}
+Status: ${result.existing.status}
+Due Date: ${result.existing.due_date || "No date"}
+
+No duplicate was created.`,
+        });
+      }
+
+      return NextResponse.json({
+        answer: `✅ Task created successfully.
+
+Task: ${result.created.task_name}
+Project: ${result.project?.project_name || "No project linked"}
+Status: ${result.created.status}
+Due Date: ${result.created.due_date || "No date"}`,
+      });
+    }
+
     if (prompt.includes("create lead") || prompt.includes("add lead")) {
       const lead = await createLeadFromPrompt(body.prompt);
 
@@ -191,6 +280,7 @@ You can analyse:
 - Quotes
 - Customers
 - Projects
+- Tasks
 - Invoices
 - Follow-ups
 
@@ -202,7 +292,7 @@ You should:
 - Use UK business style
 - Do not invent records that are not in the data
 
-You can also create basic follow-ups and leads when the user clearly asks.
+You can also create basic follow-ups, leads and tasks when the user clearly asks.
           `,
         },
         {
@@ -221,6 +311,9 @@ ${JSON.stringify(customers || [])}
 
 Projects:
 ${JSON.stringify(projects || [])}
+
+Tasks:
+${JSON.stringify(tasks || [])}
 
 Invoices:
 ${JSON.stringify(invoices || [])}
