@@ -122,20 +122,56 @@ export default function LeadDetails() {
     }
   }
 
-  function generateEmail() {
+  async function generateEmail() {
     if (!lead) return;
 
-    setEmailDraft(`Hi ${lead.name},
+    setEmailDraft("Generating AI email...");
 
-Thank you for your interest in SaiNal Technologies.
+    try {
+      const response = await fetch("/api/ai-assistant", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          prompt: `
+Write a professional follow-up email for this lead.
 
-Based on your enquiry, I believe we can help ${lead.company} with a professional digital solution tailored to your business needs.
+Lead Name: ${lead.name}
+Company: ${lead.company}
+Email: ${lead.email}
+Phone: ${lead.phone}
+Source: ${lead.source || "Manual"}
+Status: ${lead.status}
+Lead Notes: ${lead.notes || "No notes"}
+AI Score: ${lead.ai_score || "Not available"}
+AI Summary: ${lead.ai_summary || "Not available"}
+AI Recommended Action: ${lead.ai_next_action || "Not available"}
 
-I would be happy to schedule a short call to discuss your requirements and provide a suitable proposal.
+The email should:
+- Be professional and friendly
+- Mention their requirement
+- Suggest a short discovery call
+- Keep it concise
+- Sign off as SaiNal Technologies Ltd
+          `,
+        }),
+      });
 
-Kind Regards,
-Sai Kumar
-SaiNal Technologies Ltd`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || "Failed to generate email.");
+        setEmailDraft("");
+        return;
+      }
+
+      setEmailDraft(data.answer);
+    } catch (error) {
+      console.error(error);
+      alert("Error generating AI email.");
+      setEmailDraft("");
+    }
   }
 
   async function generateQuote() {
@@ -318,14 +354,10 @@ www.sainaltechnologies.com`;
                 <strong>Score:</strong> {getAiScoreLabel(lead.ai_score)}
               </p>
 
-              <p>
-                <strong>Summary:</strong>
-              </p>
+              <p><strong>Summary:</strong></p>
               <p>{lead.ai_summary || "No AI summary available."}</p>
 
-              <p>
-                <strong>Recommended Next Action:</strong>
-              </p>
+              <p><strong>Recommended Next Action:</strong></p>
               <p>{lead.ai_next_action || "No AI recommendation available."}</p>
 
               <button className="primaryBtn" onClick={generateEmail}>
