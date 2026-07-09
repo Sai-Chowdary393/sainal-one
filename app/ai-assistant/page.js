@@ -9,12 +9,24 @@ export default function AIAssistant() {
   const [response, setResponse] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function askAI() {
-    if (!prompt) {
+  const examples = [
+    "Show me hot leads that need follow-up.",
+    "Show unpaid invoices and pending payments.",
+    "Which projects need attention?",
+    "Write a follow-up email for Patric.",
+    "Summarise my sales pipeline.",
+    "What should I focus on today?",
+  ];
+
+  async function askAI(customPrompt) {
+    const finalPrompt = customPrompt || prompt;
+
+    if (!finalPrompt) {
       alert("Please enter your question.");
       return;
     }
 
+    setPrompt(finalPrompt);
     setLoading(true);
     setResponse("");
 
@@ -24,7 +36,7 @@ export default function AIAssistant() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ prompt: finalPrompt }),
       });
 
       const data = await res.json();
@@ -51,33 +63,50 @@ export default function AIAssistant() {
         <main className="mainContent">
           <div className="topBar">
             <div>
-              <h1>AI Assistant</h1>
+              <h1>AI Operations Manager</h1>
               <p className="helperText">
-                Generate emails, quotes, project plans and business insights.
+                Ask questions about leads, quotes, customers, projects,
+                invoices and follow-ups.
               </p>
             </div>
           </div>
 
-          <div className="chatBox">
+          <section className="panel">
+            <h3>What can I help with?</h3>
+
+            <div className="activityGrid">
+              {examples.map((item) => (
+                <button
+                  key={item}
+                  className="primaryBtn"
+                  onClick={() => askAI(item)}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <div className="chatBox" style={{ marginTop: "24px" }}>
             <p className="aiMessage">
-              Hello, I can help you write follow-up emails, generate quotes,
-              create project tasks and analyse your business workflow.
+              I can analyse your business data and help you decide what to do
+              next.
             </p>
 
             <textarea
               className="emailDraftBox"
               rows={5}
-              placeholder="Example: Write a follow-up email for a client who received a quote but has not replied."
+              placeholder="Example: What should I focus on today?"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
             />
 
             <button
               className="primaryBtn"
-              onClick={askAI}
+              onClick={() => askAI()}
               style={{ marginTop: "16px" }}
             >
-              {loading ? "Generating..." : "Ask AI"}
+              {loading ? "Thinking..." : "Ask AI Operations Manager"}
             </button>
 
             {response && (
