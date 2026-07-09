@@ -27,6 +27,40 @@ function generateInvoiceNumber() {
   return `SNI-${year}-${Math.floor(1000 + Math.random() * 9000)}`;
 }
 
+async function markInvoiceAsPaid(prompt, invoices) {
+  const matchedInvoice = invoices?.find(
+    (invoice) =>
+      prompt.toLowerCase().includes(String(invoice.invoice_number || "").toLowerCase()) ||
+      prompt.toLowerCase().includes(String(invoice.client || "").toLowerCase())
+  );
+
+  if (!matchedInvoice) {
+    return { notFound: true };
+  }
+
+  if (String(matchedInvoice.status || "").toLowerCase() === "paid") {
+    return {
+      alreadyPaid: true,
+      invoice: matchedInvoice,
+    };
+  }
+
+  const { data, error } = await supabase
+    .from("invoices")
+    .update({ status: "Paid" })
+    .eq("id", matchedInvoice.id)
+    .eq("organization_id", ORGANIZATION_ID)
+    .select();
+
+  if (error) throw new Error(error.message);
+
+  return {
+    notFound: false,
+    alreadyPaid: false,
+    invoice: data?.[0],
+  };
+}
+
 async function analyseLead({ name, company, email, phone, notes }) {
   try {
     const completion = await openai.chat.completions.create({
@@ -121,9 +155,7 @@ async function createFollowUpFromPrompt(prompt, leads) {
 
 async function createTaskFromPrompt(prompt, projects) {
   const matchedProject = projects?.find((project) =>
-    prompt
-      .toLowerCase()
-      .includes(String(project.project_name || "").toLowerCase())
+    prompt.toLowerCase().includes(String(project.project_name || "").toLowerCase())
   );
 
   const finalTaskName =
@@ -238,9 +270,7 @@ async function createQuoteFromPrompt(prompt, leads, customers, quotes) {
 
   const matchedCustomer = customers?.find(
     (customer) =>
-      prompt
-        .toLowerCase()
-        .includes(String(customer.customer_name || "").toLowerCase()) ||
+      prompt.toLowerCase().includes(String(customer.customer_name || "").toLowerCase()) ||
       prompt.toLowerCase().includes(String(customer.company || "").toLowerCase())
   );
 
@@ -553,6 +583,41 @@ export async function POST(request) {
       .from("follow_ups")
       .select("*")
       .eq("organization_id", ORGANIZATION_ID);
+
+    if (
+      (prompt.includes("mark") || prompt.includes("update")) &&
+      prompt.includes("invoice") &&
+      prompt.includes("paid")
+    ) {
+      const result = await markInvoiceAsPaid(body.prompt, invoices || []);
+
+      if (result.notFound) {
+        return NextResponse.json({
+          answer:
+            "⚠️ I could not find that invoice. Please mention the invoice number or client name.",
+        });
+      }
+
+      if (result.alreadyPaid) {
+        return NextResponse.json({
+          answer: `⚠️ Invoice is already marked as paid.
+
+Invoice Number: ${result.invoice.invoice_number}
+Client: ${result.invoice.client}
+Amount: ${result.invoice.total_amount || result.invoice.amount}
+Status: ${result.invoice.status}`,
+        });
+      }
+
+      return NextResponse.json({
+        answer: `✅ Invoice marked as paid.
+
+Invoice Number: ${result.invoice.invoice_number}
+Client: ${result.invoice.client}
+Amount: ${result.invoice.total_amount || result.invoice.amount}
+Status: ${result.invoice.status}`,
+      });
+    }
 
     if (
       (prompt.includes("convert") || prompt.includes("create invoice")) &&
