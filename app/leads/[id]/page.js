@@ -174,6 +174,41 @@ The email should:
     }
   }
 
+  async function createFollowUpTask() {
+    if (!lead) return;
+
+    try {
+      const response = await fetch("/api/follow-ups", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          related_type: "Lead",
+          related_id: lead.id,
+          title: `Follow up with ${lead.name}`,
+          note:
+            lead.ai_next_action ||
+            `Follow up with ${lead.name} from ${lead.company}.`,
+          due_date: null,
+          status: "Pending",
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || "Failed to create follow-up.");
+        return;
+      }
+
+      alert("Follow-up task created successfully.");
+    } catch (error) {
+      console.error(error);
+      alert("Error creating follow-up task.");
+    }
+  }
+
   async function generateQuote() {
     if (!lead) return;
 
@@ -350,9 +385,7 @@ www.sainaltechnologies.com`;
             <div className="panel">
               <h3>AI Lead Analysis</h3>
 
-              <p>
-                <strong>Score:</strong> {getAiScoreLabel(lead.ai_score)}
-              </p>
+              <p><strong>Score:</strong> {getAiScoreLabel(lead.ai_score)}</p>
 
               <p><strong>Summary:</strong></p>
               <p>{lead.ai_summary || "No AI summary available."}</p>
@@ -360,9 +393,15 @@ www.sainaltechnologies.com`;
               <p><strong>Recommended Next Action:</strong></p>
               <p>{lead.ai_next_action || "No AI recommendation available."}</p>
 
-              <button className="primaryBtn" onClick={generateEmail}>
-                Generate Follow-up Email
-              </button>
+              <div style={{ display: "flex", gap: "12px", marginTop: "16px" }}>
+                <button className="primaryBtn" onClick={generateEmail}>
+                  Generate Follow-up Email
+                </button>
+
+                <button className="primaryBtn" onClick={createFollowUpTask}>
+                  Create Follow-up Task
+                </button>
+              </div>
             </div>
           </section>
 
