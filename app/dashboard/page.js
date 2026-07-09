@@ -155,7 +155,11 @@ export default function Dashboard() {
                   invoices, projects and follow-ups.
                 </p>
 
-                <pre className="quotePreview">{aiInsights}</pre>
+                <div className="aiInsightBox">
+                  {aiInsights.split("\n").map((line, index) => (
+                    <p key={index}>{line}</p>
+                  ))}
+                </div>
               </section>
 
               <section className="dashboardCards">
@@ -227,7 +231,6 @@ export default function Dashboard() {
               <section className="dashboardGrid">
                 <div className="panel">
                   <h3>Recent Leads</h3>
-
                   {latestLeads.length === 0 ? (
                     <p>No leads yet.</p>
                   ) : (
@@ -244,7 +247,6 @@ export default function Dashboard() {
 
                 <div className="panel">
                   <h3>Recent Quotes</h3>
-
                   {latestQuotes.length === 0 ? (
                     <p>No quotes yet.</p>
                   ) : (
@@ -263,17 +265,13 @@ export default function Dashboard() {
               <section className="dashboardGrid">
                 <div className="panel">
                   <h3>Active Projects</h3>
-
                   {latestProjects.length === 0 ? (
                     <p>No projects yet.</p>
                   ) : (
                     latestProjects.map((project) => (
                       <div key={project.id} className="dashboardProjectItem">
                         <div>
-                          <Link
-                            href={`/projects/${project.id}`}
-                            className="leadLink"
-                          >
+                          <Link href={`/projects/${project.id}`} className="leadLink">
                             {project.project_name}
                           </Link>
                           <p className="helperText">{project.amount}</p>
@@ -288,7 +286,6 @@ export default function Dashboard() {
 
                 <div className="panel">
                   <h3>Recent Tasks</h3>
-
                   {latestTasks.length === 0 ? (
                     <p>No tasks yet.</p>
                   ) : (
@@ -311,17 +308,13 @@ export default function Dashboard() {
               <section className="dashboardGrid">
                 <div className="panel">
                   <h3>Recent Invoices</h3>
-
                   {latestInvoices.length === 0 ? (
                     <p>No invoices yet.</p>
                   ) : (
                     latestInvoices.map((invoice) => (
                       <div key={invoice.id} className="taskRow">
                         <div>
-                          <Link
-                            href={`/invoices/${invoice.id}`}
-                            className="leadLink"
-                          >
+                          <Link href={`/invoices/${invoice.id}`} className="leadLink">
                             {invoice.invoice_number}
                           </Link>
                           <p className="helperText">
