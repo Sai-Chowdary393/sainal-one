@@ -702,3 +702,30 @@ a {
     grid-template-columns: 1fr;
   }
 }
+/* ===============================
+   AI Business Insights Premium UI
+================================ */
+
+.aiInsightBox {
+  background: #ffffff;
+  margin-top: 24px;
+  padding: 24px;
+  border-radius: 16px;
+  border: 1px solid #eeeeee;
+  font-size: 16px;
+  line-height: 1.8;
+  color: #111827;
+}
+
+.aiInsightBox p {
+  margin: 0 0 12px 0;
+}
+
+.aiInsightBox p:first-child {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.aiInsightBox p:empty {
+  display: none;
+}
