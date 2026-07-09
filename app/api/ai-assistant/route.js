@@ -14,6 +14,10 @@ function getTomorrowDate() {
   return date.toISOString().split("T")[0];
 }
 
+function todayDate() {
+  return new Date().toISOString().split("T")[0];
+}
+
 async function analyseLead({ name, company, email, phone, notes }) {
   try {
     const completion = await openai.chat.completions.create({
@@ -47,19 +51,16 @@ Next Action: recommended next step
 
     const text = completion.choices[0].message.content || "";
 
-    const scoreMatch = text.match(/Score:\s*(.*)/i);
-    const summaryMatch = text.match(/Summary:\s*(.*)/i);
-    const actionMatch = text.match(/Next Action:\s*(.*)/i);
-
     return {
-      ai_score: scoreMatch?.[1]?.trim() || "Warm",
-      ai_summary: summaryMatch?.[1]?.trim() || "Lead created by AI Assistant.",
+      ai_score: text.match(/Score:\s*(.*)/i)?.[1]?.trim() || "Warm",
+      ai_summary:
+        text.match(/Summary:\s*(.*)/i)?.[1]?.trim() ||
+        "Lead created by AI Assistant.",
       ai_next_action:
-        actionMatch?.[1]?.trim() || "Review and follow up with the lead.",
+        text.match(/Next Action:\s*(.*)/i)?.[1]?.trim() ||
+        "Review and follow up with the lead.",
     };
-  } catch (error) {
-    console.error("AI lead analysis failed:", error);
-
+  } catch {
     return {
       ai_score: "Warm",
       ai_summary: "Lead created by AI Assistant.",
@@ -73,8 +74,6 @@ async function createFollowUpFromPrompt(prompt, leads) {
     prompt.toLowerCase().includes(String(lead.name || "").toLowerCase())
   );
 
-  const leadName = matchedLead?.name || "Lead";
-
   const dueDate = prompt.toLowerCase().includes("tomorrow")
     ? getTomorrowDate()
     : null;
@@ -87,11 +86,8 @@ async function createFollowUpFromPrompt(prompt, leads) {
     .eq("related_id", matchedLead?.id || null)
     .eq("status", "Pending");
 
-  if (existingFollowUps && existingFollowUps.length > 0) {
-    return {
-      alreadyExists: true,
-      existing: existingFollowUps[0],
-    };
+  if (existingFollowUps?.length > 0) {
+    return { alreadyExists: true, existing: existingFollowUps[0] };
   }
 
   const { data, error } = await supabase
@@ -101,7 +97,7 @@ async function createFollowUpFromPrompt(prompt, leads) {
         organization_id: ORGANIZATION_ID,
         related_type: "Lead",
         related_id: matchedLead?.id || null,
-        title: `Follow up with ${leadName}`,
+        title: `Follow up with ${matchedLead?.name || "Lead"}`,
         note: `AI created follow-up from request: ${prompt}`,
         due_date: dueDate,
         status: "Pending",
@@ -111,10 +107,7 @@ async function createFollowUpFromPrompt(prompt, leads) {
 
   if (error) throw new Error(error.message);
 
-  return {
-    alreadyExists: false,
-    created: data?.[0],
-  };
+  return { alreadyExists: false, created: data?.[0] };
 }
 
 async function createTaskFromPrompt(prompt, projects) {
@@ -124,13 +117,12 @@ async function createTaskFromPrompt(prompt, projects) {
       .includes(String(project.project_name || "").toLowerCase())
   );
 
-  const taskName = prompt
-    .replace(/create task/gi, "")
-    .replace(/add task/gi, "")
-    .replace(/for/gi, "")
-    .trim();
-
-  const finalTaskName = taskName || "AI Created Task";
+  const finalTaskName =
+    prompt
+      .replace(/create task/gi, "")
+      .replace(/add task/gi, "")
+      .replace(/for/gi, "")
+      .trim() || "AI Created Task";
 
   const { data: existingTasks } = await supabase
     .from("tasks")
@@ -140,11 +132,8 @@ async function createTaskFromPrompt(prompt, projects) {
     .ilike("task_name", finalTaskName)
     .eq("status", "Pending");
 
-  if (existingTasks && existingTasks.length > 0) {
-    return {
-      alreadyExists: true,
-      existing: existingTasks[0],
-    };
+  if (existingTasks?.length > 0) {
+    return { alreadyExists: true, existing: existingTasks[0] };
   }
 
   const { data, error } = await supabase
@@ -196,11 +185,8 @@ async function createLeadFromPrompt(prompt) {
     .eq("email", email)
     .limit(1);
 
-  if (existingLead && existingLead.length > 0) {
-    return {
-      alreadyExists: true,
-      existing: existingLead[0],
-    };
+  if (existingLead?.length > 0) {
+    return { alreadyExists: true, existing: existingLead[0] };
   }
 
   const aiAnalysis = await analyseLead({
@@ -233,9 +219,102 @@ async function createLeadFromPrompt(prompt) {
 
   if (error) throw new Error(error.message);
 
+  return { alreadyExists: false, created: data?.[0] };
+}
+
+async function convertLeadToCustomerAndProject(prompt, leads, customers, projects) {
+  const matchedLead = leads?.find((lead) =>
+    prompt.toLowerCase().includes(String(lead.name || "").toLowerCase())
+  );
+
+  if (!matchedLead) {
+    return {
+      notFound: true,
+    };
+  }
+
+  const { data: existingCustomer } = await supabase
+    .from("customers")
+    .select("*")
+    .eq("organization_id", ORGANIZATION_ID)
+    .or(`lead_id.eq.${matchedLead.id},email.eq.${matchedLead.email}`)
+    .limit(1);
+
+  let customer = existingCustomer?.[0];
+
+  if (!customer) {
+    const { data: customerData, error: customerError } = await supabase
+      .from("customers")
+      .insert([
+        {
+          organization_id: ORGANIZATION_ID,
+          lead_id: matchedLead.id,
+          customer_name: matchedLead.name,
+          company: matchedLead.company,
+          email: matchedLead.email,
+          phone: matchedLead.phone,
+          status: "Active",
+        },
+      ])
+      .select();
+
+    if (customerError) throw new Error(customerError.message);
+    customer = customerData?.[0];
+  }
+
+  const projectName =
+    prompt.toLowerCase().includes("project")
+      ? `${matchedLead.company} - Project`
+      : `${matchedLead.company} - ${matchedLead.ai_summary || "New Project"}`;
+
+  const existingProject = projects?.find(
+    (project) =>
+      String(project.customer_id) === String(customer.id) &&
+      String(project.project_name || "")
+        .toLowerCase()
+        .includes(String(matchedLead.company || "").toLowerCase())
+  );
+
+  let project = existingProject;
+
+  if (!project) {
+    const { data: projectData, error: projectError } = await supabase
+      .from("projects")
+      .insert([
+        {
+          organization_id: ORGANIZATION_ID,
+          customer_id: customer.id,
+          quote_id: null,
+          project_name: projectName,
+          description:
+            matchedLead.notes ||
+            matchedLead.ai_summary ||
+            "Project created from AI lead conversion.",
+          status: "Planning",
+          start_date: todayDate(),
+          due_date: null,
+          amount: matchedLead.value || "",
+        },
+      ])
+      .select();
+
+    if (projectError) throw new Error(projectError.message);
+    project = projectData?.[0];
+  }
+
+  await supabase
+    .from("leads")
+    .update({ status: "Won" })
+    .eq("id", matchedLead.id)
+    .eq("organization_id", ORGANIZATION_ID);
+
   return {
-    alreadyExists: false,
-    created: data?.[0],
+    notFound: false,
+    customerAlreadyExists: !!existingCustomer?.[0],
+    projectAlreadyExists: !!existingProject,
+    lead: matchedLead,
+    customer,
+    project,
   };
 }
 
@@ -286,6 +365,41 @@ export async function POST(request) {
       .from("follow_ups")
       .select("*")
       .eq("organization_id", ORGANIZATION_ID);
+
+    if (
+      prompt.includes("convert") &&
+      prompt.includes("lead") &&
+      (prompt.includes("customer") || prompt.includes("project"))
+    ) {
+      const result = await convertLeadToCustomerAndProject(
+        body.prompt,
+        leads || [],
+        customers || [],
+        projects || []
+      );
+
+      if (result.notFound) {
+        return NextResponse.json({
+          answer:
+            "⚠️ I could not find that lead. Please mention the exact lead name.",
+        });
+      }
+
+      return NextResponse.json({
+        answer: `✅ Lead converted successfully.
+
+Lead: ${result.lead.name}
+Customer: ${result.customer.customer_name}
+Company: ${result.customer.company}
+Project: ${result.project.project_name}
+Project Status: ${result.project.status}
+
+Customer already existed: ${result.customerAlreadyExists ? "Yes" : "No"}
+Project already existed: ${result.projectAlreadyExists ? "Yes" : "No"}
+
+Lead status updated to Won.`,
+      });
+    }
 
     if (
       prompt.includes("create follow-up") ||
@@ -399,7 +513,7 @@ You should:
 - Use UK business style
 - Do not invent records that are not in the data
 
-You can also create basic follow-ups, leads and tasks when the user clearly asks.
+You can also create leads, follow-ups, tasks and convert leads to customers/projects when the user clearly asks.
           `,
         },
         {
