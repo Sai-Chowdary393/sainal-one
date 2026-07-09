@@ -38,7 +38,7 @@ export default function Dashboard() {
         fetch("/api/projects"),
         fetch("/api/tasks"),
         fetch("/api/invoices"),
-        fetch("/api/business-insights"),
+        fetch("/api/ai-insights"),
       ]);
 
       const leadsData = await leadsResponse.json();
@@ -149,10 +149,10 @@ export default function Dashboard() {
           ) : (
             <>
               <section className="panel dashboardActivity">
-                <h3>🤖 AI Operations Manager</h3>
+                <h3>🤖 AI Business Insights</h3>
                 <p className="helperText">
-                  Actionable business insights based on your leads, quotes,
-                  projects, invoices and follow-ups.
+                  Today&apos;s management summary across revenue, leads,
+                  invoices, projects and follow-ups.
                 </p>
 
                 <pre className="quotePreview">{aiInsights}</pre>
