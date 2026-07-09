@@ -67,9 +67,7 @@ async function createFollowUpFromPrompt(prompt, leads) {
 
 async function createTaskFromPrompt(prompt, projects) {
   const matchedProject = projects?.find((project) =>
-    prompt.toLowerCase().includes(
-      String(project.project_name || "").toLowerCase()
-    )
+    prompt.toLowerCase().includes(String(project.project_name || "").toLowerCase())
   );
 
   const taskName = prompt
@@ -122,17 +120,50 @@ async function createTaskFromPrompt(prompt, projects) {
 }
 
 async function createLeadFromPrompt(prompt) {
+  const emailMatch = prompt.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+  const phoneMatch = prompt.match(/(\+?\d[\d\s]{7,})/);
+  const valueMatch = prompt.match(/£\s?\d+/i);
+
+  let name = "Unknown Lead";
+  let company = "Unknown Company";
+
+  const nameMatch = prompt.match(/for\s+(.*?)\s+from/i);
+
+  if (nameMatch) {
+    name = nameMatch[1].trim();
+  }
+
+  const companyMatch = prompt.match(/from\s+(.*?)(email|phone|value|needs|$)/i);
+
+  if (companyMatch) {
+    company = companyMatch[1].trim();
+  }
+
+  const { data: existingLead } = await supabase
+    .from("leads")
+    .select("*")
+    .eq("organization_id", ORGANIZATION_ID)
+    .eq("email", emailMatch?.[0] || "")
+    .limit(1);
+
+  if (existingLead && existingLead.length > 0) {
+    return {
+      alreadyExists: true,
+      existing: existingLead[0],
+    };
+  }
+
   const { data, error } = await supabase
     .from("leads")
     .insert([
       {
         organization_id: ORGANIZATION_ID,
-        name: "AI Created Lead",
-        company: "New Company",
-        email: "",
-        phone: "",
+        name,
+        company,
+        email: emailMatch?.[0] || "",
+        phone: phoneMatch?.[0] || "",
+        value: valueMatch?.[0] || "",
         status: "New",
-        value: "",
         notes: prompt,
         source: "AI Assistant",
       },
@@ -143,7 +174,10 @@ async function createLeadFromPrompt(prompt) {
     throw new Error(error.message);
   }
 
-  return data?.[0];
+  return {
+    alreadyExists: false,
+    created: data?.[0],
+  };
 }
 
 export async function POST(request) {
@@ -224,10 +258,7 @@ Note: ${result.created.note}`,
       });
     }
 
-    if (
-      prompt.includes("create task") ||
-      prompt.includes("add task")
-    ) {
+    if (prompt.includes("create task") || prompt.includes("add task")) {
       const result = await createTaskFromPrompt(body.prompt, projects || []);
 
       if (result.alreadyExists) {
@@ -253,15 +284,29 @@ Due Date: ${result.created.due_date || "No date"}`,
     }
 
     if (prompt.includes("create lead") || prompt.includes("add lead")) {
-      const lead = await createLeadFromPrompt(body.prompt);
+      const result = await createLeadFromPrompt(body.prompt);
+
+      if (result.alreadyExists) {
+        return NextResponse.json({
+          answer: `⚠️ Lead already exists.
+
+Name: ${result.existing.name}
+Company: ${result.existing.company}
+Email: ${result.existing.email}
+
+No duplicate was created.`,
+        });
+      }
 
       return NextResponse.json({
         answer: `✅ Lead created successfully.
 
-Name: ${lead.name}
-Company: ${lead.company}
-Status: ${lead.status}
-Source: ${lead.source}`,
+Name: ${result.created.name}
+Company: ${result.created.company}
+Email: ${result.created.email}
+Phone: ${result.created.phone}
+Value: ${result.created.value}
+Status: ${result.created.status}`,
       });
     }
 
