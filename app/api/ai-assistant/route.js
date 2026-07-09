@@ -18,6 +18,10 @@ function todayDate() {
   return new Date().toISOString().split("T")[0];
 }
 
+function generateQuoteNumber() {
+  return `SNQ-${Date.now().toString().slice(-6)}`;
+}
+
 async function analyseLead({ name, company, email, phone, notes }) {
   try {
     const completion = await openai.chat.completions.create({
@@ -222,16 +226,120 @@ async function createLeadFromPrompt(prompt) {
   return { alreadyExists: false, created: data?.[0] };
 }
 
+async function createQuoteFromPrompt(prompt, leads, customers, quotes) {
+  const matchedLead = leads?.find((lead) =>
+    prompt.toLowerCase().includes(String(lead.name || "").toLowerCase())
+  );
+
+  const matchedCustomer = customers?.find(
+    (customer) =>
+      prompt.toLowerCase().includes(String(customer.customer_name || "").toLowerCase()) ||
+      prompt.toLowerCase().includes(String(customer.company || "").toLowerCase())
+  );
+
+  if (!matchedLead && !matchedCustomer) {
+    return { notFound: true };
+  }
+
+  const amountMatch = prompt.match(/£\s?\d+/i);
+  const amount = amountMatch?.[0] || matchedLead?.value || "";
+
+  const service = prompt.toLowerCase().includes("website")
+    ? "Website Development"
+    : prompt.toLowerCase().includes("automation")
+    ? "Business Automation"
+    : prompt.toLowerCase().includes("crm")
+    ? "Custom CRM Development"
+    : "Professional Services";
+
+  const client = matchedLead?.company || matchedCustomer?.company || "";
+  const contact = matchedLead?.name || matchedCustomer?.customer_name || "";
+  const email = matchedLead?.email || matchedCustomer?.email || "";
+  const phone = matchedLead?.phone || matchedCustomer?.phone || "";
+
+  const existingQuote = quotes?.find(
+    (quote) =>
+      String(quote.organization_id) === ORGANIZATION_ID &&
+      ((matchedLead && String(quote.lead_id) === String(matchedLead.id)) ||
+        (matchedCustomer &&
+          String(quote.customer_id) === String(matchedCustomer.id))) &&
+      String(quote.status || "").toLowerCase().includes("draft")
+  );
+
+  if (existingQuote) {
+    return {
+      alreadyExists: true,
+      existing: existingQuote,
+    };
+  }
+
+  const quoteNumber = generateQuoteNumber();
+
+  const quoteText = `SAINAL TECHNOLOGIES LTD
+
+QUOTE
+
+Quote Number: ${quoteNumber}
+Date: ${new Date().toLocaleDateString("en-GB")}
+
+Client:
+${client}
+${contact}
+${email}
+${phone}
+
+Service:
+${service}
+
+Estimated Cost:
+${amount || "To be confirmed"}
+
+Scope / Notes:
+${prompt}
+
+Payment Terms:
+25% deposit required before project starts.
+75% balance payable before go-live.
+
+Prepared By:
+SaiNal Technologies Ltd
+www.sainaltechnologies.com`;
+
+  const { data, error } = await supabase
+    .from("quotes")
+    .insert([
+      {
+        organization_id: ORGANIZATION_ID,
+        quote_number: quoteNumber,
+        lead_id: matchedLead?.id || null,
+        customer_id: matchedCustomer?.id || null,
+        client,
+        contact,
+        email,
+        phone,
+        service,
+        amount,
+        status: "Draft Quote",
+        quote_text: quoteText,
+      },
+    ])
+    .select();
+
+  if (error) throw new Error(error.message);
+
+  return {
+    notFound: false,
+    alreadyExists: false,
+    created: data?.[0],
+  };
+}
+
 async function convertLeadToCustomerAndProject(prompt, leads, customers, projects) {
   const matchedLead = leads?.find((lead) =>
     prompt.toLowerCase().includes(String(lead.name || "").toLowerCase())
   );
 
-  if (!matchedLead) {
-    return {
-      notFound: true,
-    };
-  }
+  if (!matchedLead) return { notFound: true };
 
   const { data: existingCustomer } = await supabase
     .from("customers")
@@ -262,10 +370,7 @@ async function convertLeadToCustomerAndProject(prompt, leads, customers, project
     customer = customerData?.[0];
   }
 
-  const projectName =
-    prompt.toLowerCase().includes("project")
-      ? `${matchedLead.company} - Project`
-      : `${matchedLead.company} - ${matchedLead.ai_summary || "New Project"}`;
+  const projectName = `${matchedLead.company} - Project`;
 
   const existingProject = projects?.find(
     (project) =>
@@ -365,6 +470,49 @@ export async function POST(request) {
       .from("follow_ups")
       .select("*")
       .eq("organization_id", ORGANIZATION_ID);
+
+    if (
+      (prompt.includes("create quote") || prompt.includes("add quote")) &&
+      !prompt.includes("convert")
+    ) {
+      const result = await createQuoteFromPrompt(
+        body.prompt,
+        leads || [],
+        customers || [],
+        quotes || []
+      );
+
+      if (result.notFound) {
+        return NextResponse.json({
+          answer:
+            "⚠️ I could not find that lead or customer. Please mention the exact lead or customer name.",
+        });
+      }
+
+      if (result.alreadyExists) {
+        return NextResponse.json({
+          answer: `⚠️ Draft quote already exists.
+
+Quote Number: ${result.existing.quote_number}
+Client: ${result.existing.client}
+Amount: ${result.existing.amount}
+Status: ${result.existing.status}
+
+No duplicate quote was created.`,
+        });
+      }
+
+      return NextResponse.json({
+        answer: `✅ Quote created successfully.
+
+Quote Number: ${result.created.quote_number}
+Client: ${result.created.client}
+Contact: ${result.created.contact}
+Service: ${result.created.service}
+Amount: ${result.created.amount || "To be confirmed"}
+Status: ${result.created.status}`,
+      });
+    }
 
     if (
       prompt.includes("convert") &&
@@ -513,7 +661,7 @@ You should:
 - Use UK business style
 - Do not invent records that are not in the data
 
-You can also create leads, follow-ups, tasks and convert leads to customers/projects when the user clearly asks.
+You can also create leads, quotes, follow-ups, tasks and convert leads to customers/projects when the user clearly asks.
           `,
         },
         {
