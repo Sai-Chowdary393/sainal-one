@@ -14,6 +14,7 @@ export default function Dashboard() {
   const [projects, setProjects] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [invoices, setInvoices] = useState([]);
+  const [aiInsights, setAiInsights] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -29,6 +30,7 @@ export default function Dashboard() {
         projectsResponse,
         tasksResponse,
         invoicesResponse,
+        insightsResponse,
       ] = await Promise.all([
         fetch("/api/leads"),
         fetch("/api/quotes"),
@@ -36,6 +38,7 @@ export default function Dashboard() {
         fetch("/api/projects"),
         fetch("/api/tasks"),
         fetch("/api/invoices"),
+        fetch("/api/business-insights"),
       ]);
 
       const leadsData = await leadsResponse.json();
@@ -44,6 +47,7 @@ export default function Dashboard() {
       const projectsData = await projectsResponse.json();
       const tasksData = await tasksResponse.json();
       const invoicesData = await invoicesResponse.json();
+      const insightsData = await insightsResponse.json();
 
       setLeads(leadsData || []);
       setQuotes(quotesData || []);
@@ -51,6 +55,7 @@ export default function Dashboard() {
       setProjects(projectsData || []);
       setTasks(tasksData || []);
       setInvoices(invoicesData || []);
+      setAiInsights(insightsData.insights || "No AI insights available.");
     } catch (error) {
       console.error(error);
       alert("Error loading dashboard data.");
@@ -143,6 +148,16 @@ export default function Dashboard() {
             <p>Loading dashboard...</p>
           ) : (
             <>
+              <section className="panel dashboardActivity">
+                <h3>🤖 AI Operations Manager</h3>
+                <p className="helperText">
+                  Actionable business insights based on your leads, quotes,
+                  projects, invoices and follow-ups.
+                </p>
+
+                <pre className="quotePreview">{aiInsights}</pre>
+              </section>
+
               <section className="dashboardCards">
                 <div className="statCard">
                   <p>Total Leads</p>
