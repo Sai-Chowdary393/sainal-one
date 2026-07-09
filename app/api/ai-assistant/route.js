@@ -8,6 +8,69 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+function getTomorrowDate() {
+  const date = new Date();
+  date.setDate(date.getDate() + 1);
+  return date.toISOString().split("T")[0];
+}
+
+async function createFollowUpFromPrompt(prompt, leads) {
+  const matchedLead = leads?.find((lead) =>
+    prompt.toLowerCase().includes(String(lead.name || "").toLowerCase())
+  );
+
+  const leadName = matchedLead?.name || "Lead";
+  const dueDate = prompt.toLowerCase().includes("tomorrow")
+    ? getTomorrowDate()
+    : null;
+
+  const { data, error } = await supabase
+    .from("follow_ups")
+    .insert([
+      {
+        organization_id: ORGANIZATION_ID,
+        related_type: "Lead",
+        related_id: matchedLead?.id || null,
+        title: `Follow up with ${leadName}`,
+        note: `AI created follow-up from request: ${prompt}`,
+        due_date: dueDate,
+        status: "Pending",
+      },
+    ])
+    .select();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data?.[0];
+}
+
+async function createLeadFromPrompt(prompt) {
+  const { data, error } = await supabase
+    .from("leads")
+    .insert([
+      {
+        organization_id: ORGANIZATION_ID,
+        name: "AI Created Lead",
+        company: "New Company",
+        email: "",
+        phone: "",
+        status: "New",
+        value: "",
+        notes: prompt,
+        source: "AI Assistant",
+      },
+    ])
+    .select();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data?.[0];
+}
+
 export async function POST(request) {
   try {
     const body = await request.json();
@@ -18,6 +81,8 @@ export async function POST(request) {
         { status: 400 }
       );
     }
+
+    const prompt = body.prompt.toLowerCase();
 
     const { data: leads } = await supabase
       .from("leads")
@@ -49,9 +114,39 @@ export async function POST(request) {
       .select("*")
       .eq("organization_id", ORGANIZATION_ID);
 
+    if (
+      prompt.includes("create follow-up") ||
+      prompt.includes("create follow up") ||
+      prompt.includes("add follow-up") ||
+      prompt.includes("add follow up")
+    ) {
+      const followUp = await createFollowUpFromPrompt(body.prompt, leads || []);
+
+      return NextResponse.json({
+        answer: `✅ Follow-up created successfully.
+
+Title: ${followUp.title}
+Status: ${followUp.status}
+Due Date: ${followUp.due_date || "No due date"}
+Note: ${followUp.note}`,
+      });
+    }
+
+    if (prompt.includes("create lead") || prompt.includes("add lead")) {
+      const lead = await createLeadFromPrompt(body.prompt);
+
+      return NextResponse.json({
+        answer: `✅ Lead created successfully.
+
+Name: ${lead.name}
+Company: ${lead.company}
+Status: ${lead.status}
+Source: ${lead.source}`,
+      });
+    }
+
     const completion = await openai.chat.completions.create({
       model: "gpt-4.1-mini",
-
       messages: [
         {
           role: "system",
@@ -76,9 +171,7 @@ You should:
 - Use UK business style
 - Do not invent records that are not in the data
 
-Important:
-You are currently advisory only.
-You can suggest actions, but you cannot directly update the database unless a separate action API is created.
+You can also create basic follow-ups and leads when the user clearly asks.
           `,
         },
         {
