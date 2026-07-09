@@ -22,6 +22,11 @@ function generateQuoteNumber() {
   return `SNQ-${Date.now().toString().slice(-6)}`;
 }
 
+function generateInvoiceNumber() {
+  const year = new Date().getFullYear();
+  return `SNI-${year}-${Math.floor(1000 + Math.random() * 9000)}`;
+}
+
 async function analyseLead({ name, company, email, phone, notes }) {
   try {
     const completion = await openai.chat.completions.create({
@@ -233,7 +238,9 @@ async function createQuoteFromPrompt(prompt, leads, customers, quotes) {
 
   const matchedCustomer = customers?.find(
     (customer) =>
-      prompt.toLowerCase().includes(String(customer.customer_name || "").toLowerCase()) ||
+      prompt
+        .toLowerCase()
+        .includes(String(customer.customer_name || "").toLowerCase()) ||
       prompt.toLowerCase().includes(String(customer.company || "").toLowerCase())
   );
 
@@ -331,6 +338,82 @@ www.sainaltechnologies.com`;
     notFound: false,
     alreadyExists: false,
     created: data?.[0],
+  };
+}
+
+async function convertQuoteToInvoice(prompt, quotes, invoices) {
+  const matchedQuote = quotes?.find(
+    (quote) =>
+      prompt.toLowerCase().includes(String(quote.quote_number || "").toLowerCase()) ||
+      prompt.toLowerCase().includes(String(quote.client || "").toLowerCase()) ||
+      prompt.toLowerCase().includes(String(quote.contact || "").toLowerCase())
+  );
+
+  if (!matchedQuote) {
+    return { notFound: true };
+  }
+
+  const existingInvoice = invoices?.find(
+    (invoice) =>
+      String(invoice.organization_id) === ORGANIZATION_ID &&
+      ((matchedQuote.id && String(invoice.quote_id) === String(matchedQuote.id)) ||
+        (invoice.client === matchedQuote.client &&
+          invoice.service === matchedQuote.service &&
+          String(invoice.status || "").toLowerCase().includes("draft")))
+  );
+
+  if (existingInvoice) {
+    return {
+      alreadyExists: true,
+      existing: existingInvoice,
+      quote: matchedQuote,
+    };
+  }
+
+  const invoiceNumber = generateInvoiceNumber();
+
+  const amount = matchedQuote.amount || "£0";
+  const subtotal = amount;
+  const vatRate = "0%";
+  const vatAmount = "£0";
+  const totalAmount = amount;
+
+  const { data, error } = await supabase
+    .from("invoices")
+    .insert([
+      {
+        organization_id: ORGANIZATION_ID,
+        customer_id: matchedQuote.customer_id || null,
+        project_id: null,
+        quote_id: matchedQuote.id,
+        invoice_number: invoiceNumber,
+        client: matchedQuote.client,
+        service: matchedQuote.service,
+        amount: totalAmount,
+        subtotal,
+        vat_rate: vatRate,
+        vat_amount: vatAmount,
+        total_amount: totalAmount,
+        status: "Draft Invoice",
+        due_date: null,
+        payment_terms: "Payment due within 14 days of invoice date.",
+      },
+    ])
+    .select();
+
+  if (error) throw new Error(error.message);
+
+  await supabase
+    .from("quotes")
+    .update({ status: "Accepted" })
+    .eq("id", matchedQuote.id)
+    .eq("organization_id", ORGANIZATION_ID);
+
+  return {
+    notFound: false,
+    alreadyExists: false,
+    created: data?.[0],
+    quote: matchedQuote,
   };
 }
 
@@ -470,6 +553,50 @@ export async function POST(request) {
       .from("follow_ups")
       .select("*")
       .eq("organization_id", ORGANIZATION_ID);
+
+    if (
+      (prompt.includes("convert") || prompt.includes("create invoice")) &&
+      (prompt.includes("quote") || prompt.includes("invoice"))
+    ) {
+      const result = await convertQuoteToInvoice(
+        body.prompt,
+        quotes || [],
+        invoices || []
+      );
+
+      if (result.notFound) {
+        return NextResponse.json({
+          answer:
+            "⚠️ I could not find that quote. Please mention the quote number, client name or contact name.",
+        });
+      }
+
+      if (result.alreadyExists) {
+        return NextResponse.json({
+          answer: `⚠️ Invoice already exists.
+
+Invoice Number: ${result.existing.invoice_number}
+Client: ${result.existing.client}
+Amount: ${result.existing.total_amount || result.existing.amount}
+Status: ${result.existing.status}
+
+No duplicate invoice was created.`,
+        });
+      }
+
+      return NextResponse.json({
+        answer: `✅ Invoice created successfully from quote.
+
+Quote: ${result.quote.quote_number}
+Invoice Number: ${result.created.invoice_number}
+Client: ${result.created.client}
+Service: ${result.created.service}
+Amount: ${result.created.total_amount || result.created.amount}
+Invoice Status: ${result.created.status}
+
+Quote status updated to Accepted.`,
+      });
+    }
 
     if (
       (prompt.includes("create quote") || prompt.includes("add quote")) &&
@@ -661,7 +788,7 @@ You should:
 - Use UK business style
 - Do not invent records that are not in the data
 
-You can also create leads, quotes, follow-ups, tasks and convert leads to customers/projects when the user clearly asks.
+You can also create leads, quotes, invoices, follow-ups, tasks and convert leads to customers/projects when the user clearly asks.
           `,
         },
         {
