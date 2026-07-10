@@ -24,6 +24,12 @@ export default function SettingsPage() {
     bank_sort_code: "",
     bank_account_number: "",
     payment_terms: "Payment due within 14 days of invoice date.",
+
+    industry: "",
+    business_type: "",
+    services: "",
+    target_customers: "",
+    ai_instructions: "",
   });
 
   useEffect(() => {
@@ -35,6 +41,11 @@ export default function SettingsPage() {
       const response = await fetch("/api/company-settings");
       const data = await response.json();
 
+      if (!response.ok) {
+        alert(data.error || "Failed to load company settings.");
+        return;
+      }
+
       if (data) {
         setFormData({
           company_name: data.company_name || "",
@@ -42,7 +53,8 @@ export default function SettingsPage() {
           company_phone: data.company_phone || "",
           website: data.website || "",
           address: data.address || "",
-          company_registration_number: data.company_registration_number || "",
+          company_registration_number:
+            data.company_registration_number || "",
           vat_number: data.vat_number || "",
           default_currency: data.default_currency || "GBP",
           default_vat_rate: data.default_vat_rate || "20",
@@ -53,6 +65,12 @@ export default function SettingsPage() {
           bank_account_number: data.bank_account_number || "",
           payment_terms:
             data.payment_terms || "Payment due within 14 days of invoice date.",
+
+          industry: data.industry || "",
+          business_type: data.business_type || "",
+          services: data.services || "",
+          target_customers: data.target_customers || "",
+          ai_instructions: data.ai_instructions || "",
         });
       }
     } catch (error) {
@@ -64,10 +82,10 @@ export default function SettingsPage() {
   }
 
   function handleChange(e) {
-    setFormData({
-      ...formData,
+    setFormData((currentData) => ({
+      ...currentData,
       [e.target.name]: e.target.value,
-    });
+    }));
   }
 
   async function saveSettings(e) {
@@ -108,9 +126,10 @@ export default function SettingsPage() {
           <div className="topBar">
             <div>
               <h1>Company Settings</h1>
+
               <p className="helperText">
-                Manage branding, invoice details, payment terms and business
-                information.
+                Manage company details, AI business context, invoice settings
+                and payment information.
               </p>
             </div>
           </div>
@@ -129,6 +148,7 @@ export default function SettingsPage() {
                       name="company_name"
                       value={formData.company_name}
                       onChange={handleChange}
+                      placeholder="Example: SaiNal Technologies Ltd"
                     />
                   </label>
 
@@ -136,8 +156,10 @@ export default function SettingsPage() {
                     Company Email
                     <input
                       name="company_email"
+                      type="email"
                       value={formData.company_email}
                       onChange={handleChange}
+                      placeholder="Example: info@company.com"
                     />
                   </label>
 
@@ -147,6 +169,7 @@ export default function SettingsPage() {
                       name="company_phone"
                       value={formData.company_phone}
                       onChange={handleChange}
+                      placeholder="Example: 0191 000 0000"
                     />
                   </label>
 
@@ -156,6 +179,7 @@ export default function SettingsPage() {
                       name="website"
                       value={formData.website}
                       onChange={handleChange}
+                      placeholder="Example: www.company.com"
                     />
                   </label>
 
@@ -166,6 +190,71 @@ export default function SettingsPage() {
                       rows={4}
                       value={formData.address}
                       onChange={handleChange}
+                      placeholder="Enter the registered or trading address"
+                    />
+                  </label>
+                </div>
+              </section>
+
+              <section className="panel settingsSection">
+                <h3>AI Business Profile</h3>
+
+                <p className="helperText">
+                  This information helps the AI Operations Manager understand
+                  your business and provide industry-relevant advice.
+                </p>
+
+                <div className="settingsGrid">
+                  <label>
+                    Industry
+                    <input
+                      name="industry"
+                      value={formData.industry}
+                      onChange={handleChange}
+                      placeholder="Example: Cleaning Services"
+                    />
+                  </label>
+
+                  <label>
+                    Business Type
+                    <input
+                      name="business_type"
+                      value={formData.business_type}
+                      onChange={handleChange}
+                      placeholder="Example: Commercial Cleaning Company"
+                    />
+                  </label>
+
+                  <label className="fullWidth">
+                    Services Offered
+                    <textarea
+                      name="services"
+                      rows={5}
+                      value={formData.services}
+                      onChange={handleChange}
+                      placeholder="Example: Office cleaning, deep cleaning, end-of-tenancy cleaning, commercial contracts"
+                    />
+                  </label>
+
+                  <label className="fullWidth">
+                    Target Customers
+                    <textarea
+                      name="target_customers"
+                      rows={4}
+                      value={formData.target_customers}
+                      onChange={handleChange}
+                      placeholder="Example: Small offices, property managers, landlords and retail businesses"
+                    />
+                  </label>
+
+                  <label className="fullWidth">
+                    Custom AI Instructions
+                    <textarea
+                      name="ai_instructions"
+                      rows={6}
+                      value={formData.ai_instructions}
+                      onChange={handleChange}
+                      placeholder="Example: Prioritise recurring contracts, recommend site visits for large enquiries and use professional UK business language."
                     />
                   </label>
                 </div>
@@ -181,6 +270,7 @@ export default function SettingsPage() {
                       name="company_registration_number"
                       value={formData.company_registration_number}
                       onChange={handleChange}
+                      placeholder="Example: 12345678"
                     />
                   </label>
 
@@ -190,6 +280,7 @@ export default function SettingsPage() {
                       name="vat_number"
                       value={formData.vat_number}
                       onChange={handleChange}
+                      placeholder="Example: GB123456789"
                     />
                   </label>
 
@@ -199,6 +290,7 @@ export default function SettingsPage() {
                       name="default_currency"
                       value={formData.default_currency}
                       onChange={handleChange}
+                      placeholder="Example: GBP"
                     />
                   </label>
 
@@ -208,6 +300,7 @@ export default function SettingsPage() {
                       name="default_vat_rate"
                       value={formData.default_vat_rate}
                       onChange={handleChange}
+                      placeholder="Example: 20"
                     />
                   </label>
                 </div>
@@ -223,6 +316,7 @@ export default function SettingsPage() {
                       name="invoice_prefix"
                       value={formData.invoice_prefix}
                       onChange={handleChange}
+                      placeholder="Example: SNI"
                     />
                   </label>
 
@@ -232,6 +326,7 @@ export default function SettingsPage() {
                       name="bank_name"
                       value={formData.bank_name}
                       onChange={handleChange}
+                      placeholder="Enter bank name"
                     />
                   </label>
 
@@ -241,6 +336,7 @@ export default function SettingsPage() {
                       name="bank_account_name"
                       value={formData.bank_account_name}
                       onChange={handleChange}
+                      placeholder="Enter account name"
                     />
                   </label>
 
@@ -250,6 +346,7 @@ export default function SettingsPage() {
                       name="bank_sort_code"
                       value={formData.bank_sort_code}
                       onChange={handleChange}
+                      placeholder="Example: 00-00-00"
                     />
                   </label>
 
@@ -259,6 +356,7 @@ export default function SettingsPage() {
                       name="bank_account_number"
                       value={formData.bank_account_number}
                       onChange={handleChange}
+                      placeholder="Enter account number"
                     />
                   </label>
 
@@ -269,12 +367,17 @@ export default function SettingsPage() {
                       rows={4}
                       value={formData.payment_terms}
                       onChange={handleChange}
+                      placeholder="Example: Payment due within 14 days of invoice date."
                     />
                   </label>
                 </div>
               </section>
 
-              <button className="primaryBtn" type="submit">
+              <button
+                className="primaryBtn"
+                type="submit"
+                disabled={saving}
+              >
                 {saving ? "Saving..." : "Save Settings"}
               </button>
             </form>
