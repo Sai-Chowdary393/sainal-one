@@ -27,6 +27,8 @@ import {
 
 import { convertLeadToCustomerAndProject } from "../../../lib/services/customerProjectService";
 
+import { createProposalFromPrompt } from "../../../lib/services/proposalService";
+
 const ORGANIZATION_ID =
   "9d5bbb05-866b-4c38-b2ac-3019e7cf88e5";
 
@@ -39,6 +41,7 @@ async function loadBusinessData() {
     settingsResult,
     leadsResult,
     quotesResult,
+    proposalsResult,
     customersResult,
     projectsResult,
     tasksResult,
@@ -58,6 +61,11 @@ async function loadBusinessData() {
 
     supabase
       .from("quotes")
+      .select("*")
+      .eq("organization_id", ORGANIZATION_ID),
+
+    supabase
+      .from("proposals")
       .select("*")
       .eq("organization_id", ORGANIZATION_ID),
 
@@ -91,6 +99,7 @@ async function loadBusinessData() {
     settingsResult.error ||
     leadsResult.error ||
     quotesResult.error ||
+    proposalsResult.error ||
     customersResult.error ||
     projectsResult.error ||
     tasksResult.error ||
@@ -107,6 +116,7 @@ async function loadBusinessData() {
     profile: getBusinessProfile(settings),
     leads: leadsResult.data || [],
     quotes: quotesResult.data || [],
+    proposals: proposalsResult.data || [],
     customers: customersResult.data || [],
     projects: projectsResult.data || [],
     tasks: tasksResult.data || [],
@@ -120,6 +130,7 @@ async function answerGeneralQuestion({
   profile,
   leads,
   quotes,
+  proposals,
   customers,
   projects,
   tasks,
@@ -128,6 +139,7 @@ async function answerGeneralQuestion({
 }) {
   const completion = await openai.chat.completions.create({
     model: "gpt-4.1-mini",
+
     messages: [
       {
         role: "system",
@@ -141,6 +153,7 @@ ${businessProfilePrompt(profile)}
 You can analyse:
 - Leads
 - Quotes
+- Proposals
 - Customers
 - Projects
 - Tasks
@@ -161,6 +174,7 @@ Instructions:
 - Follow the company's custom AI instructions.
         `,
       },
+
       {
         role: "user",
         content: `
@@ -171,6 +185,9 @@ ${JSON.stringify(leads)}
 
 Quotes:
 ${JSON.stringify(quotes)}
+
+Proposals:
+${JSON.stringify(proposals)}
 
 Customers:
 ${JSON.stringify(customers)}
@@ -222,6 +239,7 @@ export async function POST(request) {
       profile,
       leads,
       quotes,
+      proposals,
       customers,
       projects,
       tasks,
@@ -230,7 +248,65 @@ export async function POST(request) {
     } = await loadBusinessData();
 
     /*
-     * Workflow detection must run before the individual action checks.
+     * Proposal creation runs before workflow detection.
+     *
+     * This is important because a request such as:
+     *
+     * "Create a proposal for Robert based on the accepted quote"
+     *
+     * contains the words "accepted quote", which could otherwise
+     * incorrectly trigger the multi-step workflow engine.
+     */
+    if (
+      prompt.includes("create proposal") ||
+      prompt.includes("generate proposal") ||
+      prompt.includes("prepare proposal")
+    ) {
+      const result = await createProposalFromPrompt({
+        prompt: originalPrompt,
+        profile,
+        leads,
+        customers,
+        quotes,
+        openai,
+        organizationId: ORGANIZATION_ID,
+      });
+
+      if (result.notFound) {
+        return NextResponse.json({
+          answer:
+            "⚠️ I could not find that lead, customer or quote. Please mention the exact client, contact, company or quote number.",
+        });
+      }
+
+      if (result.alreadyExists) {
+        return NextResponse.json({
+          answer: `⚠️ Draft proposal already exists.
+
+Proposal Number: ${result.existing.proposal_number}
+Title: ${result.existing.title}
+Client: ${result.existing.client}
+Status: ${result.existing.status}
+
+No duplicate proposal was created.`,
+        });
+      }
+
+      return NextResponse.json({
+        answer: `✅ Proposal created successfully.
+
+Proposal Number: ${result.created.proposal_number}
+Title: ${result.created.title}
+Client: ${result.created.client}
+Contact: ${result.created.contact}
+Service: ${result.created.service}
+Amount: ${result.created.amount || "To be confirmed"}
+Status: ${result.created.status}`,
+      });
+    }
+
+    /*
+     * Workflow detection must run before individual action checks.
      * Otherwise, a multi-action request may execute only one action.
      */
     if (isWorkflowRequest(originalPrompt)) {
@@ -252,6 +328,9 @@ export async function POST(request) {
       });
     }
 
+    /*
+     * Mark an invoice as paid.
+     */
     if (
       (prompt.includes("mark") ||
         prompt.includes("update")) &&
@@ -299,6 +378,9 @@ Status: ${result.invoice.status}`,
       });
     }
 
+    /*
+     * Convert a quote into an invoice.
+     */
     if (
       (prompt.includes("convert") ||
         prompt.includes("create invoice")) &&
@@ -353,6 +435,9 @@ Quote status updated to Accepted.`,
       });
     }
 
+    /*
+     * Create a quote.
+     */
     if (
       (prompt.includes("create quote") ||
         prompt.includes("add quote")) &&
@@ -402,6 +487,9 @@ Status: ${result.created.status}`,
       });
     }
 
+    /*
+     * Convert a lead into a customer and project.
+     */
     if (
       prompt.includes("convert") &&
       prompt.includes("lead") &&
@@ -443,6 +531,9 @@ Lead status updated to Won.`,
       });
     }
 
+    /*
+     * Create a follow-up.
+     */
     if (
       prompt.includes("create follow-up") ||
       prompt.includes("create follow up") ||
@@ -490,6 +581,9 @@ Note: ${result.created.note}`,
       });
     }
 
+    /*
+     * Create a project task.
+     */
     if (
       prompt.includes("create task") ||
       prompt.includes("add task")
@@ -531,6 +625,9 @@ Due Date: ${
       });
     }
 
+    /*
+     * Create a lead.
+     */
     if (
       prompt.includes("create lead") ||
       prompt.includes("add lead")
@@ -581,11 +678,15 @@ Next Action: ${result.created.ai_next_action}`,
       });
     }
 
+    /*
+     * General AI question or business analysis.
+     */
     const answer = await answerGeneralQuestion({
       prompt: originalPrompt,
       profile,
       leads,
       quotes,
+      proposals,
       customers,
       projects,
       tasks,
