@@ -8,15 +8,38 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+function getBusinessProfile(settings) {
+  return {
+    companyName: settings?.company_name || "The company",
+    industry: settings?.industry || "General business services",
+    businessType: settings?.business_type || "Service business",
+    services: settings?.services || "Professional services",
+    targetCustomers: settings?.target_customers || "Business customers",
+    aiInstructions:
+      settings?.ai_instructions ||
+      "Give practical, commercially useful recommendations.",
+    currency: settings?.default_currency || "GBP",
+  };
+}
+
 export async function GET() {
   try {
     const [
+      settingsResult,
       leadsResult,
       quotesResult,
+      customersResult,
       projectsResult,
+      tasksResult,
       invoicesResult,
       followUpsResult,
     ] = await Promise.all([
+      supabase
+        .from("company_settings")
+        .select("*")
+        .eq("organization_id", ORGANIZATION_ID)
+        .limit(1),
+
       supabase
         .from("leads")
         .select("*")
@@ -28,7 +51,17 @@ export async function GET() {
         .eq("organization_id", ORGANIZATION_ID),
 
       supabase
+        .from("customers")
+        .select("*")
+        .eq("organization_id", ORGANIZATION_ID),
+
+      supabase
         .from("projects")
+        .select("*")
+        .eq("organization_id", ORGANIZATION_ID),
+
+      supabase
+        .from("tasks")
         .select("*")
         .eq("organization_id", ORGANIZATION_ID),
 
@@ -44,39 +77,52 @@ export async function GET() {
     ]);
 
     const databaseError =
+      settingsResult.error ||
       leadsResult.error ||
       quotesResult.error ||
+      customersResult.error ||
       projectsResult.error ||
+      tasksResult.error ||
       invoicesResult.error ||
       followUpsResult.error;
 
     if (databaseError) {
       return NextResponse.json(
-        {
-          error: databaseError.message,
-        },
-        {
-          status: 500,
-        }
+        { error: databaseError.message },
+        { status: 500 }
       );
     }
 
+    const settings = settingsResult.data?.[0] || null;
+    const profile = getBusinessProfile(settings);
+
     const leads = leadsResult.data || [];
     const quotes = quotesResult.data || [];
+    const customers = customersResult.data || [];
     const projects = projectsResult.data || [];
+    const tasks = tasksResult.data || [];
     const invoices = invoicesResult.data || [];
     const followUps = followUpsResult.data || [];
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4.1-mini",
-
       messages: [
         {
           role: "system",
           content: `
 You are SaiNal One AI Operations Manager.
 
-Analyse the company data and create a concise daily management summary.
+You work for the following business:
+
+Company name: ${profile.companyName}
+Industry: ${profile.industry}
+Business type: ${profile.businessType}
+Services offered: ${profile.services}
+Target customers: ${profile.targetCustomers}
+Custom AI instructions: ${profile.aiInstructions}
+Currency: ${profile.currency}
+
+Analyse the company's real data and create a concise daily management summary.
 
 Use this exact plain-text structure:
 
@@ -94,7 +140,7 @@ Payment Risks
 • Insight
 • Insight
 
-Project Risks
+Project and Work Risks
 • Insight
 • Insight
 
@@ -105,18 +151,22 @@ Follow-up Actions
 Best Next Action
 One clear recommended action.
 
-Formatting rules:
+Rules:
+- Tailor every insight to the configured industry and services.
+- Do not assume the company provides websites, software or technology services unless configured.
+- Use generic language such as service, work, project, job, deliverables and client requirement where appropriate.
 - Use plain text only.
 - Do not use markdown.
 - Do not use asterisks.
 - Do not use hashtags.
 - Do not use code blocks.
-- Use the bullet symbol • for list items.
-- Keep each insight short and practical.
-- Use UK business style.
-- Mention names, amounts and statuses where relevant.
+- Use the bullet symbol •.
+- Keep insights short and practical.
+- Use professional UK business language.
+- Mention names, amounts, dates and statuses where relevant.
 - Do not invent information.
-- If there is no relevant risk, clearly say that no current risk was identified.
+- Follow the company's custom AI instructions.
+- If no risk exists, state that no current risk was identified.
           `,
         },
         {
@@ -130,8 +180,14 @@ ${JSON.stringify(leads)}
 Quotes:
 ${JSON.stringify(quotes)}
 
+Customers:
+${JSON.stringify(customers)}
+
 Projects:
 ${JSON.stringify(projects)}
+
+Tasks:
+${JSON.stringify(tasks)}
 
 Invoices:
 ${JSON.stringify(invoices)}
@@ -139,7 +195,7 @@ ${JSON.stringify(invoices)}
 Follow-ups:
 ${JSON.stringify(followUps)}
 
-Create today's management summary.
+Create today's management summary for ${profile.companyName}.
           `,
         },
       ],
@@ -162,12 +218,8 @@ Create today's management summary.
     console.error("AI insights error:", error);
 
     return NextResponse.json(
-      {
-        error: "Failed creating AI insights.",
-      },
-      {
-        status: 500,
-      }
+      { error: "Failed creating AI insights." },
+      { status: 500 }
     );
   }
 }
