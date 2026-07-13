@@ -8,29 +8,24 @@ import {
 } from "../../../lib/ai/businessProfile";
 
 import {
-  createLeadFromPrompt,
-} from "../../../lib/services/leadService";
+  isWorkflowRequest,
+  executeWorkflow,
+} from "../../../lib/ai/workflowEngine";
 
-import {
-  createFollowUpFromPrompt,
-} from "../../../lib/services/followUpService";
+import { createLeadFromPrompt } from "../../../lib/services/leadService";
 
-import {
-  createTaskFromPrompt,
-} from "../../../lib/services/taskService";
+import { createFollowUpFromPrompt } from "../../../lib/services/followUpService";
 
-import {
-  createQuoteFromPrompt,
-} from "../../../lib/services/quoteService";
+import { createTaskFromPrompt } from "../../../lib/services/taskService";
+
+import { createQuoteFromPrompt } from "../../../lib/services/quoteService";
 
 import {
   markInvoiceAsPaid,
   convertQuoteToInvoice,
 } from "../../../lib/services/invoiceService";
 
-import {
-  convertLeadToCustomerAndProject,
-} from "../../../lib/services/customerProjectService";
+import { convertLeadToCustomerAndProject } from "../../../lib/services/customerProjectService";
 
 const ORGANIZATION_ID =
   "9d5bbb05-866b-4c38-b2ac-3019e7cf88e5";
@@ -153,14 +148,14 @@ You can analyse:
 - Follow-ups
 
 Instructions:
-- Tailor recommendations to this company's industry.
-- Tailor advice to its business type and services.
-- Consider the company's target customers.
+- Tailor recommendations to the company's industry.
+- Tailor advice to its business type and configured services.
+- Consider its target customers.
 - Do not assume the company provides website development or technology services unless configured.
 - Use generic terms such as service, work, project, client requirement and deliverables where appropriate.
 - Give practical recommendations.
 - Highlight urgent actions.
-- Mention names, values and statuses where useful.
+- Mention names, values, dates and statuses where useful.
 - Use professional UK business language.
 - Do not invent records.
 - Follow the company's custom AI instructions.
@@ -234,6 +229,29 @@ export async function POST(request) {
       followUps,
     } = await loadBusinessData();
 
+    /*
+     * Workflow detection must run before the individual action checks.
+     * Otherwise, a multi-action request may execute only one action.
+     */
+    if (isWorkflowRequest(originalPrompt)) {
+      const workflowResult = await executeWorkflow({
+        prompt: originalPrompt,
+        profile,
+        leads,
+        quotes,
+        projects,
+        invoices,
+        organizationId: ORGANIZATION_ID,
+      });
+
+      return NextResponse.json({
+        answer: workflowResult.answer,
+        workflow: true,
+        success: workflowResult.success,
+        data: workflowResult.data || null,
+      });
+    }
+
     if (
       (prompt.includes("mark") ||
         prompt.includes("update")) &&
@@ -250,7 +268,7 @@ export async function POST(request) {
       if (result.notFound) {
         return NextResponse.json({
           answer:
-            "⚠️ I could not find that invoice. Please mention the invoice number or client name.",
+            "⚠️ I could not find that invoice. Please mention the invoice number, client name or contact name.",
         });
       }
 
