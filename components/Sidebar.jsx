@@ -17,10 +17,10 @@ export default function Sidebar() {
         <Link href="/dashboard">🏠 Dashboard</Link>
         <Link href="/leads">👥 Leads</Link>
         <Link href="/quotes">📄 Quotes</Link>
+        <Link href="/proposals">📑 Proposals</Link>
         <Link href="/customers">🏢 Customers</Link>
         <Link href="/projects">📁 Projects</Link>
         <Link href="/invoices">💷 Invoices</Link>
-        <Link href="/proposals">📑 Proposals</Link>
         <Link href="/follow-ups">⏰ Follow-ups</Link>
         <Link href="/ai-assistant">🤖 AI Assistant</Link>
         <Link href="/profile">👤 Profile</Link>
