@@ -243,6 +243,7 @@ export async function POST(request) {
       const result = await markInvoiceAsPaid({
         prompt: originalPrompt,
         invoices,
+        quotes,
         organizationId: ORGANIZATION_ID,
       });
 
