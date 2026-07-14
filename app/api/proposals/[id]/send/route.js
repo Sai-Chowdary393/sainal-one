@@ -26,10 +26,7 @@ export async function POST(request, context) {
     const { id } = await context.params;
     const body = await request.json();
 
-    const [
-      proposalResult,
-      settingsResult,
-    ] = await Promise.all([
+    const [proposalResult, settingsResult] = await Promise.all([
       supabase
         .from("proposals")
         .select("*")
@@ -101,11 +98,6 @@ Please find our proposal below for your review.
 
 Please contact us if you have any questions or would like to discuss any part of the proposal.`;
 
-    const proposalUrl = `${
-      process.env.NEXT_PUBLIC_APP_URL ||
-      "https://sainal-one.vercel.app"
-    }/proposals/${proposal.id}`;
-
     const contentHtml = `
       <table
         role="presentation"
@@ -171,15 +163,18 @@ Please contact us if you have any questions or would like to discuss any part of
       <div
         style="
           margin-top: 28px;
-          padding: 16px;
+          padding: 18px;
           background: #fff8dc;
           border-radius: 8px;
+          line-height: 1.7;
         "
       >
-        <strong>Internal proposal link:</strong><br />
-        <a href="${escapeHtml(proposalUrl)}">
-          ${escapeHtml(proposalUrl)}
-        </a>
+        Thank you for considering ${escapeHtml(companyName)}.<br /><br />
+
+        If you have any questions or would like to discuss this proposal,
+        please reply to this email.<br /><br />
+
+        We look forward to working with you.
       </div>
     `;
 
@@ -224,17 +219,19 @@ Proposal reference: ${proposal.proposal_number}`,
       );
     }
 
-    const { data: updatedProposal, error: updateError } =
-      await supabase
-        .from("proposals")
-        .update({
-          status: "Sent",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", proposal.id)
-        .eq("organization_id", ORGANIZATION_ID)
-        .select()
-        .single();
+    const {
+      data: updatedProposal,
+      error: updateError,
+    } = await supabase
+      .from("proposals")
+      .update({
+        status: "Sent",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", proposal.id)
+      .eq("organization_id", ORGANIZATION_ID)
+      .select()
+      .single();
 
     if (updateError) {
       console.error(
@@ -247,11 +244,13 @@ Proposal reference: ${proposal.proposal_number}`,
       message: "Proposal email sent successfully.",
       emailId: data?.id || null,
       recipient: recipientEmail,
-      proposal:
-        updatedProposal || proposal,
+      proposal: updatedProposal || proposal,
     });
   } catch (error) {
-    console.error("Send proposal email error:", error);
+    console.error(
+      "Send proposal email error:",
+      error
+    );
 
     return NextResponse.json(
       {
