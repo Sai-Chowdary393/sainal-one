@@ -4,6 +4,7 @@ import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import Sidebar from "../../../components/Sidebar";
 import ProtectedRoute from "../../../components/ProtectedRoute";
+import SendRecordEmail from "../../../components/SendRecordEmail";
 
 export default function ProposalDetailsPage({ params }) {
   const resolvedParams = use(params);
@@ -76,11 +77,35 @@ export default function ProposalDetailsPage({ params }) {
   }
 
   if (loading) {
-    return <p>Loading proposal...</p>;
+    return (
+      <ProtectedRoute>
+        <div className="appLayout">
+          <Sidebar />
+
+          <main className="mainContent">
+            <p>Loading proposal...</p>
+          </main>
+        </div>
+      </ProtectedRoute>
+    );
   }
 
   if (!proposal) {
-    return <p>Proposal not found.</p>;
+    return (
+      <ProtectedRoute>
+        <div className="appLayout">
+          <Sidebar />
+
+          <main className="mainContent">
+            <Link href="/proposals" className="leadLink">
+              ← Back to Proposals
+            </Link>
+
+            <h1>Proposal not found</h1>
+          </main>
+        </div>
+      </ProtectedRoute>
+    );
   }
 
   return (
@@ -110,16 +135,36 @@ export default function ProposalDetailsPage({ params }) {
                 display: "flex",
                 gap: "10px",
                 flexWrap: "wrap",
+                alignItems: "flex-start",
               }}
             >
+              <SendRecordEmail
+                endpoint={`/api/proposals/${proposal.id}/send`}
+                defaultEmail={proposal.email || ""}
+                defaultSubject={`${proposal.title} – ${proposal.proposal_number}`}
+                recordLabel="proposal"
+                onSent={(data) => {
+                  if (data.proposal) {
+                    setProposal(data.proposal);
+                    setProposalText(
+                      data.proposal.proposal_text || ""
+                    );
+                  }
+                }}
+              />
+
               <button
+                type="button"
                 className="primaryBtn"
                 onClick={() => setEditing(!editing)}
               >
-                {editing ? "Cancel Edit" : "Edit Proposal"}
+                {editing
+                  ? "Cancel Edit"
+                  : "Edit Proposal"}
               </button>
 
               <button
+                type="button"
                 className="primaryBtn"
                 onClick={() => window.print()}
               >
@@ -132,8 +177,10 @@ export default function ProposalDetailsPage({ params }) {
             <div className="settingsGrid noPrint">
               <label>
                 Status
+
                 <select
                   value={proposal.status}
+                  disabled={saving}
                   onChange={(event) =>
                     updateProposal({
                       status: event.target.value,
@@ -149,6 +196,7 @@ export default function ProposalDetailsPage({ params }) {
 
               <label>
                 Client
+
                 <input
                   value={proposal.client || ""}
                   readOnly
@@ -157,6 +205,7 @@ export default function ProposalDetailsPage({ params }) {
 
               <label>
                 Contact
+
                 <input
                   value={proposal.contact || ""}
                   readOnly
@@ -164,7 +213,26 @@ export default function ProposalDetailsPage({ params }) {
               </label>
 
               <label>
+                Email
+
+                <input
+                  value={proposal.email || ""}
+                  readOnly
+                />
+              </label>
+
+              <label>
+                Service
+
+                <input
+                  value={proposal.service || ""}
+                  readOnly
+                />
+              </label>
+
+              <label>
                 Amount
+
                 <input
                   value={
                     proposal.amount ||
@@ -186,20 +254,43 @@ export default function ProposalDetailsPage({ params }) {
                   }
                 />
 
-                <button
-                  className="primaryBtn"
-                  style={{ marginTop: "16px" }}
-                  disabled={saving}
-                  onClick={() =>
-                    updateProposal({
-                      proposal_text: proposalText,
-                    })
-                  }
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "12px",
+                    marginTop: "16px",
+                    flexWrap: "wrap",
+                  }}
                 >
-                  {saving
-                    ? "Saving..."
-                    : "Save Proposal"}
-                </button>
+                  <button
+                    type="button"
+                    className="primaryBtn"
+                    disabled={saving}
+                    onClick={() =>
+                      updateProposal({
+                        proposal_text: proposalText,
+                      })
+                    }
+                  >
+                    {saving
+                      ? "Saving..."
+                      : "Save Proposal"}
+                  </button>
+
+                  <button
+                    type="button"
+                    className="primaryBtn"
+                    disabled={saving}
+                    onClick={() => {
+                      setProposalText(
+                        proposal.proposal_text || ""
+                      );
+                      setEditing(false);
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
             ) : (
               <article
