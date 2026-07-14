@@ -3,52 +3,97 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+
 import Sidebar from "../../../components/Sidebar";
 import StatusBadge from "../../../components/StatusBadge";
 import ProtectedRoute from "../../../components/ProtectedRoute";
 import SendRecordEmail from "../../../components/SendRecordEmail";
+
+function parseMoney(value) {
+  if (value === null || value === undefined || value === "") {
+    return 0;
+  }
+
+  const cleanedValue = String(value)
+    .replace(/,/g, "")
+    .replace(/[^\d.-]/g, "");
+
+  const parsedValue = Number.parseFloat(cleanedValue);
+
+  return Number.isFinite(parsedValue) ? parsedValue : 0;
+}
+
+function parseVatRate(value) {
+  if (value === null || value === undefined || value === "") {
+    return 0;
+  }
+
+  const cleanedValue = String(value)
+    .replace("%", "")
+    .trim();
+
+  const parsedValue = Number.parseFloat(cleanedValue);
+
+  return Number.isFinite(parsedValue) ? parsedValue : 0;
+}
+
+function formatCurrency(value) {
+  return new Intl.NumberFormat("en-GB", {
+    style: "currency",
+    currency: "GBP",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value || 0);
+}
+
+function formatDate(value) {
+  if (!value) {
+    return "-";
+  }
+
+  return new Date(value).toLocaleDateString("en-GB");
+}
 
 export default function InvoiceDetailsPage() {
   const params = useParams();
   const invoiceId = params.id;
 
   const [invoice, setInvoice] = useState(null);
+  const [draftInvoice, setDraftInvoice] = useState(null);
   const [settings, setSettings] = useState(null);
-  const [recipientEmail, setRecipientEmail] =
-    useState("");
+  const [recipientEmail, setRecipientEmail] = useState("");
+
   const [loading, setLoading] = useState(true);
-  const [updatingStatus, setUpdatingStatus] =
-    useState(false);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   useEffect(() => {
     fetchInvoice();
   }, [invoiceId]);
 
   async function fetchInvoice() {
+    setLoading(true);
+
     try {
       const [
         invoiceResponse,
         settingsResponse,
         quotesResponse,
       ] = await Promise.all([
-        fetch("/api/invoices"),
+        fetch(`/api/invoices/${invoiceId}`),
         fetch("/api/company-settings"),
         fetch("/api/quotes"),
       ]);
 
-      const invoicesData =
-        await invoiceResponse.json();
-
-      const settingsData =
-        await settingsResponse.json();
-
-      const quotesData =
-        await quotesResponse.json();
+      const invoiceData = await invoiceResponse.json();
+      const settingsData = await settingsResponse.json();
+      const quotesData = await quotesResponse.json();
 
       if (!invoiceResponse.ok) {
         alert(
-          invoicesData.error ||
-            "Failed to load invoices."
+          invoiceData.error ||
+            "Failed to load invoice."
         );
         return;
       }
@@ -61,20 +106,6 @@ export default function InvoiceDetailsPage() {
         return;
       }
 
-      const selectedInvoice = (
-        Array.isArray(invoicesData)
-          ? invoicesData
-          : []
-      ).find(
-        (item) =>
-          String(item.id) === String(invoiceId)
-      );
-
-      if (!selectedInvoice) {
-        setInvoice(null);
-        return;
-      }
-
       const relatedQuote = (
         Array.isArray(quotesData)
           ? quotesData
@@ -82,14 +113,16 @@ export default function InvoiceDetailsPage() {
       ).find(
         (quote) =>
           String(quote.id) ===
-          String(selectedInvoice.quote_id)
+          String(invoiceData.quote_id)
       );
 
-      setInvoice(selectedInvoice);
+      setInvoice(invoiceData);
+      setDraftInvoice(invoiceData);
       setSettings(settingsData || null);
+
       setRecipientEmail(
         relatedQuote?.email ||
-          selectedInvoice.email ||
+          invoiceData.email ||
           ""
       );
     } catch (error) {
@@ -97,6 +130,115 @@ export default function InvoiceDetailsPage() {
       alert("Error loading invoice.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  function startEditing() {
+    setDraftInvoice({
+      ...invoice,
+      subtotal:
+        invoice.subtotal ||
+        invoice.amount ||
+        "",
+      vat_rate:
+        invoice.vat_rate || "0%",
+    });
+
+    setEditing(true);
+  }
+
+  function cancelEditing() {
+    setDraftInvoice({
+      ...invoice,
+    });
+
+    setEditing(false);
+  }
+
+  function handleFieldChange(event) {
+    const { name, value } = event.target;
+
+    setDraftInvoice((currentInvoice) => ({
+      ...currentInvoice,
+      [name]: value,
+    }));
+  }
+
+  async function saveInvoice() {
+    if (!draftInvoice.client?.trim()) {
+      alert("Client name is required.");
+      return;
+    }
+
+    if (!draftInvoice.service?.trim()) {
+      alert("Service is required.");
+      return;
+    }
+
+    const subtotalValue = parseMoney(
+      draftInvoice.subtotal
+    );
+
+    const vatRateValue = parseVatRate(
+      draftInvoice.vat_rate
+    );
+
+    if (subtotalValue < 0) {
+      alert("Subtotal cannot be negative.");
+      return;
+    }
+
+    if (vatRateValue < 0 || vatRateValue > 100) {
+      alert("VAT rate must be between 0 and 100.");
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      const response = await fetch(
+        `/api/invoices/${invoiceId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            client: draftInvoice.client,
+            service: draftInvoice.service,
+            subtotal: subtotalValue,
+            vat_rate: vatRateValue,
+            due_date:
+              draftInvoice.due_date || null,
+            payment_terms:
+              draftInvoice.payment_terms || "",
+            status:
+              draftInvoice.status ||
+              "Draft Invoice",
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(
+          data.error ||
+            "Failed to save invoice."
+        );
+        return;
+      }
+
+      setInvoice(data);
+      setDraftInvoice(data);
+      setEditing(false);
+
+      alert("Invoice updated successfully.");
+    } catch (error) {
+      console.error(error);
+      alert("Error saving invoice.");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -127,10 +269,8 @@ export default function InvoiceDetailsPage() {
         return;
       }
 
-      setInvoice((currentInvoice) => ({
-        ...currentInvoice,
-        status,
-      }));
+      setInvoice(data);
+      setDraftInvoice(data);
 
       alert(`Invoice marked as ${status}.`);
     } catch (error) {
@@ -159,7 +299,7 @@ export default function InvoiceDetailsPage() {
     );
   }
 
-  if (!invoice) {
+  if (!invoice || !draftInvoice) {
     return (
       <ProtectedRoute>
         <div className="appLayout">
@@ -179,6 +319,10 @@ export default function InvoiceDetailsPage() {
       </ProtectedRoute>
     );
   }
+
+  const visibleInvoice = editing
+    ? draftInvoice
+    : invoice;
 
   const companyName =
     settings?.company_name ||
@@ -216,36 +360,54 @@ export default function InvoiceDetailsPage() {
   const bankAccountNumber =
     settings?.bank_account_number || "";
 
-  const createdDate = invoice.created_at
-    ? new Date(
-        invoice.created_at
-      ).toLocaleDateString("en-GB")
-    : "-";
+  const createdDate = formatDate(
+    invoice.created_at
+  );
 
-  const dueDate = invoice.due_date
-    ? new Date(
-        invoice.due_date
-      ).toLocaleDateString("en-GB")
-    : "-";
+  const displayedDueDate = formatDate(
+    visibleInvoice.due_date
+  );
 
-  const subtotal =
-    invoice.subtotal ||
-    invoice.amount ||
-    "£0.00";
+  const calculatedSubtotalValue = parseMoney(
+    visibleInvoice.subtotal ||
+      visibleInvoice.amount
+  );
 
-  const vatRate =
-    invoice.vat_rate || "0%";
+  const calculatedVatRateValue = parseVatRate(
+    visibleInvoice.vat_rate
+  );
 
-  const vatAmount =
-    invoice.vat_amount || "£0.00";
+  const calculatedVatAmountValue =
+    calculatedSubtotalValue *
+    (calculatedVatRateValue / 100);
 
-  const totalAmount =
-    invoice.total_amount ||
-    invoice.amount ||
-    "£0.00";
+  const calculatedTotalValue =
+    calculatedSubtotalValue +
+    calculatedVatAmountValue;
+
+  const subtotal = editing
+    ? formatCurrency(calculatedSubtotalValue)
+    : visibleInvoice.subtotal ||
+      visibleInvoice.amount ||
+      "£0.00";
+
+  const vatRate = editing
+    ? `${calculatedVatRateValue}%`
+    : visibleInvoice.vat_rate || "0%";
+
+  const vatAmount = editing
+    ? formatCurrency(calculatedVatAmountValue)
+    : visibleInvoice.vat_amount ||
+      "£0.00";
+
+  const totalAmount = editing
+    ? formatCurrency(calculatedTotalValue)
+    : visibleInvoice.total_amount ||
+      visibleInvoice.amount ||
+      "£0.00";
 
   const paymentTerms =
-    invoice.payment_terms ||
+    visibleInvoice.payment_terms ||
     settings?.payment_terms ||
     "Payment due within 14 days of invoice date.";
 
@@ -279,21 +441,65 @@ export default function InvoiceDetailsPage() {
                 alignItems: "flex-start",
               }}
             >
-              <SendRecordEmail
-                endpoint={`/api/invoices/${invoice.id}/send`}
-                defaultEmail={recipientEmail}
-                defaultSubject={`Invoice ${invoice.invoice_number} from ${companyName}`}
-                recordLabel="invoice"
-                onSent={() => {
-                  setInvoice((currentInvoice) => ({
-                    ...currentInvoice,
-                    status:
-                      currentInvoice.status === "Paid"
-                        ? "Paid"
-                        : "Sent",
-                  }));
-                }}
-              />
+              {!editing && (
+                <SendRecordEmail
+                  endpoint={`/api/invoices/${invoice.id}/send`}
+                  defaultEmail={recipientEmail}
+                  defaultSubject={`Invoice ${invoice.invoice_number} from ${companyName}`}
+                  recordLabel="invoice"
+                  onSent={(data) => {
+                    if (data.invoice) {
+                      setInvoice(data.invoice);
+                      setDraftInvoice(
+                        data.invoice
+                      );
+                    } else {
+                      setInvoice(
+                        (currentInvoice) => ({
+                          ...currentInvoice,
+                          status:
+                            currentInvoice.status ===
+                            "Paid"
+                              ? "Paid"
+                              : "Sent",
+                        })
+                      );
+                    }
+                  }}
+                />
+              )}
+
+              {!editing ? (
+                <button
+                  type="button"
+                  className="primaryBtn"
+                  onClick={startEditing}
+                >
+                  Edit Invoice
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className="primaryBtn"
+                    disabled={saving}
+                    onClick={saveInvoice}
+                  >
+                    {saving
+                      ? "Saving..."
+                      : "Save Invoice"}
+                  </button>
+
+                  <button
+                    type="button"
+                    className="primaryBtn"
+                    disabled={saving}
+                    onClick={cancelEditing}
+                  >
+                    Cancel
+                  </button>
+                </>
+              )}
 
               <button
                 type="button"
@@ -303,33 +509,171 @@ export default function InvoiceDetailsPage() {
                 Download PDF
               </button>
 
-              <button
-                type="button"
-                className="primaryBtn"
-                disabled={updatingStatus}
-                onClick={() =>
-                  updateInvoiceStatus("Sent")
-                }
-              >
-                {updatingStatus
-                  ? "Updating..."
-                  : "Mark Sent"}
-              </button>
+              {!editing && (
+                <>
+                  <button
+                    type="button"
+                    className="primaryBtn"
+                    disabled={updatingStatus}
+                    onClick={() =>
+                      updateInvoiceStatus("Sent")
+                    }
+                  >
+                    {updatingStatus
+                      ? "Updating..."
+                      : "Mark Sent"}
+                  </button>
 
-              <button
-                type="button"
-                className="primaryBtn"
-                disabled={updatingStatus}
-                onClick={() =>
-                  updateInvoiceStatus("Paid")
-                }
-              >
-                {updatingStatus
-                  ? "Updating..."
-                  : "Mark Paid"}
-              </button>
+                  <button
+                    type="button"
+                    className="primaryBtn"
+                    disabled={updatingStatus}
+                    onClick={() =>
+                      updateInvoiceStatus("Paid")
+                    }
+                  >
+                    {updatingStatus
+                      ? "Updating..."
+                      : "Mark Paid"}
+                  </button>
+                </>
+              )}
             </div>
           </div>
+
+          {editing && (
+            <section className="panel noPrint">
+              <h3>Edit Invoice</h3>
+
+              <div className="settingsGrid">
+                <label>
+                  Client
+
+                  <input
+                    name="client"
+                    value={
+                      draftInvoice.client || ""
+                    }
+                    disabled={saving}
+                    onChange={handleFieldChange}
+                  />
+                </label>
+
+                <label>
+                  Service
+
+                  <input
+                    name="service"
+                    value={
+                      draftInvoice.service || ""
+                    }
+                    disabled={saving}
+                    onChange={handleFieldChange}
+                  />
+                </label>
+
+                <label>
+                  Subtotal
+
+                  <input
+                    name="subtotal"
+                    value={
+                      draftInvoice.subtotal || ""
+                    }
+                    disabled={saving}
+                    onChange={handleFieldChange}
+                    placeholder="Example: £3,000"
+                  />
+                </label>
+
+                <label>
+                  VAT Rate
+
+                  <input
+                    name="vat_rate"
+                    value={
+                      draftInvoice.vat_rate || ""
+                    }
+                    disabled={saving}
+                    onChange={handleFieldChange}
+                    placeholder="Example: 20%"
+                  />
+                </label>
+
+                <label>
+                  VAT Amount
+
+                  <input
+                    value={vatAmount}
+                    disabled
+                  />
+                </label>
+
+                <label>
+                  Total Amount
+
+                  <input
+                    value={totalAmount}
+                    disabled
+                  />
+                </label>
+
+                <label>
+                  Due Date
+
+                  <input
+                    name="due_date"
+                    type="date"
+                    value={
+                      draftInvoice.due_date ||
+                      ""
+                    }
+                    disabled={saving}
+                    onChange={handleFieldChange}
+                  />
+                </label>
+
+                <label>
+                  Status
+
+                  <select
+                    name="status"
+                    value={
+                      draftInvoice.status ||
+                      "Draft Invoice"
+                    }
+                    disabled={saving}
+                    onChange={handleFieldChange}
+                  >
+                    <option>Draft Invoice</option>
+                    <option>Draft</option>
+                    <option>Sent</option>
+                    <option>
+                      Partially Paid
+                    </option>
+                    <option>Paid</option>
+                    <option>Overdue</option>
+                    <option>Cancelled</option>
+                  </select>
+                </label>
+
+                <label className="fullWidth">
+                  Payment Terms
+
+                  <textarea
+                    name="payment_terms"
+                    rows={4}
+                    value={
+                      draftInvoice.payment_terms ||
+                      ""
+                    }
+                    disabled={saving}
+                    onChange={handleFieldChange}
+                  />
+                </label>
+              </div>
+            </section>
+          )}
 
           <section className="invoiceDocument">
             <div className="invoiceHeader">
@@ -378,13 +722,15 @@ export default function InvoiceDetailsPage() {
 
                 <p>
                   <strong>Due Date:</strong>{" "}
-                  {dueDate}
+                  {displayedDueDate}
                 </p>
 
                 <p>
                   <strong>Status:</strong>{" "}
                   <StatusBadge
-                    status={invoice.status}
+                    status={
+                      visibleInvoice.status
+                    }
                   />
                 </p>
               </div>
@@ -396,7 +742,7 @@ export default function InvoiceDetailsPage() {
               <div>
                 <h3>Bill To</h3>
 
-                <p>{invoice.client}</p>
+                <p>{visibleInvoice.client}</p>
 
                 {recipientEmail && (
                   <p>{recipientEmail}</p>
@@ -406,7 +752,7 @@ export default function InvoiceDetailsPage() {
               <div>
                 <h3>Project / Service</h3>
 
-                <p>{invoice.service}</p>
+                <p>{visibleInvoice.service}</p>
               </div>
             </div>
 
@@ -423,7 +769,10 @@ export default function InvoiceDetailsPage() {
 
               <tbody>
                 <tr>
-                  <td>{invoice.service}</td>
+                  <td>
+                    {visibleInvoice.service}
+                  </td>
+
                   <td>1</td>
                   <td>{subtotal}</td>
 
