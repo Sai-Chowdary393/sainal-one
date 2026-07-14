@@ -33,10 +33,7 @@ export async function POST(request, context) {
     const { id } = await context.params;
     const body = await request.json();
 
-    const [
-      invoiceResult,
-      settingsResult,
-    ] = await Promise.all([
+    const [invoiceResult, settingsResult] = await Promise.all([
       supabase
         .from("invoices")
         .select("*")
@@ -89,7 +86,10 @@ export async function POST(request, context) {
         .maybeSingle();
 
       if (error) {
-        console.error("Related quote lookup error:", error);
+        console.error(
+          "Related quote lookup error:",
+          error
+        );
       }
 
       relatedQuote = data || null;
@@ -113,7 +113,8 @@ export async function POST(request, context) {
       );
     }
 
-    const companyName = getCompanyDisplayName(settings);
+    const companyName =
+      getCompanyDisplayName(settings);
 
     const subject =
       String(body.subject || "").trim() ||
@@ -226,7 +227,9 @@ Please contact us if you have any questions regarding this invoice.`;
             Due Date
           </td>
           <td style="padding: 11px 14px;">
-            ${escapeHtml(formatDate(invoice.due_date))}
+            ${escapeHtml(
+              formatDate(invoice.due_date)
+            )}
           </td>
         </tr>
 
@@ -263,16 +266,30 @@ Please contact us if you have any questions regarding this invoice.`;
       >
         <strong>Payment details</strong><br /><br />
 
-        Bank: ${escapeHtml(settings?.bank_name || "-")}<br />
+        Bank:
+        ${escapeHtml(
+          settings?.bank_name || "-"
+        )}<br />
+
         Account name:
-        ${escapeHtml(settings?.bank_account_name || "-")}<br />
+        ${escapeHtml(
+          settings?.bank_account_name || "-"
+        )}<br />
+
         Sort code:
-        ${escapeHtml(settings?.bank_sort_code || "-")}<br />
+        ${escapeHtml(
+          settings?.bank_sort_code || "-"
+        )}<br />
+
         Account number:
-        ${escapeHtml(settings?.bank_account_number || "-")}<br /><br />
+        ${escapeHtml(
+          settings?.bank_account_number || "-"
+        )}<br /><br />
 
         Please use
-        <strong>${escapeHtml(invoice.invoice_number)}</strong>
+        <strong>
+          ${escapeHtml(invoice.invoice_number)}
+        </strong>
         as the payment reference.
       </div>
     `;
@@ -282,7 +299,9 @@ Please contact us if you have any questions regarding this invoice.`;
       title: `Invoice ${invoice.invoice_number}`,
       introductoryText,
       contentHtml,
-      footerText: `${getCompanyContactBlock(settings)}
+      footerText: `${getCompanyContactBlock(
+        settings
+      )}
 
 Invoice reference: ${invoice.invoice_number}`,
     });
@@ -293,18 +312,22 @@ Invoice reference: ${invoice.invoice_number}`,
 
     const resend = getResendClient();
 
-    const { data, error } = await resend.emails.send({
-      from: fromAddress,
-      to: [recipientEmail],
-      subject,
-      html,
-      replyTo:
-        settings?.company_email ||
-        undefined,
-    });
+    const { data, error } =
+      await resend.emails.send({
+        from: fromAddress,
+        to: [recipientEmail],
+        subject,
+        html,
+        replyTo:
+          settings?.company_email ||
+          undefined,
+      });
 
     if (error) {
-      console.error("Resend invoice error:", error);
+      console.error(
+        "Resend invoice error:",
+        error
+      );
 
       return NextResponse.json(
         {
@@ -318,14 +341,54 @@ Invoice reference: ${invoice.invoice_number}`,
       );
     }
 
+    /*
+     * Update the invoice to Sent after a successful email.
+     * Do not overwrite Paid invoices.
+     */
+    let updatedInvoice = invoice;
+
+    if (
+      String(invoice.status || "").toLowerCase() !==
+      "paid"
+    ) {
+      const {
+        data: invoiceUpdateData,
+        error: invoiceUpdateError,
+      } = await supabase
+        .from("invoices")
+        .update({
+          status: "Sent",
+        })
+        .eq("id", invoice.id)
+        .eq(
+          "organization_id",
+          ORGANIZATION_ID
+        )
+        .select()
+        .single();
+
+      if (invoiceUpdateError) {
+        console.error(
+          "Invoice sent but status update failed:",
+          invoiceUpdateError
+        );
+      } else {
+        updatedInvoice = invoiceUpdateData;
+      }
+    }
+
     return NextResponse.json({
-      message: "Invoice email sent successfully.",
+      message:
+        "Invoice email sent successfully.",
       emailId: data?.id || null,
       recipient: recipientEmail,
-      invoice,
+      invoice: updatedInvoice,
     });
   } catch (error) {
-    console.error("Send invoice email error:", error);
+    console.error(
+      "Send invoice email error:",
+      error
+    );
 
     return NextResponse.json(
       {
