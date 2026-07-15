@@ -10,15 +10,21 @@ import {
   textToHtml,
 } from "../../../../../lib/email/emailUtils";
 
+import { createEmailLog } from "../../../../../lib/services/emailLogService";
+
 const ORGANIZATION_ID =
   "9d5bbb05-866b-4c38-b2ac-3019e7cf88e5";
 
 function getResendClient() {
   if (!process.env.RESEND_API_KEY) {
-    throw new Error("RESEND_API_KEY is not configured.");
+    throw new Error(
+      "RESEND_API_KEY is not configured."
+    );
   }
 
-  return new Resend(process.env.RESEND_API_KEY);
+  return new Resend(
+    process.env.RESEND_API_KEY
+  );
 }
 
 export async function POST(request, context) {
@@ -26,22 +32,34 @@ export async function POST(request, context) {
     const { id } = await context.params;
     const body = await request.json();
 
-    const [proposalResult, settingsResult] = await Promise.all([
+    const [
+      proposalResult,
+      settingsResult,
+    ] = await Promise.all([
       supabase
         .from("proposals")
         .select("*")
         .eq("id", id)
-        .eq("organization_id", ORGANIZATION_ID)
+        .eq(
+          "organization_id",
+          ORGANIZATION_ID
+        )
         .single(),
 
       supabase
         .from("company_settings")
         .select("*")
-        .eq("organization_id", ORGANIZATION_ID)
+        .eq(
+          "organization_id",
+          ORGANIZATION_ID
+        )
         .limit(1),
     ]);
 
-    if (proposalResult.error || !proposalResult.data) {
+    if (
+      proposalResult.error ||
+      !proposalResult.data
+    ) {
       return NextResponse.json(
         {
           error:
@@ -57,7 +75,8 @@ export async function POST(request, context) {
     if (settingsResult.error) {
       return NextResponse.json(
         {
-          error: settingsResult.error.message,
+          error:
+            settingsResult.error.message,
         },
         {
           status: 500,
@@ -65,8 +84,11 @@ export async function POST(request, context) {
       );
     }
 
-    const proposal = proposalResult.data;
-    const settings = settingsResult.data?.[0] || null;
+    const proposal =
+      proposalResult.data;
+
+    const settings =
+      settingsResult.data?.[0] || null;
 
     const recipientEmail = String(
       body.to || proposal.email || ""
@@ -84,7 +106,8 @@ export async function POST(request, context) {
       );
     }
 
-    const companyName = getCompanyDisplayName(settings);
+    const companyName =
+      getCompanyDisplayName(settings);
 
     const subject =
       String(body.subject || "").trim() ||
@@ -115,8 +138,11 @@ Please contact us if you have any questions or would like to discuss any part of
           <td style="padding: 10px 14px; font-weight: 700;">
             Proposal Number
           </td>
+
           <td style="padding: 10px 14px;">
-            ${escapeHtml(proposal.proposal_number)}
+            ${escapeHtml(
+              proposal.proposal_number
+            )}
           </td>
         </tr>
 
@@ -124,8 +150,11 @@ Please contact us if you have any questions or would like to discuss any part of
           <td style="padding: 10px 14px; font-weight: 700;">
             Client
           </td>
+
           <td style="padding: 10px 14px;">
-            ${escapeHtml(proposal.client || "-")}
+            ${escapeHtml(
+              proposal.client || "-"
+            )}
           </td>
         </tr>
 
@@ -133,8 +162,11 @@ Please contact us if you have any questions or would like to discuss any part of
           <td style="padding: 10px 14px; font-weight: 700;">
             Service
           </td>
+
           <td style="padding: 10px 14px;">
-            ${escapeHtml(proposal.service || "-")}
+            ${escapeHtml(
+              proposal.service || "-"
+            )}
           </td>
         </tr>
 
@@ -142,9 +174,11 @@ Please contact us if you have any questions or would like to discuss any part of
           <td style="padding: 10px 14px; font-weight: 700;">
             Investment
           </td>
+
           <td style="padding: 10px 14px;">
             ${escapeHtml(
-              proposal.amount || "To be confirmed"
+              proposal.amount ||
+                "To be confirmed"
             )}
           </td>
         </tr>
@@ -157,7 +191,9 @@ Please contact us if you have any questions or would like to discuss any part of
           margin-top: 20px;
         "
       >
-        ${textToHtml(proposal.proposal_text || "")}
+        ${textToHtml(
+          proposal.proposal_text || ""
+        )}
       </div>
 
       <div
@@ -169,7 +205,8 @@ Please contact us if you have any questions or would like to discuss any part of
           line-height: 1.7;
         "
       >
-        Thank you for considering ${escapeHtml(companyName)}.<br /><br />
+        Thank you for considering
+        ${escapeHtml(companyName)}.<br /><br />
 
         If you have any questions or would like to discuss this proposal,
         please reply to this email.<br /><br />
@@ -180,12 +217,22 @@ Please contact us if you have any questions or would like to discuss any part of
 
     const html = buildEmailLayout({
       companyName,
-      title: proposal.title || "Business Proposal",
-      introductoryText,
-      contentHtml,
-      footerText: `${getCompanyContactBlock(settings)}
 
-Proposal reference: ${proposal.proposal_number}`,
+      title:
+        proposal.title ||
+        "Business Proposal",
+
+      introductoryText,
+
+      contentHtml,
+
+      footerText: `${getCompanyContactBlock(
+        settings
+      )}
+
+Proposal reference: ${
+        proposal.proposal_number
+      }`,
     });
 
     const fromAddress =
@@ -194,18 +241,44 @@ Proposal reference: ${proposal.proposal_number}`,
 
     const resend = getResendClient();
 
-    const { data, error } = await resend.emails.send({
-      from: fromAddress,
-      to: [recipientEmail],
-      subject,
-      html,
-      replyTo:
-        settings?.company_email ||
-        undefined,
-    });
+    const { data, error } =
+      await resend.emails.send({
+        from: fromAddress,
+        to: [recipientEmail],
+        subject,
+        html,
+
+        replyTo:
+          settings?.company_email ||
+          undefined,
+      });
 
     if (error) {
-      console.error("Resend proposal error:", error);
+      console.error(
+        "Resend proposal error:",
+        error
+      );
+
+      await createEmailLog({
+        organizationId:
+          ORGANIZATION_ID,
+
+        recipient: recipientEmail,
+        subject,
+        emailType: "Proposal",
+
+        relatedRecordId:
+          proposal.id,
+
+        relatedRecordNumber:
+          proposal.proposal_number,
+
+        status: "Failed",
+
+        errorMessage:
+          error.message ||
+          "Failed to send proposal email.",
+      });
 
       return NextResponse.json(
         {
@@ -226,10 +299,15 @@ Proposal reference: ${proposal.proposal_number}`,
       .from("proposals")
       .update({
         status: "Sent",
-        updated_at: new Date().toISOString(),
+
+        updated_at:
+          new Date().toISOString(),
       })
       .eq("id", proposal.id)
-      .eq("organization_id", ORGANIZATION_ID)
+      .eq(
+        "organization_id",
+        ORGANIZATION_ID
+      )
       .select()
       .single();
 
@@ -240,11 +318,38 @@ Proposal reference: ${proposal.proposal_number}`,
       );
     }
 
-    return NextResponse.json({
-      message: "Proposal email sent successfully.",
-      emailId: data?.id || null,
+    await createEmailLog({
+      organizationId:
+        ORGANIZATION_ID,
+
       recipient: recipientEmail,
-      proposal: updatedProposal || proposal,
+      subject,
+      emailType: "Proposal",
+
+      relatedRecordId:
+        proposal.id,
+
+      relatedRecordNumber:
+        proposal.proposal_number,
+
+      status: "Sent",
+
+      providerEmailId:
+        data?.id || null,
+    });
+
+    return NextResponse.json({
+      message:
+        "Proposal email sent successfully.",
+
+      emailId:
+        data?.id || null,
+
+      recipient:
+        recipientEmail,
+
+      proposal:
+        updatedProposal || proposal,
     });
   } catch (error) {
     console.error(
