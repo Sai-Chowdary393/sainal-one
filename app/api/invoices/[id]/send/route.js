@@ -9,15 +9,21 @@ import {
   getCompanyDisplayName,
 } from "../../../../../lib/email/emailUtils";
 
+import { createEmailLog } from "../../../../../lib/services/emailLogService";
+
 const ORGANIZATION_ID =
   "9d5bbb05-866b-4c38-b2ac-3019e7cf88e5";
 
 function getResendClient() {
   if (!process.env.RESEND_API_KEY) {
-    throw new Error("RESEND_API_KEY is not configured.");
+    throw new Error(
+      "RESEND_API_KEY is not configured."
+    );
   }
 
-  return new Resend(process.env.RESEND_API_KEY);
+  return new Resend(
+    process.env.RESEND_API_KEY
+  );
 }
 
 function formatDate(value) {
@@ -25,7 +31,8 @@ function formatDate(value) {
     return "Not specified";
   }
 
-  return new Date(value).toLocaleDateString("en-GB");
+  return new Date(value)
+    .toLocaleDateString("en-GB");
 }
 
 export async function POST(request, context) {
@@ -33,22 +40,34 @@ export async function POST(request, context) {
     const { id } = await context.params;
     const body = await request.json();
 
-    const [invoiceResult, settingsResult] = await Promise.all([
+    const [
+      invoiceResult,
+      settingsResult,
+    ] = await Promise.all([
       supabase
         .from("invoices")
         .select("*")
         .eq("id", id)
-        .eq("organization_id", ORGANIZATION_ID)
+        .eq(
+          "organization_id",
+          ORGANIZATION_ID
+        )
         .single(),
 
       supabase
         .from("company_settings")
         .select("*")
-        .eq("organization_id", ORGANIZATION_ID)
+        .eq(
+          "organization_id",
+          ORGANIZATION_ID
+        )
         .limit(1),
     ]);
 
-    if (invoiceResult.error || !invoiceResult.data) {
+    if (
+      invoiceResult.error ||
+      !invoiceResult.data
+    ) {
       return NextResponse.json(
         {
           error:
@@ -64,7 +83,8 @@ export async function POST(request, context) {
     if (settingsResult.error) {
       return NextResponse.json(
         {
-          error: settingsResult.error.message,
+          error:
+            settingsResult.error.message,
         },
         {
           status: 500,
@@ -73,17 +93,26 @@ export async function POST(request, context) {
     }
 
     const invoice = invoiceResult.data;
-    const settings = settingsResult.data?.[0] || null;
+
+    const settings =
+      settingsResult.data?.[0] || null;
 
     let relatedQuote = null;
 
     if (invoice.quote_id) {
-      const { data, error } = await supabase
-        .from("quotes")
-        .select("*")
-        .eq("id", invoice.quote_id)
-        .eq("organization_id", ORGANIZATION_ID)
-        .maybeSingle();
+      const { data, error } =
+        await supabase
+          .from("quotes")
+          .select("*")
+          .eq(
+            "id",
+            invoice.quote_id
+          )
+          .eq(
+            "organization_id",
+            ORGANIZATION_ID
+          )
+          .maybeSingle();
 
       if (error) {
         console.error(
@@ -154,8 +183,11 @@ Please contact us if you have any questions regarding this invoice.`;
           <td style="padding: 11px 14px; font-weight: 700;">
             Invoice Number
           </td>
+
           <td style="padding: 11px 14px;">
-            ${escapeHtml(invoice.invoice_number)}
+            ${escapeHtml(
+              invoice.invoice_number
+            )}
           </td>
         </tr>
 
@@ -163,8 +195,11 @@ Please contact us if you have any questions regarding this invoice.`;
           <td style="padding: 11px 14px; font-weight: 700;">
             Client
           </td>
+
           <td style="padding: 11px 14px;">
-            ${escapeHtml(invoice.client || "-")}
+            ${escapeHtml(
+              invoice.client || "-"
+            )}
           </td>
         </tr>
 
@@ -172,8 +207,11 @@ Please contact us if you have any questions regarding this invoice.`;
           <td style="padding: 11px 14px; font-weight: 700;">
             Service
           </td>
+
           <td style="padding: 11px 14px;">
-            ${escapeHtml(invoice.service || "-")}
+            ${escapeHtml(
+              invoice.service || "-"
+            )}
           </td>
         </tr>
 
@@ -181,6 +219,7 @@ Please contact us if you have any questions regarding this invoice.`;
           <td style="padding: 11px 14px; font-weight: 700;">
             Subtotal
           </td>
+
           <td style="padding: 11px 14px;">
             ${escapeHtml(
               invoice.subtotal ||
@@ -194,14 +233,18 @@ Please contact us if you have any questions regarding this invoice.`;
           <td style="padding: 11px 14px; font-weight: 700;">
             VAT
           </td>
+
           <td style="padding: 11px 14px;">
             ${escapeHtml(
               invoice.vat_amount ||
                 "£0"
             )}
+
             ${
               invoice.vat_rate
-                ? ` (${escapeHtml(invoice.vat_rate)})`
+                ? ` (${escapeHtml(
+                    invoice.vat_rate
+                  )})`
                 : ""
             }
           </td>
@@ -211,6 +254,7 @@ Please contact us if you have any questions regarding this invoice.`;
           <td style="padding: 11px 14px; font-weight: 700;">
             Total Amount
           </td>
+
           <td
             style="
               padding: 11px 14px;
@@ -226,9 +270,12 @@ Please contact us if you have any questions regarding this invoice.`;
           <td style="padding: 11px 14px; font-weight: 700;">
             Due Date
           </td>
+
           <td style="padding: 11px 14px;">
             ${escapeHtml(
-              formatDate(invoice.due_date)
+              formatDate(
+                invoice.due_date
+              )
             )}
           </td>
         </tr>
@@ -237,8 +284,11 @@ Please contact us if you have any questions regarding this invoice.`;
           <td style="padding: 11px 14px; font-weight: 700;">
             Status
           </td>
+
           <td style="padding: 11px 14px;">
-            ${escapeHtml(invoice.status || "-")}
+            ${escapeHtml(
+              invoice.status || "-"
+            )}
           </td>
         </tr>
 
@@ -246,6 +296,7 @@ Please contact us if you have any questions regarding this invoice.`;
           <td style="padding: 11px 14px; font-weight: 700;">
             Payment Terms
           </td>
+
           <td style="padding: 11px 14px;">
             ${escapeHtml(
               invoice.payment_terms ||
@@ -264,31 +315,40 @@ Please contact us if you have any questions regarding this invoice.`;
           border-radius: 8px;
         "
       >
-        <strong>Payment details</strong><br /><br />
+        <strong>Payment details</strong>
+        <br /><br />
 
         Bank:
         ${escapeHtml(
           settings?.bank_name || "-"
-        )}<br />
+        )}
+        <br />
 
         Account name:
         ${escapeHtml(
-          settings?.bank_account_name || "-"
-        )}<br />
+          settings?.bank_account_name ||
+            "-"
+        )}
+        <br />
 
         Sort code:
         ${escapeHtml(
           settings?.bank_sort_code || "-"
-        )}<br />
+        )}
+        <br />
 
         Account number:
         ${escapeHtml(
-          settings?.bank_account_number || "-"
-        )}<br /><br />
+          settings?.bank_account_number ||
+            "-"
+        )}
+        <br /><br />
 
         Please use
         <strong>
-          ${escapeHtml(invoice.invoice_number)}
+          ${escapeHtml(
+            invoice.invoice_number
+          )}
         </strong>
         as the payment reference.
       </div>
@@ -296,14 +356,21 @@ Please contact us if you have any questions regarding this invoice.`;
 
     const html = buildEmailLayout({
       companyName,
-      title: `Invoice ${invoice.invoice_number}`,
+
+      title:
+        `Invoice ${invoice.invoice_number}`,
+
       introductoryText,
+
       contentHtml,
+
       footerText: `${getCompanyContactBlock(
         settings
       )}
 
-Invoice reference: ${invoice.invoice_number}`,
+Invoice reference: ${
+        invoice.invoice_number
+      }`,
     });
 
     const fromAddress =
@@ -318,6 +385,7 @@ Invoice reference: ${invoice.invoice_number}`,
         to: [recipientEmail],
         subject,
         html,
+
         replyTo:
           settings?.company_email ||
           undefined,
@@ -328,6 +396,27 @@ Invoice reference: ${invoice.invoice_number}`,
         "Resend invoice error:",
         error
       );
+
+      await createEmailLog({
+        organizationId:
+          ORGANIZATION_ID,
+
+        recipient: recipientEmail,
+        subject,
+        emailType: "Invoice",
+
+        relatedRecordId:
+          invoice.id,
+
+        relatedRecordNumber:
+          invoice.invoice_number,
+
+        status: "Failed",
+
+        errorMessage:
+          error.message ||
+          "Failed to send invoice email.",
+      });
 
       return NextResponse.json(
         {
@@ -341,15 +430,12 @@ Invoice reference: ${invoice.invoice_number}`,
       );
     }
 
-    /*
-     * Update the invoice to Sent after a successful email.
-     * Do not overwrite Paid invoices.
-     */
     let updatedInvoice = invoice;
 
     if (
-      String(invoice.status || "").toLowerCase() !==
-      "paid"
+      String(
+        invoice.status || ""
+      ).toLowerCase() !== "paid"
     ) {
       const {
         data: invoiceUpdateData,
@@ -373,16 +459,43 @@ Invoice reference: ${invoice.invoice_number}`,
           invoiceUpdateError
         );
       } else {
-        updatedInvoice = invoiceUpdateData;
+        updatedInvoice =
+          invoiceUpdateData;
       }
     }
+
+    await createEmailLog({
+      organizationId:
+        ORGANIZATION_ID,
+
+      recipient: recipientEmail,
+      subject,
+      emailType: "Invoice",
+
+      relatedRecordId:
+        invoice.id,
+
+      relatedRecordNumber:
+        invoice.invoice_number,
+
+      status: "Sent",
+
+      providerEmailId:
+        data?.id || null,
+    });
 
     return NextResponse.json({
       message:
         "Invoice email sent successfully.",
-      emailId: data?.id || null,
-      recipient: recipientEmail,
-      invoice: updatedInvoice,
+
+      emailId:
+        data?.id || null,
+
+      recipient:
+        recipientEmail,
+
+      invoice:
+        updatedInvoice,
     });
   } catch (error) {
     console.error(
