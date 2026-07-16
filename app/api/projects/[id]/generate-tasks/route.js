@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabase } from "../../../../../../lib/supabase";
+import { supabase } from "../../../../../lib/supabase";
 
 const ORGANIZATION_ID =
   "9d5bbb05-866b-4c38-b2ac-3019e7cf88e5";
