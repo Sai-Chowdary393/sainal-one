@@ -6,7 +6,11 @@ import {
 } from "react";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+
+import {
+  useParams,
+  useRouter,
+} from "next/navigation";
 
 import Sidebar from "../../../components/Sidebar";
 import StatusBadge from "../../../components/StatusBadge";
@@ -32,6 +36,8 @@ function EmptyMessage({ children }) {
 
 export default function CustomerDetailsPage() {
   const params = useParams();
+  const router = useRouter();
+
   const customerId = params.id;
 
   const [data, setData] = useState(null);
@@ -78,6 +84,7 @@ export default function CustomerDetailsPage() {
       );
     } catch (error) {
       console.error(error);
+
       alert(
         "Error loading customer details."
       );
@@ -178,14 +185,6 @@ export default function CustomerDetailsPage() {
   async function startProject() {
     const customer = data.customer;
     const quotes = data.quotes || [];
-    const projects = data.projects || [];
-
-    if (projects.length > 0) {
-      alert(
-        "A project already exists for this customer."
-      );
-      return;
-    }
 
     if (quotes.length === 0) {
       alert(
@@ -205,7 +204,7 @@ export default function CustomerDetailsPage() {
 
     try {
       const response = await fetch(
-        "/api/projects",
+        "/api/projects/from-customer",
         {
           method: "POST",
           headers: {
@@ -215,31 +214,6 @@ export default function CustomerDetailsPage() {
           body: JSON.stringify({
             customer_id: customer.id,
             quote_id: acceptedQuote.id,
-
-            project_name: `${
-              customer.company ||
-              customer.customer_name
-            } - ${
-              acceptedQuote.service ||
-              "Project"
-            }`,
-
-            description: `Project created from quote ${
-              acceptedQuote.quote_number ||
-              acceptedQuote.id
-            }.`,
-
-            status: "Planning",
-
-            start_date: new Date()
-              .toISOString()
-              .split("T")[0],
-
-            due_date: null,
-
-            amount:
-              acceptedQuote.amount ||
-              "To be confirmed",
           }),
         }
       );
@@ -255,14 +229,24 @@ export default function CustomerDetailsPage() {
         return;
       }
 
-      alert(
-        "Project started successfully."
-      );
+      if (!responseData.project?.id) {
+        alert(
+          "Project was processed, but no project ID was returned."
+        );
+        return;
+      }
 
-      await fetchCustomerDetails();
+      alert(responseData.message);
+
+      router.push(
+        `/projects/${responseData.project.id}`
+      );
     } catch (error) {
       console.error(error);
-      alert("Error starting project.");
+
+      alert(
+        "Error starting project."
+      );
     } finally {
       setStartingProject(false);
     }
@@ -388,16 +372,11 @@ export default function CustomerDetailsPage() {
               <button
                 type="button"
                 className="primaryBtn"
-                disabled={
-                  startingProject ||
-                  projects.length > 0
-                }
+                disabled={startingProject}
                 onClick={startProject}
               >
                 {startingProject
                   ? "Starting..."
-                  : projects.length > 0
-                  ? "Project Exists"
                   : "Start Project"}
               </button>
             </div>
@@ -532,7 +511,8 @@ export default function CustomerDetailsPage() {
 
               <h2>
                 {
-                  financialSummary.totalInvoicedFormatted
+                  financialSummary
+                    ?.totalInvoicedFormatted
                 }
               </h2>
             </div>
@@ -542,7 +522,8 @@ export default function CustomerDetailsPage() {
 
               <h2>
                 {
-                  financialSummary.totalPaidFormatted
+                  financialSummary
+                    ?.totalPaidFormatted
                 }
               </h2>
             </div>
@@ -552,7 +533,8 @@ export default function CustomerDetailsPage() {
 
               <h2>
                 {
-                  financialSummary.outstandingFormatted
+                  financialSummary
+                    ?.outstandingFormatted
                 }
               </h2>
             </div>
@@ -564,32 +546,32 @@ export default function CustomerDetailsPage() {
             <div className="settingsGrid">
               <p>
                 <strong>Quotes:</strong>{" "}
-                {recordCounts.quotes}
+                {recordCounts?.quotes || 0}
               </p>
 
               <p>
                 <strong>Proposals:</strong>{" "}
-                {recordCounts.proposals}
+                {recordCounts?.proposals || 0}
               </p>
 
               <p>
                 <strong>Projects:</strong>{" "}
-                {recordCounts.projects}
+                {recordCounts?.projects || 0}
               </p>
 
               <p>
                 <strong>Tasks:</strong>{" "}
-                {recordCounts.tasks}
+                {recordCounts?.tasks || 0}
               </p>
 
               <p>
                 <strong>Invoices:</strong>{" "}
-                {recordCounts.invoices}
+                {recordCounts?.invoices || 0}
               </p>
 
               <p>
                 <strong>Follow-ups:</strong>{" "}
-                {recordCounts.followUps}
+                {recordCounts?.followUps || 0}
               </p>
             </div>
           </section>
