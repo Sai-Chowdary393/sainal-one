@@ -2,7 +2,9 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 
 export async function middleware(request) {
-  let response = NextResponse.next();
+  let response = NextResponse.next({
+    request,
+  });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -12,10 +14,19 @@ export async function middleware(request) {
         getAll() {
           return request.cookies.getAll();
         },
+
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
-          );
+          cookiesToSet.forEach(({ name, value }) => {
+            request.cookies.set(name, value);
+          });
+
+          response = NextResponse.next({
+            request,
+          });
+
+          cookiesToSet.forEach(({ name, value, options }) => {
+            response.cookies.set(name, value, options);
+          });
         },
       },
     }
@@ -32,21 +43,31 @@ export async function middleware(request) {
     "/login",
     "/register",
     "/forgot-password",
+    "/reset-password",
+    "/auth/callback",
   ];
 
   const isPublicRoute =
     publicRoutes.includes(pathname) ||
-    pathname.startsWith("/api");
+    pathname.startsWith("/api/");
 
   if (!user && !isPublicRoute) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = "/login";
+    loginUrl.searchParams.set("redirect", pathname);
+
+    return NextResponse.redirect(loginUrl);
   }
 
   if (
     user &&
     (pathname === "/login" || pathname === "/register")
   ) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    const dashboardUrl = request.nextUrl.clone();
+    dashboardUrl.pathname = "/dashboard";
+    dashboardUrl.search = "";
+
+    return NextResponse.redirect(dashboardUrl);
   }
 
   return response;
@@ -54,6 +75,6 @@ export async function middleware(request) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };
