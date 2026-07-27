@@ -2,14 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 
 export default function LoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-
-  const redirectPath = searchParams.get("redirect") || "/dashboard";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -41,7 +38,17 @@ export default function LoginPage() {
         return;
       }
 
-      router.replace(redirectPath);
+      const params = new URLSearchParams(window.location.search);
+      const requestedRedirect = params.get("redirect");
+
+      const safeRedirect =
+        requestedRedirect &&
+        requestedRedirect.startsWith("/") &&
+        !requestedRedirect.startsWith("//")
+          ? requestedRedirect
+          : "/dashboard";
+
+      router.replace(safeRedirect);
       router.refresh();
     } catch (error) {
       console.error("Login error:", error);
@@ -110,9 +117,7 @@ export default function LoginPage() {
                 className="passwordToggle"
                 onClick={() => setShowPassword((current) => !current)}
                 disabled={loading}
-                aria-label={
-                  showPassword ? "Hide password" : "Show password"
-                }
+                aria-label={showPassword ? "Hide password" : "Show password"}
               >
                 {showPassword ? "Hide" : "Show"}
               </button>
