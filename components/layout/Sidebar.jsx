@@ -82,29 +82,37 @@ const navigationGroups = [
   },
 ];
 
-export default function Sidebar({ mobileOpen = false, onClose }) {
+export default function Sidebar({
+  mobileOpen = false,
+  collapsed = false,
+  onClose,
+  onToggleCollapse,
+}) {
   const pathname = usePathname();
 
-  function isActive(href) {
-    return pathname === href || pathname.startsWith(`${href}/`);
-  }
+  const isActive = (href) =>
+    pathname === href || pathname.startsWith(`${href}/`);
 
   return (
     <aside
       className={`${styles.sidebar} ${
         mobileOpen ? styles.sidebarOpen : ""
-      }`}
+      } ${collapsed ? styles.sidebarCollapsed : ""}`}
     >
       <div className={styles.sidebarHeader}>
         <Link
           href="/dashboard"
           className={styles.brand}
           onClick={onClose}
+          title={collapsed ? "SaiNal One" : undefined}
         >
           <span className={styles.brandMark}>SN</span>
 
-          <span>
-            <strong className={styles.brandName}>SaiNal One</strong>
+          <span className={styles.brandText}>
+            <strong className={styles.brandName}>
+              SaiNal One
+            </strong>
+
             <small className={styles.brandSubtitle}>
               Business Operating System
             </small>
@@ -121,10 +129,30 @@ export default function Sidebar({ mobileOpen = false, onClose }) {
         </button>
       </div>
 
+      {/* Collapse Button */}
+      <button
+        type="button"
+        className={styles.sidebarCollapseButton}
+        onClick={onToggleCollapse}
+        aria-label={
+          collapsed ? "Expand sidebar" : "Collapse sidebar"
+        }
+        title={
+          collapsed ? "Expand sidebar" : "Collapse sidebar"
+        }
+      >
+        {collapsed ? "›" : "‹"}
+      </button>
+
       <nav className={styles.navigation}>
         {navigationGroups.map((group) => (
-          <div className={styles.navigationGroup} key={group.label}>
-            <p className={styles.navigationLabel}>{group.label}</p>
+          <div
+            key={group.label}
+            className={styles.navigationGroup}
+          >
+            <p className={styles.navigationLabel}>
+              {group.label}
+            </p>
 
             <div className={styles.navigationItems}>
               {group.items.map((item) => {
@@ -135,15 +163,20 @@ export default function Sidebar({ mobileOpen = false, onClose }) {
                     key={item.href}
                     href={item.href}
                     onClick={onClose}
+                    title={collapsed ? item.label : undefined}
                     className={`${styles.navigationLink} ${
-                      active ? styles.navigationLinkActive : ""
+                      active
+                        ? styles.navigationLinkActive
+                        : ""
                     }`}
                   >
                     <span className={styles.navigationIcon}>
                       {item.icon}
                     </span>
 
-                    <span>{item.label}</span>
+                    <span className={styles.navigationText}>
+                      {item.label}
+                    </span>
                   </Link>
                 );
               })}
@@ -154,9 +187,15 @@ export default function Sidebar({ mobileOpen = false, onClose }) {
 
       <div className={styles.sidebarFooter}>
         <div className={styles.sidebarPlan}>
-          <span className={styles.planBadge}>SaiNal One</span>
+          <span className={styles.planBadge}>
+            SaiNal One
+          </span>
+
           <strong>Growing Business</strong>
-          <small>Manage everything in one place.</small>
+
+          <small>
+            Manage your business from one place.
+          </small>
         </div>
       </div>
     </aside>
