@@ -1,0 +1,1041 @@
+.page {
+  display: grid;
+  gap: 24px;
+}
+
+.hero {
+  display: flex;
+  min-height: 210px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 30px;
+  overflow: hidden;
+  padding: 31px;
+  border: 1px solid #363329;
+  border-radius: 21px;
+  background:
+    radial-gradient(
+      circle at 88% 20%,
+      rgba(212, 175, 55, 0.23),
+      transparent 31%
+    ),
+    radial-gradient(
+      circle at 5% 100%,
+      rgba(212, 175, 55, 0.09),
+      transparent 28%
+    ),
+    linear-gradient(135deg, #1c1c1a, #2d2a22);
+  color: #ffffff;
+  box-shadow: 0 20px 50px rgba(36, 29, 11, 0.14);
+}
+
+.heroContent {
+  max-width: 720px;
+}
+
+.eyebrow {
+  color: #dcb841;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 1.45px;
+  text-transform: uppercase;
+}
+
+.hero h2 {
+  margin: 9px 0;
+  font-size: clamp(29px, 4vw, 43px);
+  letter-spacing: -1.45px;
+}
+
+.heroContent > p {
+  max-width: 660px;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.reportMetadata {
+  display: flex;
+  align-items: center;
+  gap: 17px;
+  margin-top: 22px;
+  color: rgba(255, 255, 255, 0.43);
+  font-size: 9px;
+}
+
+.liveStatus {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.liveStatus > span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #5bbd7c;
+  box-shadow: 0 0 0 4px rgba(91, 189, 124, 0.12);
+}
+
+.heroActions {
+  display: grid;
+  width: 190px;
+  flex: 0 0 190px;
+  gap: 9px;
+}
+
+.primaryButton,
+.secondaryButton,
+.retryButton {
+  display: flex;
+  min-height: 43px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border-radius: 11px;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    border-color 150ms ease,
+    background 150ms ease,
+    transform 150ms ease;
+}
+
+.primaryButton {
+  border: 1px solid #c99a13;
+  background: linear-gradient(145deg, #dfb941, #c3910c);
+  color: #1c1b17;
+}
+
+.primaryButton:hover:not(:disabled) {
+  background: linear-gradient(145deg, #e7c54e, #cca016);
+  transform: translateY(-1px);
+}
+
+.primaryButton:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.secondaryButton {
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  background: rgba(255, 255, 255, 0.055);
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.secondaryButton:hover {
+  border-color: rgba(212, 175, 55, 0.38);
+  background: rgba(212, 175, 55, 0.09);
+  color: #e6c24c;
+}
+
+.spinningIcon {
+  display: inline-block;
+  animation: spin 900ms linear infinite;
+}
+
+.executiveOverview {
+  display: grid;
+  grid-template-columns: minmax(310px, 0.8fr) minmax(0, 1.8fr);
+  gap: 18px;
+}
+
+.healthScoreCard,
+.executiveMetrics,
+.insightPanel,
+.aiReportPanel,
+.priorityPanel,
+.opportunityPanel,
+.forecastCard {
+  border: 1px solid #dfdcd3;
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgba(43, 36, 17, 0.055);
+}
+
+.healthScoreCard {
+  display: flex;
+  min-height: 160px;
+  align-items: center;
+  gap: 19px;
+  padding: 22px;
+  border-radius: 18px;
+}
+
+.healthRing {
+  position: relative;
+  display: grid;
+  width: 105px;
+  height: 105px;
+  place-items: center;
+  flex: 0 0 105px;
+  border-radius: 50%;
+  background: conic-gradient(
+    #c99b18 0deg var(--score-value),
+    #ece8dc var(--score-value) 360deg
+  );
+}
+
+.healthRing::after {
+  position: absolute;
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  background: #ffffff;
+  content: "";
+}
+
+.healthRingCentre {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: baseline;
+}
+
+.healthRingCentre strong {
+  color: #26231d;
+  font-size: 30px;
+  letter-spacing: -1px;
+}
+
+.healthRingCentre span {
+  margin-left: 2px;
+  color: #97938a;
+  font-size: 10px;
+}
+
+.healthCopy {
+  min-width: 0;
+}
+
+.healthCopy > span {
+  color: #9a760e;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+}
+
+.healthCopy h3 {
+  margin: 5px 0 7px;
+  color: #28251f;
+  font-size: 21px;
+}
+
+.healthCopy p {
+  margin: 0;
+  color: #8c887f;
+  font-size: 9px;
+  line-height: 1.55;
+}
+
+.executiveMetrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  overflow: hidden;
+  border-radius: 18px;
+}
+
+.executiveMetric {
+  display: grid;
+  align-content: center;
+  min-width: 0;
+  gap: 6px;
+  padding: 22px;
+  border-right: 1px solid #ece9e1;
+}
+
+.executiveMetric:last-child {
+  border-right: 0;
+}
+
+.executiveMetric > span {
+  color: #858178;
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.executiveMetric strong {
+  overflow: hidden;
+  color: #27241e;
+  font-size: clamp(20px, 2vw, 29px);
+  letter-spacing: -0.8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.executiveMetric small {
+  overflow: hidden;
+  color: #aaa69d;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.executiveMetricAttention strong {
+  color: #a54747;
+}
+
+.insightGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.insightPanel {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding: 21px;
+  border-radius: 18px;
+}
+
+.insightPanelHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #eeece6;
+}
+
+.insightIcon {
+  display: grid;
+  width: 41px;
+  height: 41px;
+  place-items: center;
+  flex: 0 0 41px;
+  border-radius: 12px;
+  background: #f5edcf;
+  color: #987000;
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.insightPanelHeader h3 {
+  margin: 0;
+  color: #29261f;
+  font-size: 15px;
+}
+
+.insightPanelHeader p {
+  margin: 4px 0 0;
+  color: #969289;
+  font-size: 9px;
+}
+
+.metricList {
+  display: grid;
+  margin: 12px 0;
+}
+
+.metricRow {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  border-bottom: 1px solid #f0eee8;
+}
+
+.metricRow:last-child {
+  border-bottom: 0;
+}
+
+.metricRow span {
+  color: #77736a;
+  font-size: 10px;
+}
+
+.metricRow strong {
+  color: #2e2b25;
+  font-size: 11px;
+}
+
+.warningValue {
+  color: #a64b4b !important;
+}
+
+.progressMetric {
+  display: grid;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 11px;
+}
+
+.progressMetric > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.progressMetric span {
+  color: #7e7a71;
+  font-size: 9px;
+}
+
+.progressMetric strong {
+  color: #9a7100;
+  font-size: 11px;
+}
+
+.progressTrack {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #edeae2;
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #dbb43e, #b08308);
+  transition: width 400ms ease;
+}
+
+.panelLink {
+  display: flex;
+  min-height: 39px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 0 12px;
+  border: 1px solid #e7e1cf;
+  border-radius: 10px;
+  background: #fbf8ef;
+  color: #917000;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.panelLink:hover {
+  border-color: #d5b555;
+  background: #faf4e1;
+}
+
+.analysisGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(340px, 0.75fr);
+  align-items: start;
+  gap: 18px;
+}
+
+.aiReportPanel {
+  overflow: hidden;
+  border-radius: 18px;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 20px 22px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    radial-gradient(
+      circle at 95% 0,
+      rgba(212, 175, 55, 0.22),
+      transparent 32%
+    ),
+    #24231f;
+  color: #ffffff;
+}
+
+.panelHeaderIcon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  flex: 0 0 42px;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #deb840, #bb8805);
+  color: #211f19;
+  font-size: 18px;
+}
+
+.panelHeader span,
+.compactPanelHeader span {
+  color: #cda52e;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.panelHeader h3 {
+  margin: 4px 0 0;
+  font-size: 17px;
+}
+
+.reportContent {
+  padding: 24px;
+}
+
+.reportContent h4 {
+  margin: 25px 0 9px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #eeeae1;
+  color: #2e2a23;
+  font-size: 13px;
+}
+
+.reportContent h4:first-child {
+  margin-top: 0;
+}
+
+.reportContent p {
+  margin: 0 0 12px;
+  color: #68645c;
+  font-size: 11px;
+  line-height: 1.75;
+}
+
+.emptyReport {
+  min-height: 160px;
+  display: grid;
+  place-items: center;
+  color: #99958c !important;
+}
+
+.priorityColumn {
+  display: grid;
+  gap: 18px;
+}
+
+.priorityPanel,
+.opportunityPanel {
+  overflow: hidden;
+  border-radius: 18px;
+}
+
+.compactPanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  border-bottom: 1px solid #ece9e1;
+}
+
+.compactPanelHeader h3 {
+  margin: 4px 0 0;
+  color: #2a2721;
+  font-size: 15px;
+}
+
+.compactPanelHeader > strong {
+  display: grid;
+  width: 33px;
+  height: 33px;
+  place-items: center;
+  border-radius: 10px;
+  background: #f4edda;
+  color: #957000;
+  font-size: 11px;
+}
+
+.priorityList,
+.opportunityList {
+  display: grid;
+  padding: 8px 16px 14px;
+}
+
+.priorityItem {
+  display: grid;
+  min-height: 68px;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 11px;
+  padding: 12px 2px;
+  border-bottom: 1px solid #f0eee8;
+  color: inherit;
+}
+
+.priorityItem:last-child {
+  border-bottom: 0;
+}
+
+.priorityItem:hover .priorityArrow {
+  transform: translateX(2px);
+}
+
+.priorityIndicator {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.priorityRed {
+  background: #b94c4c;
+}
+
+.priorityOrange {
+  background: #c87b28;
+}
+
+.priorityGold {
+  background: #c99b17;
+}
+
+.priorityBlue {
+  background: #4b7fae;
+}
+
+.priorityPurple {
+  background: #7557a3;
+}
+
+.priorityGreen {
+  background: #3f9166;
+}
+
+.priorityItem strong {
+  color: #34312b;
+  font-size: 10px;
+}
+
+.priorityItem p {
+  margin: 4px 0 0;
+  color: #969289;
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.priorityArrow {
+  color: #9d790e;
+  font-size: 12px;
+  transition: transform 150ms ease;
+}
+
+.opportunityPanel {
+  background:
+    radial-gradient(
+      circle at 100% 0,
+      rgba(212, 175, 55, 0.13),
+      transparent 30%
+    ),
+    #292822;
+  color: #ffffff;
+}
+
+.opportunityPanel .compactPanelHeader {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.opportunityPanel .compactPanelHeader h3 {
+  color: #ffffff;
+}
+
+.opportunityPanel .compactPanelHeader > strong {
+  background: rgba(212, 175, 55, 0.12);
+  color: #deb943;
+}
+
+.opportunityItem {
+  display: grid;
+  grid-template-columns: 23px minmax(0, 1fr);
+  align-items: flex-start;
+  gap: 8px;
+  padding: 11px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.opportunityItem:last-child {
+  border-bottom: 0;
+}
+
+.opportunityItem > span {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: 7px;
+  background: rgba(212, 175, 55, 0.11);
+  color: #dbb63d;
+  font-size: 10px;
+}
+
+.opportunityItem p {
+  margin: 2px 0 0;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 9px;
+  line-height: 1.55;
+}
+
+.forecastSection {
+  display: grid;
+  gap: 16px;
+}
+
+.sectionHeading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.sectionHeading h2 {
+  margin: 6px 0 0;
+  color: #28251f;
+  font-size: 22px;
+  letter-spacing: -0.5px;
+}
+
+.sectionHeading > p {
+  max-width: 430px;
+  margin: 0;
+  color: #969289;
+  font-size: 9px;
+  text-align: right;
+}
+
+.forecastGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.forecastCard {
+  --forecast-colour: #987000;
+  --forecast-soft: #f5edcf;
+
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  padding: 20px;
+  border-radius: 17px;
+}
+
+.forecastCard::after {
+  position: absolute;
+  right: -25px;
+  bottom: -30px;
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: var(--forecast-soft);
+  content: "";
+}
+
+.forecastCard > span,
+.forecastCard > strong,
+.forecastCard > p {
+  position: relative;
+  z-index: 1;
+}
+
+.forecastCard > span {
+  color: #77736a;
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.forecastCard > strong {
+  display: block;
+  margin-top: 10px;
+  overflow: hidden;
+  color: var(--forecast-colour);
+  font-size: 24px;
+  letter-spacing: -0.7px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.forecastCard > p {
+  margin: 7px 0 0;
+  color: #969289;
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.forecastGold {
+  --forecast-colour: #947000;
+  --forecast-soft: #f6edcb;
+}
+
+.forecastBlue {
+  --forecast-colour: #3d6f9e;
+  --forecast-soft: #e4edf7;
+}
+
+.forecastGreen {
+  --forecast-colour: #397b5b;
+  --forecast-soft: #e2f0e8;
+}
+
+.forecastPurple {
+  --forecast-colour: #6f54a0;
+  --forecast-soft: #ede6f6;
+}
+
+.errorPanel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 22px;
+  padding: 22px;
+  border: 1px solid #eccaca;
+  border-radius: 16px;
+  background: #fff6f6;
+}
+
+.errorPanel strong {
+  color: #843737;
+}
+
+.errorPanel p {
+  margin: 5px 0 0;
+  color: #a26161;
+  font-size: 11px;
+}
+
+.retryButton {
+  border: 0;
+  background: #8f3939;
+  color: #ffffff;
+}
+
+.loadingPage {
+  display: grid;
+  gap: 18px;
+}
+
+.loadingHero,
+.loadingOverview > div,
+.loadingCards > div,
+.loadingAnalysis > div {
+  border-radius: 18px;
+  background: linear-gradient(
+    90deg,
+    #e9e6df 25%,
+    #f4f2ed 50%,
+    #e9e6df 75%
+  );
+  background-size: 200% 100%;
+  animation: loadingPulse 1.4s infinite;
+}
+
+.loadingHero {
+  height: 210px;
+}
+
+.loadingOverview {
+  display: grid;
+  grid-template-columns: 0.8fr 1.8fr;
+  gap: 18px;
+}
+
+.loadingOverview > div {
+  height: 160px;
+}
+
+.loadingCards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+
+.loadingCards > div {
+  height: 360px;
+}
+
+.loadingAnalysis {
+  display: grid;
+  grid-template-columns: 1.55fr 0.75fr;
+  gap: 18px;
+}
+
+.loadingAnalysis > div {
+  height: 500px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes loadingPulse {
+  from {
+    background-position: 200% 0;
+  }
+
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (max-width: 1280px) {
+  .executiveMetrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .executiveMetric:nth-child(2) {
+    border-right: 0;
+  }
+
+  .executiveMetric:nth-child(-n + 2) {
+    border-bottom: 1px solid #ece9e1;
+  }
+
+  .forecastGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1050px) {
+  .hero {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .heroActions {
+    width: 100%;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .executiveOverview,
+  .analysisGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .insightGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .insightPanel:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .loadingOverview,
+  .loadingAnalysis {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .hero {
+    padding: 24px;
+  }
+
+  .heroActions {
+    grid-template-columns: 1fr;
+  }
+
+  .reportMetadata {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 9px;
+  }
+
+  .healthScoreCard {
+    align-items: flex-start;
+  }
+
+  .executiveMetrics,
+  .insightGrid,
+  .forecastGrid,
+  .loadingCards {
+    grid-template-columns: 1fr;
+  }
+
+  .insightPanel:last-child {
+    grid-column: auto;
+  }
+
+  .executiveMetric,
+  .executiveMetric:nth-child(2) {
+    border-right: 0;
+    border-bottom: 1px solid #ece9e1;
+  }
+
+  .executiveMetric:last-child {
+    border-bottom: 0;
+  }
+
+  .sectionHeading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .sectionHeading > p {
+    text-align: left;
+  }
+}
+
+@media (max-width: 520px) {
+  .page {
+    gap: 17px;
+  }
+
+  .hero {
+    border-radius: 17px;
+  }
+
+  .hero h2 {
+    font-size: 30px;
+  }
+
+  .healthScoreCard {
+    flex-direction: column;
+  }
+
+  .healthRing {
+    width: 90px;
+    height: 90px;
+    flex-basis: 90px;
+  }
+
+  .healthRing::after {
+    width: 67px;
+    height: 67px;
+  }
+
+  .reportContent {
+    padding: 18px;
+  }
+
+  .forecastCard,
+  .insightPanel {
+    padding: 18px;
+  }
+}
+
+@media print {
+  .heroActions,
+  .panelLink {
+    display: none !important;
+  }
+
+  .page {
+    display: block;
+  }
+
+  .hero,
+  .healthScoreCard,
+  .executiveMetrics,
+  .insightPanel,
+  .aiReportPanel,
+  .priorityPanel,
+  .opportunityPanel,
+  .forecastCard {
+    break-inside: avoid;
+    box-shadow: none;
+  }
+
+  .hero {
+    margin-bottom: 18px;
+    background: #24231f !important;
+    print-color-adjust: exact;
+  }
+
+  .executiveOverview,
+  .insightGrid,
+  .analysisGrid,
+  .forecastGrid {
+    margin-bottom: 18px;
+  }
+}
