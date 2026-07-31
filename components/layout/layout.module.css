@@ -12,7 +12,7 @@
   display: flex;
   width: 264px;
   flex-direction: column;
-  overflow-y: auto;
+  overflow: visible;
   border-right: 1px solid rgba(255, 255, 255, 0.08);
   background:
     radial-gradient(
@@ -22,6 +22,9 @@
     ),
     #191919;
   color: #ffffff;
+  transition:
+    width 220ms ease,
+    transform 190ms ease;
 }
 
 .sidebarHeader {
@@ -81,8 +84,26 @@
 }
 
 .navigation {
+  min-height: 0;
   flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: 12px 14px 24px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+}
+
+.navigation::-webkit-scrollbar {
+  width: 6px;
+}
+
+.navigation::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.navigation::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
 }
 
 .navigationGroup {
@@ -177,10 +198,124 @@
   text-transform: uppercase;
 }
 
+.sidebarCollapseButton {
+  position: absolute;
+  top: 94px;
+  right: -14px;
+  z-index: 55;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  border-radius: 50%;
+  background: #24231f;
+  color: #d4af37;
+  font-size: 21px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 7px 20px rgba(0, 0, 0, 0.24);
+  transition:
+    background 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease,
+    transform 150ms ease;
+}
+
+.sidebarCollapseButton:hover {
+  border-color: rgba(212, 175, 55, 0.65);
+  background: #332e20;
+  color: #f0cc5a;
+  transform: scale(1.06);
+}
+
+.sidebarCollapseButton:focus-visible {
+  outline: 3px solid rgba(212, 175, 55, 0.28);
+  outline-offset: 2px;
+}
+
+.sidebarCollapsed {
+  width: 76px;
+}
+
+.sidebarCollapsed .sidebarHeader {
+  justify-content: center;
+  padding-right: 10px;
+  padding-left: 10px;
+}
+
+.sidebarCollapsed .brand {
+  justify-content: center;
+  gap: 0;
+}
+
+.sidebarCollapsed .brandText,
+.sidebarCollapsed .navigationLabel,
+.sidebarCollapsed .navigationText,
+.sidebarCollapsed .sidebarPlan strong,
+.sidebarCollapsed .sidebarPlan small,
+.sidebarCollapsed .planBadge {
+  display: none;
+}
+
+.sidebarCollapsed .navigation {
+  padding-right: 10px;
+  padding-left: 10px;
+}
+
+.sidebarCollapsed .navigationGroup {
+  margin-bottom: 14px;
+}
+
+.sidebarCollapsed .navigationItems {
+  gap: 7px;
+}
+
+.sidebarCollapsed .navigationLink {
+  width: 48px;
+  min-height: 46px;
+  justify-content: center;
+  gap: 0;
+  margin: 0 auto;
+  padding: 0;
+}
+
+.sidebarCollapsed .navigationLink:hover {
+  transform: none;
+}
+
+.sidebarCollapsed .navigationLinkActive {
+  box-shadow: inset 3px 0 0 #d4af37;
+}
+
+.sidebarCollapsed .navigationIcon {
+  width: auto;
+  flex: 0 0 auto;
+  font-size: 18px;
+}
+
+.sidebarCollapsed .sidebarFooter {
+  padding: 10px;
+}
+
+.sidebarCollapsed .sidebarPlan {
+  min-height: 48px;
+  place-items: center;
+  padding: 8px;
+}
+
 .workspace {
   width: calc(100% - 264px);
   min-width: 0;
   margin-left: 264px;
+  transition:
+    width 220ms ease,
+    margin-left 220ms ease;
+}
+
+.appShellCollapsed .workspace {
+  width: calc(100% - 76px);
+  margin-left: 76px;
 }
 
 .topbar {
@@ -646,6 +781,7 @@
 
 @media (max-width: 900px) {
   .sidebar {
+    width: 264px;
     transform: translateX(-100%);
     box-shadow: 18px 0 45px rgba(0, 0, 0, 0.22);
     transition: transform 190ms ease;
@@ -653,6 +789,78 @@
 
   .sidebarOpen {
     transform: translateX(0);
+  }
+
+  .appShellCollapsed .workspace {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .sidebarCollapsed {
+    width: 264px;
+  }
+
+  .sidebarCollapsed .sidebarHeader {
+    justify-content: space-between;
+    padding: 20px 20px 16px;
+  }
+
+  .sidebarCollapsed .brand {
+    justify-content: flex-start;
+    gap: 12px;
+  }
+
+  .sidebarCollapsed .brandText,
+  .sidebarCollapsed .navigationLabel,
+  .sidebarCollapsed .sidebarPlan strong,
+  .sidebarCollapsed .sidebarPlan small,
+  .sidebarCollapsed .planBadge {
+    display: block;
+  }
+
+  .sidebarCollapsed .navigationText {
+    display: inline;
+  }
+
+  .sidebarCollapsed .navigation {
+    padding: 12px 14px 24px;
+  }
+
+  .sidebarCollapsed .navigationGroup {
+    margin-bottom: 23px;
+  }
+
+  .sidebarCollapsed .navigationItems {
+    gap: 4px;
+  }
+
+  .sidebarCollapsed .navigationLink {
+    width: auto;
+    min-height: 43px;
+    justify-content: flex-start;
+    gap: 12px;
+    margin: 0;
+    padding: 0 12px;
+  }
+
+  .sidebarCollapsed .navigationIcon {
+    width: 23px;
+    flex: 0 0 23px;
+    font-size: 17px;
+  }
+
+  .sidebarCollapsed .sidebarFooter {
+    padding: 16px;
+  }
+
+  .sidebarCollapsed .sidebarPlan {
+    min-height: auto;
+    place-items: initial;
+    padding: 15px;
+  }
+
+  .sidebarCollapseButton {
+    display: none;
   }
 
   .mobileCloseButton,
