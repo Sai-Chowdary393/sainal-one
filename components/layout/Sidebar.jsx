@@ -78,6 +78,11 @@ const navigationGroups = [
         href: "/ai-assistant",
         icon: "✦",
       },
+      {
+        label: "AI Business Insights",
+        href: "/business-insights",
+        icon: "▥",
+      },
     ],
   },
 ];
@@ -129,7 +134,6 @@ export default function Sidebar({
         </button>
       </div>
 
-      {/* Collapse Button */}
       <button
         type="button"
         className={styles.sidebarCollapseButton}
@@ -144,7 +148,10 @@ export default function Sidebar({
         {collapsed ? "›" : "‹"}
       </button>
 
-      <nav className={styles.navigation}>
+      <nav
+        className={styles.navigation}
+        aria-label="Primary navigation"
+      >
         {navigationGroups.map((group) => (
           <div
             key={group.label}
@@ -164,13 +171,17 @@ export default function Sidebar({
                     href={item.href}
                     onClick={onClose}
                     title={collapsed ? item.label : undefined}
+                    aria-current={active ? "page" : undefined}
                     className={`${styles.navigationLink} ${
                       active
                         ? styles.navigationLinkActive
                         : ""
                     }`}
                   >
-                    <span className={styles.navigationIcon}>
+                    <span
+                      className={styles.navigationIcon}
+                      aria-hidden="true"
+                    >
                       {item.icon}
                     </span>
 
