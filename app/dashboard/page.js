@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Sidebar from "../../components/Sidebar";
+import AppLayout from "../../components/layout/AppLayout";
 import StatusBadge from "../../components/StatusBadge";
 import ProgressBar from "../../components/ProgressBar";
 import ProtectedRoute from "../../components/ProtectedRoute";
@@ -23,6 +23,8 @@ export default function Dashboard() {
 
   async function fetchDashboardData() {
     try {
+      setLoading(true);
+
       const [
         leadsResponse,
         quotesResponse,
@@ -41,23 +43,51 @@ export default function Dashboard() {
         fetch("/api/ai-insights"),
       ]);
 
-      const leadsData = await leadsResponse.json();
-      const quotesData = await quotesResponse.json();
-      const customersData = await customersResponse.json();
-      const projectsData = await projectsResponse.json();
-      const tasksData = await tasksResponse.json();
-      const invoicesData = await invoicesResponse.json();
-      const insightsData = await insightsResponse.json();
+      if (
+        !leadsResponse.ok ||
+        !quotesResponse.ok ||
+        !customersResponse.ok ||
+        !projectsResponse.ok ||
+        !tasksResponse.ok ||
+        !invoicesResponse.ok
+      ) {
+        throw new Error("One or more dashboard requests failed.");
+      }
 
-      setLeads(leadsData || []);
-      setQuotes(quotesData || []);
-      setCustomers(customersData || []);
-      setProjects(projectsData || []);
-      setTasks(tasksData || []);
-      setInvoices(invoicesData || []);
-      setAiInsights(insightsData.insights || "No AI insights available.");
+      const [
+        leadsData,
+        quotesData,
+        customersData,
+        projectsData,
+        tasksData,
+        invoicesData,
+        insightsData,
+      ] = await Promise.all([
+        leadsResponse.json(),
+        quotesResponse.json(),
+        customersResponse.json(),
+        projectsResponse.json(),
+        tasksResponse.json(),
+        invoicesResponse.json(),
+        insightsResponse.ok
+          ? insightsResponse.json()
+          : Promise.resolve({
+              insights: "No AI insights available.",
+            }),
+      ]);
+
+      setLeads(Array.isArray(leadsData) ? leadsData : []);
+      setQuotes(Array.isArray(quotesData) ? quotesData : []);
+      setCustomers(Array.isArray(customersData) ? customersData : []);
+      setProjects(Array.isArray(projectsData) ? projectsData : []);
+      setTasks(Array.isArray(tasksData) ? tasksData : []);
+      setInvoices(Array.isArray(invoicesData) ? invoicesData : []);
+
+      setAiInsights(
+        insightsData?.insights || "No AI insights available."
+      );
     } catch (error) {
-      console.error(error);
+      console.error("Dashboard loading error:", error);
       alert("Error loading dashboard data.");
     } finally {
       setLoading(false);
@@ -65,8 +95,20 @@ export default function Dashboard() {
   }
 
   function getMoneyValue(value) {
-    if (!value) return 0;
-    return Number(String(value).replace(/[^0-9.]/g, "")) || 0;
+    if (value === null || value === undefined || value === "") {
+      return 0;
+    }
+
+    return Number(String(value).replace(/[^0-9.-]/g, "")) || 0;
+  }
+
+  function formatCurrency(value) {
+    return Number(value || 0).toLocaleString("en-GB", {
+      style: "currency",
+      currency: "GBP",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    });
   }
 
   function getProjectProgress(projectId) {
@@ -74,13 +116,17 @@ export default function Dashboard() {
       (task) => String(task.project_id) === String(projectId)
     );
 
-    if (projectTasks.length === 0) return 0;
+    if (projectTasks.length === 0) {
+      return 0;
+    }
 
-    const completedTasks = projectTasks.filter(
+    const completedProjectTasks = projectTasks.filter(
       (task) => task.status === "Completed"
     ).length;
 
-    return Math.round((completedTasks / projectTasks.length) * 100);
+    return Math.round(
+      (completedProjectTasks / projectTasks.length) * 100
+    );
   }
 
   const totalLeads = leads.length;
@@ -94,8 +140,13 @@ export default function Dashboard() {
     0
   );
 
-  const paidInvoices = invoices.filter((invoice) => invoice.status === "Paid");
-  const pendingInvoices = invoices.filter((invoice) => invoice.status !== "Paid");
+  const paidInvoices = invoices.filter(
+    (invoice) => invoice.status === "Paid"
+  );
+
+  const pendingInvoices = invoices.filter(
+    (invoice) => invoice.status !== "Paid"
+  );
 
   const paidRevenue = paidInvoices.reduce(
     (total, invoice) => total + getMoneyValue(invoice.amount),
@@ -107,8 +158,13 @@ export default function Dashboard() {
     0
   );
 
-  const completedTasks = tasks.filter((task) => task.status === "Completed").length;
-  const pendingTasks = tasks.filter((task) => task.status !== "Completed").length;
+  const completedTasks = tasks.filter(
+    (task) => task.status === "Completed"
+  ).length;
+
+  const pendingTasks = tasks.filter(
+    (task) => task.status !== "Completed"
+  ).length;
 
   const activeProjects = projects.filter(
     (project) => project.status !== "Completed"
@@ -120,270 +176,381 @@ export default function Dashboard() {
 
   const latestLeads = leads.slice(0, 4);
   const latestQuotes = quotes.slice(0, 4);
-  const latestProjects = projects.slice(0, 4);
+  const latestProjects = projects
+    .filter((project) => project.status !== "Completed")
+    .slice(0, 4);
   const latestTasks = tasks.slice(0, 5);
   const latestInvoices = invoices.slice(0, 5);
 
   return (
     <ProtectedRoute>
-      <div className="appLayout">
-        <Sidebar />
-
-        <main className="mainContent">
-          <div className="topBar">
-            <div>
-              <h1>Dashboard</h1>
-              <p className="helperText">
-                Welcome back. Here is your SaiNal One business overview.
-              </p>
-            </div>
-
-            <input
-              className="searchBox"
-              placeholder="Search leads, customers, projects..."
-            />
-          </div>
-
-          {loading ? (
+      <AppLayout
+        title="Dashboard"
+        description="Welcome back. Here is your SaiNal One business overview."
+      >
+        {loading ? (
+          <section className="panel">
             <p>Loading dashboard...</p>
-          ) : (
-            <>
-              <section className="panel dashboardActivity">
-                <h3>🤖 AI Business Insights</h3>
-                <p className="helperText">
-                  Today&apos;s management summary across revenue, leads,
-                  invoices, projects and follow-ups.
-                </p>
+          </section>
+        ) : (
+          <>
+            <section className="panel">
+              <h3>AI Business Insights</h3>
 
-                <div className="aiInsightBox">
-                  {aiInsights.split("\n").map((line, index) => (
-                    <p key={index}>{line}</p>
+              <p className="helperText">
+                Today&apos;s management summary across revenue, leads,
+                invoices, projects and follow-ups.
+              </p>
+
+              <div className="aiInsightBox">
+                {String(aiInsights)
+                  .split("\n")
+                  .filter((line) => line.trim())
+                  .map((line, index) => (
+                    <p key={`${line}-${index}`}>{line}</p>
                   ))}
-                </div>
-              </section>
+              </div>
+            </section>
 
-              <section className="dashboardCards">
-                <div className="statCard">
-                  <p>Total Leads</p>
-                  <h2>{totalLeads}</h2>
-                </div>
+            <section className="dashboardCards secondaryStats">
+              <DashboardStatCard
+                label="Total Leads"
+                value={totalLeads}
+              />
 
-                <div className="statCard">
-                  <p>Total Quotes</p>
-                  <h2>{totalQuotes}</h2>
-                </div>
+              <DashboardStatCard
+                label="Total Quotes"
+                value={totalQuotes}
+              />
 
-                <div className="statCard">
-                  <p>Customers</p>
-                  <h2>{totalCustomers}</h2>
-                </div>
+              <DashboardStatCard
+                label="Customers"
+                value={totalCustomers}
+              />
 
-                <div className="statCard">
-                  <p>Projects</p>
-                  <h2>{totalProjects}</h2>
-                </div>
-              </section>
+              <DashboardStatCard
+                label="Projects"
+                value={totalProjects}
+              />
+            </section>
 
-              <section className="dashboardCards secondaryStats">
-                <div className="statCard">
-                  <p>Pipeline Value</p>
-                  <h2>£{pipelineValue.toLocaleString("en-GB")}</h2>
-                </div>
+            <section className="dashboardCards secondaryStats">
+              <DashboardStatCard
+                label="Pipeline Value"
+                value={formatCurrency(pipelineValue)}
+              />
 
-                <div className="statCard">
-                  <p>Total Invoices</p>
-                  <h2>{totalInvoices}</h2>
-                </div>
+              <DashboardStatCard
+                label="Total Invoices"
+                value={totalInvoices}
+              />
 
-                <div className="statCard">
-                  <p>Paid Revenue</p>
-                  <h2>£{paidRevenue.toLocaleString("en-GB")}</h2>
-                </div>
+              <DashboardStatCard
+                label="Paid Revenue"
+                value={formatCurrency(paidRevenue)}
+              />
 
-                <div className="statCard">
-                  <p>Pending Payments</p>
-                  <h2>£{pendingPayments.toLocaleString("en-GB")}</h2>
-                </div>
-              </section>
+              <DashboardStatCard
+                label="Pending Payments"
+                value={formatCurrency(pendingPayments)}
+              />
+            </section>
 
-              <section className="dashboardCards secondaryStats">
-                <div className="statCard">
-                  <p>Active Projects</p>
-                  <h2>{activeProjects}</h2>
-                </div>
+            <section className="dashboardCards secondaryStats">
+              <DashboardStatCard
+                label="Active Projects"
+                value={activeProjects}
+              />
 
-                <div className="statCard">
-                  <p>Completed Projects</p>
-                  <h2>{completedProjects}</h2>
-                </div>
+              <DashboardStatCard
+                label="Completed Projects"
+                value={completedProjects}
+              />
 
-                <div className="statCard">
-                  <p>Pending Tasks</p>
-                  <h2>{pendingTasks}</h2>
-                </div>
+              <DashboardStatCard
+                label="Pending Tasks"
+                value={pendingTasks}
+              />
 
-                <div className="statCard">
-                  <p>Paid Invoices</p>
-                  <h2>{paidInvoices.length}</h2>
-                </div>
-              </section>
+              <DashboardStatCard
+                label="Paid Invoices"
+                value={paidInvoices.length}
+              />
+            </section>
 
-              <section className="dashboardGrid">
-                <div className="panel">
-                  <h3>Recent Leads</h3>
-                  {latestLeads.length === 0 ? (
-                    <p>No leads yet.</p>
-                  ) : (
-                    latestLeads.map((lead) => (
-                      <p key={lead.id}>
-                        <Link href={`/leads/${lead.id}`} className="leadLink">
-                          {lead.name}
-                        </Link>{" "}
-                        - {lead.company}
-                      </p>
-                    ))
-                  )}
-                </div>
+            <section className="dashboardGrid">
+              <div className="panel">
+                <PanelHeader
+                  title="Recent Leads"
+                  href="/leads"
+                  linkText="View all"
+                />
 
-                <div className="panel">
-                  <h3>Recent Quotes</h3>
-                  {latestQuotes.length === 0 ? (
-                    <p>No quotes yet.</p>
-                  ) : (
-                    latestQuotes.map((quote) => (
-                      <p key={quote.id}>
-                        <Link href={`/quotes/${quote.id}`} className="leadLink">
+                {latestLeads.length === 0 ? (
+                  <EmptyState message="No leads yet." />
+                ) : (
+                  latestLeads.map((lead) => (
+                    <div key={lead.id} className="taskRow">
+                      <div>
+                        <Link
+                          href={`/leads/${lead.id}`}
+                          className="leadLink"
+                        >
+                          {lead.name || "Unnamed lead"}
+                        </Link>
+
+                        <p className="helperText">
+                          {lead.company || "No company"}
+                        </p>
+                      </div>
+
+                      {lead.status && (
+                        <StatusBadge status={lead.status} />
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="panel">
+                <PanelHeader
+                  title="Recent Quotes"
+                  href="/quotes"
+                  linkText="View all"
+                />
+
+                {latestQuotes.length === 0 ? (
+                  <EmptyState message="No quotes yet." />
+                ) : (
+                  latestQuotes.map((quote) => (
+                    <div key={quote.id} className="taskRow">
+                      <div>
+                        <Link
+                          href={`/quotes/${quote.id}`}
+                          className="leadLink"
+                        >
                           {quote.quote_number || "Quote"}
-                        </Link>{" "}
-                        - {quote.client} - {quote.amount}
-                      </p>
-                    ))
-                  )}
-                </div>
-              </section>
+                        </Link>
 
-              <section className="dashboardGrid">
-                <div className="panel">
-                  <h3>Active Projects</h3>
-                  {latestProjects.length === 0 ? (
-                    <p>No projects yet.</p>
-                  ) : (
-                    latestProjects.map((project) => (
-                      <div key={project.id} className="dashboardProjectItem">
-                        <div>
-                          <Link href={`/projects/${project.id}`} className="leadLink">
-                            {project.project_name}
-                          </Link>
-                          <p className="helperText">{project.amount}</p>
-                        </div>
-
-                        <StatusBadge status={project.status} />
-                        <ProgressBar value={getProjectProgress(project.id)} />
+                        <p className="helperText">
+                          {quote.client || "No client"} ·{" "}
+                          {quote.amount || formatCurrency(0)}
+                        </p>
                       </div>
-                    ))
-                  )}
-                </div>
 
-                <div className="panel">
-                  <h3>Recent Tasks</h3>
-                  {latestTasks.length === 0 ? (
-                    <p>No tasks yet.</p>
-                  ) : (
-                    latestTasks.map((task) => (
-                      <div key={task.id} className="taskRow">
-                        <div>
-                          <strong>{task.task_name}</strong>
-                          <p className="helperText">
-                            Due: {task.due_date || "No due date"}
-                          </p>
-                        </div>
+                      {quote.status && (
+                        <StatusBadge status={quote.status} />
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </section>
 
-                        <StatusBadge status={task.status} />
+            <section className="dashboardGrid">
+              <div className="panel">
+                <PanelHeader
+                  title="Active Projects"
+                  href="/projects"
+                  linkText="View all"
+                />
+
+                {latestProjects.length === 0 ? (
+                  <EmptyState message="No active projects yet." />
+                ) : (
+                  latestProjects.map((project) => (
+                    <div
+                      key={project.id}
+                      className="dashboardProjectItem"
+                    >
+                      <div>
+                        <Link
+                          href={`/projects/${project.id}`}
+                          className="leadLink"
+                        >
+                          {project.project_name || "Unnamed project"}
+                        </Link>
+
+                        <p className="helperText">
+                          {project.amount || "No project value"}
+                        </p>
                       </div>
-                    ))
-                  )}
-                </div>
-              </section>
 
-              <section className="dashboardGrid">
-                <div className="panel">
-                  <h3>Recent Invoices</h3>
-                  {latestInvoices.length === 0 ? (
-                    <p>No invoices yet.</p>
-                  ) : (
-                    latestInvoices.map((invoice) => (
-                      <div key={invoice.id} className="taskRow">
-                        <div>
-                          <Link href={`/invoices/${invoice.id}`} className="leadLink">
-                            {invoice.invoice_number}
-                          </Link>
-                          <p className="helperText">
-                            {invoice.client} - {invoice.amount}
-                          </p>
-                        </div>
+                      <StatusBadge
+                        status={project.status || "Not Started"}
+                      />
 
-                        <StatusBadge status={invoice.status} />
+                      <ProgressBar
+                        value={getProjectProgress(project.id)}
+                      />
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="panel">
+                <PanelHeader
+                  title="Recent Tasks"
+                  href="/tasks"
+                  linkText="View all"
+                />
+
+                {latestTasks.length === 0 ? (
+                  <EmptyState message="No tasks yet." />
+                ) : (
+                  latestTasks.map((task) => (
+                    <div key={task.id} className="taskRow">
+                      <div>
+                        <strong>
+                          {task.task_name || "Unnamed task"}
+                        </strong>
+
+                        <p className="helperText">
+                          Due: {task.due_date || "No due date"}
+                        </p>
                       </div>
-                    ))
-                  )}
-                </div>
 
-                <div className="panel">
-                  <h3>Finance Summary</h3>
-
-                  <div className="activityGrid">
-                    <div>
-                      <strong>{totalInvoices}</strong>
-                      <p>Total Invoices</p>
+                      <StatusBadge
+                        status={task.status || "Not Started"}
+                      />
                     </div>
+                  ))
+                )}
+              </div>
+            </section>
 
-                    <div>
-                      <strong>{paidInvoices.length}</strong>
-                      <p>Paid</p>
+            <section className="dashboardGrid">
+              <div className="panel">
+                <PanelHeader
+                  title="Recent Invoices"
+                  href="/invoices"
+                  linkText="View all"
+                />
+
+                {latestInvoices.length === 0 ? (
+                  <EmptyState message="No invoices yet." />
+                ) : (
+                  latestInvoices.map((invoice) => (
+                    <div key={invoice.id} className="taskRow">
+                      <div>
+                        <Link
+                          href={`/invoices/${invoice.id}`}
+                          className="leadLink"
+                        >
+                          {invoice.invoice_number || "Invoice"}
+                        </Link>
+
+                        <p className="helperText">
+                          {invoice.client || "No client"} ·{" "}
+                          {invoice.amount || formatCurrency(0)}
+                        </p>
+                      </div>
+
+                      <StatusBadge
+                        status={invoice.status || "Pending"}
+                      />
                     </div>
+                  ))
+                )}
+              </div>
 
-                    <div>
-                      <strong>{pendingInvoices.length}</strong>
-                      <p>Pending</p>
-                    </div>
-
-                    <div>
-                      <strong>£{paidRevenue.toLocaleString("en-GB")}</strong>
-                      <p>Revenue</p>
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              <section className="panel dashboardActivity">
-                <h3>Business Activity</h3>
+              <div className="panel">
+                <h3>Finance Summary</h3>
 
                 <div className="activityGrid">
-                  <div>
-                    <strong>{completedTasks}</strong>
-                    <p>Tasks Completed</p>
-                  </div>
+                  <ActivityItem
+                    value={totalInvoices}
+                    label="Total Invoices"
+                  />
 
-                  <div>
-                    <strong>{pendingTasks}</strong>
-                    <p>Tasks Pending</p>
-                  </div>
+                  <ActivityItem
+                    value={paidInvoices.length}
+                    label="Paid"
+                  />
 
-                  <div>
-                    <strong>{activeProjects}</strong>
-                    <p>Projects Running</p>
-                  </div>
+                  <ActivityItem
+                    value={pendingInvoices.length}
+                    label="Pending"
+                  />
 
-                  <div>
-                    <strong>£{pipelineValue.toLocaleString("en-GB")}</strong>
-                    <p>Total Quote Pipeline</p>
-                  </div>
+                  <ActivityItem
+                    value={formatCurrency(paidRevenue)}
+                    label="Revenue"
+                  />
                 </div>
-              </section>
-            </>
-          )}
-        </main>
-      </div>
+              </div>
+            </section>
+
+            <section className="panel dashboardActivity">
+              <h3>Business Activity</h3>
+
+              <div className="activityGrid">
+                <ActivityItem
+                  value={completedTasks}
+                  label="Tasks Completed"
+                />
+
+                <ActivityItem
+                  value={pendingTasks}
+                  label="Tasks Pending"
+                />
+
+                <ActivityItem
+                  value={activeProjects}
+                  label="Projects Running"
+                />
+
+                <ActivityItem
+                  value={formatCurrency(pipelineValue)}
+                  label="Total Quote Pipeline"
+                />
+              </div>
+            </section>
+          </>
+        )}
+      </AppLayout>
     </ProtectedRoute>
   );
+}
+
+function DashboardStatCard({ label, value }) {
+  return (
+    <div className="statCard">
+      <p>{label}</p>
+      <h2>{value}</h2>
+    </div>
+  );
+}
+
+function ActivityItem({ value, label }) {
+  return (
+    <div>
+      <strong>{value}</strong>
+      <p>{label}</p>
+    </div>
+  );
+}
+
+function PanelHeader({ title, href, linkText }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: "16px",
+        marginBottom: "12px",
+      }}
+    >
+      <h3 style={{ margin: 0 }}>{title}</h3>
+
+      <Link href={href} className="leadLink">
+        {linkText}
+      </Link>
+    </div>
+  );
+}
+
+function EmptyState({ message }) {
+  return <p className="helperText">{message}</p>;
 }
