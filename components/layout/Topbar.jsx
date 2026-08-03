@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import SettingsDropdown from "./SettingsDropdown";
 import UserDropdown from "./UserDropdown";
+import QuickActionsDropdown from "./QuickActionsDropdown";
 import styles from "./layout.module.css";
 
 export default function Topbar({
@@ -11,14 +12,28 @@ export default function Topbar({
   description,
   onOpenSidebar,
 }) {
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [userOpen, setUserOpen] = useState(false);
-  const [searchValue, setSearchValue] = useState("");
-  const [userName, setUserName] = useState("SaiNal One User");
-  const [userEmail, setUserEmail] = useState("");
+  const [quickActionsOpen, setQuickActionsOpen] =
+    useState(false);
 
+  const [settingsOpen, setSettingsOpen] =
+    useState(false);
+
+  const [userOpen, setUserOpen] =
+    useState(false);
+
+  const [searchValue, setSearchValue] =
+    useState("");
+
+  const [userName, setUserName] =
+    useState("SaiNal One User");
+
+  const [userEmail, setUserEmail] =
+    useState("");
+
+  const quickActionsRef = useRef(null);
   const settingsRef = useRef(null);
   const userRef = useRef(null);
+  const searchInputRef = useRef(null);
 
   useEffect(() => {
     loadCurrentUser();
@@ -27,21 +42,68 @@ export default function Topbar({
   useEffect(() => {
     function handleOutsideClick(event) {
       if (
+        quickActionsRef.current &&
+        !quickActionsRef.current.contains(event.target)
+      ) {
+        setQuickActionsOpen(false);
+      }
+
+      if (
         settingsRef.current &&
         !settingsRef.current.contains(event.target)
       ) {
         setSettingsOpen(false);
       }
 
-      if (userRef.current && !userRef.current.contains(event.target)) {
+      if (
+        userRef.current &&
+        !userRef.current.contains(event.target)
+      ) {
         setUserOpen(false);
       }
     }
 
-    document.addEventListener("mousedown", handleOutsideClick);
+    function handleKeyboardShortcut(event) {
+      const isSearchShortcut =
+        (event.ctrlKey || event.metaKey) &&
+        event.key.toLowerCase() === "k";
+
+      if (isSearchShortcut) {
+        event.preventDefault();
+
+        searchInputRef.current?.focus();
+
+        setQuickActionsOpen(false);
+        setSettingsOpen(false);
+        setUserOpen(false);
+      }
+
+      if (event.key === "Escape") {
+        closeDropdowns();
+        searchInputRef.current?.blur();
+      }
+    }
+
+    document.addEventListener(
+      "mousedown",
+      handleOutsideClick
+    );
+
+    document.addEventListener(
+      "keydown",
+      handleKeyboardShortcut
+    );
 
     return () => {
-      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener(
+        "mousedown",
+        handleOutsideClick
+      );
+
+      document.removeEventListener(
+        "keydown",
+        handleKeyboardShortcut
+      );
     };
   }, []);
 
@@ -63,23 +125,69 @@ export default function Topbar({
           "SaiNal One User"
       );
     } catch (error) {
-      console.error("Unable to load current user:", error);
+      console.error(
+        "Unable to load current user:",
+        error
+      );
     }
   }
 
   function closeDropdowns() {
+    setQuickActionsOpen(false);
+    setSettingsOpen(false);
+    setUserOpen(false);
+  }
+
+  function openQuickActions() {
+    setQuickActionsOpen(
+      (currentValue) => !currentValue
+    );
+
     setSettingsOpen(false);
     setUserOpen(false);
   }
 
   function openSettings() {
-    setSettingsOpen((current) => !current);
+    setSettingsOpen(
+      (currentValue) => !currentValue
+    );
+
+    setQuickActionsOpen(false);
     setUserOpen(false);
   }
 
   function openUserMenu() {
-    setUserOpen((current) => !current);
+    setUserOpen(
+      (currentValue) => !currentValue
+    );
+
+    setQuickActionsOpen(false);
     setSettingsOpen(false);
+  }
+
+  function handleSearchChange(event) {
+    setSearchValue(event.target.value);
+  }
+
+  function handleSearchSubmit(event) {
+    event.preventDefault();
+
+    const cleanSearchValue =
+      searchValue.trim();
+
+    if (!cleanSearchValue) {
+      return;
+    }
+
+    /*
+     * Global search results will be connected later.
+     * This currently keeps the UI ready without
+     * sending the user to a broken route.
+     */
+    console.log(
+      "SaiNal One search:",
+      cleanSearchValue
+    );
   }
 
   return (
@@ -97,33 +205,68 @@ export default function Topbar({
         <div>
           <h1>{title}</h1>
 
-          {description && <p>{description}</p>}
+          {description && (
+            <p>{description}</p>
+          )}
         </div>
       </div>
 
       <div className={styles.topbarActions}>
-        <label className={styles.searchContainer}>
-          <span className={styles.searchIcon}>⌕</span>
+        <form
+          className={styles.searchContainer}
+          onSubmit={handleSearchSubmit}
+          role="search"
+        >
+          <span
+            className={styles.searchIcon}
+            aria-hidden="true"
+          >
+            ⌕
+          </span>
 
           <input
+            ref={searchInputRef}
             type="search"
             placeholder="Search SaiNal One..."
             value={searchValue}
-            onChange={(event) => setSearchValue(event.target.value)}
+            onChange={handleSearchChange}
             aria-label="Search SaiNal One"
           />
 
-          <span className={styles.searchShortcut}>⌘ K</span>
-        </label>
+          <span
+            className={styles.searchShortcut}
+            aria-hidden="true"
+          >
+            ⌘ K
+          </span>
+        </form>
 
-        <button
-          type="button"
-          className={styles.quickActionButton}
-          title="Create new"
-          aria-label="Create new"
+        <div
+          className={styles.dropdownWrapper}
+          ref={quickActionsRef}
         >
-          +
-        </button>
+          <button
+            type="button"
+            className={`${styles.quickActionButton} ${
+              quickActionsOpen
+                ? styles.actionButtonActive
+                : ""
+            }`}
+            onClick={openQuickActions}
+            title="Create new"
+            aria-label="Create new"
+            aria-expanded={quickActionsOpen}
+            aria-haspopup="menu"
+          >
+            +
+          </button>
+
+          {quickActionsOpen && (
+            <QuickActionsDropdown
+              onNavigate={closeDropdowns}
+            />
+          )}
+        </div>
 
         <button
           type="button"
@@ -132,47 +275,78 @@ export default function Topbar({
           aria-label="Notifications"
         >
           ◌
-          <span className={styles.notificationDot} />
+
+          <span
+            className={styles.notificationDot}
+            aria-hidden="true"
+          />
         </button>
 
-        <div className={styles.dropdownWrapper} ref={settingsRef}>
+        <div
+          className={styles.dropdownWrapper}
+          ref={settingsRef}
+        >
           <button
             type="button"
             className={`${styles.iconButton} ${
-              settingsOpen ? styles.actionButtonActive : ""
+              settingsOpen
+                ? styles.actionButtonActive
+                : ""
             }`}
             onClick={openSettings}
             aria-label="Open settings"
             aria-expanded={settingsOpen}
+            aria-haspopup="menu"
           >
             ⚙
           </button>
 
           {settingsOpen && (
-            <SettingsDropdown onNavigate={closeDropdowns} />
+            <SettingsDropdown
+              onNavigate={closeDropdowns}
+            />
           )}
         </div>
 
-        <div className={styles.dropdownWrapper} ref={userRef}>
+        <div
+          className={styles.dropdownWrapper}
+          ref={userRef}
+        >
           <button
             type="button"
             className={`${styles.profileButton} ${
-              userOpen ? styles.actionButtonActive : ""
+              userOpen
+                ? styles.actionButtonActive
+                : ""
             }`}
             onClick={openUserMenu}
             aria-label="Open user menu"
             aria-expanded={userOpen}
+            aria-haspopup="menu"
           >
             <span className={styles.smallAvatar}>
-              {getInitials(userName || userEmail)}
+              {getInitials(
+                userName || userEmail
+              )}
             </span>
 
-            <span className={styles.profileButtonText}>
+            <span
+              className={
+                styles.profileButtonText
+              }
+            >
               <strong>{userName}</strong>
               <small>Owner</small>
             </span>
 
-            <span className={styles.profileChevron}>⌄</span>
+            <span
+              className={
+                styles.profileChevron
+              }
+              aria-hidden="true"
+            >
+              ⌄
+            </span>
           </button>
 
           {userOpen && (
@@ -195,11 +369,17 @@ function getInitials(value = "") {
     return "SN";
   }
 
-  const parts = cleanedValue.split(/\s+/).filter(Boolean);
+  const parts = cleanedValue
+    .split(/\s+/)
+    .filter(Boolean);
 
   if (parts.length === 1) {
-    return parts[0].slice(0, 2).toUpperCase();
+    return parts[0]
+      .slice(0, 2)
+      .toUpperCase();
   }
 
-  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+  return `${parts[0][0]}${
+    parts[parts.length - 1][0]
+  }`.toUpperCase();
 }
