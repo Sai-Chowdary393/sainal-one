@@ -1,55 +1,118 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import {
+  use,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import Link from "next/link";
-import Sidebar from "../../../components/Sidebar";
+
+import AppLayout from "../../../components/layout/AppLayout";
 import ProtectedRoute from "../../../components/ProtectedRoute";
 import SendRecordEmail from "../../../components/SendRecordEmail";
+import StatusBadge from "../../../components/StatusBadge";
+import styles from "./proposal-details.module.css";
 
-export default function ProposalDetailsPage({ params }) {
+const STATUS_OPTIONS = [
+  "Draft",
+  "Sent",
+  "Accepted",
+  "Rejected",
+];
+
+export default function ProposalDetailsPage({
+  params,
+}) {
   const resolvedParams = use(params);
-  const proposalId = resolvedParams.id;
+  const proposalId = resolvedParams?.id;
 
-  const [proposal, setProposal] = useState(null);
-  const [draftProposal, setDraftProposal] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [editing, setEditing] = useState(false);
+  const [proposal, setProposal] =
+    useState(null);
+
+  const [
+    draftProposal,
+    setDraftProposal,
+  ] = useState(null);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [saving, setSaving] =
+    useState(false);
+
+  const [editing, setEditing] =
+    useState(false);
+
+  const [
+    errorMessage,
+    setErrorMessage,
+  ] = useState("");
 
   useEffect(() => {
-    fetchProposal();
+    if (proposalId) {
+      fetchProposal();
+    }
   }, [proposalId]);
 
   async function fetchProposal() {
     try {
+      setLoading(true);
+      setErrorMessage("");
+
       const response = await fetch(
-        `/api/proposals/${proposalId}`
+        `/api/proposals/${proposalId}`,
+        {
+          cache: "no-store",
+        }
       );
 
       const data = await response.json();
 
       if (!response.ok) {
-        alert(data.error || "Failed to load proposal.");
-        return;
+        throw new Error(
+          data.error ||
+            "Failed to load proposal."
+        );
       }
 
-      setProposal(data);
-      setDraftProposal(data);
+      const selectedProposal =
+        Array.isArray(data)
+          ? data[0]
+          : data;
+
+      setProposal(
+        selectedProposal || null
+      );
+
+      setDraftProposal(
+        selectedProposal || null
+      );
     } catch (error) {
-      console.error(error);
-      alert("Error loading proposal.");
+      console.error(
+        "Proposal loading error:",
+        error
+      );
+
+      setErrorMessage(
+        error.message ||
+          "We could not load this proposal."
+      );
     } finally {
       setLoading(false);
     }
   }
 
   function handleFieldChange(event) {
-    const { name, value } = event.target;
+    const { name, value } =
+      event.target;
 
-    setDraftProposal((currentProposal) => ({
-      ...currentProposal,
-      [name]: value,
-    }));
+    setDraftProposal(
+      (currentProposal) => ({
+        ...currentProposal,
+        [name]: value,
+      })
+    );
   }
 
   function startEditing() {
@@ -73,183 +136,417 @@ export default function ProposalDetailsPage({ params }) {
       return;
     }
 
-    if (!draftProposal.title?.trim()) {
-      alert("Proposal title is required.");
+    if (
+      !draftProposal.title?.trim()
+    ) {
+      alert(
+        "Proposal title is required."
+      );
+
       return;
     }
 
-    if (!draftProposal.client?.trim()) {
-      alert("Client name is required.");
+    if (
+      !draftProposal.client?.trim()
+    ) {
+      alert(
+        "Client name is required."
+      );
+
       return;
     }
 
-    if (!draftProposal.service?.trim()) {
+    if (
+      !draftProposal.service?.trim()
+    ) {
       alert("Service is required.");
+
       return;
     }
 
-    if (!draftProposal.proposal_text?.trim()) {
-      alert("Proposal content is required.");
+    if (
+      !draftProposal.proposal_text?.trim()
+    ) {
+      alert(
+        "Proposal content is required."
+      );
+
       return;
     }
-
-    setSaving(true);
 
     try {
+      setSaving(true);
+
       const response = await fetch(
         `/api/proposals/${proposalId}`,
         {
           method: "PATCH",
+
           headers: {
-            "Content-Type": "application/json",
+            "Content-Type":
+              "application/json",
           },
+
           body: JSON.stringify({
-            title: draftProposal.title,
-            client: draftProposal.client,
-            contact: draftProposal.contact,
-            email: draftProposal.email,
-            service: draftProposal.service,
-            amount: draftProposal.amount,
-            status: draftProposal.status,
-            proposal_text: draftProposal.proposal_text,
+            title:
+              draftProposal.title.trim(),
+
+            client:
+              draftProposal.client.trim(),
+
+            contact:
+              String(
+                draftProposal.contact ||
+                  ""
+              ).trim(),
+
+            email:
+              String(
+                draftProposal.email ||
+                  ""
+              ).trim(),
+
+            service:
+              draftProposal.service.trim(),
+
+            amount:
+              String(
+                draftProposal.amount ||
+                  ""
+              ).trim(),
+
+            status:
+              draftProposal.status ||
+              "Draft",
+
+            proposal_text:
+              draftProposal.proposal_text.trim(),
           }),
         }
       );
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
       if (!response.ok) {
-        alert(data.error || "Failed to update proposal.");
-        return;
+        throw new Error(
+          data.error ||
+            "Failed to update proposal."
+        );
       }
 
-      setProposal(data);
-      setDraftProposal(data);
+      const updatedProposal =
+        Array.isArray(data)
+          ? data[0]
+          : data;
+
+      setProposal(
+        updatedProposal ||
+          draftProposal
+      );
+
+      setDraftProposal(
+        updatedProposal ||
+          draftProposal
+      );
+
       setEditing(false);
 
-      alert("Proposal updated successfully.");
+      alert(
+        "Proposal updated successfully."
+      );
     } catch (error) {
-      console.error(error);
-      alert("Error updating proposal.");
+      console.error(
+        "Proposal update error:",
+        error
+      );
+
+      alert(
+        error.message ||
+          "Error updating proposal."
+      );
     } finally {
       setSaving(false);
     }
   }
 
-  async function updateStatus(status) {
-    setSaving(true);
-
+  async function updateStatus(
+    status
+  ) {
     try {
+      setSaving(true);
+
       const response = await fetch(
         `/api/proposals/${proposalId}`,
         {
           method: "PATCH",
+
           headers: {
-            "Content-Type": "application/json",
+            "Content-Type":
+              "application/json",
           },
+
           body: JSON.stringify({
             status,
           }),
         }
       );
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
       if (!response.ok) {
-        alert(data.error || "Failed to update proposal status.");
-        return;
+        throw new Error(
+          data.error ||
+            "Failed to update proposal status."
+        );
       }
 
-      setProposal(data);
-      setDraftProposal(data);
+      const updatedProposal =
+        Array.isArray(data)
+          ? data[0]
+          : data;
+
+      setProposal(
+        updatedProposal || {
+          ...proposal,
+          status,
+        }
+      );
+
+      setDraftProposal(
+        updatedProposal || {
+          ...draftProposal,
+          status,
+        }
+      );
     } catch (error) {
-      console.error(error);
-      alert("Error updating proposal status.");
+      console.error(
+        "Proposal status update error:",
+        error
+      );
+
+      alert(
+        error.message ||
+          "Error updating proposal status."
+      );
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function copyProposal() {
+    try {
+      await navigator.clipboard.writeText(
+        proposal?.proposal_text ||
+          ""
+      );
+
+      alert(
+        "Proposal copied successfully."
+      );
+    } catch (error) {
+      console.error(
+        "Proposal copy error:",
+        error
+      );
+
+      alert(
+        "Unable to copy the proposal."
+      );
     }
   }
 
   if (loading) {
     return (
       <ProtectedRoute>
-        <div className="appLayout">
-          <Sidebar />
-
-          <main className="mainContent">
-            <p>Loading proposal...</p>
-          </main>
-        </div>
+        <AppLayout
+          title="Proposal Studio"
+          description="Loading proposal information."
+        >
+          <LoadingState />
+        </AppLayout>
       </ProtectedRoute>
     );
   }
 
-  if (!proposal || !draftProposal) {
+  if (errorMessage) {
     return (
       <ProtectedRoute>
-        <div className="appLayout">
-          <Sidebar />
+        <AppLayout
+          title="Proposal Studio"
+          description="Review and manage a customer proposal."
+        >
+          <section
+            className={
+              styles.errorPanel
+            }
+          >
+            <div>
+              <strong>
+                Unable to load proposal
+              </strong>
 
-          <main className="mainContent">
-            <Link
-              href="/proposals"
-              className="leadLink"
+              <p>
+                {errorMessage}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              className={
+                styles.secondaryButton
+              }
+              onClick={fetchProposal}
             >
-              ← Back to Proposals
-            </Link>
-
-            <h1>Proposal not found</h1>
-          </main>
-        </div>
+              Try again
+            </button>
+          </section>
+        </AppLayout>
       </ProtectedRoute>
     );
   }
 
-  const visibleProposal = editing
-    ? draftProposal
-    : proposal;
+  if (
+    !proposal ||
+    !draftProposal
+  ) {
+    return (
+      <ProtectedRoute>
+        <AppLayout
+          title="Proposal Studio"
+          description="Review and manage a customer proposal."
+        >
+          <section
+            className={
+              styles.notFound
+            }
+          >
+            <span
+              className={
+                styles.notFoundIcon
+              }
+            >
+              ▤
+            </span>
+
+            <h2>
+              Proposal not found
+            </h2>
+
+            <p>
+              This proposal may have
+              been deleted or you may
+              not have access to it.
+            </p>
+
+            <Link
+              href="/proposals"
+              className={
+                styles.primaryButton
+              }
+            >
+              Return to proposals
+            </Link>
+          </section>
+        </AppLayout>
+      </ProtectedRoute>
+    );
+  }
+
+  const visibleProposal =
+    editing
+      ? draftProposal
+      : proposal;
+
+  const sections = useMemo(
+    () =>
+      parseProposalSections(
+        visibleProposal.proposal_text ||
+          ""
+      ),
+    [
+      visibleProposal.proposal_text,
+    ]
+  );
+
+  const recommendations =
+    buildRecommendations(
+      visibleProposal,
+      sections
+    );
 
   return (
     <ProtectedRoute>
-      <div className="appLayout">
-        <Sidebar />
-
-        <main className="mainContent">
-          <div className="topBar noPrint">
-            <div>
+      <AppLayout
+        title={
+          visibleProposal.title ||
+          "Proposal Studio"
+        }
+        description="Proposal document, client information, pricing and approval workflow."
+      >
+        <div
+          className={styles.page}
+        >
+          <section
+            className={`${styles.pageHeader} ${styles.noPrint}`}
+          >
+            <div
+              className={
+                styles.headerCopy
+              }
+            >
               <Link
                 href="/proposals"
-                className="leadLink"
+                className={
+                  styles.backLink
+                }
               >
-                ← Back to Proposals
+                ← Back to proposals
               </Link>
 
-              <h1>
-                {visibleProposal.title}
-              </h1>
+              <span
+                className={
+                  styles.eyebrow
+                }
+              >
+                Proposal Studio
+              </span>
 
-              <p className="helperText">
-                {proposal.proposal_number}
+              <h2>
+                {visibleProposal.title ||
+                  "Untitled proposal"}
+              </h2>
+
+              <p>
+                {proposal.proposal_number ||
+                  "Proposal"}
               </p>
             </div>
 
             <div
-              style={{
-                display: "flex",
-                gap: "10px",
-                flexWrap: "wrap",
-                alignItems: "flex-start",
-              }}
+              className={
+                styles.headerActions
+              }
             >
               <SendRecordEmail
                 endpoint={`/api/proposals/${proposal.id}/send`}
-                defaultEmail={proposal.email || ""}
+                defaultEmail={
+                  proposal.email || ""
+                }
                 defaultSubject={`${proposal.title} – ${proposal.proposal_number}`}
                 recordLabel="proposal"
                 onSent={(data) => {
-                  if (data.proposal) {
-                    setProposal(data.proposal);
-                    setDraftProposal(data.proposal);
+                  if (
+                    data.proposal
+                  ) {
+                    setProposal(
+                      data.proposal
+                    );
+
+                    setDraftProposal(
+                      data.proposal
+                    );
                   }
                 }}
               />
@@ -257,174 +554,1146 @@ export default function ProposalDetailsPage({ params }) {
               {!editing ? (
                 <button
                   type="button"
-                  className="primaryBtn"
-                  onClick={startEditing}
+                  className={
+                    styles.secondaryButton
+                  }
+                  onClick={
+                    startEditing
+                  }
                 >
-                  Edit Proposal
+                  Edit proposal
                 </button>
               ) : (
                 <>
                   <button
                     type="button"
-                    className="primaryBtn"
-                    disabled={saving}
-                    onClick={saveProposal}
+                    className={
+                      styles.secondaryButton
+                    }
+                    disabled={
+                      saving
+                    }
+                    onClick={
+                      cancelEditing
+                    }
                   >
-                    {saving
-                      ? "Saving..."
-                      : "Save Proposal"}
+                    Cancel
                   </button>
 
                   <button
                     type="button"
-                    className="primaryBtn"
-                    disabled={saving}
-                    onClick={cancelEditing}
+                    className={
+                      styles.primaryButton
+                    }
+                    disabled={
+                      saving
+                    }
+                    onClick={
+                      saveProposal
+                    }
                   >
-                    Cancel
+                    {saving
+                      ? "Saving..."
+                      : "Save changes"}
                   </button>
                 </>
               )}
 
               <button
                 type="button"
-                className="primaryBtn"
-                onClick={() => window.print()}
+                className={
+                  styles.secondaryButton
+                }
+                onClick={
+                  copyProposal
+                }
+              >
+                Copy proposal
+              </button>
+
+              <button
+                type="button"
+                className={
+                  styles.primaryButton
+                }
+                onClick={() =>
+                  window.print()
+                }
               >
                 Print / Save PDF
               </button>
             </div>
-          </div>
+          </section>
 
-          <section className="panel">
-            <div className="settingsGrid noPrint">
-              <label className="fullWidth">
-                Proposal Title
+          <section
+            className={
+              styles.heroCard
+            }
+          >
+            <div
+              className={
+                styles.proposalIdentity
+              }
+            >
+              <span
+                className={
+                  styles.proposalIcon
+                }
+              >
+                ▤
+              </span>
 
-                <input
-                  name="title"
-                  value={visibleProposal.title || ""}
-                  disabled={!editing || saving}
-                  onChange={handleFieldChange}
-                />
-              </label>
-
-              <label>
-                Status
-
-                <select
-                  name="status"
-                  value={visibleProposal.status || "Draft"}
-                  disabled={saving}
-                  onChange={(event) => {
-                    if (editing) {
-                      handleFieldChange(event);
-                    } else {
-                      updateStatus(event.target.value);
-                    }
-                  }}
+              <div
+                className={
+                  styles.identityCopy
+                }
+              >
+                <span
+                  className={
+                    styles.heroLabel
+                  }
                 >
-                  <option>Draft</option>
-                  <option>Sent</option>
-                  <option>Accepted</option>
-                  <option>Rejected</option>
-                </select>
-              </label>
+                  Customer proposal
+                </span>
 
-              <label>
-                Client
+                <h3>
+                  {visibleProposal.client ||
+                    "Unnamed client"}
+                </h3>
 
-                <input
-                  name="client"
-                  value={visibleProposal.client || ""}
-                  disabled={!editing || saving}
-                  onChange={handleFieldChange}
-                />
-              </label>
+                <p>
+                  {visibleProposal.service ||
+                    "Professional services"}
+                </p>
 
-              <label>
-                Contact
+                <div
+                  className={
+                    styles.identityMeta
+                  }
+                >
+                  <StatusBadge
+                    status={
+                      visibleProposal.status ||
+                      "Draft"
+                    }
+                  />
 
-                <input
-                  name="contact"
-                  value={visibleProposal.contact || ""}
-                  disabled={!editing || saving}
-                  onChange={handleFieldChange}
-                />
-              </label>
+                  <span
+                    className={
+                      styles.metaBadge
+                    }
+                  >
+                    Created{" "}
+                    {formatDate(
+                      proposal.created_at
+                    )}
+                  </span>
 
-              <label>
-                Email
-
-                <input
-                  name="email"
-                  type="email"
-                  value={visibleProposal.email || ""}
-                  disabled={!editing || saving}
-                  onChange={handleFieldChange}
-                />
-              </label>
-
-              <label>
-                Service
-
-                <input
-                  name="service"
-                  value={visibleProposal.service || ""}
-                  disabled={!editing || saving}
-                  onChange={handleFieldChange}
-                />
-              </label>
-
-              <label>
-                Amount
-
-                <input
-                  name="amount"
-                  value={visibleProposal.amount || ""}
-                  disabled={!editing || saving}
-                  onChange={handleFieldChange}
-                  placeholder="Example: £3,000"
-                />
-              </label>
+                  <span
+                    className={
+                      styles.metaBadge
+                    }
+                  >
+                    {proposal.proposal_number ||
+                      "No proposal number"}
+                  </span>
+                </div>
+              </div>
             </div>
 
-            {editing ? (
-              <div style={{ marginTop: "24px" }}>
-                <label
-                  style={{
-                    display: "block",
-                    fontWeight: "600",
-                    marginBottom: "8px",
-                  }}
-                >
-                  Proposal Content
-                </label>
+            <div
+              className={
+                styles.amountCard
+              }
+            >
+              <span>
+                Proposal value
+              </span>
 
-                <textarea
-                  name="proposal_text"
-                  className="emailDraftBox"
-                  rows={30}
-                  value={draftProposal.proposal_text || ""}
-                  disabled={saving}
-                  onChange={handleFieldChange}
+              <strong>
+                {formatProposalAmount(
+                  visibleProposal.amount
+                )}
+              </strong>
+
+              <small>
+                {visibleProposal.status ||
+                  "Draft"}
+              </small>
+            </div>
+          </section>
+
+          <section
+            className={
+              styles.workspaceGrid
+            }
+          >
+            <section
+              className={
+                styles.panel
+              }
+            >
+              <div
+                className={
+                  styles.panelHeader
+                }
+              >
+                <div>
+                  <h3>
+                    Proposal information
+                  </h3>
+
+                  <p>
+                    Client, service,
+                    pricing and status
+                  </p>
+                </div>
+              </div>
+
+              {editing ? (
+                <div
+                  className={
+                    styles.formGrid
+                  }
+                >
+                  <Field
+                    label="Proposal title"
+                    name="title"
+                    value={
+                      draftProposal.title
+                    }
+                    onChange={
+                      handleFieldChange
+                    }
+                    full
+                  />
+
+                  <Field
+                    label="Client"
+                    name="client"
+                    value={
+                      draftProposal.client
+                    }
+                    onChange={
+                      handleFieldChange
+                    }
+                  />
+
+                  <Field
+                    label="Contact"
+                    name="contact"
+                    value={
+                      draftProposal.contact
+                    }
+                    onChange={
+                      handleFieldChange
+                    }
+                  />
+
+                  <Field
+                    label="Email"
+                    name="email"
+                    type="email"
+                    value={
+                      draftProposal.email
+                    }
+                    onChange={
+                      handleFieldChange
+                    }
+                  />
+
+                  <Field
+                    label="Service"
+                    name="service"
+                    value={
+                      draftProposal.service
+                    }
+                    onChange={
+                      handleFieldChange
+                    }
+                  />
+
+                  <Field
+                    label="Amount"
+                    name="amount"
+                    value={
+                      draftProposal.amount
+                    }
+                    onChange={
+                      handleFieldChange
+                    }
+                  />
+
+                  <div
+                    className={
+                      styles.field
+                    }
+                  >
+                    <label
+                      htmlFor="proposal-status"
+                    >
+                      Status
+                    </label>
+
+                    <select
+                      id="proposal-status"
+                      name="status"
+                      value={
+                        draftProposal.status ||
+                        "Draft"
+                      }
+                      disabled={
+                        saving
+                      }
+                      onChange={
+                        handleFieldChange
+                      }
+                    >
+                      {STATUS_OPTIONS.map(
+                        (status) => (
+                          <option
+                            key={
+                              status
+                            }
+                            value={
+                              status
+                            }
+                          >
+                            {status}
+                          </option>
+                        )
+                      )}
+                    </select>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  className={
+                    styles.detailList
+                  }
+                >
+                  <DetailRow
+                    label="Proposal title"
+                    value={
+                      proposal.title
+                    }
+                  />
+
+                  <DetailRow
+                    label="Client"
+                    value={
+                      proposal.client
+                    }
+                  />
+
+                  <DetailRow
+                    label="Contact"
+                    value={
+                      proposal.contact
+                    }
+                  />
+
+                  <DetailRow
+                    label="Email"
+                    value={
+                      proposal.email
+                    }
+                    href={
+                      proposal.email
+                        ? `mailto:${proposal.email}`
+                        : null
+                    }
+                  />
+
+                  <DetailRow
+                    label="Service"
+                    value={
+                      proposal.service
+                    }
+                  />
+
+                  <DetailRow
+                    label="Amount"
+                    value={formatProposalAmount(
+                      proposal.amount
+                    )}
+                  />
+
+                  <DetailRow
+                    label="Status"
+                    customValue={
+                      <select
+                        className={
+                          styles.inlineStatusSelect
+                        }
+                        value={
+                          proposal.status ||
+                          "Draft"
+                        }
+                        disabled={
+                          saving
+                        }
+                        onChange={(
+                          event
+                        ) =>
+                          updateStatus(
+                            event.target
+                              .value
+                          )
+                        }
+                      >
+                        {STATUS_OPTIONS.map(
+                          (
+                            status
+                          ) => (
+                            <option
+                              key={
+                                status
+                              }
+                              value={
+                                status
+                              }
+                            >
+                              {
+                                status
+                              }
+                            </option>
+                          )
+                        )}
+                      </select>
+                    }
+                  />
+
+                  <DetailRow
+                    label="Created"
+                    value={formatDate(
+                      proposal.created_at
+                    )}
+                  />
+                </div>
+              )}
+            </section>
+
+            <section
+              className={
+                styles.aiPanel
+              }
+            >
+              <div
+                className={
+                  styles.aiHeader
+                }
+              >
+                <span
+                  className={
+                    styles.aiIcon
+                  }
+                >
+                  ✦
+                </span>
+
+                <div>
+                  <span>
+                    Proposal intelligence
+                  </span>
+
+                  <h3>
+                    Quality overview
+                  </h3>
+                </div>
+              </div>
+
+              <div
+                className={
+                  styles.qualityGrid
+                }
+              >
+                <QualityMetric
+                  label="Structure"
+                  value={
+                    sections.length >=
+                    5
+                      ? "Strong"
+                      : "Needs work"
+                  }
+                />
+
+                <QualityMetric
+                  label="Commercials"
+                  value={
+                    visibleProposal.amount
+                      ? "Included"
+                      : "Missing"
+                  }
+                />
+
+                <QualityMetric
+                  label="Client"
+                  value={
+                    visibleProposal.client
+                      ? "Defined"
+                      : "Missing"
+                  }
+                />
+
+                <QualityMetric
+                  label="Status"
+                  value={
+                    visibleProposal.status ||
+                    "Draft"
+                  }
                 />
               </div>
-            ) : (
-              <article
-                className="proposalDocument"
-                style={{
-                  whiteSpace: "pre-wrap",
-                  lineHeight: "1.8",
-                  marginTop: "24px",
-                }}
+
+              <div
+                className={
+                  styles.aiRecommendations
+                }
               >
-                {proposal.proposal_text}
-              </article>
-            )}
+                <span>
+                  Recommended improvements
+                </span>
+
+                {recommendations.map(
+                  (
+                    recommendation,
+                    index
+                  ) => (
+                    <div
+                      key={`${recommendation}-${index}`}
+                      className={
+                        styles.recommendationItem
+                      }
+                    >
+                      <span>
+                        →
+                      </span>
+
+                      <p>
+                        {
+                          recommendation
+                        }
+                      </p>
+                    </div>
+                  )
+                )}
+              </div>
+            </section>
           </section>
-        </main>
-      </div>
+
+          {editing ? (
+            <section
+              className={
+                styles.editorPanel
+              }
+            >
+              <div
+                className={
+                  styles.panelHeader
+                }
+              >
+                <div>
+                  <h3>
+                    Proposal content
+                  </h3>
+
+                  <p>
+                    Edit the complete
+                    customer-facing
+                    document
+                  </p>
+                </div>
+              </div>
+
+              <textarea
+                name="proposal_text"
+                className={
+                  styles.proposalEditor
+                }
+                rows={34}
+                value={
+                  draftProposal.proposal_text ||
+                  ""
+                }
+                disabled={saving}
+                onChange={
+                  handleFieldChange
+                }
+              />
+            </section>
+          ) : (
+            <section
+              className={
+                styles.documentPanel
+              }
+            >
+              <div
+                className={`${styles.documentToolbar} ${styles.noPrint}`}
+              >
+                <div>
+                  <span
+                    className={
+                      styles.eyebrow
+                    }
+                  >
+                    Customer document
+                  </span>
+
+                  <h3>
+                    Full proposal
+                  </h3>
+                </div>
+
+                <div>
+                  <button
+                    type="button"
+                    className={
+                      styles.secondaryButton
+                    }
+                    onClick={
+                      copyProposal
+                    }
+                  >
+                    Copy
+                  </button>
+
+                  <button
+                    type="button"
+                    className={
+                      styles.primaryButton
+                    }
+                    onClick={() =>
+                      window.print()
+                    }
+                  >
+                    Export PDF
+                  </button>
+                </div>
+              </div>
+
+              <article
+                className={
+                  styles.proposalDocument
+                }
+              >
+                <header
+                  className={
+                    styles.documentHeader
+                  }
+                >
+                  <div>
+                    <span
+                      className={
+                        styles.documentBrandMark
+                      }
+                    >
+                      SN
+                    </span>
+
+                    <div>
+                      <strong>
+                        SaiNal
+                        Technologies Ltd
+                      </strong>
+
+                      <p>
+                        Business technology
+                        solutions
+                      </p>
+                    </div>
+                  </div>
+
+                  <div
+                    className={
+                      styles.documentTitle
+                    }
+                  >
+                    <span>
+                      PROPOSAL
+                    </span>
+
+                    <strong>
+                      {proposal.proposal_number ||
+                        "Proposal"}
+                    </strong>
+                  </div>
+                </header>
+
+                <section
+                  className={
+                    styles.documentMeta
+                  }
+                >
+                  <div>
+                    <span>
+                      Prepared for
+                    </span>
+
+                    <strong>
+                      {proposal.client ||
+                        "Client"}
+                    </strong>
+
+                    <p>
+                      {proposal.contact ||
+                        ""}
+                    </p>
+
+                    <p>
+                      {proposal.email ||
+                        ""}
+                    </p>
+                  </div>
+
+                  <div>
+                    <span>
+                      Proposal date
+                    </span>
+
+                    <strong>
+                      {formatDate(
+                        proposal.created_at
+                      )}
+                    </strong>
+
+                    <span>
+                      Status
+                    </span>
+
+                    <strong>
+                      {proposal.status ||
+                        "Draft"}
+                    </strong>
+                  </div>
+                </section>
+
+                <section
+                  className={
+                    styles.documentSummary
+                  }
+                >
+                  <div>
+                    <span>
+                      Proposal title
+                    </span>
+
+                    <strong>
+                      {proposal.title ||
+                        "Proposal"}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>
+                      Value
+                    </span>
+
+                    <strong>
+                      {formatProposalAmount(
+                        proposal.amount
+                      )}
+                    </strong>
+                  </div>
+                </section>
+
+                <div
+                  className={
+                    styles.documentSections
+                  }
+                >
+                  {sections.length >
+                  0 ? (
+                    sections.map(
+                      (
+                        section,
+                        index
+                      ) => (
+                        <section
+                          key={`${section.title}-${index}`}
+                          className={
+                            styles.documentSection
+                          }
+                        >
+                          {section.title && (
+                            <h3>
+                              {
+                                section.title
+                              }
+                            </h3>
+                          )}
+
+                          <p>
+                            {
+                              section.content
+                            }
+                          </p>
+                        </section>
+                      )
+                    )
+                  ) : (
+                    <pre
+                      className={
+                        styles.proposalPreview
+                      }
+                    >
+                      {proposal.proposal_text ||
+                        "No proposal content is available."}
+                    </pre>
+                  )}
+                </div>
+
+                <footer
+                  className={
+                    styles.documentFooter
+                  }
+                >
+                  <p>
+                    SaiNal Technologies Ltd
+                  </p>
+
+                  <p>
+                    www.sainaltechnologies.com
+                  </p>
+                </footer>
+              </article>
+            </section>
+          )}
+        </div>
+      </AppLayout>
     </ProtectedRoute>
+  );
+}
+
+function Field({
+  label,
+  name,
+  value,
+  onChange,
+  type = "text",
+  full = false,
+}) {
+  return (
+    <div
+      className={`${styles.field} ${
+        full
+          ? styles.fieldFull
+          : ""
+      }`}
+    >
+      <label
+        htmlFor={`proposal-${name}`}
+      >
+        {label}
+      </label>
+
+      <input
+        id={`proposal-${name}`}
+        name={name}
+        type={type}
+        value={value || ""}
+        onChange={onChange}
+      />
+    </div>
+  );
+}
+
+function DetailRow({
+  label,
+  value,
+  href,
+  customValue,
+}) {
+  return (
+    <div
+      className={
+        styles.detailRow
+      }
+    >
+      <span>
+        {label}
+      </span>
+
+      {customValue ? (
+        customValue
+      ) : href && value ? (
+        <a href={href}>
+          {value}
+        </a>
+      ) : (
+        <strong
+          className={
+            value
+              ? ""
+              : styles.emptyValue
+          }
+        >
+          {value ||
+            "Not available"}
+        </strong>
+      )}
+    </div>
+  );
+}
+
+function QualityMetric({
+  label,
+  value,
+}) {
+  return (
+    <div
+      className={
+        styles.qualityMetric
+      }
+    >
+      <span>
+        {label}
+      </span>
+
+      <strong>
+        {value}
+      </strong>
+    </div>
+  );
+}
+
+function LoadingState() {
+  return (
+    <section
+      className={
+        styles.loadingPanel
+      }
+    >
+      {Array.from({
+        length: 6,
+      }).map((_, index) => (
+        <div
+          key={index}
+          className={
+            styles.loadingRow
+          }
+        />
+      ))}
+    </section>
+  );
+}
+
+function parseProposalSections(
+  text
+) {
+  const lines = String(
+    text || ""
+  )
+    .split("\n")
+    .map((line) =>
+      line.trim()
+    );
+
+  const sections = [];
+
+  let currentTitle = "";
+  let currentContent = [];
+
+  function flushSection() {
+    const content =
+      currentContent
+        .join("\n")
+        .trim();
+
+    if (
+      currentTitle ||
+      content
+    ) {
+      sections.push({
+        title:
+          currentTitle,
+
+        content,
+      });
+    }
+
+    currentTitle = "";
+    currentContent = [];
+  }
+
+  lines.forEach((line) => {
+    const isHeading =
+      line &&
+      line.length <= 55 &&
+      line ===
+        line.toUpperCase() &&
+      /[A-Z]/.test(line);
+
+    if (isHeading) {
+      flushSection();
+
+      currentTitle =
+        line;
+
+      return;
+    }
+
+    if (line) {
+      currentContent.push(
+        line
+      );
+    }
+  });
+
+  flushSection();
+
+  return sections.filter(
+    (section) =>
+      section.title ||
+      section.content
+  );
+}
+
+function buildRecommendations(
+  proposal,
+  sections
+) {
+  const recommendations =
+    [];
+
+  const sectionTitles =
+    sections.map((section) =>
+      String(
+        section.title || ""
+      ).toLowerCase()
+    );
+
+  if (
+    !sectionTitles.some(
+      (title) =>
+        title.includes(
+          "executive"
+        )
+    )
+  ) {
+    recommendations.push(
+      "Add an executive summary focused on the client's objectives."
+    );
+  }
+
+  if (
+    !sectionTitles.some(
+      (title) =>
+        title.includes("scope")
+    )
+  ) {
+    recommendations.push(
+      "Define the scope of work and any exclusions clearly."
+    );
+  }
+
+  if (
+    !sectionTitles.some(
+      (title) =>
+        title.includes(
+          "timeline"
+        )
+    )
+  ) {
+    recommendations.push(
+      "Add an indicative delivery timeline and milestones."
+    );
+  }
+
+  if (
+    !sectionTitles.some(
+      (title) =>
+        title.includes(
+          "deliverable"
+        )
+    )
+  ) {
+    recommendations.push(
+      "List the expected deliverables and acceptance criteria."
+    );
+  }
+
+  if (!proposal.amount) {
+    recommendations.push(
+      "Add the commercial value or explain how pricing will be confirmed."
+    );
+  }
+
+  if (
+    recommendations.length ===
+    0
+  ) {
+    recommendations.push(
+      "The proposal contains a strong base structure. Review wording and client-specific detail before sending."
+    );
+  }
+
+  return recommendations.slice(
+    0,
+    5
+  );
+}
+
+function getMoneyValue(value) {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+    return 0;
+  }
+
+  return (
+    Number(
+      String(value).replace(
+        /[^0-9.-]/g,
+        ""
+      )
+    ) || 0
+  );
+}
+
+function formatProposalAmount(
+  value
+) {
+  if (!value) {
+    return "To be confirmed";
+  }
+
+  return getMoneyValue(
+    value
+  ).toLocaleString(
+    "en-GB",
+    {
+      style: "currency",
+      currency: "GBP",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }
+  );
+}
+
+function formatDate(value) {
+  if (!value) {
+    return "Not available";
+  }
+
+  const date =
+    new Date(value);
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return "Not available";
+  }
+
+  return date.toLocaleDateString(
+    "en-GB",
+    {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }
   );
 }
