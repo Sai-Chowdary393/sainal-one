@@ -3,150 +3,249 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import Sidebar from "../../../components/Sidebar";
+import AppLayout from "../../../components/layout/AppLayout";
 import StatusBadge from "../../../components/StatusBadge";
 import ProtectedRoute from "../../../components/ProtectedRoute";
+import styles from "./lead-details.module.css";
+
+const STATUS_OPTIONS = [
+  "New",
+  "Contacted",
+  "Proposal Sent",
+  "Follow Up",
+  "Won",
+  "Lost",
+];
 
 export default function LeadDetails() {
   const params = useParams();
   const router = useRouter();
-  const leadId = params.id;
+  const leadId = params?.id;
 
   const [lead, setLead] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+
   const [emailDraft, setEmailDraft] = useState("");
   const [quoteDraft, setQuoteDraft] = useState("");
   const [quoteSaved, setQuoteSaved] = useState(false);
+
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [generatingEmail, setGeneratingEmail] =
+    useState(false);
+  const [generatingQuote, setGeneratingQuote] =
+    useState(false);
+  const [creatingFollowUp, setCreatingFollowUp] =
+    useState(false);
 
   useEffect(() => {
-    fetchLead();
+    if (leadId) {
+      fetchLead();
+    }
   }, [leadId]);
 
   async function fetchLead() {
     try {
-      const response = await fetch("/api/leads");
-      const data = await response.json();
+      setLoading(true);
+      setErrorMessage("");
 
-      const selectedLead = data.find(
-        (item) => String(item.id) === String(leadId)
+      const directResponse = await fetch(
+        `/api/leads/${leadId}`,
+        {
+          cache: "no-store",
+        }
       );
 
-      setLead(selectedLead || null);
-    } catch (error) {
-      console.error(error);
-      alert("Error loading lead.");
-    } finally {
-      setLoading(false);
-    }
-  }
+      if (directResponse.ok) {
+        const directData = await directResponse.json();
 
-  function handleChange(e) {
-    setLead({
-      ...lead,
-      [e.target.name]: e.target.value,
-    });
-  }
+        const selectedLead = Array.isArray(directData)
+          ? directData[0]
+          : directData;
 
-  function getAiScoreLabel(score) {
-    if (!score) return "No AI score";
+        setLead(selectedLead || null);
+        return;
+      }
 
-    if (score.toLowerCase().includes("hot")) return "🔥 Hot Lead";
-    if (score.toLowerCase().includes("warm")) return "🟡 Warm Lead";
-    if (score.toLowerCase().includes("cold")) return "❄️ Cold Lead";
-
-    return score;
-  }
-
-  async function updateLead() {
-    if (!lead) return;
-
-    setSaving(true);
-
-    try {
-      const response = await fetch(`/api/leads/${lead.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: lead.name,
-          company: lead.company,
-          email: lead.email,
-          phone: lead.phone,
-          status: lead.status,
-          value: lead.value,
-          notes: lead.notes || "",
-        }),
+      const response = await fetch("/api/leads", {
+        cache: "no-store",
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        alert(data.error || "Failed to update lead.");
-        return;
+        throw new Error(
+          data.error || "Failed to load lead."
+        );
       }
 
-      alert("Lead updated successfully.");
-      setEditMode(false);
+      const selectedLead = (
+        Array.isArray(data) ? data : []
+      ).find(
+        (item) =>
+          String(item.id) === String(leadId)
+      );
+
+      setLead(selectedLead || null);
     } catch (error) {
-      console.error(error);
-      alert("Error updating lead.");
+      console.error("Lead loading error:", error);
+
+      setErrorMessage(
+        error.message ||
+          "We could not load this lead."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleChange(event) {
+    const { name, value } = event.target;
+
+    setLead((currentLead) => ({
+      ...currentLead,
+      [name]: value,
+    }));
+  }
+
+  function cancelEdit() {
+    setEditMode(false);
+    fetchLead();
+  }
+
+  async function updateLead() {
+    if (!lead) {
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      const response = await fetch(
+        `/api/leads/${lead.id}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: String(lead.name || "").trim(),
+            company: String(
+              lead.company || ""
+            ).trim(),
+            email: String(lead.email || "").trim(),
+            phone: String(lead.phone || "").trim(),
+            status: lead.status || "New",
+            value: String(lead.value || "").trim(),
+            notes: String(lead.notes || "").trim(),
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error || "Failed to update lead."
+        );
+      }
+
+      const updatedLead = Array.isArray(data)
+        ? data[0]
+        : data;
+
+      if (updatedLead) {
+        setLead(updatedLead);
+      } else {
+        await fetchLead();
+      }
+
+      setEditMode(false);
+      alert("Lead updated successfully.");
+    } catch (error) {
+      console.error("Lead update error:", error);
+
+      alert(
+        error.message || "Error updating lead."
+      );
     } finally {
       setSaving(false);
     }
   }
 
   async function deleteLead() {
-    if (!lead) return;
+    if (!lead) {
+      return;
+    }
 
-    const confirmed = confirm("Are you sure you want to delete this lead?");
-    if (!confirmed) return;
+    const confirmed = window.confirm(
+      `Delete ${lead.name || "this lead"}? This action cannot be undone.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
 
     try {
-      const response = await fetch(`/api/leads/${lead.id}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `/api/leads/${lead.id}`,
+        {
+          method: "DELETE",
+        }
+      );
 
       const data = await response.json();
 
       if (!response.ok) {
-        alert(data.error || "Failed to delete lead.");
-        return;
+        throw new Error(
+          data.error || "Failed to delete lead."
+        );
       }
 
-      alert("Lead deleted successfully.");
       router.push("/leads");
+      router.refresh();
     } catch (error) {
-      console.error(error);
-      alert("Error deleting lead.");
+      console.error("Lead deletion error:", error);
+
+      alert(
+        error.message || "Error deleting lead."
+      );
     }
   }
 
   async function generateEmail() {
-    if (!lead) return;
-
-    setEmailDraft("Generating AI email...");
+    if (!lead) {
+      return;
+    }
 
     try {
-      const response = await fetch("/api/ai-assistant", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          prompt: `
+      setGeneratingEmail(true);
+      setEmailDraft("Generating AI email...");
+
+      const response = await fetch(
+        "/api/ai-assistant",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            prompt: `
 Write a professional follow-up email for this lead.
 
-Lead Name: ${lead.name}
-Company: ${lead.company}
-Email: ${lead.email}
-Phone: ${lead.phone}
+Lead Name: ${lead.name || "Not available"}
+Company: ${lead.company || "Not available"}
+Email: ${lead.email || "Not available"}
+Phone: ${lead.phone || "Not available"}
 Source: ${lead.source || "Manual"}
-Status: ${lead.status}
+Status: ${lead.status || "New"}
 Lead Notes: ${lead.notes || "No notes"}
 AI Score: ${lead.ai_score || "Not available"}
 AI Summary: ${lead.ai_summary || "Not available"}
-AI Recommended Action: ${lead.ai_next_action || "Not available"}
+AI Recommended Action: ${
+              lead.ai_next_action || "Not available"
+            }
 
 The email should:
 - Be professional and friendly
@@ -154,67 +253,113 @@ The email should:
 - Suggest a short discovery call
 - Keep it concise
 - Sign off as SaiNal Technologies Ltd
-          `,
-        }),
-      });
+            `,
+          }),
+        }
+      );
 
       const data = await response.json();
 
       if (!response.ok) {
-        alert(data.error || "Failed to generate email.");
-        setEmailDraft("");
-        return;
+        throw new Error(
+          data.error ||
+            "Failed to generate email."
+        );
       }
 
-      setEmailDraft(data.answer);
+      setEmailDraft(
+        data.answer || "No email was generated."
+      );
     } catch (error) {
-      console.error(error);
-      alert("Error generating AI email.");
+      console.error(
+        "AI email generation error:",
+        error
+      );
+
       setEmailDraft("");
+      alert(
+        error.message ||
+          "Error generating AI email."
+      );
+    } finally {
+      setGeneratingEmail(false);
     }
   }
 
   async function createFollowUpTask() {
-    if (!lead) return;
+    if (!lead) {
+      return;
+    }
 
     try {
-      const response = await fetch("/api/follow-ups", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          related_type: "Lead",
-          related_id: lead.id,
-          title: `Follow up with ${lead.name}`,
-          note:
-            lead.ai_next_action ||
-            `Follow up with ${lead.name} from ${lead.company}.`,
-          due_date: null,
-          status: "Pending",
-        }),
-      });
+      setCreatingFollowUp(true);
+
+      const response = await fetch(
+        "/api/follow-ups",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            related_type: "Lead",
+            related_id: lead.id,
+            title: `Follow up with ${
+              lead.name || "lead"
+            }`,
+            note:
+              lead.ai_next_action ||
+              `Follow up with ${
+                lead.name || "the lead"
+              } from ${
+                lead.company || "their company"
+              }.`,
+            due_date: null,
+            status: "Pending",
+          }),
+        }
+      );
 
       const data = await response.json();
 
       if (!response.ok) {
-        alert(data.error || "Failed to create follow-up.");
-        return;
+        throw new Error(
+          data.error ||
+            "Failed to create follow-up."
+        );
       }
 
-      alert("Follow-up task created successfully.");
+      alert(
+        "Follow-up task created successfully."
+      );
     } catch (error) {
-      console.error(error);
-      alert("Error creating follow-up task.");
+      console.error(
+        "Follow-up creation error:",
+        error
+      );
+
+      alert(
+        error.message ||
+          "Error creating follow-up task."
+      );
+    } finally {
+      setCreatingFollowUp(false);
     }
   }
 
   async function generateQuote() {
-    if (!lead) return;
+    if (!lead) {
+      return;
+    }
 
-    const quoteNumber = `SNQ-${Date.now().toString().slice(-6)}`;
+    try {
+      setGeneratingQuote(true);
 
-    const quoteText = `SAINAL TECHNOLOGIES LTD
+      const quoteNumber = `SNQ-${Date.now()
+        .toString()
+        .slice(-6)}`;
+
+      const quoteText = `SAINAL TECHNOLOGIES LTD
 
 QUOTE
 
@@ -222,16 +367,16 @@ Quote Number: ${quoteNumber}
 Date: ${new Date().toLocaleDateString("en-GB")}
 
 Client:
-${lead.company}
-${lead.name}
-${lead.email}
-${lead.phone}
+${lead.company || ""}
+${lead.name || ""}
+${lead.email || ""}
+${lead.phone || ""}
 
 Service:
 Website Development & Business Automation
 
 Estimated Cost:
-${lead.value}
+${lead.value || "To be confirmed"}
 
 Estimated Delivery:
 2 Weeks
@@ -247,13 +392,14 @@ Prepared By:
 SaiNal Technologies Ltd
 www.sainaltechnologies.com`;
 
-    setQuoteDraft(quoteText);
-    setQuoteSaved(false);
+      setQuoteDraft(quoteText);
+      setQuoteSaved(false);
 
-    try {
       const response = await fetch("/api/quotes", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           quote_number: quoteNumber,
           lead_id: lead.id,
@@ -262,7 +408,8 @@ www.sainaltechnologies.com`;
           contact: lead.name,
           email: lead.email,
           phone: lead.phone,
-          service: "Website Development & Business Automation",
+          service:
+            "Website Development & Business Automation",
           amount: lead.value,
           status: "Draft Quote",
           quote_text: quoteText,
@@ -272,26 +419,61 @@ www.sainaltechnologies.com`;
       const data = await response.json();
 
       if (!response.ok) {
-        alert(data.error || "Failed to save quote.");
-        return;
+        throw new Error(
+          data.error || "Failed to save quote."
+        );
       }
 
       setQuoteSaved(true);
     } catch (error) {
-      console.error(error);
-      alert("Error saving quote.");
+      console.error(
+        "Quote generation error:",
+        error
+      );
+
+      alert(
+        error.message || "Error saving quote."
+      );
+    } finally {
+      setGeneratingQuote(false);
     }
   }
 
   if (loading) {
     return (
       <ProtectedRoute>
-        <div className="appLayout">
-          <Sidebar />
-          <main className="mainContent">
-            <p>Loading lead...</p>
-          </main>
-        </div>
+        <AppLayout
+          title="Lead Details"
+          description="Loading lead information."
+        >
+          <LoadingState />
+        </AppLayout>
+      </ProtectedRoute>
+    );
+  }
+
+  if (errorMessage) {
+    return (
+      <ProtectedRoute>
+        <AppLayout
+          title="Lead Details"
+          description="Review an individual lead record."
+        >
+          <section className={styles.errorPanel}>
+            <div>
+              <strong>Unable to load lead</strong>
+              <p>{errorMessage}</p>
+            </div>
+
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={fetchLead}
+            >
+              Try again
+            </button>
+          </section>
+        </AppLayout>
       </ProtectedRoute>
     );
   }
@@ -299,147 +481,684 @@ www.sainaltechnologies.com`;
   if (!lead) {
     return (
       <ProtectedRoute>
-        <div className="appLayout">
-          <Sidebar />
-          <main className="mainContent">
-            <Link href="/leads" className="backLink">
-              ← Back to Leads
+        <AppLayout
+          title="Lead Details"
+          description="Review an individual lead record."
+        >
+          <section className={styles.notFound}>
+            <span className={styles.notFoundIcon}>
+              ◎
+            </span>
+
+            <h2>Lead not found</h2>
+
+            <p>
+              This lead may have been deleted or you may
+              not have access to it.
+            </p>
+
+            <Link
+              href="/leads"
+              className={styles.primaryButton}
+            >
+              Return to leads
             </Link>
-            <h1>Lead not found</h1>
-          </main>
-        </div>
+          </section>
+        </AppLayout>
       </ProtectedRoute>
     );
   }
 
   return (
     <ProtectedRoute>
-      <div className="appLayout">
-        <Sidebar />
+      <AppLayout
+        title={lead.name || "Lead Details"}
+        description="Secure lead profile, commercial information and AI recommendations."
+      >
+        <div className={styles.page}>
+          <section className={styles.pageHeader}>
+            <div className={styles.headerCopy}>
+              <Link
+                href="/leads"
+                className={styles.backLink}
+              >
+                ← Back to leads
+              </Link>
 
-        <main className="mainContent">
-          <Link href="/leads" className="backLink">
-            ← Back to Leads
-          </Link>
+              <span className={styles.eyebrow}>
+                Lead record
+              </span>
 
-          <div className="topBar">
-            <h1>{editMode ? "Edit Lead" : lead.name}</h1>
+              <h2>
+                {editMode
+                  ? "Edit lead"
+                  : lead.name || "Unnamed lead"}
+              </h2>
 
-            <div style={{ display: "flex", gap: "10px" }}>
-              <button className="primaryBtn" onClick={() => setEditMode(!editMode)}>
-                {editMode ? "Cancel" : "Edit Lead"}
-              </button>
-
-              {editMode && (
-                <button className="primaryBtn" onClick={updateLead} disabled={saving}>
-                  {saving ? "Saving..." : "Save Changes"}
-                </button>
-              )}
-
-              <button className="primaryBtn" onClick={deleteLead}>
-                Delete Lead
-              </button>
-
-              <button className="primaryBtn" onClick={generateQuote}>
-                Generate Quote
-              </button>
+              <p>
+                Sensitive contact and commercial
+                information is shown only on this record.
+              </p>
             </div>
-          </div>
 
-          <section className="detailsGrid">
-            <div className="panel">
-              <h3>Lead Information</h3>
-
+            <div className={styles.headerActions}>
               {editMode ? (
-                <div className="editLeadForm">
-                  <input name="name" value={lead.name || ""} onChange={handleChange} placeholder="Lead Name" />
-                  <input name="company" value={lead.company || ""} onChange={handleChange} placeholder="Company" />
-                  <input name="email" value={lead.email || ""} onChange={handleChange} placeholder="Email" />
-                  <input name="phone" value={lead.phone || ""} onChange={handleChange} placeholder="Phone" />
-
-                  <select name="status" value={lead.status || "New"} onChange={handleChange}>
-                    <option>New</option>
-                    <option>Contacted</option>
-                    <option>Proposal Sent</option>
-                    <option>Follow Up</option>
-                    <option>Won</option>
-                    <option>Lost</option>
-                  </select>
-
-                  <input name="value" value={lead.value || ""} onChange={handleChange} placeholder="Value e.g. £2,500" />
-
-                  <textarea name="notes" value={lead.notes || ""} onChange={handleChange} placeholder="Lead Notes" rows={5} />
-                </div>
-              ) : (
                 <>
-                  <p><strong>Company:</strong> {lead.company}</p>
-                  <p><strong>Email:</strong> {lead.email}</p>
-                  <p><strong>Phone:</strong> {lead.phone}</p>
-                  <p><strong>Status:</strong> <StatusBadge status={lead.status} /></p>
-                  <p><strong>Value:</strong> {lead.value || "-"}</p>
-                  <p><strong>Source:</strong> {lead.source || "Manual"}</p>
+                  <button
+                    type="button"
+                    className={styles.secondaryButton}
+                    onClick={cancelEdit}
+                    disabled={saving}
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="button"
+                    className={styles.primaryButton}
+                    onClick={updateLead}
+                    disabled={saving}
+                  >
+                    {saving
+                      ? "Saving..."
+                      : "Save changes"}
+                  </button>
                 </>
+              ) : (
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  onClick={() => setEditMode(true)}
+                >
+                  Edit lead
+                </button>
               )}
-            </div>
 
-            <div className="panel">
-              <h3>AI Lead Analysis</h3>
+              <button
+                type="button"
+                className={styles.actionButton}
+                onClick={generateQuote}
+                disabled={generatingQuote}
+              >
+                {generatingQuote
+                  ? "Creating quote..."
+                  : "Generate quote"}
+              </button>
 
-              <p><strong>Score:</strong> {getAiScoreLabel(lead.ai_score)}</p>
-
-              <p><strong>Summary:</strong></p>
-              <p>{lead.ai_summary || "No AI summary available."}</p>
-
-              <p><strong>Recommended Next Action:</strong></p>
-              <p>{lead.ai_next_action || "No AI recommendation available."}</p>
-
-              <div style={{ display: "flex", gap: "12px", marginTop: "16px" }}>
-                <button className="primaryBtn" onClick={generateEmail}>
-                  Generate Follow-up Email
-                </button>
-
-                <button className="primaryBtn" onClick={createFollowUpTask}>
-                  Create Follow-up Task
-                </button>
-              </div>
+              <button
+                type="button"
+                className={styles.dangerButton}
+                onClick={deleteLead}
+              >
+                Delete
+              </button>
             </div>
           </section>
 
+          <section className={styles.heroCard}>
+            <div className={styles.identity}>
+              <span className={styles.avatar}>
+                {getInitials(lead.name)}
+              </span>
+
+              <div className={styles.identityCopy}>
+                <h3>{lead.name || "Unnamed lead"}</h3>
+
+                <p>
+                  {lead.company || "No company"}
+                </p>
+
+                <div className={styles.identityMeta}>
+                  <StatusBadge
+                    status={lead.status || "New"}
+                  />
+
+                  <span className={styles.metaBadge}>
+                    {lead.source || "Manual"}
+                  </span>
+
+                  <AiScoreBadge
+                    score={lead.ai_score}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className={styles.heroValue}>
+              <span>Estimated value</span>
+              <strong>
+                {lead.value || "Not set"}
+              </strong>
+              <small>
+                Visible only inside this record
+              </small>
+            </div>
+          </section>
+
+          <section className={styles.contentGrid}>
+            <section className={styles.panel}>
+              <div className={styles.panelHeader}>
+                <div>
+                  <h3>Lead information</h3>
+                  <p>
+                    Contact, company and commercial details
+                  </p>
+                </div>
+              </div>
+
+              {editMode ? (
+                <div className={styles.editForm}>
+                  <div className={styles.formGrid}>
+                    <Field
+                      label="Lead name"
+                      name="name"
+                      value={lead.name}
+                      onChange={handleChange}
+                    />
+
+                    <Field
+                      label="Company"
+                      name="company"
+                      value={lead.company}
+                      onChange={handleChange}
+                    />
+
+                    <Field
+                      label="Email"
+                      name="email"
+                      type="email"
+                      value={lead.email}
+                      onChange={handleChange}
+                    />
+
+                    <Field
+                      label="Phone"
+                      name="phone"
+                      type="tel"
+                      value={lead.phone}
+                      onChange={handleChange}
+                    />
+
+                    <div className={styles.field}>
+                      <label htmlFor="lead-status">
+                        Status
+                      </label>
+
+                      <select
+                        id="lead-status"
+                        name="status"
+                        value={lead.status || "New"}
+                        onChange={handleChange}
+                      >
+                        {STATUS_OPTIONS.map(
+                          (status) => (
+                            <option
+                              key={status}
+                              value={status}
+                            >
+                              {status}
+                            </option>
+                          )
+                        )}
+                      </select>
+                    </div>
+
+                    <Field
+                      label="Estimated value"
+                      name="value"
+                      value={lead.value}
+                      onChange={handleChange}
+                    />
+
+                    <div
+                      className={`${styles.field} ${styles.fieldFull}`}
+                    >
+                      <label htmlFor="lead-notes">
+                        Notes
+                      </label>
+
+                      <textarea
+                        id="lead-notes"
+                        name="notes"
+                        value={lead.notes || ""}
+                        onChange={handleChange}
+                        rows={7}
+                        placeholder="Add private lead notes"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className={styles.detailList}>
+                  <DetailRow
+                    label="Company"
+                    value={lead.company}
+                  />
+
+                  <DetailRow
+                    label="Email"
+                    value={lead.email}
+                    href={
+                      lead.email
+                        ? `mailto:${lead.email}`
+                        : null
+                    }
+                  />
+
+                  <DetailRow
+                    label="Phone"
+                    value={lead.phone}
+                    href={
+                      lead.phone
+                        ? `tel:${lead.phone}`
+                        : null
+                    }
+                  />
+
+                  <DetailRow
+                    label="Status"
+                    customValue={
+                      <StatusBadge
+                        status={lead.status || "New"}
+                      />
+                    }
+                  />
+
+                  <DetailRow
+                    label="Estimated value"
+                    value={lead.value}
+                  />
+
+                  <DetailRow
+                    label="Source"
+                    value={lead.source || "Manual"}
+                  />
+
+                  <DetailRow
+                    label="Created"
+                    value={formatDate(
+                      lead.created_at
+                    )}
+                  />
+                </div>
+              )}
+            </section>
+
+            <section className={styles.panel}>
+              <div className={styles.panelHeader}>
+                <div className={styles.aiHeader}>
+                  <span className={styles.aiIcon}>
+                    ✦
+                  </span>
+
+                  <div>
+                    <h3>AI lead analysis</h3>
+                    <p>
+                      Qualification and recommended action
+                    </p>
+                  </div>
+                </div>
+
+                <AiScoreBadge
+                  score={lead.ai_score}
+                />
+              </div>
+
+              <div className={styles.aiSection}>
+                <div className={styles.aiBlock}>
+                  <span>AI summary</span>
+
+                  <p>
+                    {lead.ai_summary ||
+                      "No AI summary is currently available."}
+                  </p>
+                </div>
+
+                <div className={styles.aiBlock}>
+                  <span>Recommended next action</span>
+
+                  <p>
+                    {lead.ai_next_action ||
+                      "No AI recommendation is currently available."}
+                  </p>
+                </div>
+              </div>
+
+              <div className={styles.aiActions}>
+                <button
+                  type="button"
+                  className={styles.primaryButton}
+                  onClick={generateEmail}
+                  disabled={generatingEmail}
+                >
+                  {generatingEmail
+                    ? "Generating..."
+                    : "Generate email"}
+                </button>
+
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  onClick={createFollowUpTask}
+                  disabled={creatingFollowUp}
+                >
+                  {creatingFollowUp
+                    ? "Creating..."
+                    : "Create follow-up"}
+                </button>
+              </div>
+            </section>
+          </section>
+
+          <section className={styles.contentGrid}>
+            <section className={styles.panel}>
+              <div className={styles.panelHeader}>
+                <div>
+                  <h3>Private notes</h3>
+                  <p>
+                    Internal information for your team
+                  </p>
+                </div>
+              </div>
+
+              <p className={styles.notesText}>
+                {lead.notes ||
+                  "No private notes have been added."}
+              </p>
+            </section>
+
+            <section className={styles.panel}>
+              <div className={styles.panelHeader}>
+                <div>
+                  <h3>Activity timeline</h3>
+                  <p>
+                    Current lead journey overview
+                  </p>
+                </div>
+              </div>
+
+              <div className={styles.timeline}>
+                <TimelineItem
+                  title="Lead created"
+                  description={formatDateTime(
+                    lead.created_at
+                  )}
+                />
+
+                <TimelineItem
+                  title="AI qualification"
+                  description={
+                    lead.ai_score
+                      ? `Lead analysed as ${lead.ai_score}`
+                      : "AI analysis not yet available"
+                  }
+                />
+
+                <TimelineItem
+                  title="Current stage"
+                  description={
+                    lead.status || "New"
+                  }
+                />
+
+                <TimelineItem
+                  title="Quote activity"
+                  description={
+                    quoteSaved
+                      ? "A quote was generated during this session"
+                      : "No new quote generated during this session"
+                  }
+                />
+              </div>
+            </section>
+          </section>
+
           {emailDraft && (
-            <section className="panel emailDraftPanel">
-              <h3>Email Draft</h3>
-              <textarea value={emailDraft} readOnly rows={10} className="emailDraftBox" />
+            <section className={styles.fullPanel}>
+              <div className={styles.draftPanel}>
+                <div className={styles.draftHeader}>
+                  <div>
+                    <h3>AI follow-up email</h3>
+                    <p>
+                      Review and copy the generated email
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    className={styles.secondaryButton}
+                    onClick={() =>
+                      navigator.clipboard?.writeText(
+                        emailDraft
+                      )
+                    }
+                  >
+                    Copy email
+                  </button>
+                </div>
+
+                <textarea
+                  value={emailDraft}
+                  onChange={(event) =>
+                    setEmailDraft(
+                      event.target.value
+                    )
+                  }
+                  rows={12}
+                  className={styles.draftTextarea}
+                />
+              </div>
             </section>
           )}
 
           {quoteDraft && (
-            <section className="panel quoteDraftPanel">
-              <h3>Quote Draft</h3>
-              <textarea value={quoteDraft} readOnly rows={16} className="emailDraftBox" />
+            <section className={styles.fullPanel}>
+              <div className={styles.draftPanel}>
+                <div className={styles.draftHeader}>
+                  <div>
+                    <h3>Quote draft</h3>
+                    <p>
+                      The quote is stored in the Quotes
+                      module
+                    </p>
+                  </div>
 
-              {quoteSaved && (
-                <p className="helperText">
-                  Quote saved successfully. Go to Quotes to convert it to a customer.
-                </p>
-              )}
+                  <Link
+                    href="/quotes"
+                    className={styles.secondaryButton}
+                  >
+                    Open quotes
+                  </Link>
+                </div>
+
+                <textarea
+                  value={quoteDraft}
+                  readOnly
+                  rows={18}
+                  className={styles.draftTextarea}
+                />
+
+                {quoteSaved && (
+                  <p className={styles.successMessage}>
+                    Quote saved successfully. Open Quotes
+                    to review or convert it.
+                  </p>
+                )}
+              </div>
             </section>
           )}
-
-          <section className="detailsGrid">
-            <div className="panel">
-              <h3>Notes</h3>
-              {lead.notes ? <p>{lead.notes}</p> : <p>No notes added yet.</p>}
-            </div>
-
-            <div className="panel">
-              <h3>Activity Timeline</h3>
-              <p>Lead created</p>
-              <p>AI analysed lead</p>
-              <p>Quote pending</p>
-            </div>
-          </section>
-        </main>
-      </div>
+        </div>
+      </AppLayout>
     </ProtectedRoute>
   );
+}
+
+function Field({
+  label,
+  name,
+  value,
+  onChange,
+  type = "text",
+}) {
+  return (
+    <div className={styles.field}>
+      <label htmlFor={`lead-${name}`}>
+        {label}
+      </label>
+
+      <input
+        id={`lead-${name}`}
+        name={name}
+        type={type}
+        value={value || ""}
+        onChange={onChange}
+      />
+    </div>
+  );
+}
+
+function DetailRow({
+  label,
+  value,
+  href,
+  customValue,
+}) {
+  return (
+    <div className={styles.detailRow}>
+      <span>{label}</span>
+
+      {customValue ? (
+        customValue
+      ) : href && value ? (
+        <a href={href}>{value}</a>
+      ) : (
+        <strong
+          className={
+            value ? "" : styles.emptyValue
+          }
+        >
+          {value || "Not available"}
+        </strong>
+      )}
+    </div>
+  );
+}
+
+function AiScoreBadge({ score }) {
+  const normalisedScore = String(score || "")
+    .trim()
+    .toLowerCase();
+
+  let label = score || "Not analysed";
+  let className = styles.aiNeutral;
+
+  if (normalisedScore.includes("hot")) {
+    label = "● Hot";
+    className = styles.aiHot;
+  } else if (
+    normalisedScore.includes("warm")
+  ) {
+    label = "● Warm";
+    className = styles.aiWarm;
+  } else if (
+    normalisedScore.includes("cold")
+  ) {
+    label = "● Cold";
+    className = styles.aiCold;
+  }
+
+  return (
+    <span
+      className={`${styles.aiScore} ${className}`}
+    >
+      {label}
+    </span>
+  );
+}
+
+function TimelineItem({
+  title,
+  description,
+}) {
+  return (
+    <div className={styles.timelineItem}>
+      <span className={styles.timelineDot} />
+
+      <div>
+        <strong>{title}</strong>
+        <p>{description}</p>
+      </div>
+    </div>
+  );
+}
+
+function LoadingState() {
+  return (
+    <section className={styles.loadingPanel}>
+      {Array.from({ length: 5 }).map(
+        (_, index) => (
+          <div
+            key={index}
+            className={styles.loadingRow}
+          />
+        )
+      )}
+    </section>
+  );
+}
+
+function getInitials(value = "") {
+  const words = String(value)
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (words.length === 0) {
+    return "LD";
+  }
+
+  if (words.length === 1) {
+    return words[0]
+      .slice(0, 2)
+      .toUpperCase();
+  }
+
+  return `${words[0][0]}${
+    words[words.length - 1][0]
+  }`.toUpperCase();
+}
+
+function formatDate(value) {
+  if (!value) {
+    return "Not available";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Not available";
+  }
+
+  return date.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function formatDateTime(value) {
+  if (!value) {
+    return "Date not available";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Date not available";
+  }
+
+  return date.toLocaleString("en-GB", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
 }
