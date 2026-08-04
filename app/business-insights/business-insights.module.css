@@ -1039,3 +1039,183 @@
     margin-bottom: 18px;
   }
 }
+/* ==================================================
+   SaiNal One Typography — AI Business Insights
+================================================== */
+
+.eyebrow {
+  font-size: var(--font-label);
+}
+
+.hero h2 {
+  line-height: 1.12;
+}
+
+.heroContent > p {
+  font-size: var(--font-body);
+  line-height: 1.65;
+}
+
+.reportMetadata {
+  font-size: var(--font-meta);
+}
+
+.primaryButton,
+.secondaryButton,
+.retryButton {
+  font-size: var(--font-button);
+}
+
+.healthRingCentre strong {
+  font-size: 32px;
+}
+
+.healthRingCentre span {
+  font-size: var(--font-label);
+}
+
+.healthCopy > span {
+  font-size: var(--font-label);
+}
+
+.healthCopy h3 {
+  font-size: 23px;
+}
+
+.healthCopy p {
+  font-size: var(--font-helper);
+  line-height: var(--line-helper);
+}
+
+.executiveMetric > span {
+  font-size: var(--font-label);
+}
+
+.executiveMetric strong {
+  font-size: clamp(24px, 2vw, 31px);
+}
+
+.executiveMetric small {
+  font-size: var(--font-helper);
+}
+
+.insightPanelHeader h3 {
+  font-size: var(--font-panel-title);
+}
+
+.insightPanelHeader p {
+  font-size: var(--font-helper);
+  line-height: var(--line-helper);
+}
+
+.metricRow span {
+  font-size: var(--font-table);
+}
+
+.metricRow strong {
+  font-size: var(--font-table);
+}
+
+.progressMetric span {
+  font-size: var(--font-helper);
+}
+
+.progressMetric strong {
+  font-size: var(--font-table);
+}
+
+.panelLink {
+  font-size: var(--font-button);
+}
+
+.panelHeader span,
+.compactPanelHeader span {
+  font-size: var(--font-label);
+}
+
+.panelHeader h3 {
+  font-size: var(--font-panel-title);
+}
+
+.reportContent h4 {
+  font-size: 16px;
+}
+
+.reportContent p {
+  font-size: var(--font-body);
+  line-height: 1.75;
+}
+
+.compactPanelHeader h3 {
+  font-size: var(--font-panel-title);
+}
+
+.compactPanelHeader > strong {
+  font-size: var(--font-table);
+}
+
+.priorityItem strong {
+  font-size: var(--font-table);
+}
+
+.priorityItem p {
+  font-size: var(--font-helper);
+  line-height: 1.55;
+}
+
+.priorityArrow {
+  font-size: 15px;
+}
+
+.opportunityItem > span {
+  font-size: var(--font-label);
+}
+
+.opportunityItem p {
+  font-size: var(--font-helper);
+  line-height: 1.6;
+}
+
+.sectionHeading h2 {
+  font-size: var(--font-section-title);
+}
+
+.sectionHeading > p {
+  font-size: var(--font-helper);
+  line-height: var(--line-helper);
+}
+
+.forecastCard > span {
+  font-size: var(--font-label);
+}
+
+.forecastCard > strong {
+  font-size: 28px;
+}
+
+.forecastCard > p {
+  font-size: var(--font-helper);
+  line-height: 1.55;
+}
+
+.errorPanel p {
+  font-size: var(--font-helper);
+}
+
+@media (max-width: 760px) {
+  .heroContent > p {
+    font-size: 13px;
+  }
+
+  .hero h2 {
+    font-size: 32px;
+  }
+
+  .executiveMetric strong {
+    font-size: 27px;
+  }
+
+  .reportContent p {
+    font-size: 13px;
+  }
+}
