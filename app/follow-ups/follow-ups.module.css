@@ -581,3 +581,110 @@
     width: 100%;
   }
 }
+/* ==================================================
+   SaiNal One Typography — Follow-ups List
+================================================== */
+
+.eyebrow {
+  font-size: var(--font-label);
+}
+
+.pageHeader h2 {
+  font-size: var(--font-workspace-title);
+  line-height: 1.2;
+}
+
+.pageHeader p {
+  font-size: var(--font-helper);
+}
+
+.primaryButton,
+.secondaryButton,
+.clearButton,
+.openButton,
+.deleteButton {
+  font-size: var(--font-button);
+}
+
+.formHeading h3 {
+  font-size: var(--font-section-title);
+}
+
+.formHeading p {
+  font-size: var(--font-helper);
+}
+
+.field label {
+  font-size: var(--font-helper);
+}
+
+.field input,
+.field select,
+.field textarea,
+.searchBox input,
+.filterSelect,
+.statusSelect {
+  font-size: var(--font-input);
+}
+
+.summaryLabel {
+  font-size: var(--font-label);
+}
+
+.summaryCard strong {
+  font-size: 30px;
+}
+
+.summaryCard small {
+  font-size: var(--font-helper);
+}
+
+.tableHeading h3 {
+  font-size: var(--font-panel-title);
+}
+
+.tableHeading p {
+  font-size: var(--font-helper);
+}
+
+.resultCount {
+  font-size: var(--font-label);
+}
+
+.followUpTable th {
+  font-size: var(--font-label);
+}
+
+.followUpTable td {
+  font-size: var(--font-table);
+  line-height: 1.5;
+}
+
+.followUpLink {
+  font-size: var(--font-table);
+}
+
+.followUpIdentityCopy small {
+  font-size: var(--font-meta);
+}
+
+.typeBadge {
+  font-size: var(--font-label);
+}
+
+.dateText {
+  font-size: var(--font-helper);
+}
+
+.overdueLabel {
+  font-size: var(--font-meta);
+}
+
+.emptyState h3 {
+  font-size: var(--font-panel-title);
+}
+
+.emptyState p,
+.errorPanel p {
+  font-size: var(--font-helper);
+}
