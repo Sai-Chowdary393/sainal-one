@@ -501,3 +501,108 @@
     width: 100%;
   }
 }
+/* ==================================================
+   SaiNal One Typography — Follow-up Details
+================================================== */
+
+.backLink,
+.eyebrow,
+.identityLabel {
+  font-size: var(--font-label);
+}
+
+.pageHeader h2 {
+  font-size: var(--font-workspace-title);
+  line-height: 1.2;
+}
+
+.pageHeader p {
+  font-size: var(--font-helper);
+}
+
+.primaryButton,
+.secondaryButton,
+.successButton,
+.dangerButton {
+  font-size: var(--font-button);
+}
+
+.identityCopy h3 {
+  font-size: 24px;
+}
+
+.identityCopy p {
+  font-size: var(--font-helper);
+  line-height: var(--line-helper);
+}
+
+.metaBadge,
+.overdueBadge {
+  font-size: var(--font-label);
+}
+
+.heroMetric span {
+  font-size: var(--font-label);
+}
+
+.heroMetric strong {
+  font-size: 18px;
+}
+
+.panelHeader h3 {
+  font-size: var(--font-panel-title);
+}
+
+.panelHeader p {
+  font-size: var(--font-helper);
+}
+
+.detailRow > span {
+  font-size: var(--font-helper);
+}
+
+.detailRow strong {
+  font-size: var(--font-body);
+  line-height: 1.55;
+}
+
+.field label {
+  font-size: var(--font-helper);
+}
+
+.field input,
+.field select,
+.field textarea {
+  font-size: var(--font-input);
+}
+
+.aiHeader span,
+.riskMetric span,
+.aiRecommendations > span {
+  font-size: var(--font-label);
+}
+
+.aiHeader h3 {
+  font-size: var(--font-panel-title);
+}
+
+.riskMetric strong {
+  font-size: var(--font-body);
+}
+
+.recommendationItem p {
+  font-size: var(--font-helper);
+  line-height: 1.6;
+}
+
+.timelineItem strong {
+  font-size: var(--font-body);
+}
+
+.timelineItem p {
+  font-size: var(--font-helper);
+}
+
+.timelineItem time {
+  font-size: var(--font-meta);
+}
