@@ -834,3 +834,63 @@ label {
     font-size: 13px;
   }
 }
+/* ==================================================
+   SaiNal One Design System — Typography
+================================================== */
+
+:root {
+  --font-page-title: 30px;
+  --font-workspace-title: 28px;
+  --font-section-title: 20px;
+  --font-panel-title: 18px;
+
+  --font-body: 14px;
+  --font-table: 13px;
+  --font-input: 14px;
+  --font-button: 13px;
+  --font-helper: 12px;
+  --font-label: 11px;
+  --font-meta: 10px;
+
+  --line-body: 1.55;
+  --line-helper: 1.5;
+}
+
+html {
+  font-size: 16px;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-size: var(--font-body);
+  line-height: var(--line-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: var(--font-input);
+  line-height: 1.45;
+}
+
+button {
+  font-size: var(--font-button);
+}
+
+.helperText {
+  font-size: var(--font-helper);
+  line-height: var(--line-helper);
+}
+
+@media (max-width: 720px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
