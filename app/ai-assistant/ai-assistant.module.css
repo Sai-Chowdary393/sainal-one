@@ -901,3 +901,170 @@
     align-self: flex-end;
   }
 }
+/* =========================================
+   AI Assistant Typography Improvements
+========================================= */
+
+.eyebrow,
+.sectionEyebrow {
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.heroCopy h2 {
+  font-size: 34px;
+  line-height: 1.15;
+}
+
+.heroCopy p {
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.heroStatusCard small {
+  font-size: 10px;
+}
+
+.heroStatusCard strong {
+  font-size: 17px;
+}
+
+.heroStatusCard p {
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.sectionHeader h3,
+.conversationHeader h3 {
+  font-size: 20px;
+}
+
+.sectionHeader p,
+.conversationHeader p {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.quickActionCopy strong {
+  font-size: 13px;
+}
+
+.quickActionCopy small {
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.clearConversationButton {
+  font-size: 11px;
+}
+
+.messageMeta strong {
+  font-size: 12px;
+}
+
+.messageMeta time {
+  font-size: 10px;
+}
+
+.messageContent {
+  font-size: 13px;
+  line-height: 1.75;
+}
+
+.messageActions button {
+  font-size: 10px;
+}
+
+.thinkingContent p {
+  font-size: 12px;
+}
+
+.errorBanner strong {
+  font-size: 12px;
+}
+
+.errorBanner p {
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.promptComposer textarea {
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.composerFooter > span {
+  font-size: 10px;
+}
+
+.sendButton {
+  font-size: 12px;
+}
+
+.suggestedPrompts > span {
+  font-size: 10px;
+}
+
+.suggestedPrompts button {
+  font-size: 10px;
+}
+
+.capabilitiesHeader span {
+  font-size: 10px;
+}
+
+.capabilitiesHeader h3 {
+  font-size: 17px;
+}
+
+.capabilityItem strong {
+  font-size: 12px;
+}
+
+.capabilityItem p {
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.aiGuidance > span,
+.latestInsight > span {
+  font-size: 10px;
+}
+
+.aiGuidance p,
+.latestInsight p {
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.aiGuidance strong {
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.latestInsight button {
+  font-size: 10px;
+}
+
+.disclaimerPanel p {
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+@media (max-width: 720px) {
+  .heroCopy h2 {
+    font-size: 29px;
+  }
+
+  .heroCopy p {
+    font-size: 13px;
+  }
+
+  .messageContent {
+    font-size: 13px;
+  }
+
+  .promptComposer textarea {
+    font-size: 16px;
+  }
+}
