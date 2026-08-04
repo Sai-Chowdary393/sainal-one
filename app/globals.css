@@ -729,3 +729,108 @@ a {
 .aiInsightBox p:empty {
   display: none;
 }
+/* =========================================
+   SaiNal One Global Typography Improvements
+========================================= */
+
+html {
+  font-size: 16px;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-size: 14px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+button {
+  font-weight: 700;
+}
+
+p,
+li,
+td,
+label {
+  font-size: 14px;
+}
+
+.helperText {
+  color: #6f6b63;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.primaryBtn,
+.secondaryBtn,
+.logoutBtn {
+  font-size: 13px;
+}
+
+.leadTable th {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.25px;
+}
+
+.leadTable td {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.statusBadge {
+  font-size: 12px;
+}
+
+.panel h3 {
+  font-size: 19px;
+}
+
+.settingsGrid label {
+  font-size: 13px;
+}
+
+.settingsGrid input,
+.settingsGrid select,
+.settingsGrid textarea {
+  font-size: 14px;
+}
+
+.quotePreview,
+.aiInsightBox,
+.emailDraftBox {
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+@media (max-width: 700px) {
+  body {
+    font-size: 14px;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  .leadTable th {
+    font-size: 11px;
+  }
+
+  .leadTable td {
+    font-size: 13px;
+  }
+}
