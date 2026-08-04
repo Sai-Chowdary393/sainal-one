@@ -668,3 +668,116 @@
     flex-direction: column;
   }
 }
+/* ==================================================
+   SaiNal One Typography — Quotes
+================================================== */
+
+.eyebrow {
+  font-size: var(--font-label);
+}
+
+.pageHeader h2 {
+  font-size: var(--font-workspace-title);
+  line-height: 1.2;
+}
+
+.pageHeader p {
+  font-size: var(--font-helper);
+}
+
+.primaryButton,
+.secondaryButton,
+.clearButton,
+.openButton {
+  font-size: var(--font-button);
+}
+
+.formHeading h3 {
+  font-size: var(--font-section-title);
+}
+
+.formHeading p {
+  font-size: var(--font-helper);
+}
+
+.field label {
+  font-size: var(--font-helper);
+}
+
+.field input,
+.field select,
+.field textarea,
+.searchBox input {
+  font-size: var(--font-input);
+}
+
+.filterSelect {
+  font-size: var(--font-button);
+}
+
+.summaryLabel {
+  font-size: var(--font-label);
+}
+
+.summaryCard strong {
+  font-size: 30px;
+}
+
+.summaryCard small {
+  font-size: var(--font-helper);
+}
+
+.tableHeading h3 {
+  font-size: var(--font-panel-title);
+}
+
+.tableHeading p {
+  font-size: var(--font-helper);
+}
+
+.resultCount {
+  font-size: var(--font-label);
+}
+
+.quoteTable th {
+  font-size: var(--font-label);
+}
+
+.quoteTable td {
+  font-size: var(--font-table);
+  line-height: 1.5;
+}
+
+.quoteLink,
+.clientCell strong {
+  font-size: var(--font-table);
+}
+
+.quoteIdentityCopy small,
+.clientCell small {
+  font-size: var(--font-meta);
+}
+
+.serviceText,
+.amountText {
+  font-size: var(--font-table);
+}
+
+.createdDate {
+  font-size: var(--font-helper);
+}
+
+.emptyState h3 {
+  font-size: var(--font-panel-title);
+}
+
+.emptyState p,
+.errorPanel p {
+  font-size: var(--font-helper);
+}
+
+@media (max-width: 720px) {
+  .pageHeader h2 {
+    font-size: 26px;
+  }
+}
