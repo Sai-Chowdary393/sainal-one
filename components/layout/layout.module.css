@@ -948,3 +948,113 @@
     padding: 0;
   }
 }
+/* =========================================
+   SaiNal One Layout Typography Improvements
+========================================= */
+
+.brandName {
+  font-size: 19px;
+}
+
+.brandSubtitle {
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.navigationLabel {
+  font-size: 11px;
+}
+
+.navigationLink {
+  font-size: 14px;
+}
+
+.sidebarPlan strong {
+  font-size: 14px;
+}
+
+.sidebarPlan small {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.planBadge {
+  font-size: 11px;
+}
+
+.topbarTitleSection h1 {
+  font-size: 26px;
+}
+
+.topbarTitleSection p {
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.searchContainer input {
+  font-size: 14px;
+}
+
+.searchShortcut {
+  font-size: 10px;
+}
+
+.profileButtonText strong {
+  font-size: 13px;
+}
+
+.profileButtonText small {
+  font-size: 11px;
+}
+
+.dropdownHeader strong {
+  font-size: 17px;
+}
+
+.dropdownHeader p {
+  font-size: 13px;
+}
+
+.settingsMenuTitle {
+  font-size: 10px;
+}
+
+.settingsMenuItem strong {
+  font-size: 13px;
+}
+
+.settingsMenuItem small {
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.userDropdownIdentity strong {
+  font-size: 14px;
+}
+
+.userDropdownIdentity span {
+  font-size: 11px;
+}
+
+.userDropdownIdentity small {
+  font-size: 10px;
+}
+
+.userMenuItem,
+.logoutButton {
+  font-size: 13px;
+}
+
+@media (max-width: 680px) {
+  .topbarTitleSection h1 {
+    font-size: 22px;
+  }
+
+  .navigationLink {
+    font-size: 15px;
+  }
+
+  .brandName {
+    font-size: 18px;
+  }
+}
