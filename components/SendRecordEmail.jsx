@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function SendRecordEmail({
   endpoint,
@@ -9,21 +9,88 @@ export default function SendRecordEmail({
   recordLabel = "document",
   onSent,
 }) {
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] =
+    useState(false);
+
   const [recipient, setRecipient] =
     useState(defaultEmail);
+
   const [subject, setSubject] =
     useState(defaultSubject);
+
   const [message, setMessage] =
     useState("");
+
   const [sending, setSending] =
     useState(false);
+
+  /*
+   * Keep the form values synchronised when a
+   * different proposal or invoice is loaded.
+   */
+  useEffect(() => {
+    setRecipient(defaultEmail || "");
+  }, [defaultEmail]);
+
+  useEffect(() => {
+    setSubject(defaultSubject || "");
+  }, [defaultSubject]);
+
+  function toggleForm() {
+    if (sending) {
+      return;
+    }
+
+    setShowForm((currentValue) => !currentValue);
+  }
+
+  function closeForm() {
+    if (sending) {
+      return;
+    }
+
+    setShowForm(false);
+  }
 
   async function sendEmail(event) {
     event.preventDefault();
 
-    if (!recipient.trim()) {
-      alert("Please enter the recipient email address.");
+    const cleanRecipient =
+      recipient.trim();
+
+    const cleanSubject =
+      subject.trim();
+
+    const cleanMessage =
+      message.trim();
+
+    if (!endpoint) {
+      alert(
+        "The email endpoint is not configured."
+      );
+      return;
+    }
+
+    if (!cleanRecipient) {
+      alert(
+        "Please enter the recipient email address."
+      );
+      return;
+    }
+
+    if (
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+        cleanRecipient
+      )
+    ) {
+      alert(
+        "Please enter a valid recipient email address."
+      );
+      return;
+    }
+
+    if (!cleanSubject) {
+      alert("Please enter an email subject.");
       return;
     }
 
@@ -32,44 +99,50 @@ export default function SendRecordEmail({
     try {
       const response = await fetch(endpoint, {
         method: "POST",
+
         headers: {
           "Content-Type": "application/json",
         },
+
         body: JSON.stringify({
-          to: recipient.trim(),
-          subject: subject.trim(),
-          message: message.trim(),
+          to: cleanRecipient,
+          subject: cleanSubject,
+          message: cleanMessage,
         }),
       });
 
-      const data = await response.json();
+      const data =
+        await readJsonResponse(response);
 
       if (!response.ok) {
-        alert(
+        throw new Error(
           data.error ||
             `Failed to send ${recordLabel}.`
         );
-        return;
       }
 
+      const recipientAddress =
+        data.recipient || cleanRecipient;
+
       alert(
-        `${recordLabel
-          .charAt(0)
-          .toUpperCase()}${recordLabel.slice(
-          1
-        )} sent successfully to ${data.recipient}.`
+        `${capitalise(recordLabel)} sent successfully to ${recipientAddress}.`
       );
 
+      setMessage("");
       setShowForm(false);
 
       if (typeof onSent === "function") {
         onSent(data);
       }
     } catch (error) {
-      console.error(error);
+      console.error(
+        `${recordLabel} email error:`,
+        error
+      );
 
       alert(
-        `Error sending ${recordLabel}.`
+        error.message ||
+          `Error sending ${recordLabel}.`
       );
     } finally {
       setSending(false);
@@ -81,7 +154,8 @@ export default function SendRecordEmail({
       <button
         type="button"
         className="primaryBtn"
-        onClick={() => setShowForm(!showForm)}
+        onClick={toggleForm}
+        disabled={sending}
       >
         {showForm
           ? "Cancel Email"
@@ -93,18 +167,46 @@ export default function SendRecordEmail({
           onSubmit={sendEmail}
           className="panel"
           style={{
-            marginTop: "16px",
-            minWidth: "340px",
+            position: "absolute",
+            zIndex: 30,
+            width: "min(420px, calc(100vw - 40px))",
+            marginTop: "12px",
+            padding: "20px",
+            boxShadow:
+              "0 20px 55px rgba(31, 27, 16, 0.18)",
           }}
         >
-          <h3>
-            Send {recordLabel}
-          </h3>
+          <div
+            style={{
+              marginBottom: "18px",
+            }}
+          >
+            <h3
+              style={{
+                margin: 0,
+              }}
+            >
+              Send {recordLabel}
+            </h3>
+
+            <p
+              className="helperText"
+              style={{
+                margin:
+                  "5px 0 0",
+              }}
+            >
+              Confirm the recipient and message
+              before sending.
+            </p>
+          </div>
 
           <label
             style={{
-              display: "block",
+              display: "grid",
+              gap: "7px",
               marginBottom: "14px",
+              fontWeight: 700,
             }}
           >
             Recipient Email
@@ -113,21 +215,30 @@ export default function SendRecordEmail({
               type="email"
               value={recipient}
               onChange={(event) =>
-                setRecipient(event.target.value)
+                setRecipient(
+                  event.target.value
+                )
               }
               placeholder="client@example.com"
               required
+              disabled={sending}
               style={{
                 width: "100%",
-                marginTop: "6px",
+                height: "44px",
+                padding: "0 12px",
+                border:
+                  "1px solid #dcd9d0",
+                borderRadius: "10px",
               }}
             />
           </label>
 
           <label
             style={{
-              display: "block",
+              display: "grid",
+              gap: "7px",
               marginBottom: "14px",
+              fontWeight: 700,
             }}
           >
             Subject
@@ -135,20 +246,30 @@ export default function SendRecordEmail({
             <input
               value={subject}
               onChange={(event) =>
-                setSubject(event.target.value)
+                setSubject(
+                  event.target.value
+                )
               }
               placeholder="Email subject"
+              required
+              disabled={sending}
               style={{
                 width: "100%",
-                marginTop: "6px",
+                height: "44px",
+                padding: "0 12px",
+                border:
+                  "1px solid #dcd9d0",
+                borderRadius: "10px",
               }}
             />
           </label>
 
           <label
             style={{
-              display: "block",
-              marginBottom: "14px",
+              display: "grid",
+              gap: "7px",
+              marginBottom: "17px",
+              fontWeight: 700,
             }}
           >
             Message
@@ -157,27 +278,80 @@ export default function SendRecordEmail({
               rows={6}
               value={message}
               onChange={(event) =>
-                setMessage(event.target.value)
+                setMessage(
+                  event.target.value
+                )
               }
               placeholder="Optional message to the client"
+              disabled={sending}
               style={{
                 width: "100%",
-                marginTop: "6px",
+                padding: "12px",
+                border:
+                  "1px solid #dcd9d0",
+                borderRadius: "10px",
+                resize: "vertical",
+                lineHeight: 1.55,
               }}
             />
           </label>
 
-          <button
-            type="submit"
-            className="primaryBtn"
-            disabled={sending}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              gap: "10px",
+            }}
           >
-            {sending
-              ? "Sending..."
-              : `Send ${recordLabel}`}
-          </button>
+            <button
+              type="button"
+              className="secondaryBtn"
+              onClick={closeForm}
+              disabled={sending}
+            >
+              Cancel
+            </button>
+
+            <button
+              type="submit"
+              className="primaryBtn"
+              disabled={sending}
+            >
+              {sending
+                ? "Sending..."
+                : `Send ${recordLabel}`}
+            </button>
+          </div>
         </form>
       )}
     </div>
   );
+}
+
+function capitalise(value) {
+  const text = String(
+    value || "document"
+  );
+
+  return `${text
+    .charAt(0)
+    .toUpperCase()}${text.slice(1)}`;
+}
+
+async function readJsonResponse(response) {
+  const responseText =
+    await response.text();
+
+  if (!responseText) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(responseText);
+  } catch {
+    return {
+      error:
+        "The server returned an invalid response.",
+    };
+  }
 }
