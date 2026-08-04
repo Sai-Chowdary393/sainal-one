@@ -1,27 +1,647 @@
 "use client";
 
-import {
-  useEffect,
-  useState,
-} from "react";
-
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
-import Sidebar from "../../components/Sidebar";
+import AppLayout from "../../components/layout/AppLayout";
 import ProtectedRoute from "../../components/ProtectedRoute";
 import StatusBadge from "../../components/StatusBadge";
 
-function formatDateTime(value) {
-  if (!value) {
-    return "-";
+import styles from "./emails.module.css";
+
+const EMAIL_TYPE_OPTIONS = [
+  "Proposal",
+  "Invoice",
+];
+
+const STATUS_OPTIONS = [
+  "Sent",
+  "Failed",
+];
+
+export default function EmailsPage() {
+  const [emailLogs, setEmailLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const [searchValue, setSearchValue] = useState("");
+  const [emailTypeFilter, setEmailTypeFilter] =
+    useState("All");
+  const [statusFilter, setStatusFilter] =
+    useState("All");
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      fetchEmailLogs();
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [
+    searchValue,
+    emailTypeFilter,
+    statusFilter,
+  ]);
+
+  async function fetchEmailLogs() {
+    try {
+      setLoading(true);
+      setErrorMessage("");
+
+      const params = new URLSearchParams();
+
+      if (searchValue.trim()) {
+        params.set(
+          "search",
+          searchValue.trim()
+        );
+      }
+
+      if (emailTypeFilter !== "All") {
+        params.set(
+          "email_type",
+          emailTypeFilter
+        );
+      }
+
+      if (statusFilter !== "All") {
+        params.set(
+          "status",
+          statusFilter
+        );
+      }
+
+      const query = params.toString();
+
+      const response = await fetch(
+        `/api/email-logs${
+          query ? `?${query}` : ""
+        }`,
+        {
+          cache: "no-store",
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error ||
+            "Failed to load email history."
+        );
+      }
+
+      setEmailLogs(
+        Array.isArray(data) ? data : []
+      );
+    } catch (error) {
+      console.error(
+        "Email history loading error:",
+        error
+      );
+
+      setErrorMessage(
+        error.message ||
+          "We could not load the email history."
+      );
+    } finally {
+      setLoading(false);
+    }
   }
 
-  return new Date(value).toLocaleString(
-    "en-GB",
-    {
-      dateStyle: "medium",
-      timeStyle: "short",
-    }
+  const summary = useMemo(() => {
+    const sent = emailLogs.filter(
+      (log) =>
+        normaliseValue(log.status) ===
+        "sent"
+    ).length;
+
+    const failed = emailLogs.filter(
+      (log) =>
+        normaliseValue(log.status) ===
+        "failed"
+    ).length;
+
+    const proposals = emailLogs.filter(
+      (log) =>
+        normaliseValue(
+          log.email_type
+        ) === "proposal"
+    ).length;
+
+    const invoices = emailLogs.filter(
+      (log) =>
+        normaliseValue(
+          log.email_type
+        ) === "invoice"
+    ).length;
+
+    return {
+      total: emailLogs.length,
+      sent,
+      failed,
+      proposals,
+      invoices,
+    };
+  }, [emailLogs]);
+
+  const filtersActive =
+    Boolean(searchValue) ||
+    emailTypeFilter !== "All" ||
+    statusFilter !== "All";
+
+  function clearFilters() {
+    setSearchValue("");
+    setEmailTypeFilter("All");
+    setStatusFilter("All");
+  }
+
+  return (
+    <ProtectedRoute>
+      <AppLayout
+        title="Emails"
+        description="Review business email delivery and document communication."
+      >
+        <div className={styles.page}>
+          <section
+            className={styles.pageHeader}
+          >
+            <div
+              className={
+                styles.pageHeaderCopy
+              }
+            >
+              <span
+                className={styles.eyebrow}
+              >
+                Communication workspace
+              </span>
+
+              <h2>Email activity centre</h2>
+
+              <p>
+                Review proposal and invoice
+                emails sent from SaiNal One,
+                including recipients, delivery
+                status and related business
+                records.
+              </p>
+            </div>
+
+            <Link
+              href="/ai-assistant"
+              className={
+                styles.primaryButton
+              }
+            >
+              <span>✦</span>
+              Create with AI
+            </Link>
+          </section>
+
+          <section
+            className={styles.summaryGrid}
+          >
+            <SummaryCard
+              icon="✉"
+              label="Email records"
+              value={summary.total}
+              detail="All delivery attempts"
+              tone="Gold"
+            />
+
+            <SummaryCard
+              icon="✓"
+              label="Sent"
+              value={summary.sent}
+              detail="Successfully delivered"
+              tone="Green"
+            />
+
+            <SummaryCard
+              icon="!"
+              label="Failed"
+              value={summary.failed}
+              detail="Require attention"
+              tone="Red"
+            />
+
+            <SummaryCard
+              icon="▤"
+              label="Documents"
+              value={
+                summary.proposals +
+                summary.invoices
+              }
+              detail={`${summary.proposals} proposals · ${summary.invoices} invoices`}
+              tone="Blue"
+            />
+          </section>
+
+          <section
+            className={styles.toolbarPanel}
+          >
+            <label
+              className={styles.searchBox}
+            >
+              <span aria-hidden="true">
+                ⌕
+              </span>
+
+              <input
+                type="search"
+                placeholder="Search recipient, subject or document number..."
+                value={searchValue}
+                onChange={(event) =>
+                  setSearchValue(
+                    event.target.value
+                  )
+                }
+                aria-label="Search email history"
+              />
+            </label>
+
+            <div className={styles.filters}>
+              <select
+                className={
+                  styles.filterSelect
+                }
+                value={emailTypeFilter}
+                onChange={(event) =>
+                  setEmailTypeFilter(
+                    event.target.value
+                  )
+                }
+                aria-label="Filter by email type"
+              >
+                <option value="All">
+                  All email types
+                </option>
+
+                {EMAIL_TYPE_OPTIONS.map(
+                  (emailType) => (
+                    <option
+                      key={emailType}
+                      value={emailType}
+                    >
+                      {emailType}
+                    </option>
+                  )
+                )}
+              </select>
+
+              <select
+                className={
+                  styles.filterSelect
+                }
+                value={statusFilter}
+                onChange={(event) =>
+                  setStatusFilter(
+                    event.target.value
+                  )
+                }
+                aria-label="Filter by status"
+              >
+                <option value="All">
+                  All statuses
+                </option>
+
+                {STATUS_OPTIONS.map(
+                  (status) => (
+                    <option
+                      key={status}
+                      value={status}
+                    >
+                      {status}
+                    </option>
+                  )
+                )}
+              </select>
+
+              {filtersActive && (
+                <button
+                  type="button"
+                  className={
+                    styles.clearButton
+                  }
+                  onClick={clearFilters}
+                >
+                  Clear filters
+                </button>
+              )}
+            </div>
+          </section>
+
+          {loading ? (
+            <LoadingState />
+          ) : errorMessage ? (
+            <section
+              className={styles.errorPanel}
+            >
+              <div>
+                <strong>
+                  Unable to load emails
+                </strong>
+
+                <p>{errorMessage}</p>
+              </div>
+
+              <button
+                type="button"
+                className={
+                  styles.secondaryButton
+                }
+                onClick={fetchEmailLogs}
+              >
+                Try again
+              </button>
+            </section>
+          ) : (
+            <section
+              className={styles.tablePanel}
+            >
+              <div
+                className={styles.tableHeading}
+              >
+                <div>
+                  <h3>Email delivery records</h3>
+
+                  <p>
+                    Open an email record to
+                    review delivery information
+                    and related documents.
+                  </p>
+                </div>
+
+                <span
+                  className={styles.resultCount}
+                >
+                  {emailLogs.length} result
+                  {emailLogs.length === 1
+                    ? ""
+                    : "s"}
+                </span>
+              </div>
+
+              {emailLogs.length === 0 ? (
+                <EmptyState
+                  filtersActive={
+                    filtersActive
+                  }
+                  onClearFilters={
+                    clearFilters
+                  }
+                />
+              ) : (
+                <div
+                  className={
+                    styles.tableWrapper
+                  }
+                >
+                  <table
+                    className={
+                      styles.emailTable
+                    }
+                  >
+                    <thead>
+                      <tr>
+                        <th>Email</th>
+                        <th>Recipient</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Related record</th>
+                        <th>Sent</th>
+                        <th
+                          aria-label="Open email"
+                        />
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {emailLogs.map(
+                        (log) => (
+                          <EmailRow
+                            key={log.id}
+                            log={log}
+                          />
+                        )
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          )}
+        </div>
+      </AppLayout>
+    </ProtectedRoute>
+  );
+}
+
+function EmailRow({ log }) {
+  const relatedLink =
+    getRelatedLink(log);
+
+  const failed =
+    normaliseValue(log.status) ===
+    "failed";
+
+  return (
+    <tr>
+      <td>
+        <div
+          className={styles.emailIdentity}
+        >
+          <span
+            className={styles.emailIcon}
+          >
+            ✉
+          </span>
+
+          <div
+            className={
+              styles.emailIdentityCopy
+            }
+          >
+            <Link
+              href={`/emails/${log.id}`}
+              className={styles.emailLink}
+            >
+              {log.subject ||
+                "Email without subject"}
+            </Link>
+
+            <small>
+              {failed
+                ? "Delivery requires attention"
+                : "Open email activity"}
+            </small>
+          </div>
+        </div>
+      </td>
+
+      <td>
+        <span
+          className={styles.recipient}
+        >
+          {log.recipient ||
+            "No recipient"}
+        </span>
+      </td>
+
+      <td>
+        <span
+          className={styles.typeBadge}
+        >
+          {log.email_type ||
+            "General"}
+        </span>
+      </td>
+
+      <td>
+        <StatusBadge
+          status={
+            log.status || "Unknown"
+          }
+        />
+      </td>
+
+      <td>
+        {relatedLink ? (
+          <Link
+            href={relatedLink}
+            className={
+              styles.relatedLink
+            }
+          >
+            {log.related_record_number ||
+              "View record"}
+          </Link>
+        ) : (
+          <span
+            className={
+              styles.emptyValue
+            }
+          >
+            {log.related_record_number ||
+              "Not linked"}
+          </span>
+        )}
+      </td>
+
+      <td>
+        <span
+          className={styles.dateText}
+        >
+          {formatDateTime(
+            log.sent_at ||
+              log.created_at
+          )}
+        </span>
+      </td>
+
+      <td>
+        <Link
+          href={`/emails/${log.id}`}
+          className={styles.openButton}
+        >
+          Open →
+        </Link>
+      </td>
+    </tr>
+  );
+}
+
+function SummaryCard({
+  icon,
+  label,
+  value,
+  detail,
+  tone,
+}) {
+  return (
+    <div
+      className={`${styles.summaryCard} ${
+        styles[`summary${tone}`] || ""
+      }`}
+    >
+      <span
+        className={styles.summaryIcon}
+      >
+        {icon}
+      </span>
+
+      <span
+        className={styles.summaryLabel}
+      >
+        {label}
+      </span>
+
+      <strong>{value}</strong>
+      <small>{detail}</small>
+    </div>
+  );
+}
+
+function EmptyState({
+  filtersActive,
+  onClearFilters,
+}) {
+  return (
+    <div className={styles.emptyState}>
+      <span
+        className={styles.emptyIcon}
+      >
+        ✉
+      </span>
+
+      <h3>
+        {filtersActive
+          ? "No matching email records"
+          : "No email history yet"}
+      </h3>
+
+      <p>
+        {filtersActive
+          ? "Try changing or clearing the current email filters."
+          : "Send a proposal or invoice to create your first email delivery record."}
+      </p>
+
+      {filtersActive ? (
+        <button
+          type="button"
+          className={styles.primaryButton}
+          onClick={onClearFilters}
+        >
+          Clear filters
+        </button>
+      ) : (
+        <Link
+          href="/proposals"
+          className={styles.primaryButton}
+        >
+          Open proposals
+        </Link>
+      )}
+    </div>
+  );
+}
+
+function LoadingState() {
+  return (
+    <section
+      className={styles.loadingPanel}
+    >
+      {Array.from({
+        length: 5,
+      }).map((_, index) => (
+        <div
+          key={index}
+          className={styles.loadingRow}
+        />
+      ))}
+    </section>
   );
 }
 
@@ -30,277 +650,52 @@ function getRelatedLink(log) {
     return null;
   }
 
-  if (log.email_type === "Proposal") {
+  if (
+    normaliseValue(
+      log.email_type
+    ) === "proposal"
+  ) {
     return `/proposals/${log.related_record_id}`;
   }
 
-  if (log.email_type === "Invoice") {
+  if (
+    normaliseValue(
+      log.email_type
+    ) === "invoice"
+  ) {
     return `/invoices/${log.related_record_id}`;
   }
 
   return null;
 }
 
-export default function EmailsPage() {
-  const [emailLogs, setEmailLogs] =
-    useState([]);
+function normaliseValue(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase();
+}
 
-  const [loading, setLoading] =
-    useState(true);
-
-  const [search, setSearch] =
-    useState("");
-
-  const [emailType, setEmailType] =
-    useState("");
-
-  const [status, setStatus] =
-    useState("");
-
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      fetchEmailLogs();
-    }, 300);
-
-    return () => clearTimeout(timeout);
-  }, [search, emailType, status]);
-
-  async function fetchEmailLogs() {
-    setLoading(true);
-
-    try {
-      const params =
-        new URLSearchParams();
-
-      if (search.trim()) {
-        params.set(
-          "search",
-          search.trim()
-        );
-      }
-
-      if (emailType) {
-        params.set(
-          "email_type",
-          emailType
-        );
-      }
-
-      if (status) {
-        params.set("status", status);
-      }
-
-      const response = await fetch(
-        `/api/email-logs?${params.toString()}`
-      );
-
-      const data =
-        await response.json();
-
-      if (!response.ok) {
-        alert(
-          data.error ||
-            "Failed to load email history."
-        );
-
-        return;
-      }
-
-      setEmailLogs(
-        Array.isArray(data) ? data : []
-      );
-    } catch (error) {
-      console.error(error);
-
-      alert(
-        "Error loading email history."
-      );
-    } finally {
-      setLoading(false);
-    }
+function formatDateTime(value) {
+  if (!value) {
+    return "Not available";
   }
 
-  return (
-    <ProtectedRoute>
-      <div className="appLayout">
-        <Sidebar />
+  const date = new Date(value);
 
-        <main className="mainContent">
-          <div className="topBar">
-            <div>
-              <h1>Email Centre</h1>
+  if (
+    Number.isNaN(date.getTime())
+  ) {
+    return "Not available";
+  }
 
-              <p className="helperText">
-                Review proposal and invoice
-                emails sent from SaiNal One.
-              </p>
-            </div>
-          </div>
-
-          <section className="panel">
-            <div className="settingsGrid">
-              <label>
-                Search
-
-                <input
-                  value={search}
-                  onChange={(event) =>
-                    setSearch(
-                      event.target.value
-                    )
-                  }
-                  placeholder="Recipient, subject or document number"
-                />
-              </label>
-
-              <label>
-                Email Type
-
-                <select
-                  value={emailType}
-                  onChange={(event) =>
-                    setEmailType(
-                      event.target.value
-                    )
-                  }
-                >
-                  <option value="">
-                    All email types
-                  </option>
-
-                  <option value="Proposal">
-                    Proposal
-                  </option>
-
-                  <option value="Invoice">
-                    Invoice
-                  </option>
-                </select>
-              </label>
-
-              <label>
-                Status
-
-                <select
-                  value={status}
-                  onChange={(event) =>
-                    setStatus(
-                      event.target.value
-                    )
-                  }
-                >
-                  <option value="">
-                    All statuses
-                  </option>
-
-                  <option value="Sent">
-                    Sent
-                  </option>
-
-                  <option value="Failed">
-                    Failed
-                  </option>
-                </select>
-              </label>
-            </div>
-          </section>
-
-          <section className="panel">
-            {loading ? (
-              <p>Loading email history...</p>
-            ) : emailLogs.length === 0 ? (
-              <p className="helperText">
-                No email history found. Send a
-                proposal or invoice to create
-                your first email log.
-              </p>
-            ) : (
-              <div
-                style={{
-                  overflowX: "auto",
-                }}
-              >
-                <table className="leadTable">
-                  <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th>Recipient</th>
-                      <th>Type</th>
-                      <th>Subject</th>
-                      <th>
-                        Related Record
-                      </th>
-                      <th>Status</th>
-                      <th>Error</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {emailLogs.map((log) => {
-                      const relatedLink =
-                        getRelatedLink(log);
-
-                      return (
-                        <tr key={log.id}>
-                          <td>
-                            {formatDateTime(
-                              log.sent_at ||
-                                log.created_at
-                            )}
-                          </td>
-
-                          <td>
-                            {log.recipient}
-                          </td>
-
-                          <td>
-                            {log.email_type}
-                          </td>
-
-                          <td>
-                            {log.subject ||
-                              "-"}
-                          </td>
-
-                          <td>
-                            {relatedLink ? (
-                              <Link
-                                href={
-                                  relatedLink
-                                }
-                                className="leadLink"
-                              >
-                                {log.related_record_number ||
-                                  "View record"}
-                              </Link>
-                            ) : (
-                              log.related_record_number ||
-                              "-"
-                            )}
-                          </td>
-
-                          <td>
-                            <StatusBadge
-                              status={
-                                log.status
-                              }
-                            />
-                          </td>
-
-                          <td>
-                            {log.error_message ||
-                              "-"}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
-        </main>
-      </div>
-    </ProtectedRoute>
+  return date.toLocaleString(
+    "en-GB",
+    {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }
   );
 }
