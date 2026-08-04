@@ -541,3 +541,95 @@
     flex-direction: column;
   }
 }
+/* ==================================================
+   SaiNal One Typography — Emails List
+================================================== */
+
+.eyebrow {
+  font-size: var(--font-label);
+}
+
+.pageHeader h2 {
+  font-size: var(--font-workspace-title);
+  line-height: 1.2;
+}
+
+.pageHeader p {
+  font-size: var(--font-helper);
+}
+
+.primaryButton,
+.secondaryButton,
+.clearButton,
+.openButton {
+  font-size: var(--font-button);
+}
+
+.summaryLabel {
+  font-size: var(--font-label);
+}
+
+.summaryCard strong {
+  font-size: 30px;
+}
+
+.summaryCard small {
+  font-size: var(--font-helper);
+}
+
+.searchBox input,
+.filterSelect {
+  font-size: var(--font-input);
+}
+
+.tableHeading h3 {
+  font-size: var(--font-panel-title);
+}
+
+.tableHeading p {
+  font-size: var(--font-helper);
+}
+
+.resultCount {
+  font-size: var(--font-label);
+}
+
+.emailTable th {
+  font-size: var(--font-label);
+}
+
+.emailTable td {
+  font-size: var(--font-table);
+  line-height: 1.5;
+}
+
+.emailLink {
+  font-size: var(--font-table);
+}
+
+.emailIdentityCopy small {
+  font-size: var(--font-meta);
+}
+
+.recipient {
+  font-size: var(--font-table);
+}
+
+.typeBadge {
+  font-size: var(--font-label);
+}
+
+.relatedLink,
+.emptyValue,
+.dateText {
+  font-size: var(--font-helper);
+}
+
+.emptyState h3 {
+  font-size: var(--font-panel-title);
+}
+
+.emptyState p,
+.errorPanel p {
+  font-size: var(--font-helper);
+}
