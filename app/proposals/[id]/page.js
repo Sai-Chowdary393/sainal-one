@@ -1,17 +1,14 @@
 "use client";
 
-import {
-  use,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 
 import AppLayout from "../../../components/layout/AppLayout";
 import ProtectedRoute from "../../../components/ProtectedRoute";
 import SendRecordEmail from "../../../components/SendRecordEmail";
 import StatusBadge from "../../../components/StatusBadge";
+
 import styles from "./proposal-details.module.css";
 
 const STATUS_OPTIONS = [
@@ -21,33 +18,20 @@ const STATUS_OPTIONS = [
   "Rejected",
 ];
 
-export default function ProposalDetailsPage({
-  params,
-}) {
-  const resolvedParams = use(params);
-  const proposalId = resolvedParams?.id;
+export default function ProposalDetailsPage() {
+  const params = useParams();
+  const proposalId = params?.id;
 
-  const [proposal, setProposal] =
+  const [proposal, setProposal] = useState(null);
+  const [draftProposal, setDraftProposal] =
     useState(null);
 
-  const [
-    draftProposal,
-    setDraftProposal,
-  ] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState(false);
 
-  const [loading, setLoading] =
-    useState(true);
-
-  const [saving, setSaving] =
-    useState(false);
-
-  const [editing, setEditing] =
-    useState(false);
-
-  const [
-    errorMessage,
-    setErrorMessage,
-  ] = useState("");
+  const [errorMessage, setErrorMessage] =
+    useState("");
 
   useEffect(() => {
     if (proposalId) {
@@ -67,7 +51,7 @@ export default function ProposalDetailsPage({
         }
       );
 
-      const data = await response.json();
+      const data = await readJsonResponse(response);
 
       if (!response.ok) {
         throw new Error(
@@ -76,18 +60,12 @@ export default function ProposalDetailsPage({
         );
       }
 
-      const selectedProposal =
-        Array.isArray(data)
-          ? data[0]
-          : data;
+      const selectedProposal = Array.isArray(data)
+        ? data[0]
+        : data;
 
-      setProposal(
-        selectedProposal || null
-      );
-
-      setDraftProposal(
-        selectedProposal || null
-      );
+      setProposal(selectedProposal || null);
+      setDraftProposal(selectedProposal || null);
     } catch (error) {
       console.error(
         "Proposal loading error:",
@@ -104,15 +82,12 @@ export default function ProposalDetailsPage({
   }
 
   function handleFieldChange(event) {
-    const { name, value } =
-      event.target;
+    const { name, value } = event.target;
 
-    setDraftProposal(
-      (currentProposal) => ({
-        ...currentProposal,
-        [name]: value,
-      })
-    );
+    setDraftProposal((currentProposal) => ({
+      ...currentProposal,
+      [name]: value,
+    }));
   }
 
   function startEditing() {
@@ -136,41 +111,23 @@ export default function ProposalDetailsPage({
       return;
     }
 
-    if (
-      !draftProposal.title?.trim()
-    ) {
-      alert(
-        "Proposal title is required."
-      );
-
+    if (!draftProposal.title?.trim()) {
+      alert("Proposal title is required.");
       return;
     }
 
-    if (
-      !draftProposal.client?.trim()
-    ) {
-      alert(
-        "Client name is required."
-      );
-
+    if (!draftProposal.client?.trim()) {
+      alert("Client name is required.");
       return;
     }
 
-    if (
-      !draftProposal.service?.trim()
-    ) {
+    if (!draftProposal.service?.trim()) {
       alert("Service is required.");
-
       return;
     }
 
-    if (
-      !draftProposal.proposal_text?.trim()
-    ) {
-      alert(
-        "Proposal content is required."
-      );
-
+    if (!draftProposal.proposal_text?.trim()) {
+      alert("Proposal content is required.");
       return;
     }
 
@@ -183,41 +140,30 @@ export default function ProposalDetailsPage({
           method: "PATCH",
 
           headers: {
-            "Content-Type":
-              "application/json",
+            "Content-Type": "application/json",
           },
 
           body: JSON.stringify({
-            title:
-              draftProposal.title.trim(),
+            title: draftProposal.title.trim(),
 
-            client:
-              draftProposal.client.trim(),
+            client: draftProposal.client.trim(),
 
-            contact:
-              String(
-                draftProposal.contact ||
-                  ""
-              ).trim(),
+            contact: String(
+              draftProposal.contact || ""
+            ).trim(),
 
-            email:
-              String(
-                draftProposal.email ||
-                  ""
-              ).trim(),
+            email: String(
+              draftProposal.email || ""
+            ).trim(),
 
-            service:
-              draftProposal.service.trim(),
+            service: draftProposal.service.trim(),
 
-            amount:
-              String(
-                draftProposal.amount ||
-                  ""
-              ).trim(),
+            amount: String(
+              draftProposal.amount || ""
+            ).trim(),
 
             status:
-              draftProposal.status ||
-              "Draft",
+              draftProposal.status || "Draft",
 
             proposal_text:
               draftProposal.proposal_text.trim(),
@@ -225,8 +171,7 @@ export default function ProposalDetailsPage({
         }
       );
 
-      const data =
-        await response.json();
+      const data = await readJsonResponse(response);
 
       if (!response.ok) {
         throw new Error(
@@ -235,26 +180,18 @@ export default function ProposalDetailsPage({
         );
       }
 
-      const updatedProposal =
-        Array.isArray(data)
-          ? data[0]
-          : data;
+      const updatedProposal = Array.isArray(data)
+        ? data[0]
+        : data;
 
-      setProposal(
-        updatedProposal ||
-          draftProposal
-      );
+      const finalProposal =
+        updatedProposal || draftProposal;
 
-      setDraftProposal(
-        updatedProposal ||
-          draftProposal
-      );
-
+      setProposal(finalProposal);
+      setDraftProposal(finalProposal);
       setEditing(false);
 
-      alert(
-        "Proposal updated successfully."
-      );
+      alert("Proposal updated successfully.");
     } catch (error) {
       console.error(
         "Proposal update error:",
@@ -270,9 +207,7 @@ export default function ProposalDetailsPage({
     }
   }
 
-  async function updateStatus(
-    status
-  ) {
+  async function updateStatus(status) {
     try {
       setSaving(true);
 
@@ -282,8 +217,7 @@ export default function ProposalDetailsPage({
           method: "PATCH",
 
           headers: {
-            "Content-Type":
-              "application/json",
+            "Content-Type": "application/json",
           },
 
           body: JSON.stringify({
@@ -292,8 +226,7 @@ export default function ProposalDetailsPage({
         }
       );
 
-      const data =
-        await response.json();
+      const data = await readJsonResponse(response);
 
       if (!response.ok) {
         throw new Error(
@@ -302,24 +235,21 @@ export default function ProposalDetailsPage({
         );
       }
 
-      const updatedProposal =
-        Array.isArray(data)
-          ? data[0]
-          : data;
+      const updatedProposal = Array.isArray(data)
+        ? data[0]
+        : data;
 
-      setProposal(
-        updatedProposal || {
-          ...proposal,
-          status,
-        }
-      );
+      setProposal((currentProposal) => ({
+        ...currentProposal,
+        ...(updatedProposal || {}),
+        status,
+      }));
 
-      setDraftProposal(
-        updatedProposal || {
-          ...draftProposal,
-          status,
-        }
-      );
+      setDraftProposal((currentProposal) => ({
+        ...currentProposal,
+        ...(updatedProposal || {}),
+        status,
+      }));
     } catch (error) {
       console.error(
         "Proposal status update error:",
@@ -336,24 +266,27 @@ export default function ProposalDetailsPage({
   }
 
   async function copyProposal() {
+    const proposalContent =
+      proposal?.proposal_text || "";
+
+    if (!proposalContent) {
+      alert("No proposal content is available.");
+      return;
+    }
+
     try {
       await navigator.clipboard.writeText(
-        proposal?.proposal_text ||
-          ""
+        proposalContent
       );
 
-      alert(
-        "Proposal copied successfully."
-      );
+      alert("Proposal copied successfully.");
     } catch (error) {
       console.error(
         "Proposal copy error:",
         error
       );
 
-      alert(
-        "Unable to copy the proposal."
-      );
+      alert("Unable to copy the proposal.");
     }
   }
 
@@ -377,26 +310,18 @@ export default function ProposalDetailsPage({
           title="Proposal Studio"
           description="Review and manage a customer proposal."
         >
-          <section
-            className={
-              styles.errorPanel
-            }
-          >
+          <section className={styles.errorPanel}>
             <div>
               <strong>
                 Unable to load proposal
               </strong>
 
-              <p>
-                {errorMessage}
-              </p>
+              <p>{errorMessage}</p>
             </div>
 
             <button
               type="button"
-              className={
-                styles.secondaryButton
-              }
+              className={styles.secondaryButton}
               onClick={fetchProposal}
             >
               Try again
@@ -407,44 +332,28 @@ export default function ProposalDetailsPage({
     );
   }
 
-  if (
-    !proposal ||
-    !draftProposal
-  ) {
+  if (!proposal || !draftProposal) {
     return (
       <ProtectedRoute>
         <AppLayout
           title="Proposal Studio"
           description="Review and manage a customer proposal."
         >
-          <section
-            className={
-              styles.notFound
-            }
-          >
-            <span
-              className={
-                styles.notFoundIcon
-              }
-            >
+          <section className={styles.notFound}>
+            <span className={styles.notFoundIcon}>
               ▤
             </span>
 
-            <h2>
-              Proposal not found
-            </h2>
+            <h2>Proposal not found</h2>
 
             <p>
-              This proposal may have
-              been deleted or you may
-              not have access to it.
+              This proposal may have been deleted
+              or you may not have access to it.
             </p>
 
             <Link
               href="/proposals"
-              className={
-                styles.primaryButton
-              }
+              className={styles.primaryButton}
             >
               Return to proposals
             </Link>
@@ -454,20 +363,16 @@ export default function ProposalDetailsPage({
     );
   }
 
-  const visibleProposal =
-    editing
-      ? draftProposal
-      : proposal;
+  const visibleProposal = editing
+    ? draftProposal
+    : proposal;
 
-  const sections = useMemo(
-    () =>
-      parseProposalSections(
-        visibleProposal.proposal_text ||
-          ""
-      ),
-    [
-      visibleProposal.proposal_text,
-    ]
+  /*
+   * These are normal calculations rather than hooks.
+   * This prevents the React hook-order crash.
+   */
+  const sections = parseProposalSections(
+    visibleProposal.proposal_text || ""
   );
 
   const recommendations =
@@ -485,31 +390,19 @@ export default function ProposalDetailsPage({
         }
         description="Proposal document, client information, pricing and approval workflow."
       >
-        <div
-          className={styles.page}
-        >
+        <div className={styles.page}>
           <section
             className={`${styles.pageHeader} ${styles.noPrint}`}
           >
-            <div
-              className={
-                styles.headerCopy
-              }
-            >
+            <div className={styles.headerCopy}>
               <Link
                 href="/proposals"
-                className={
-                  styles.backLink
-                }
+                className={styles.backLink}
               >
                 ← Back to proposals
               </Link>
 
-              <span
-                className={
-                  styles.eyebrow
-                }
-              >
+              <span className={styles.eyebrow}>
                 Proposal Studio
               </span>
 
@@ -524,26 +417,18 @@ export default function ProposalDetailsPage({
               </p>
             </div>
 
-            <div
-              className={
-                styles.headerActions
-              }
-            >
+            <div className={styles.headerActions}>
               <SendRecordEmail
                 endpoint={`/api/proposals/${proposal.id}/send`}
-                defaultEmail={
-                  proposal.email || ""
-                }
-                defaultSubject={`${proposal.title} – ${proposal.proposal_number}`}
+                defaultEmail={proposal.email || ""}
+                defaultSubject={`${proposal.title || "Proposal"} – ${
+                  proposal.proposal_number ||
+                  "SaiNal One"
+                }`}
                 recordLabel="proposal"
                 onSent={(data) => {
-                  if (
-                    data.proposal
-                  ) {
-                    setProposal(
-                      data.proposal
-                    );
-
+                  if (data?.proposal) {
+                    setProposal(data.proposal);
                     setDraftProposal(
                       data.proposal
                     );
@@ -554,12 +439,8 @@ export default function ProposalDetailsPage({
               {!editing ? (
                 <button
                   type="button"
-                  className={
-                    styles.secondaryButton
-                  }
-                  onClick={
-                    startEditing
-                  }
+                  className={styles.secondaryButton}
+                  onClick={startEditing}
                 >
                   Edit proposal
                 </button>
@@ -567,30 +448,18 @@ export default function ProposalDetailsPage({
                 <>
                   <button
                     type="button"
-                    className={
-                      styles.secondaryButton
-                    }
-                    disabled={
-                      saving
-                    }
-                    onClick={
-                      cancelEditing
-                    }
+                    className={styles.secondaryButton}
+                    disabled={saving}
+                    onClick={cancelEditing}
                   >
                     Cancel
                   </button>
 
                   <button
                     type="button"
-                    className={
-                      styles.primaryButton
-                    }
-                    disabled={
-                      saving
-                    }
-                    onClick={
-                      saveProposal
-                    }
+                    className={styles.primaryButton}
+                    disabled={saving}
+                    onClick={saveProposal}
                   >
                     {saving
                       ? "Saving..."
@@ -601,58 +470,30 @@ export default function ProposalDetailsPage({
 
               <button
                 type="button"
-                className={
-                  styles.secondaryButton
-                }
-                onClick={
-                  copyProposal
-                }
+                className={styles.secondaryButton}
+                onClick={copyProposal}
               >
                 Copy proposal
               </button>
 
               <button
                 type="button"
-                className={
-                  styles.primaryButton
-                }
-                onClick={() =>
-                  window.print()
-                }
+                className={styles.primaryButton}
+                onClick={() => window.print()}
               >
                 Print / Save PDF
               </button>
             </div>
           </section>
 
-          <section
-            className={
-              styles.heroCard
-            }
-          >
-            <div
-              className={
-                styles.proposalIdentity
-              }
-            >
-              <span
-                className={
-                  styles.proposalIcon
-                }
-              >
+          <section className={styles.heroCard}>
+            <div className={styles.proposalIdentity}>
+              <span className={styles.proposalIcon}>
                 ▤
               </span>
 
-              <div
-                className={
-                  styles.identityCopy
-                }
-              >
-                <span
-                  className={
-                    styles.heroLabel
-                  }
-                >
+              <div className={styles.identityCopy}>
+                <span className={styles.heroLabel}>
                   Customer proposal
                 </span>
 
@@ -666,11 +507,7 @@ export default function ProposalDetailsPage({
                     "Professional services"}
                 </p>
 
-                <div
-                  className={
-                    styles.identityMeta
-                  }
-                >
+                <div className={styles.identityMeta}>
                   <StatusBadge
                     status={
                       visibleProposal.status ||
@@ -678,22 +515,14 @@ export default function ProposalDetailsPage({
                     }
                   />
 
-                  <span
-                    className={
-                      styles.metaBadge
-                    }
-                  >
+                  <span className={styles.metaBadge}>
                     Created{" "}
                     {formatDate(
                       proposal.created_at
                     )}
                   </span>
 
-                  <span
-                    className={
-                      styles.metaBadge
-                    }
-                  >
+                  <span className={styles.metaBadge}>
                     {proposal.proposal_number ||
                       "No proposal number"}
                   </span>
@@ -701,14 +530,8 @@ export default function ProposalDetailsPage({
               </div>
             </div>
 
-            <div
-              className={
-                styles.amountCard
-              }
-            >
-              <span>
-                Proposal value
-              </span>
+            <div className={styles.amountCard}>
+              <span>Proposal value</span>
 
               <strong>
                 {formatProposalAmount(
@@ -717,121 +540,72 @@ export default function ProposalDetailsPage({
               </strong>
 
               <small>
-                {visibleProposal.status ||
-                  "Draft"}
+                {visibleProposal.status || "Draft"}
               </small>
             </div>
           </section>
 
-          <section
-            className={
-              styles.workspaceGrid
-            }
-          >
-            <section
-              className={
-                styles.panel
-              }
-            >
-              <div
-                className={
-                  styles.panelHeader
-                }
-              >
+          <section className={styles.workspaceGrid}>
+            <section className={styles.panel}>
+              <div className={styles.panelHeader}>
                 <div>
-                  <h3>
-                    Proposal information
-                  </h3>
+                  <h3>Proposal information</h3>
 
                   <p>
-                    Client, service,
-                    pricing and status
+                    Client, service, pricing and
+                    status
                   </p>
                 </div>
               </div>
 
               {editing ? (
-                <div
-                  className={
-                    styles.formGrid
-                  }
-                >
+                <div className={styles.formGrid}>
                   <Field
                     label="Proposal title"
                     name="title"
-                    value={
-                      draftProposal.title
-                    }
-                    onChange={
-                      handleFieldChange
-                    }
+                    value={draftProposal.title}
+                    onChange={handleFieldChange}
                     full
                   />
 
                   <Field
                     label="Client"
                     name="client"
-                    value={
-                      draftProposal.client
-                    }
-                    onChange={
-                      handleFieldChange
-                    }
+                    value={draftProposal.client}
+                    onChange={handleFieldChange}
                   />
 
                   <Field
                     label="Contact"
                     name="contact"
-                    value={
-                      draftProposal.contact
-                    }
-                    onChange={
-                      handleFieldChange
-                    }
+                    value={draftProposal.contact}
+                    onChange={handleFieldChange}
                   />
 
                   <Field
                     label="Email"
                     name="email"
                     type="email"
-                    value={
-                      draftProposal.email
-                    }
-                    onChange={
-                      handleFieldChange
-                    }
+                    value={draftProposal.email}
+                    onChange={handleFieldChange}
                   />
 
                   <Field
                     label="Service"
                     name="service"
-                    value={
-                      draftProposal.service
-                    }
-                    onChange={
-                      handleFieldChange
-                    }
+                    value={draftProposal.service}
+                    onChange={handleFieldChange}
                   />
 
                   <Field
                     label="Amount"
                     name="amount"
-                    value={
-                      draftProposal.amount
-                    }
-                    onChange={
-                      handleFieldChange
-                    }
+                    value={draftProposal.amount}
+                    onChange={handleFieldChange}
                   />
 
-                  <div
-                    className={
-                      styles.field
-                    }
-                  >
-                    <label
-                      htmlFor="proposal-status"
-                    >
+                  <div className={styles.field}>
+                    <label htmlFor="proposal-status">
                       Status
                     </label>
 
@@ -842,22 +616,14 @@ export default function ProposalDetailsPage({
                         draftProposal.status ||
                         "Draft"
                       }
-                      disabled={
-                        saving
-                      }
-                      onChange={
-                        handleFieldChange
-                      }
+                      disabled={saving}
+                      onChange={handleFieldChange}
                     >
                       {STATUS_OPTIONS.map(
                         (status) => (
                           <option
-                            key={
-                              status
-                            }
-                            value={
-                              status
-                            }
+                            key={status}
+                            value={status}
                           >
                             {status}
                           </option>
@@ -867,37 +633,25 @@ export default function ProposalDetailsPage({
                   </div>
                 </div>
               ) : (
-                <div
-                  className={
-                    styles.detailList
-                  }
-                >
+                <div className={styles.detailList}>
                   <DetailRow
                     label="Proposal title"
-                    value={
-                      proposal.title
-                    }
+                    value={proposal.title}
                   />
 
                   <DetailRow
                     label="Client"
-                    value={
-                      proposal.client
-                    }
+                    value={proposal.client}
                   />
 
                   <DetailRow
                     label="Contact"
-                    value={
-                      proposal.contact
-                    }
+                    value={proposal.contact}
                   />
 
                   <DetailRow
                     label="Email"
-                    value={
-                      proposal.email
-                    }
+                    value={proposal.email}
                     href={
                       proposal.email
                         ? `mailto:${proposal.email}`
@@ -907,9 +661,7 @@ export default function ProposalDetailsPage({
 
                   <DetailRow
                     label="Service"
-                    value={
-                      proposal.service
-                    }
+                    value={proposal.service}
                   />
 
                   <DetailRow
@@ -927,36 +679,22 @@ export default function ProposalDetailsPage({
                           styles.inlineStatusSelect
                         }
                         value={
-                          proposal.status ||
-                          "Draft"
+                          proposal.status || "Draft"
                         }
-                        disabled={
-                          saving
-                        }
-                        onChange={(
-                          event
-                        ) =>
+                        disabled={saving}
+                        onChange={(event) =>
                           updateStatus(
-                            event.target
-                              .value
+                            event.target.value
                           )
                         }
                       >
                         {STATUS_OPTIONS.map(
-                          (
-                            status
-                          ) => (
+                          (status) => (
                             <option
-                              key={
-                                status
-                              }
-                              value={
-                                status
-                              }
+                              key={status}
+                              value={status}
                             >
-                              {
-                                status
-                              }
+                              {status}
                             </option>
                           )
                         )}
@@ -974,21 +712,9 @@ export default function ProposalDetailsPage({
               )}
             </section>
 
-            <section
-              className={
-                styles.aiPanel
-              }
-            >
-              <div
-                className={
-                  styles.aiHeader
-                }
-              >
-                <span
-                  className={
-                    styles.aiIcon
-                  }
-                >
+            <section className={styles.aiPanel}>
+              <div className={styles.aiHeader}>
+                <span className={styles.aiIcon}>
                   ✦
                 </span>
 
@@ -997,22 +723,15 @@ export default function ProposalDetailsPage({
                     Proposal intelligence
                   </span>
 
-                  <h3>
-                    Quality overview
-                  </h3>
+                  <h3>Quality overview</h3>
                 </div>
               </div>
 
-              <div
-                className={
-                  styles.qualityGrid
-                }
-              >
+              <div className={styles.qualityGrid}>
                 <QualityMetric
                   label="Structure"
                   value={
-                    sections.length >=
-                    5
+                    sections.length >= 5
                       ? "Strong"
                       : "Needs work"
                   }
@@ -1046,34 +765,23 @@ export default function ProposalDetailsPage({
               </div>
 
               <div
-                className={
-                  styles.aiRecommendations
-                }
+                className={styles.aiRecommendations}
               >
                 <span>
                   Recommended improvements
                 </span>
 
                 {recommendations.map(
-                  (
-                    recommendation,
-                    index
-                  ) => (
+                  (recommendation, index) => (
                     <div
                       key={`${recommendation}-${index}`}
                       className={
                         styles.recommendationItem
                       }
                     >
-                      <span>
-                        →
-                      </span>
+                      <span>→</span>
 
-                      <p>
-                        {
-                          recommendation
-                        }
-                      </p>
+                      <p>{recommendation}</p>
                     </div>
                   )
                 )}
@@ -1082,66 +790,41 @@ export default function ProposalDetailsPage({
           </section>
 
           {editing ? (
-            <section
-              className={
-                styles.editorPanel
-              }
-            >
-              <div
-                className={
-                  styles.panelHeader
-                }
-              >
+            <section className={styles.editorPanel}>
+              <div className={styles.panelHeader}>
                 <div>
-                  <h3>
-                    Proposal content
-                  </h3>
+                  <h3>Proposal content</h3>
 
                   <p>
                     Edit the complete
-                    customer-facing
-                    document
+                    customer-facing document
                   </p>
                 </div>
               </div>
 
               <textarea
                 name="proposal_text"
-                className={
-                  styles.proposalEditor
-                }
+                className={styles.proposalEditor}
                 rows={34}
                 value={
                   draftProposal.proposal_text ||
                   ""
                 }
                 disabled={saving}
-                onChange={
-                  handleFieldChange
-                }
+                onChange={handleFieldChange}
               />
             </section>
           ) : (
-            <section
-              className={
-                styles.documentPanel
-              }
-            >
+            <section className={styles.documentPanel}>
               <div
                 className={`${styles.documentToolbar} ${styles.noPrint}`}
               >
                 <div>
-                  <span
-                    className={
-                      styles.eyebrow
-                    }
-                  >
+                  <span className={styles.eyebrow}>
                     Customer document
                   </span>
 
-                  <h3>
-                    Full proposal
-                  </h3>
+                  <h3>Full proposal</h3>
                 </div>
 
                 <div>
@@ -1150,9 +833,7 @@ export default function ProposalDetailsPage({
                     className={
                       styles.secondaryButton
                     }
-                    onClick={
-                      copyProposal
-                    }
+                    onClick={copyProposal}
                   >
                     Copy
                   </button>
@@ -1172,15 +853,9 @@ export default function ProposalDetailsPage({
               </div>
 
               <article
-                className={
-                  styles.proposalDocument
-                }
+                className={styles.proposalDocument}
               >
-                <header
-                  className={
-                    styles.documentHeader
-                  }
-                >
+                <header className={styles.documentHeader}>
                   <div>
                     <span
                       className={
@@ -1192,8 +867,7 @@ export default function ProposalDetailsPage({
 
                     <div>
                       <strong>
-                        SaiNal
-                        Technologies Ltd
+                        SaiNal Technologies Ltd
                       </strong>
 
                       <p>
@@ -1203,14 +877,8 @@ export default function ProposalDetailsPage({
                     </div>
                   </div>
 
-                  <div
-                    className={
-                      styles.documentTitle
-                    }
-                  >
-                    <span>
-                      PROPOSAL
-                    </span>
+                  <div className={styles.documentTitle}>
+                    <span>PROPOSAL</span>
 
                     <strong>
                       {proposal.proposal_number ||
@@ -1219,36 +887,20 @@ export default function ProposalDetailsPage({
                   </div>
                 </header>
 
-                <section
-                  className={
-                    styles.documentMeta
-                  }
-                >
+                <section className={styles.documentMeta}>
                   <div>
-                    <span>
-                      Prepared for
-                    </span>
+                    <span>Prepared for</span>
 
                     <strong>
-                      {proposal.client ||
-                        "Client"}
+                      {proposal.client || "Client"}
                     </strong>
 
-                    <p>
-                      {proposal.contact ||
-                        ""}
-                    </p>
-
-                    <p>
-                      {proposal.email ||
-                        ""}
-                    </p>
+                    <p>{proposal.contact || ""}</p>
+                    <p>{proposal.email || ""}</p>
                   </div>
 
                   <div>
-                    <span>
-                      Proposal date
-                    </span>
+                    <span>Proposal date</span>
 
                     <strong>
                       {formatDate(
@@ -1256,26 +908,19 @@ export default function ProposalDetailsPage({
                       )}
                     </strong>
 
-                    <span>
-                      Status
-                    </span>
+                    <span>Status</span>
 
                     <strong>
-                      {proposal.status ||
-                        "Draft"}
+                      {proposal.status || "Draft"}
                     </strong>
                   </div>
                 </section>
 
                 <section
-                  className={
-                    styles.documentSummary
-                  }
+                  className={styles.documentSummary}
                 >
                   <div>
-                    <span>
-                      Proposal title
-                    </span>
+                    <span>Proposal title</span>
 
                     <strong>
                       {proposal.title ||
@@ -1284,9 +929,7 @@ export default function ProposalDetailsPage({
                   </div>
 
                   <div>
-                    <span>
-                      Value
-                    </span>
+                    <span>Value</span>
 
                     <strong>
                       {formatProposalAmount(
@@ -1297,17 +940,11 @@ export default function ProposalDetailsPage({
                 </section>
 
                 <div
-                  className={
-                    styles.documentSections
-                  }
+                  className={styles.documentSections}
                 >
-                  {sections.length >
-                  0 ? (
+                  {sections.length > 0 ? (
                     sections.map(
-                      (
-                        section,
-                        index
-                      ) => (
+                      (section, index) => (
                         <section
                           key={`${section.title}-${index}`}
                           className={
@@ -1316,17 +953,11 @@ export default function ProposalDetailsPage({
                         >
                           {section.title && (
                             <h3>
-                              {
-                                section.title
-                              }
+                              {section.title}
                             </h3>
                           )}
 
-                          <p>
-                            {
-                              section.content
-                            }
-                          </p>
+                          <p>{section.content}</p>
                         </section>
                       )
                     )
@@ -1343,13 +974,9 @@ export default function ProposalDetailsPage({
                 </div>
 
                 <footer
-                  className={
-                    styles.documentFooter
-                  }
+                  className={styles.documentFooter}
                 >
-                  <p>
-                    SaiNal Technologies Ltd
-                  </p>
+                  <p>SaiNal Technologies Ltd</p>
 
                   <p>
                     www.sainaltechnologies.com
@@ -1375,14 +1002,10 @@ function Field({
   return (
     <div
       className={`${styles.field} ${
-        full
-          ? styles.fieldFull
-          : ""
+        full ? styles.fieldFull : ""
       }`}
     >
-      <label
-        htmlFor={`proposal-${name}`}
-      >
+      <label htmlFor={`proposal-${name}`}>
         {label}
       </label>
 
@@ -1404,31 +1027,20 @@ function DetailRow({
   customValue,
 }) {
   return (
-    <div
-      className={
-        styles.detailRow
-      }
-    >
-      <span>
-        {label}
-      </span>
+    <div className={styles.detailRow}>
+      <span>{label}</span>
 
       {customValue ? (
         customValue
       ) : href && value ? (
-        <a href={href}>
-          {value}
-        </a>
+        <a href={href}>{value}</a>
       ) : (
         <strong
           className={
-            value
-              ? ""
-              : styles.emptyValue
+            value ? "" : styles.emptyValue
           }
         >
-          {value ||
-            "Not available"}
+          {value || "Not available"}
         </strong>
       )}
     </div>
@@ -1440,53 +1052,32 @@ function QualityMetric({
   value,
 }) {
   return (
-    <div
-      className={
-        styles.qualityMetric
-      }
-    >
-      <span>
-        {label}
-      </span>
-
-      <strong>
-        {value}
-      </strong>
+    <div className={styles.qualityMetric}>
+      <span>{label}</span>
+      <strong>{value}</strong>
     </div>
   );
 }
 
 function LoadingState() {
   return (
-    <section
-      className={
-        styles.loadingPanel
-      }
-    >
+    <section className={styles.loadingPanel}>
       {Array.from({
         length: 6,
       }).map((_, index) => (
         <div
           key={index}
-          className={
-            styles.loadingRow
-          }
+          className={styles.loadingRow}
         />
       ))}
     </section>
   );
 }
 
-function parseProposalSections(
-  text
-) {
-  const lines = String(
-    text || ""
-  )
+function parseProposalSections(text) {
+  const lines = String(text || "")
     .split("\n")
-    .map((line) =>
-      line.trim()
-    );
+    .map((line) => line.trim());
 
   const sections = [];
 
@@ -1494,19 +1085,13 @@ function parseProposalSections(
   let currentContent = [];
 
   function flushSection() {
-    const content =
-      currentContent
-        .join("\n")
-        .trim();
+    const content = currentContent
+      .join("\n")
+      .trim();
 
-    if (
-      currentTitle ||
-      content
-    ) {
+    if (currentTitle || content) {
       sections.push({
-        title:
-          currentTitle,
-
+        title: currentTitle,
         content,
       });
     }
@@ -1519,23 +1104,17 @@ function parseProposalSections(
     const isHeading =
       line &&
       line.length <= 55 &&
-      line ===
-        line.toUpperCase() &&
+      line === line.toUpperCase() &&
       /[A-Z]/.test(line);
 
     if (isHeading) {
       flushSection();
-
-      currentTitle =
-        line;
-
+      currentTitle = line;
       return;
     }
 
     if (line) {
-      currentContent.push(
-        line
-      );
+      currentContent.push(line);
     }
   });
 
@@ -1543,8 +1122,7 @@ function parseProposalSections(
 
   return sections.filter(
     (section) =>
-      section.title ||
-      section.content
+      section.title || section.content
   );
 }
 
@@ -1552,22 +1130,18 @@ function buildRecommendations(
   proposal,
   sections
 ) {
-  const recommendations =
-    [];
+  const recommendations = [];
 
-  const sectionTitles =
-    sections.map((section) =>
+  const sectionTitles = sections.map(
+    (section) =>
       String(
         section.title || ""
       ).toLowerCase()
-    );
+  );
 
   if (
-    !sectionTitles.some(
-      (title) =>
-        title.includes(
-          "executive"
-        )
+    !sectionTitles.some((title) =>
+      title.includes("executive")
     )
   ) {
     recommendations.push(
@@ -1576,9 +1150,8 @@ function buildRecommendations(
   }
 
   if (
-    !sectionTitles.some(
-      (title) =>
-        title.includes("scope")
+    !sectionTitles.some((title) =>
+      title.includes("scope")
     )
   ) {
     recommendations.push(
@@ -1587,11 +1160,8 @@ function buildRecommendations(
   }
 
   if (
-    !sectionTitles.some(
-      (title) =>
-        title.includes(
-          "timeline"
-        )
+    !sectionTitles.some((title) =>
+      title.includes("timeline")
     )
   ) {
     recommendations.push(
@@ -1600,11 +1170,8 @@ function buildRecommendations(
   }
 
   if (
-    !sectionTitles.some(
-      (title) =>
-        title.includes(
-          "deliverable"
-        )
+    !sectionTitles.some((title) =>
+      title.includes("deliverable")
     )
   ) {
     recommendations.push(
@@ -1618,19 +1185,13 @@ function buildRecommendations(
     );
   }
 
-  if (
-    recommendations.length ===
-    0
-  ) {
+  if (recommendations.length === 0) {
     recommendations.push(
       "The proposal contains a strong base structure. Review wording and client-specific detail before sending."
     );
   }
 
-  return recommendations.slice(
-    0,
-    5
-  );
+  return recommendations.slice(0, 5);
 }
 
 function getMoneyValue(value) {
@@ -1652,16 +1213,12 @@ function getMoneyValue(value) {
   );
 }
 
-function formatProposalAmount(
-  value
-) {
+function formatProposalAmount(value) {
   if (!value) {
     return "To be confirmed";
   }
 
-  return getMoneyValue(
-    value
-  ).toLocaleString(
+  return getMoneyValue(value).toLocaleString(
     "en-GB",
     {
       style: "currency",
@@ -1677,23 +1234,32 @@ function formatDate(value) {
     return "Not available";
   }
 
-  const date =
-    new Date(value);
+  const date = new Date(value);
 
-  if (
-    Number.isNaN(
-      date.getTime()
-    )
-  ) {
+  if (Number.isNaN(date.getTime())) {
     return "Not available";
   }
 
-  return date.toLocaleDateString(
-    "en-GB",
-    {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    }
-  );
+  return date.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+async function readJsonResponse(response) {
+  const responseText = await response.text();
+
+  if (!responseText) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(responseText);
+  } catch {
+    return {
+      error:
+        "The server returned an invalid response.",
+    };
+  }
 }
