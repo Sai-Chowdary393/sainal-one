@@ -770,3 +770,133 @@
     flex-direction: column;
   }
 }
+/* ==================================================
+   SaiNal One Typography — Invoices
+================================================== */
+
+.eyebrow {
+  font-size: var(--font-label);
+}
+
+.pageHeader h2 {
+  font-size: var(--font-workspace-title);
+  line-height: 1.2;
+}
+
+.pageHeader p {
+  font-size: var(--font-helper);
+}
+
+.primaryButton,
+.secondaryButton,
+.clearButton,
+.openButton {
+  font-size: var(--font-button);
+}
+
+.formHeading h3 {
+  font-size: var(--font-section-title);
+}
+
+.formHeading p {
+  font-size: var(--font-helper);
+}
+
+.field label {
+  font-size: var(--font-helper);
+}
+
+.field input,
+.field select,
+.field textarea,
+.searchBox input {
+  font-size: var(--font-input);
+}
+
+.filterSelect {
+  font-size: var(--font-button);
+}
+
+.calculationItem span {
+  font-size: var(--font-label);
+}
+
+.calculationItem strong {
+  font-size: 20px;
+}
+
+.calculationTotal strong {
+  font-size: 24px;
+}
+
+.summaryLabel {
+  font-size: var(--font-label);
+}
+
+.summaryCard strong {
+  font-size: 30px;
+}
+
+.summaryCard small {
+  font-size: var(--font-helper);
+}
+
+.tableHeading h3 {
+  font-size: var(--font-panel-title);
+}
+
+.tableHeading p {
+  font-size: var(--font-helper);
+}
+
+.resultCount {
+  font-size: var(--font-label);
+}
+
+.invoiceTable th {
+  font-size: var(--font-label);
+}
+
+.invoiceTable td {
+  font-size: var(--font-table);
+  line-height: 1.5;
+}
+
+.invoiceLink,
+.clientCell strong {
+  font-size: var(--font-table);
+}
+
+.invoiceIdentityCopy small,
+.clientCell small {
+  font-size: var(--font-meta);
+}
+
+.serviceText,
+.amountText {
+  font-size: var(--font-table);
+}
+
+.dueDate,
+.createdDate {
+  font-size: var(--font-helper);
+}
+
+.overdueLabel {
+  font-size: var(--font-meta);
+}
+
+.emptyState h3 {
+  font-size: var(--font-panel-title);
+}
+
+.emptyState p,
+.errorPanel p {
+  font-size: var(--font-helper);
+}
+
+@media (max-width: 720px) {
+  .pageHeader h2 {
+    font-size: 26px;
+  }
+}
