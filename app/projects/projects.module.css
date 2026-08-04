@@ -754,3 +754,127 @@
     flex-direction: column;
   }
 }
+/* ==================================================
+   SaiNal One Typography — Projects List
+================================================== */
+
+.eyebrow {
+  font-size: var(--font-label);
+}
+
+.pageHeader h2 {
+  font-size: var(--font-workspace-title);
+  line-height: 1.2;
+}
+
+.pageHeader p {
+  font-size: var(--font-helper);
+}
+
+.primaryButton,
+.secondaryButton,
+.clearButton,
+.openButton {
+  font-size: var(--font-button);
+}
+
+.formHeading h3 {
+  font-size: var(--font-section-title);
+}
+
+.formHeading p {
+  font-size: var(--font-helper);
+  line-height: var(--line-helper);
+}
+
+.field label {
+  font-size: var(--font-helper);
+}
+
+.field input,
+.field select,
+.field textarea,
+.searchBox input {
+  font-size: var(--font-input);
+}
+
+.filterSelect {
+  font-size: var(--font-button);
+}
+
+.summaryLabel {
+  font-size: var(--font-label);
+}
+
+.summaryCard strong {
+  font-size: 30px;
+}
+
+.summaryCard small {
+  font-size: var(--font-helper);
+}
+
+.tableHeading h3 {
+  font-size: var(--font-panel-title);
+}
+
+.tableHeading p {
+  font-size: var(--font-helper);
+}
+
+.resultCount {
+  font-size: var(--font-label);
+}
+
+.projectTable th {
+  font-size: var(--font-label);
+}
+
+.projectTable td {
+  font-size: var(--font-table);
+  line-height: 1.5;
+}
+
+.projectLink {
+  font-size: var(--font-table);
+}
+
+.projectIdentityCopy small {
+  font-size: var(--font-meta);
+}
+
+.amountText {
+  font-size: var(--font-table);
+}
+
+.dateText,
+.createdDate {
+  font-size: var(--font-helper);
+}
+
+.overdueLabel {
+  font-size: var(--font-meta);
+}
+
+.progressMeta span {
+  font-size: var(--font-meta);
+}
+
+.progressMeta strong {
+  font-size: var(--font-label);
+}
+
+.emptyState h3 {
+  font-size: var(--font-panel-title);
+}
+
+.emptyState p,
+.errorPanel p {
+  font-size: var(--font-helper);
+}
+
+@media (max-width: 720px) {
+  .pageHeader h2 {
+    font-size: 26px;
+  }
+}
