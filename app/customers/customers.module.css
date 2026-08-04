@@ -734,3 +734,117 @@
     flex-direction: column;
   }
 }
+/* ==================================================
+   SaiNal One Typography — Customers
+================================================== */
+
+.eyebrow {
+  font-size: var(--font-label);
+}
+
+.pageHeader h2 {
+  font-size: var(--font-workspace-title);
+  line-height: 1.2;
+}
+
+.pageHeader p {
+  font-size: var(--font-helper);
+}
+
+.primaryButton,
+.secondaryButton,
+.clearButton,
+.openButton {
+  font-size: var(--font-button);
+}
+
+.formHeading h3 {
+  font-size: var(--font-section-title);
+}
+
+.formHeading p {
+  font-size: var(--font-helper);
+}
+
+.field label {
+  font-size: var(--font-helper);
+}
+
+.field input,
+.field select,
+.searchBox input {
+  font-size: var(--font-input);
+}
+
+.filterSelect {
+  font-size: var(--font-button);
+}
+
+.summaryCard span {
+  font-size: var(--font-label);
+}
+
+.summaryCard strong {
+  font-size: 30px;
+}
+
+.summaryCard small {
+  font-size: var(--font-helper);
+}
+
+.tableHeading h3 {
+  font-size: var(--font-panel-title);
+}
+
+.tableHeading p {
+  font-size: var(--font-helper);
+}
+
+.resultCount {
+  font-size: var(--font-label);
+}
+
+.customerTable th {
+  font-size: var(--font-label);
+}
+
+.customerTable td {
+  font-size: var(--font-table);
+  line-height: 1.5;
+}
+
+.customerAvatar {
+  font-size: var(--font-label);
+}
+
+.customerLink {
+  font-size: var(--font-table);
+}
+
+.customerIdentityCopy small {
+  font-size: var(--font-meta);
+}
+
+.relationshipCount,
+.healthBadge {
+  font-size: var(--font-label);
+}
+
+.createdDate {
+  font-size: var(--font-helper);
+}
+
+.emptyState h3 {
+  font-size: var(--font-panel-title);
+}
+
+.emptyState p,
+.errorPanel p {
+  font-size: var(--font-helper);
+}
+
+@media (max-width: 720px) {
+  .pageHeader h2 {
+    font-size: 26px;
+  }
+}
