@@ -1016,3 +1016,181 @@
     flex-direction: column;
   }
 }
+/* ==================================================
+   SaiNal One Design System — Dashboard Typography
+================================================== */
+
+.executiveHeader h2 {
+  font-size: clamp(30px, 3vw, 38px);
+  line-height: 1.15;
+}
+
+.executiveHeader p {
+  font-size: var(--font-body);
+  line-height: 1.65;
+}
+
+.eyebrow {
+  font-size: var(--font-label);
+}
+
+.healthRing strong {
+  font-size: 26px;
+}
+
+.healthRing span {
+  font-size: var(--font-label);
+}
+
+.healthCard > div:last-child > span {
+  font-size: var(--font-label);
+}
+
+.healthCard > div:last-child > strong {
+  font-size: 20px;
+}
+
+.healthCard small {
+  font-size: var(--font-helper);
+  line-height: var(--line-helper);
+}
+
+.kpiCard p {
+  font-size: var(--font-helper);
+}
+
+.kpiCard h3 {
+  font-size: clamp(24px, 1.8vw, 31px);
+  line-height: 1.2;
+}
+
+.kpiCard small {
+  font-size: var(--font-helper);
+  line-height: var(--line-helper);
+}
+
+.panelHeading h3,
+.activityPanelHeader h3 {
+  font-size: var(--font-panel-title);
+}
+
+.panelHeading p {
+  font-size: var(--font-helper);
+  line-height: var(--line-helper);
+}
+
+.panelHeading > a,
+.activityPanelHeader a {
+  font-size: var(--font-button);
+}
+
+.chartTotal span {
+  font-size: var(--font-helper);
+}
+
+.chartTotal strong {
+  font-size: 27px;
+}
+
+.chartLabel {
+  font-size: var(--font-label);
+}
+
+.pipelineLabel {
+  font-size: var(--font-table);
+}
+
+.pipelineLabel strong {
+  font-size: var(--font-body);
+}
+
+.donutCentre strong {
+  font-size: 30px;
+}
+
+.donutCentre span {
+  font-size: var(--font-label);
+}
+
+.legendItem span {
+  font-size: var(--font-helper);
+}
+
+.legendItem strong {
+  font-size: var(--font-body);
+}
+
+.progressMetricHeader strong {
+  font-size: var(--font-table);
+}
+
+.progressMetricHeader > strong {
+  font-size: var(--font-body);
+}
+
+.progressMetricHeader span {
+  font-size: var(--font-helper);
+}
+
+.aiSummaryHeader span {
+  font-size: var(--font-label);
+}
+
+.aiSummaryHeader h3 {
+  font-size: var(--font-panel-title);
+}
+
+.aiSummaryItem p {
+  font-size: var(--font-helper);
+  line-height: 1.65;
+}
+
+.insightsButton {
+  font-size: var(--font-button);
+}
+
+.sectionHeading h2 {
+  font-size: var(--font-section-title);
+}
+
+.activityLink,
+.activityTitle {
+  font-size: var(--font-table);
+}
+
+.activityRow p,
+.projectActivityItem p {
+  font-size: var(--font-helper);
+  line-height: var(--line-helper);
+}
+
+.emptyState p {
+  font-size: var(--font-helper);
+}
+
+.errorPanel p {
+  font-size: var(--font-helper);
+}
+
+.retryButton {
+  font-size: var(--font-button);
+}
+
+@media (max-width: 560px) {
+  .executiveHeader h2 {
+    font-size: 28px;
+  }
+
+  .executiveHeader p {
+    font-size: 13px;
+  }
+
+  .kpiCard h3 {
+    font-size: 27px;
+  }
+
+  .activityLink,
+  .activityTitle {
+    font-size: 13px;
+  }
+}
