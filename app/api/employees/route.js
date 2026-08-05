@@ -99,44 +99,25 @@ export async function GET() {
       );
     }
 
+    const organizationId =
+      current.employee.organization_id;
+
+    /*
+     * Load employees without nested employee relationships.
+     *
+     * Manager and backup employee details are joined manually
+     * below. This avoids Supabase schema-cache problems with
+     * self-referencing employee foreign keys.
+     */
     const {
-      data: employees,
+      data: employeeRows,
       error: employeesError,
     } = await supabase
       .from("employees")
-      .select(
-        `
-          *,
-          department:departments!employees_department_id_fkey(
-            id,
-            name,
-            code
-          ),
-          manager:employees!employees_manager_id_fkey(
-            id,
-            full_name,
-            employee_number
-          ),
-          backup_employee:employees!employees_backup_employee_id_fkey(
-            id,
-            full_name,
-            employee_number
-          ),
-          user_roles(
-            id,
-            role:roles(
-              id,
-              name,
-              code,
-              is_system_role,
-              is_active
-            )
-          )
-        `
-      )
+      .select("*")
       .eq(
         "organization_id",
-        current.employee.organization_id
+        organizationId
       )
       .order("created_at", {
         ascending: false,
@@ -154,22 +135,29 @@ export async function GET() {
       );
     }
 
+    /*
+     * Load departments separately.
+     */
     const {
-      data: departments,
+      data: departmentRows,
       error: departmentsError,
     } = await supabase
       .from("departments")
       .select(
         `
           id,
+          organization_id,
           name,
           code,
+          description,
+          manager_id,
+          parent_department_id,
           status
         `
       )
       .eq(
         "organization_id",
-        current.employee.organization_id
+        organizationId
       )
       .order("name", {
         ascending: true,
@@ -187,14 +175,18 @@ export async function GET() {
       );
     }
 
+    /*
+     * Load roles separately.
+     */
     const {
-      data: roles,
+      data: roleRows,
       error: rolesError,
     } = await supabase
       .from("roles")
       .select(
         `
           id,
+          organization_id,
           name,
           code,
           description,
@@ -204,7 +196,7 @@ export async function GET() {
       )
       .eq(
         "organization_id",
-        current.employee.organization_id
+        organizationId
       )
       .order("name", {
         ascending: true,
@@ -213,7 +205,8 @@ export async function GET() {
     if (rolesError) {
       return NextResponse.json(
         {
-          error: rolesError.message,
+          error:
+            rolesError.message,
         },
         {
           status: 500,
@@ -221,15 +214,193 @@ export async function GET() {
       );
     }
 
+    /*
+     * Load user-role assignments separately.
+     */
+    const {
+      data: userRoleRows,
+      error: userRolesError,
+    } = await supabase
+      .from("user_roles")
+      .select(
+        `
+          id,
+          employee_id,
+          role_id,
+          assigned_at
+        `
+      )
+      .eq(
+        "organization_id",
+        organizationId
+      );
+
+    if (userRolesError) {
+      return NextResponse.json(
+        {
+          error:
+            userRolesError.message,
+        },
+        {
+          status: 500,
+        }
+      );
+    }
+
+    const employees =
+      Array.isArray(employeeRows)
+        ? employeeRows
+        : [];
+
+    const departments =
+      Array.isArray(departmentRows)
+        ? departmentRows
+        : [];
+
+    const roles =
+      Array.isArray(roleRows)
+        ? roleRows
+        : [];
+
+    const userRoles =
+      Array.isArray(userRoleRows)
+        ? userRoleRows
+        : [];
+
+    /*
+     * Create lookup maps so related data can be assembled
+     * without additional database requests.
+     */
+    const employeeMap =
+      new Map(
+        employees.map(
+          (employee) => [
+            employee.id,
+            employee,
+          ]
+        )
+      );
+
+    const departmentMap =
+      new Map(
+        departments.map(
+          (department) => [
+            department.id,
+            department,
+          ]
+        )
+      );
+
+    const roleMap =
+      new Map(
+        roles.map((role) => [
+          role.id,
+          role,
+        ])
+      );
+
+    const rolesByEmployee =
+      new Map();
+
+    userRoles.forEach(
+      (assignment) => {
+        const role =
+          roleMap.get(
+            assignment.role_id
+          ) || null;
+
+        const formattedAssignment = {
+          id: assignment.id,
+          employee_id:
+            assignment.employee_id,
+          role_id:
+            assignment.role_id,
+          assigned_at:
+            assignment.assigned_at,
+          role,
+        };
+
+        const currentAssignments =
+          rolesByEmployee.get(
+            assignment.employee_id
+          ) || [];
+
+        currentAssignments.push(
+          formattedAssignment
+        );
+
+        rolesByEmployee.set(
+          assignment.employee_id,
+          currentAssignments
+        );
+      }
+    );
+
+    /*
+     * Return the same structure expected by the Employees page.
+     */
+    const formattedEmployees =
+      employees.map((employee) => {
+        const manager =
+          employee.manager_id
+            ? employeeMap.get(
+                employee.manager_id
+              )
+            : null;
+
+        const backupEmployee =
+          employee.backup_employee_id
+            ? employeeMap.get(
+                employee.backup_employee_id
+              )
+            : null;
+
+        return {
+          ...employee,
+
+          department:
+            employee.department_id
+              ? departmentMap.get(
+                  employee.department_id
+                ) || null
+              : null,
+
+          manager: manager
+            ? {
+                id: manager.id,
+                full_name:
+                  manager.full_name,
+                employee_number:
+                  manager.employee_number,
+              }
+            : null,
+
+          backup_employee:
+            backupEmployee
+              ? {
+                  id:
+                    backupEmployee.id,
+                  full_name:
+                    backupEmployee.full_name,
+                  employee_number:
+                    backupEmployee.employee_number,
+                }
+              : null,
+
+          user_roles:
+            rolesByEmployee.get(
+              employee.id
+            ) || [],
+        };
+      });
+
     return NextResponse.json({
       employees:
-        employees || [],
+        formattedEmployees,
 
-      departments:
-        departments || [],
+      departments,
 
-      roles:
-        roles || [],
+      roles,
 
       currentEmployee:
         current.employee,
@@ -380,10 +551,142 @@ export async function POST(request) {
         body.backup_employee_id
       );
 
+    const optionalUuidValues = [
+      {
+        name: "Department",
+        value: departmentId,
+      },
+      {
+        name: "Manager",
+        value: managerId,
+      },
+      {
+        name: "Backup employee",
+        value: backupEmployeeId,
+      },
+    ];
+
+    for (
+      const item of
+      optionalUuidValues
+    ) {
+      if (
+        item.value &&
+        !isUuid(item.value)
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              `${item.name} must be a valid record ID.`,
+          },
+          {
+            status: 400,
+          }
+        );
+      }
+    }
+
+    const organizationId =
+      current.employee.organization_id;
+
+    /*
+     * Validate that selected department belongs to the
+     * current organisation.
+     */
+    if (departmentId) {
+      const {
+        data: department,
+        error: departmentError,
+      } = await supabase
+        .from("departments")
+        .select("id")
+        .eq("id", departmentId)
+        .eq(
+          "organization_id",
+          organizationId
+        )
+        .maybeSingle();
+
+      if (
+        departmentError ||
+        !department
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "The selected department is not valid.",
+          },
+          {
+            status: 400,
+          }
+        );
+      }
+    }
+
+    /*
+     * Validate manager and backup employee organisation.
+     */
+    const relatedEmployeeIds = [
+      managerId,
+      backupEmployeeId,
+    ].filter(Boolean);
+
+    if (
+      relatedEmployeeIds.length > 0
+    ) {
+      const {
+        data:
+          relatedEmployees,
+        error:
+          relatedEmployeesError,
+      } = await supabase
+        .from("employees")
+        .select("id")
+        .eq(
+          "organization_id",
+          organizationId
+        )
+        .in(
+          "id",
+          relatedEmployeeIds
+        );
+
+      if (
+        relatedEmployeesError
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              relatedEmployeesError.message,
+          },
+          {
+            status: 500,
+          }
+        );
+      }
+
+      if (
+        (relatedEmployees || [])
+          .length !==
+        new Set(
+          relatedEmployeeIds
+        ).size
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "The selected manager or backup employee is not valid.",
+          },
+          {
+            status: 400,
+          }
+        );
+      }
+    }
+
     const employeePayload = {
       organization_id:
-        current.employee
-          .organization_id,
+        organizationId,
 
       user_id: userId,
 
@@ -484,26 +787,89 @@ export async function POST(request) {
 
     const roleIds =
       Array.isArray(body.role_ids)
-        ? body.role_ids.filter(
-            isUuid
-          )
+        ? [
+            ...new Set(
+              body.role_ids.filter(
+                isUuid
+              )
+            ),
+          ]
         : [];
 
     if (roleIds.length > 0) {
+      /*
+       * Confirm every role belongs to the current organisation.
+       */
+      const {
+        data: validRoles,
+        error: validRolesError,
+      } = await supabase
+        .from("roles")
+        .select("id")
+        .eq(
+          "organization_id",
+          organizationId
+        )
+        .in("id", roleIds);
+
+      if (validRolesError) {
+        await supabase
+          .from("employees")
+          .delete()
+          .eq(
+            "id",
+            createdEmployee.id
+          );
+
+        return NextResponse.json(
+          {
+            error:
+              validRolesError.message,
+          },
+          {
+            status: 500,
+          }
+        );
+      }
+
+      if (
+        (validRoles || []).length !==
+        roleIds.length
+      ) {
+        await supabase
+          .from("employees")
+          .delete()
+          .eq(
+            "id",
+            createdEmployee.id
+          );
+
+        return NextResponse.json(
+          {
+            error:
+              "One or more selected roles are invalid.",
+          },
+          {
+            status: 400,
+          }
+        );
+      }
+
       const roleAssignments =
-        roleIds.map((roleId) => ({
-          organization_id:
-            current.employee
-              .organization_id,
+        roleIds.map(
+          (roleId) => ({
+            organization_id:
+              organizationId,
 
-          employee_id:
-            createdEmployee.id,
+            employee_id:
+              createdEmployee.id,
 
-          role_id: roleId,
+            role_id: roleId,
 
-          assigned_by:
-            current.employee.user_id,
-        }));
+            assigned_by:
+              current.employee.user_id,
+          })
+        );
 
       const {
         error: rolesError,
