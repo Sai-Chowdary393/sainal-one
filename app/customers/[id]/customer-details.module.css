@@ -991,3 +991,197 @@
     gap: 6px;
   }
 }
+/* ==================================================
+   SaiNal One Typography — Customer Details
+================================================== */
+
+.backLink,
+.eyebrow {
+  font-size: var(--font-label);
+}
+
+.pageHeader h2 {
+  font-size: var(--font-workspace-title);
+  line-height: 1.2;
+}
+
+.pageHeader p {
+  font-size: var(--font-helper);
+  line-height: var(--line-helper);
+}
+
+.primaryButton,
+.secondaryButton,
+.actionButton,
+.recordButton {
+  font-size: var(--font-button);
+}
+
+.identityCopy h3 {
+  font-size: 24px;
+  line-height: 1.25;
+}
+
+.identityCopy p {
+  font-size: var(--font-helper);
+  line-height: var(--line-helper);
+}
+
+.metaBadge,
+.healthBadge {
+  font-size: var(--font-label);
+}
+
+.heroMetric span {
+  font-size: var(--font-label);
+}
+
+.heroMetric strong {
+  font-size: 20px;
+}
+
+.tabButton {
+  font-size: var(--font-button);
+}
+
+.tabCount {
+  font-size: var(--font-meta);
+}
+
+.panelHeader h3,
+.recordsSectionHeader h3 {
+  font-size: var(--font-panel-title);
+}
+
+.panelHeader p,
+.recordsSectionHeader p {
+  font-size: var(--font-helper);
+  line-height: var(--line-helper);
+}
+
+.detailRow > span {
+  font-size: var(--font-helper);
+}
+
+.detailRow strong,
+.detailRow a {
+  font-size: var(--font-body);
+  line-height: 1.5;
+}
+
+.field label {
+  font-size: var(--font-helper);
+}
+
+.field input,
+.field select {
+  font-size: var(--font-input);
+}
+
+.aiHeader span,
+.recommendations > span {
+  font-size: var(--font-label);
+}
+
+.aiHeader h3 {
+  font-size: var(--font-panel-title);
+}
+
+.aiSummary p {
+  font-size: var(--font-body);
+  line-height: 1.7;
+}
+
+.recommendationItem p,
+.emptyRecommendation {
+  font-size: var(--font-helper);
+  line-height: 1.6;
+}
+
+.financeMetric span,
+.accountMetric span {
+  font-size: var(--font-label);
+}
+
+.financeMetric strong {
+  font-size: 21px;
+}
+
+.accountMetric strong {
+  font-size: 21px;
+}
+
+.originalLead strong {
+  font-size: var(--font-body);
+}
+
+.originalLead p {
+  font-size: var(--font-helper);
+  line-height: var(--line-helper);
+}
+
+.timelineItem strong {
+  font-size: var(--font-body);
+}
+
+.timelineItem p {
+  font-size: var(--font-helper);
+  line-height: 1.5;
+}
+
+.recordsPanelHeader h3 {
+  font-size: 16px;
+}
+
+.recordsPanelHeader span {
+  font-size: var(--font-label);
+}
+
+.recordsTable th {
+  font-size: var(--font-label);
+}
+
+.recordsTable td {
+  font-size: var(--font-table);
+  line-height: 1.5;
+}
+
+.recordLink {
+  font-size: var(--font-table);
+}
+
+.emptyState p,
+.errorPanel p,
+.notFound p {
+  font-size: var(--font-helper);
+  line-height: var(--line-helper);
+}
+
+.notFound h2 {
+  font-size: 24px;
+}
+
+@media (max-width: 850px) {
+  .pageHeader h2 {
+    font-size: 26px;
+  }
+
+  .identityCopy h3 {
+    font-size: 22px;
+  }
+}
+
+@media (max-width: 560px) {
+  .field input,
+  .field select {
+    font-size: 16px;
+  }
+
+  .recordsTable th {
+    font-size: 11px;
+  }
+
+  .recordsTable td {
+    font-size: 13px;
+  }
+}
