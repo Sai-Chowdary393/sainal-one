@@ -104,6 +104,11 @@ const navigationGroups = [
         icon: "◆",
       },
       {
+        label: "Workflow Builder",
+        href: "/settings/workflows",
+        icon: "⌘",
+      },
+      {
         label: "Company Settings",
         href: "/settings",
         icon: "⚙",
@@ -121,6 +126,11 @@ export default function Sidebar({
   const pathname = usePathname();
 
   function isActive(href) {
+    /*
+     * Company Settings uses the root /settings route.
+     * It should not also appear active while visiting
+     * /settings/employees, /settings/roles or workflows.
+     */
     if (href === "/settings") {
       return pathname === "/settings";
     }
@@ -134,14 +144,20 @@ export default function Sidebar({
   return (
     <aside
       className={`${styles.sidebar} ${
-        mobileOpen ? styles.sidebarOpen : ""
+        mobileOpen
+          ? styles.sidebarOpen
+          : ""
       } ${
         collapsed
           ? styles.sidebarCollapsed
           : ""
       }`}
     >
-      <div className={styles.sidebarHeader}>
+      <div
+        className={
+          styles.sidebarHeader
+        }
+      >
         <Link
           href="/dashboard"
           className={styles.brand}
@@ -152,13 +168,23 @@ export default function Sidebar({
               : undefined
           }
         >
-          <span className={styles.brandMark}>
+          <span
+            className={
+              styles.brandMark
+            }
+          >
             SN
           </span>
 
-          <span className={styles.brandText}>
+          <span
+            className={
+              styles.brandText
+            }
+          >
             <strong
-              className={styles.brandName}
+              className={
+                styles.brandName
+              }
             >
               SaiNal One
             </strong>
@@ -190,7 +216,9 @@ export default function Sidebar({
         className={
           styles.sidebarCollapseButton
         }
-        onClick={onToggleCollapse}
+        onClick={
+          onToggleCollapse
+        }
         aria-label={
           collapsed
             ? "Expand sidebar"
@@ -206,7 +234,9 @@ export default function Sidebar({
       </button>
 
       <nav
-        className={styles.navigation}
+        className={
+          styles.navigation
+        }
         aria-label="Primary navigation"
       >
         {navigationGroups.map(
@@ -233,13 +263,21 @@ export default function Sidebar({
                 {group.items.map(
                   (item) => {
                     const active =
-                      isActive(item.href);
+                      isActive(
+                        item.href
+                      );
 
                     return (
                       <Link
-                        key={item.href}
-                        href={item.href}
-                        onClick={onClose}
+                        key={
+                          item.href
+                        }
+                        href={
+                          item.href
+                        }
+                        onClick={
+                          onClose
+                        }
                         title={
                           collapsed
                             ? item.label
@@ -262,7 +300,9 @@ export default function Sidebar({
                           }
                           aria-hidden="true"
                         >
-                          {item.icon}
+                          {
+                            item.icon
+                          }
                         </span>
 
                         <span
@@ -270,7 +310,9 @@ export default function Sidebar({
                             styles.navigationText
                           }
                         >
-                          {item.label}
+                          {
+                            item.label
+                          }
                         </span>
                       </Link>
                     );
@@ -283,13 +325,19 @@ export default function Sidebar({
       </nav>
 
       <div
-        className={styles.sidebarFooter}
+        className={
+          styles.sidebarFooter
+        }
       >
         <div
-          className={styles.sidebarPlan}
+          className={
+            styles.sidebarPlan
+          }
         >
           <span
-            className={styles.planBadge}
+            className={
+              styles.planBadge
+            }
           >
             SaiNal One
           </span>
