@@ -8,14 +8,10 @@ import {
 } from "react";
 
 import Link from "next/link";
-
-import {
-  useParams,
-} from "next/navigation";
+import { useParams } from "next/navigation";
 
 import AppLayout from "../../../../components/layout/AppLayout";
 import ProtectedRoute from "../../../../components/ProtectedRoute";
-
 import WorkflowCanvas from "../../../../components/workflows/WorkflowCanvas";
 
 import styles from "./workflow-designer.module.css";
@@ -45,20 +41,16 @@ const CONDITION_OPERATORS = [
     label: "Greater than",
   },
   {
-    value:
-      "greater_than_or_equal",
-    label:
-      "Greater than or equal",
+    value: "greater_than_or_equal",
+    label: "Greater than or equal",
   },
   {
     value: "less_than",
     label: "Less than",
   },
   {
-    value:
-      "less_than_or_equal",
-    label:
-      "Less than or equal",
+    value: "less_than_or_equal",
+    label: "Less than or equal",
   },
   {
     value: "contains",
@@ -80,44 +72,36 @@ const CONDITION_OPERATORS = [
 
 export default function WorkflowDesignerPage() {
   const params = useParams();
+  const workflowId = params?.id;
 
-  const workflowId =
-    params?.id;
+  const [workflow, setWorkflow] =
+    useState(null);
 
-  const [
-    workflow,
-    setWorkflow,
-  ] = useState(null);
-
-  const [
-    steps,
-    setSteps,
-  ] = useState([]);
+  const [steps, setSteps] =
+    useState([]);
 
   const [
     selectedStepId,
     setSelectedStepId,
   ] = useState(null);
 
-  const [
-    loading,
-    setLoading,
-  ] = useState(true);
+  const [loading, setLoading] =
+    useState(true);
 
-  const [
-    saving,
-    setSaving,
-  ] = useState(false);
+  const [saving, setSaving] =
+    useState(false);
 
   const [
     errorMessage,
     setErrorMessage,
   ] = useState("");
 
-  const [
-    canManage,
-    setCanManage,
-  ] = useState(false);
+  const [canManage, setCanManage] =
+    useState(false);
+
+  // =======================================================
+  // LOAD WORKFLOW
+  // =======================================================
 
   const loadWorkflow =
     useCallback(async () => {
@@ -129,13 +113,12 @@ export default function WorkflowDesignerPage() {
         setLoading(true);
         setErrorMessage("");
 
-        const response =
-          await fetch(
-            `/api/workflows/${workflowId}`,
-            {
-              cache: "no-store",
-            }
-          );
+        const response = await fetch(
+          `/api/workflows/${workflowId}`,
+          {
+            cache: "no-store",
+          }
+        );
 
         const data =
           await response.json();
@@ -164,9 +147,7 @@ export default function WorkflowDesignerPage() {
         );
 
         setCanManage(
-          Boolean(
-            data.canManage
-          )
+          Boolean(data.canManage)
         );
 
         setSelectedStepId(
@@ -192,6 +173,10 @@ export default function WorkflowDesignerPage() {
     loadWorkflow();
   }, [loadWorkflow]);
 
+  // =======================================================
+  // SELECTED STEP
+  // =======================================================
+
   const selectedStep =
     useMemo(
       () =>
@@ -206,6 +191,10 @@ export default function WorkflowDesignerPage() {
       ]
     );
 
+  // =======================================================
+  // NODE POSITION
+  // =======================================================
+
   function handlePositionChange(
     stepId,
     x,
@@ -216,13 +205,109 @@ export default function WorkflowDesignerPage() {
         step.id === stepId
           ? {
               ...step,
-              position_x: x,
-              position_y: y,
+              position_x:
+                Math.round(x),
+              position_y:
+                Math.round(y),
             }
           : step
       )
     );
   }
+
+  // =======================================================
+  // CANVAS CONNECTION
+  // =======================================================
+
+  function handleConnectionChange(
+    sourceStepId,
+    branch,
+    targetStepId
+  ) {
+    setSteps((current) =>
+      current.map((step) => {
+        if (
+          step.id !== sourceStepId
+        ) {
+          return step;
+        }
+
+        const targetIsDatabaseStep =
+          isDatabaseId(
+            targetStepId
+          );
+
+        /*
+         * YES branch from a condition.
+         */
+        if (branch === "true") {
+          return {
+            ...step,
+
+            true_step_id:
+              targetIsDatabaseStep
+                ? targetStepId
+                : null,
+
+            true_step_ref:
+              targetIsDatabaseStep
+                ? null
+                : targetStepId,
+
+            /*
+             * Condition nodes use branches,
+             * not the ordinary next connection.
+             */
+            next_step_id: null,
+            next_step_ref: null,
+          };
+        }
+
+        /*
+         * NO branch from a condition.
+         */
+        if (branch === "false") {
+          return {
+            ...step,
+
+            false_step_id:
+              targetIsDatabaseStep
+                ? targetStepId
+                : null,
+
+            false_step_ref:
+              targetIsDatabaseStep
+                ? null
+                : targetStepId,
+
+            next_step_id: null,
+            next_step_ref: null,
+          };
+        }
+
+        /*
+         * Normal connection.
+         */
+        return {
+          ...step,
+
+          next_step_id:
+            targetIsDatabaseStep
+              ? targetStepId
+              : null,
+
+          next_step_ref:
+            targetIsDatabaseStep
+              ? null
+              : targetStepId,
+        };
+      })
+    );
+  }
+
+  // =======================================================
+  // UPDATE SELECTED STEP
+  // =======================================================
 
   function updateSelectedStep(
     field,
@@ -245,47 +330,61 @@ export default function WorkflowDesignerPage() {
     );
   }
 
+  // =======================================================
+  // UPDATE ACTION CONFIG
+  // =======================================================
+
   function updateActionConfig(
     field,
     value
   ) {
-    if (!selectedStep) {
+    if (!selectedStepId) {
       return;
     }
 
-    updateSelectedStep(
-      "action_config",
-      {
-        ...(selectedStep.action_config ||
-          selectedStep.configuration ||
-          {}),
+    setSteps((current) =>
+      current.map((step) => {
+        if (
+          step.id !==
+          selectedStepId
+        ) {
+          return step;
+        }
 
-        [field]: value,
-      }
-    );
+        const currentConfig = {
+          ...(step.configuration ||
+            {}),
 
-    updateSelectedStep(
-      "configuration",
-      {
-        ...(selectedStep.configuration ||
-          {}),
+          ...(step.action_config ||
+            {}),
+        };
 
-        [field]: value,
-      }
+        const nextConfig = {
+          ...currentConfig,
+          [field]: value,
+        };
+
+        return {
+          ...step,
+
+          configuration:
+            nextConfig,
+
+          action_config:
+            nextConfig,
+        };
+      })
     );
   }
+
+  // =======================================================
+  // ADD STEP
+  // =======================================================
 
   function addStep() {
     const nextOrder =
       steps.length + 1;
 
-    /*
-     * New steps do not yet have a database
-     * UUID, so we create a temporary id.
-     *
-     * workflowEngine.js understands local_id
-     * when we save.
-     */
     const temporaryId =
       `new-${Date.now()}-${Math.random()
         .toString(16)
@@ -295,25 +394,38 @@ export default function WorkflowDesignerPage() {
       steps
         .slice()
         .sort(
-          (first, second) =>
-            first.step_order -
-            second.step_order
+          (
+            first,
+            second
+          ) =>
+            Number(
+              first.step_order
+            ) -
+            Number(
+              second.step_order
+            )
         )
         .at(-1);
 
     const x =
       previousStep
-        ? previousStep.position_x
-        : 140;
+        ? Number(
+            previousStep.position_x ||
+              240
+          )
+        : 240;
 
     const y =
       previousStep
-        ? previousStep.position_y +
-          150
-        : 100;
+        ? Number(
+            previousStep.position_y ||
+              80
+          ) + 170
+        : 220;
 
     const newStep = {
       id: temporaryId,
+
       local_id:
         temporaryId,
 
@@ -336,26 +448,43 @@ export default function WorkflowDesignerPage() {
         {},
 
       is_required: true,
+
       is_active: true,
 
       position_x: x,
+
       position_y: y,
 
       next_step_id: null,
+
+      next_step_ref: null,
+
       true_step_id: null,
+
+      true_step_ref: null,
+
       false_step_id: null,
 
+      false_step_ref: null,
+
       condition_type: null,
+
       condition_field: null,
-      condition_operator:
-        null,
+
+      condition_operator: null,
+
       condition_value: null,
     };
 
     setSteps((current) => {
-      const next =
+      const updatedExistingSteps =
         current.map(
           (step) => {
+            /*
+             * Automatically connect the
+             * previous non-condition step
+             * to the newly-created node.
+             */
             if (
               previousStep &&
               step.id ===
@@ -365,6 +494,8 @@ export default function WorkflowDesignerPage() {
             ) {
               return {
                 ...step,
+
+                next_step_id: null,
 
                 next_step_ref:
                   temporaryId,
@@ -376,7 +507,7 @@ export default function WorkflowDesignerPage() {
         );
 
       return [
-        ...next,
+        ...updatedExistingSteps,
         newStep,
       ];
     });
@@ -385,6 +516,10 @@ export default function WorkflowDesignerPage() {
       temporaryId
     );
   }
+
+  // =======================================================
+  // REMOVE STEP
+  // =======================================================
 
   function removeSelectedStep() {
     if (!selectedStep) {
@@ -407,7 +542,8 @@ export default function WorkflowDesignerPage() {
       steps
         .filter(
           (step) =>
-            step.id !== removedId
+            step.id !==
+            removedId
         )
         .map(
           (step, index) => ({
@@ -422,11 +558,23 @@ export default function WorkflowDesignerPage() {
                 ? null
                 : step.next_step_id,
 
+            next_step_ref:
+              step.next_step_ref ===
+              removedId
+                ? null
+                : step.next_step_ref,
+
             true_step_id:
               step.true_step_id ===
               removedId
                 ? null
                 : step.true_step_id,
+
+            true_step_ref:
+              step.true_step_ref ===
+              removedId
+                ? null
+                : step.true_step_ref,
 
             false_step_id:
               step.false_step_id ===
@@ -434,11 +582,11 @@ export default function WorkflowDesignerPage() {
                 ? null
                 : step.false_step_id,
 
-            next_step_ref:
-              step.next_step_ref ===
+            false_step_ref:
+              step.false_step_ref ===
               removedId
                 ? null
-                : step.next_step_ref,
+                : step.false_step_ref,
           })
         );
 
@@ -450,28 +598,43 @@ export default function WorkflowDesignerPage() {
     );
   }
 
+  // =======================================================
+  // AUTO ARRANGE
+  // =======================================================
+
   function autoArrange() {
     setSteps((current) =>
       current
         .slice()
         .sort(
-          (first, second) =>
-            first.step_order -
-            second.step_order
+          (
+            first,
+            second
+          ) =>
+            Number(
+              first.step_order
+            ) -
+            Number(
+              second.step_order
+            )
         )
         .map(
           (step, index) => ({
             ...step,
 
-            position_x: 240,
+            position_x: 280,
 
             position_y:
-              80 +
-              index * 150,
+              220 +
+              index * 170,
           })
         )
     );
   }
+
+  // =======================================================
+  // SAVE WORKFLOW
+  // =======================================================
 
   async function saveWorkflow() {
     if (!workflow) {
@@ -598,12 +761,34 @@ export default function WorkflowDesignerPage() {
                     ? step.next_step_id
                     : null,
 
+                next_step_ref:
+                  step.next_step_ref ||
+                  (
+                    step.next_step_id &&
+                    !isDatabaseId(
+                      step.next_step_id
+                    )
+                      ? step.next_step_id
+                      : null
+                  ),
+
                 true_step_id:
                   isDatabaseId(
                     step.true_step_id
                   )
                     ? step.true_step_id
                     : null,
+
+                true_step_ref:
+                  step.true_step_ref ||
+                  (
+                    step.true_step_id &&
+                    !isDatabaseId(
+                      step.true_step_id
+                    )
+                      ? step.true_step_id
+                      : null
+                  ),
 
                 false_step_id:
                   isDatabaseId(
@@ -612,17 +797,16 @@ export default function WorkflowDesignerPage() {
                     ? step.false_step_id
                     : null,
 
-                next_step_ref:
-                  step.next_step_ref ||
-                  null,
-
-                true_step_ref:
-                  step.true_step_ref ||
-                  null,
-
                 false_step_ref:
                   step.false_step_ref ||
-                  null,
+                  (
+                    step.false_step_id &&
+                    !isDatabaseId(
+                      step.false_step_id
+                    )
+                      ? step.false_step_id
+                      : null
+                  ),
               };
             }
           ),
@@ -666,11 +850,27 @@ export default function WorkflowDesignerPage() {
             []
         );
 
-      setSteps(savedSteps);
+      setSteps(
+        savedSteps
+      );
+
+      /*
+       * Try to keep the same selection
+       * after saving if that step still
+       * exists.
+       */
+      const stillExists =
+        savedSteps.some(
+          (step) =>
+            step.id ===
+            selectedStepId
+        );
 
       setSelectedStepId(
-        savedSteps[0]?.id ||
-          null
+        stillExists
+          ? selectedStepId
+          : savedSteps[0]?.id ||
+              null
       );
 
       alert(
@@ -690,6 +890,10 @@ export default function WorkflowDesignerPage() {
       setSaving(false);
     }
   }
+
+  // =======================================================
+  // LOADING
+  // =======================================================
 
   if (loading) {
     return (
@@ -711,6 +915,10 @@ export default function WorkflowDesignerPage() {
       </ProtectedRoute>
     );
   }
+
+  // =======================================================
+  // ERROR
+  // =======================================================
 
   if (
     errorMessage ||
@@ -750,6 +958,10 @@ export default function WorkflowDesignerPage() {
     );
   }
 
+  // =======================================================
+  // PAGE
+  // =======================================================
+
   return (
     <ProtectedRoute>
       <AppLayout
@@ -757,8 +969,12 @@ export default function WorkflowDesignerPage() {
         description="Build visual business processes, approvals and automation."
       >
         <div
-          className={styles.page}
+          className={
+            styles.page
+          }
         >
+          {/* PAGE HEADER */}
+
           <section
             className={
               styles.pageHeader
@@ -845,6 +1061,8 @@ export default function WorkflowDesignerPage() {
             </div>
           </section>
 
+          {/* WORKFLOW SUMMARY */}
+
           <section
             className={
               styles.workflowMeta
@@ -866,7 +1084,9 @@ export default function WorkflowDesignerPage() {
 
             <MetaCard
               label="Steps"
-              value={steps.length}
+              value={
+                steps.length
+              }
             />
 
             <MetaCard
@@ -878,11 +1098,15 @@ export default function WorkflowDesignerPage() {
             />
           </section>
 
+          {/* DESIGNER */}
+
           <section
             className={
               styles.designerLayout
             }
           >
+            {/* CANVAS */}
+
             <div
               className={
                 styles.canvasPanel
@@ -899,7 +1123,8 @@ export default function WorkflowDesignerPage() {
                   </h3>
 
                   <p>
-                    Drag nodes to organise
+                    Drag nodes, create
+                    connections and design
                     the business process
                     visually.
                   </p>
@@ -957,7 +1182,9 @@ export default function WorkflowDesignerPage() {
                 </div>
               ) : (
                 <WorkflowCanvas
-                  workflow={workflow}
+                  workflow={
+                    workflow
+                  }
                   steps={steps}
                   selectedStepId={
                     selectedStepId
@@ -974,6 +1201,8 @@ export default function WorkflowDesignerPage() {
                 />
               )}
             </div>
+
+            {/* CONFIGURATION */}
 
             <aside
               className={
@@ -1064,9 +1293,7 @@ export default function WorkflowDesignerPage() {
                         }
                       >
                         {STEP_TYPES.map(
-                          (
-                            type
-                          ) => (
+                          (type) => (
                             <option
                               key={
                                 type
@@ -1107,6 +1334,8 @@ export default function WorkflowDesignerPage() {
                       />
                     </Field>
 
+                    {/* CONDITION */}
+
                     {selectedStep.step_type ===
                       "Condition" && (
                       <ConditionEditor
@@ -1125,6 +1354,8 @@ export default function WorkflowDesignerPage() {
                       />
                     )}
 
+                    {/* APPROVAL */}
+
                     {selectedStep.step_type ===
                       "Approval" && (
                       <ApprovalEditor
@@ -1139,6 +1370,8 @@ export default function WorkflowDesignerPage() {
                         }
                       />
                     )}
+
+                    {/* EMAIL */}
 
                     {selectedStep.step_type ===
                       "Email" && (
@@ -1155,67 +1388,72 @@ export default function WorkflowDesignerPage() {
                       />
                     )}
 
-                    <Field
-                      label="Next step"
-                    >
-                      <select
-                        value={
-                          selectedStep.next_step_id ||
-                          ""
-                        }
-                        disabled={
-                          !canManage ||
-                          selectedStep.step_type ===
-                            "Condition"
-                        }
-                        onChange={(
-                          event
-                        ) =>
-                          updateSelectedStep(
-                            "next_step_id",
-                            event
-                              .target
-                              .value ||
-                              null
-                          )
-                        }
-                      >
-                        <option value="">
-                          End workflow /
-                          automatic
-                        </option>
+                    {/* NORMAL NEXT STEP */}
 
-                        {steps
-                          .filter(
-                            (
-                              step
-                            ) =>
-                              step.id !==
-                              selectedStep.id &&
-                              isDatabaseId(
-                                step.id
-                              )
-                          )
-                          .map(
-                            (
-                              step
-                            ) => (
-                              <option
-                                key={
-                                  step.id
-                                }
-                                value={
-                                  step.id
-                                }
-                              >
-                                {
-                                  step.name
-                                }
-                              </option>
+                    {selectedStep.step_type !==
+                      "Condition" && (
+                      <Field
+                        label="Next step"
+                      >
+                        <select
+                          value={
+                            selectedStep.next_step_id ||
+                            ""
+                          }
+                          disabled={
+                            !canManage
+                          }
+                          onChange={(
+                            event
+                          ) =>
+                            updateSelectedStep(
+                              "next_step_id",
+                              event
+                                .target
+                                .value ||
+                                null
                             )
-                          )}
-                      </select>
-                    </Field>
+                          }
+                        >
+                          <option value="">
+                            End workflow /
+                            automatic
+                          </option>
+
+                          {steps
+                            .filter(
+                              (
+                                step
+                              ) =>
+                                step.id !==
+                                  selectedStep.id &&
+                                isDatabaseId(
+                                  step.id
+                                )
+                            )
+                            .map(
+                              (
+                                step
+                              ) => (
+                                <option
+                                  key={
+                                    step.id
+                                  }
+                                  value={
+                                    step.id
+                                  }
+                                >
+                                  {
+                                    step.name
+                                  }
+                                </option>
+                              )
+                            )}
+                        </select>
+                      </Field>
+                    )}
+
+                    {/* REQUIRED */}
 
                     <label
                       className={
@@ -1225,7 +1463,9 @@ export default function WorkflowDesignerPage() {
                       <input
                         type="checkbox"
                         checked={
-                          selectedStep.is_required
+                          Boolean(
+                            selectedStep.is_required
+                          )
                         }
                         disabled={
                           !canManage
@@ -1244,14 +1484,12 @@ export default function WorkflowDesignerPage() {
 
                       <span>
                         <strong>
-                          Required
-                          step
+                          Required step
                         </strong>
 
                         <small>
-                          Workflow
-                          waits for
-                          this step to
+                          Workflow waits
+                          for this step to
                           complete.
                         </small>
                       </span>
@@ -1278,7 +1516,9 @@ export default function WorkflowDesignerPage() {
                     styles.noSelection
                   }
                 >
-                  <span>◇</span>
+                  <span>
+                    ◇
+                  </span>
 
                   <h3>
                     Select a node
@@ -1299,6 +1539,10 @@ export default function WorkflowDesignerPage() {
   );
 }
 
+// =========================================================
+// CONDITION EDITOR
+// =========================================================
+
 function ConditionEditor({
   step,
   steps,
@@ -1312,7 +1556,7 @@ function ConditionEditor({
       }
     >
       <strong>
-        Condition
+        Condition settings
       </strong>
 
       <Field
@@ -1345,9 +1589,7 @@ function ConditionEditor({
         </select>
       </Field>
 
-      <Field
-        label="Field"
-      >
+      <Field label="Field">
         <input
           value={
             step.condition_field ||
@@ -1364,9 +1606,7 @@ function ConditionEditor({
         />
       </Field>
 
-      <Field
-        label="Operator"
-      >
+      <Field label="Operator">
         <select
           value={
             step.condition_operator ||
@@ -1397,9 +1637,7 @@ function ConditionEditor({
         </select>
       </Field>
 
-      <Field
-        label="Value"
-      >
+      <Field label="Value">
         <input
           value={
             step.condition_value ??
@@ -1416,9 +1654,7 @@ function ConditionEditor({
         />
       </Field>
 
-      <Field
-        label="If YES"
-      >
+      <Field label="If YES">
         <select
           value={
             step.true_step_id ||
@@ -1465,9 +1701,7 @@ function ConditionEditor({
         </select>
       </Field>
 
-      <Field
-        label="If NO"
-      >
+      <Field label="If NO">
         <select
           value={
             step.false_step_id ||
@@ -1517,6 +1751,10 @@ function ConditionEditor({
   );
 }
 
+// =========================================================
+// APPROVAL EDITOR
+// =========================================================
+
 function ApprovalEditor({
   step,
   disabled,
@@ -1537,9 +1775,7 @@ function ApprovalEditor({
         Approval settings
       </strong>
 
-      <Field
-        label="Approver"
-      >
+      <Field label="Approver">
         <select
           value={
             config.approver_type ||
@@ -1574,6 +1810,10 @@ function ApprovalEditor({
   );
 }
 
+// =========================================================
+// EMAIL EDITOR
+// =========================================================
+
 function EmailEditor({
   step,
   disabled,
@@ -1594,9 +1834,7 @@ function EmailEditor({
         Email settings
       </strong>
 
-      <Field
-        label="Recipient"
-      >
+      <Field label="Recipient">
         <select
           value={
             config.recipient ||
@@ -1624,15 +1862,14 @@ function EmailEditor({
         </select>
       </Field>
 
-      <Field
-        label="Subject"
-      >
+      <Field label="Subject">
         <input
           value={
             config.subject ||
             ""
           }
           disabled={disabled}
+          placeholder="Email subject"
           onChange={(event) =>
             onUpdate(
               "subject",
@@ -1645,13 +1882,19 @@ function EmailEditor({
   );
 }
 
+// =========================================================
+// GENERIC FIELD
+// =========================================================
+
 function Field({
   label,
   children,
 }) {
   return (
     <label
-      className={styles.field}
+      className={
+        styles.field
+      }
     >
       <span>{label}</span>
 
@@ -1659,6 +1902,10 @@ function Field({
     </label>
   );
 }
+
+// =========================================================
+// META CARD
+// =========================================================
 
 function MetaCard({
   label,
@@ -1671,10 +1918,17 @@ function MetaCard({
       }
     >
       <span>{label}</span>
-      <strong>{value}</strong>
+
+      <strong>
+        {value}
+      </strong>
     </div>
   );
 }
+
+// =========================================================
+// NORMALIZE POSITIONS
+// =========================================================
 
 function normalizeCanvasPositions(
   steps
@@ -1697,24 +1951,42 @@ function normalizeCanvasPositions(
             ? Number(
                 step.position_x
               )
-            : 240,
+            : 280,
 
         position_y:
           hasPosition
             ? Number(
                 step.position_y
               )
-            : 80 +
-              index * 150,
+            : 220 +
+              index * 170,
+
+        configuration:
+          step.configuration ||
+          {},
 
         action_config:
           step.action_config ||
           step.configuration ||
           {},
+
+        condition_configuration:
+          step.condition_configuration ||
+          {},
+
+        next_step_ref: null,
+
+        true_step_ref: null,
+
+        false_step_ref: null,
       };
     }
   );
 }
+
+// =========================================================
+// FORMAT TRIGGER
+// =========================================================
 
 function formatTrigger(value) {
   return String(value || "")
@@ -1729,6 +2001,10 @@ function formatTrigger(value) {
     )
     .join(" ");
 }
+
+// =========================================================
+// UUID CHECK
+// =========================================================
 
 function isDatabaseId(value) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
