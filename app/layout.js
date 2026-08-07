@@ -1,4 +1,5 @@
 import "./globals.css";
+import "@xyflow/react/dist/style.css";
 
 import AccessProvider from "../components/access/AccessProvider";
 
