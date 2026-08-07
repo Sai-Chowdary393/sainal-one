@@ -493,3 +493,156 @@
     width: 100%;
   }
 }
+.testPanel {
+  overflow: hidden;
+  border: 1px solid #dfdcd3;
+  border-radius: 17px;
+  background: #ffffff;
+  box-shadow:
+    0 10px 30px
+    rgba(43, 36, 17, 0.05);
+}
+
+.testPanelHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px;
+  border-bottom:
+    1px solid #ebe8e1;
+  background:
+    linear-gradient(
+      180deg,
+      #fdfbf6,
+      #ffffff
+    );
+}
+
+.testPanelHeader h3 {
+  margin: 4px 0 0;
+  color: #29261f;
+  font-size: 18px;
+}
+
+.testPanelHeader p {
+  margin: 5px 0 0;
+  color: #918d84;
+  font-size: 11px;
+}
+
+.testGrid {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 0.9fr)
+    minmax(0, 1.1fr);
+  gap: 20px;
+  padding: 20px;
+}
+
+.testGrid textarea {
+  min-height: 260px;
+  font-family:
+    "SFMono-Regular",
+    Consolas,
+    "Liberation Mono",
+    monospace;
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.testHint {
+  margin: 8px 0 14px;
+  color: #99958c;
+  font-size: 10px;
+}
+
+.testResultPanel {
+  min-height: 320px;
+  padding: 18px;
+  border: 1px solid #e3dfd4;
+  border-radius: 13px;
+  background: #faf8f2;
+}
+
+.testEmpty {
+  display: grid;
+  min-height: 230px;
+  place-items: center;
+  color: #969289;
+  font-size: 11px;
+  text-align: center;
+}
+
+.testSuccess {
+  display: grid;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.testSuccess > strong {
+  color: #397a59;
+  font-size: 13px;
+}
+
+.testDetails {
+  display: grid;
+  gap: 8px;
+}
+
+.testDetails > div {
+  display: flex;
+  align-items: center;
+  justify-content:
+    space-between;
+  gap: 15px;
+  padding: 11px 0;
+  border-bottom:
+    1px solid #e6e2d8;
+}
+
+.testDetails > div:last-child {
+  border-bottom: 0;
+}
+
+.testDetails span {
+  color: #8e8a81;
+  font-size: 10px;
+}
+
+.testDetails strong {
+  overflow-wrap: anywhere;
+  color: #35312b;
+  font-size: 11px;
+  text-align: right;
+}
+
+.testError {
+  display: grid;
+  gap: 5px;
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid #e4bcbc;
+  border-radius: 10px;
+  background: #fff5f5;
+}
+
+.testError strong {
+  color: #934343;
+}
+
+.testError p {
+  margin: 0;
+  color: #a76161;
+  font-size: 11px;
+}
+
+@media (max-width: 900px) {
+  .testGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .testPanelHeader {
+    flex-direction: column;
+  }
+}
