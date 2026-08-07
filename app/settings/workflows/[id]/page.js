@@ -957,6 +957,7 @@ export default function WorkflowDesignerPage() {
                 </div>
               ) : (
                 <WorkflowCanvas
+                  workflow={workflow}
                   steps={steps}
                   selectedStepId={
                     selectedStepId
@@ -964,8 +965,11 @@ export default function WorkflowDesignerPage() {
                   onSelectStep={
                     setSelectedStepId
                   }
-                  onChangePosition={
+                  onNodesChanged={
                     handlePositionChange
+                  }
+                  onConnectionsChanged={
+                    handleConnectionChange
                   }
                 />
               )}
