@@ -20,8 +20,21 @@ export default function QuoteDetailsPage() {
 
   const [quote, setQuote] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [converting, setConverting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
+
+  const [converting, setConverting] =
+    useState(false);
+
+  const [submittingApproval, setSubmittingApproval] =
+    useState(false);
+
+  const [errorMessage, setErrorMessage] =
+    useState("");
+
+  const [approvalMessage, setApprovalMessage] =
+    useState("");
+
+  const [workflowResult, setWorkflowResult] =
+    useState(null);
 
   useEffect(() => {
     if (quoteId) {
@@ -51,32 +64,52 @@ export default function QuoteDetailsPage() {
           ? directData[0]
           : directData;
 
-        setQuote(selectedQuote || null);
+        setQuote(
+          selectedQuote || null
+        );
+
         return;
       }
 
-      const response = await fetch("/api/quotes", {
-        cache: "no-store",
-      });
+      /*
+       * Temporary fallback for compatibility
+       * with older deployments.
+       */
+      const response = await fetch(
+        "/api/quotes",
+        {
+          cache: "no-store",
+        }
+      );
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
       if (!response.ok) {
         throw new Error(
-          data.error || "Failed to load quote."
+          data.error ||
+            "Failed to load quote."
         );
       }
 
       const selectedQuote = (
-        Array.isArray(data) ? data : []
+        Array.isArray(data)
+          ? data
+          : []
       ).find(
         (item) =>
-          String(item.id) === String(quoteId)
+          String(item.id) ===
+          String(quoteId)
       );
 
-      setQuote(selectedQuote || null);
+      setQuote(
+        selectedQuote || null
+      );
     } catch (error) {
-      console.error("Quote loading error:", error);
+      console.error(
+        "Quote loading error:",
+        error
+      );
 
       setErrorMessage(
         error.message ||
@@ -97,15 +130,158 @@ export default function QuoteDetailsPage() {
         quote?.quote_text || ""
       );
 
-      alert("Quote copied successfully.");
+      alert(
+        "Quote copied successfully."
+      );
     } catch (error) {
-      console.error("Quote copy error:", error);
-      alert("Unable to copy the quote.");
+      console.error(
+        "Quote copy error:",
+        error
+      );
+
+      alert(
+        "Unable to copy the quote."
+      );
     }
   }
 
+  // =======================================================
+  // SUBMIT FOR APPROVAL
+  // =======================================================
+
+  async function submitForApproval() {
+    if (
+      !quote ||
+      submittingApproval
+    ) {
+      return;
+    }
+
+    const currentStatus =
+      normaliseStatus(
+        quote.status
+      );
+
+    if (
+      currentStatus ===
+      "pending approval"
+    ) {
+      setApprovalMessage(
+        "This quote is already pending approval."
+      );
+
+      return;
+    }
+
+    if (
+      currentStatus ===
+        "approved" ||
+      currentStatus ===
+        "accepted"
+    ) {
+      setApprovalMessage(
+        `This quote is already ${quote.status}.`
+      );
+
+      return;
+    }
+
+    const confirmed =
+      window.confirm(
+        `Submit ${
+          quote.quote_number ||
+          "this quote"
+        } for approval?\n\nOnce submitted, the quote will move to Pending Approval and the configured workflow will start.`
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setSubmittingApproval(
+        true
+      );
+
+      setErrorMessage("");
+
+      setApprovalMessage("");
+
+      setWorkflowResult(
+        null
+      );
+
+      const response =
+        await fetch(
+          `/api/quotes/${quote.id}`,
+          {
+            method: "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body: JSON.stringify({
+              action:
+                "submit_for_approval",
+            }),
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error ||
+            "Unable to submit quote for approval."
+        );
+      }
+
+      if (data.quote) {
+        setQuote(
+          data.quote
+        );
+      } else {
+        await fetchQuote();
+      }
+
+      setWorkflowResult(
+        data.workflow ||
+          null
+      );
+
+      setApprovalMessage(
+        data.message ||
+          "Quote submitted for approval successfully."
+      );
+    } catch (error) {
+      console.error(
+        "Quote approval submission error:",
+        error
+      );
+
+      setErrorMessage(
+        error.message ||
+          "Unable to submit quote for approval."
+      );
+    } finally {
+      setSubmittingApproval(
+        false
+      );
+    }
+  }
+
+  // =======================================================
+  // CONVERT TO CUSTOMER
+  // =======================================================
+
   async function convertToCustomer() {
-    if (!quote || converting) {
+    if (
+      !quote ||
+      converting
+    ) {
       return;
     }
 
@@ -113,20 +289,23 @@ export default function QuoteDetailsPage() {
       router.push(
         `/customers/${quote.customer_id}`
       );
+
       return;
     }
 
     try {
       setConverting(true);
 
-      const response = await fetch(
-        `/api/quotes/${quote.id}/convert`,
-        {
-          method: "POST",
-        }
-      );
+      const response =
+        await fetch(
+          `/api/quotes/${quote.id}/convert`,
+          {
+            method: "POST",
+          }
+        );
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
       if (!response.ok) {
         throw new Error(
@@ -141,7 +320,10 @@ export default function QuoteDetailsPage() {
         );
       }
 
-      setQuote(data.quote || quote);
+      setQuote(
+        data.quote ||
+          quote
+      );
 
       alert(
         data.message ||
@@ -166,6 +348,10 @@ export default function QuoteDetailsPage() {
     }
   }
 
+  // =======================================================
+  // LOADING
+  // =======================================================
+
   if (loading) {
     return (
       <ProtectedRoute>
@@ -179,23 +365,43 @@ export default function QuoteDetailsPage() {
     );
   }
 
-  if (errorMessage) {
+  // =======================================================
+  // ERROR
+  // =======================================================
+
+  if (
+    errorMessage &&
+    !quote
+  ) {
     return (
       <ProtectedRoute>
         <AppLayout
           title="Quote Workspace"
           description="Review a commercial quotation."
         >
-          <section className={styles.errorPanel}>
+          <section
+            className={
+              styles.errorPanel
+            }
+          >
             <div>
-              <strong>Unable to load quote</strong>
-              <p>{errorMessage}</p>
+              <strong>
+                Unable to load quote
+              </strong>
+
+              <p>
+                {errorMessage}
+              </p>
             </div>
 
             <button
               type="button"
-              className={styles.secondaryButton}
-              onClick={fetchQuote}
+              className={
+                styles.secondaryButton
+              }
+              onClick={
+                fetchQuote
+              }
             >
               Try again
             </button>
@@ -205,6 +411,10 @@ export default function QuoteDetailsPage() {
     );
   }
 
+  // =======================================================
+  // NOT FOUND
+  // =======================================================
+
   if (!quote) {
     return (
       <ProtectedRoute>
@@ -212,21 +422,35 @@ export default function QuoteDetailsPage() {
           title="Quote Workspace"
           description="Review a commercial quotation."
         >
-          <section className={styles.notFound}>
-            <span className={styles.notFoundIcon}>
+          <section
+            className={
+              styles.notFound
+            }
+          >
+            <span
+              className={
+                styles.notFoundIcon
+              }
+            >
               ◇
             </span>
 
-            <h2>Quote not found</h2>
+            <h2>
+              Quote not found
+            </h2>
 
             <p>
-              This quotation may have been deleted or
-              you may not have access to it.
+              This quotation may
+              have been deleted or
+              you may not have
+              access to it.
             </p>
 
             <Link
               href="/quotes"
-              className={styles.primaryButton}
+              className={
+                styles.primaryButton
+              }
             >
               Return to quotes
             </Link>
@@ -236,66 +460,190 @@ export default function QuoteDetailsPage() {
     );
   }
 
-  const amount = formatQuoteAmount(
-    quote.amount
-  );
+  const amount =
+    formatQuoteAmount(
+      quote.amount
+    );
+
+  const quoteStatus =
+    normaliseStatus(
+      quote.status
+    );
+
+  const isPendingApproval =
+    quoteStatus ===
+    "pending approval";
+
+  const isApproved =
+    quoteStatus ===
+    "approved";
+
+  const isAccepted =
+    quoteStatus ===
+    "accepted";
+
+  const isRejected =
+    quoteStatus ===
+    "rejected";
+
+  const canSubmitForApproval =
+    !isPendingApproval &&
+    !isApproved &&
+    !isAccepted;
+
+  const canConvertToCustomer =
+    isApproved ||
+    isAccepted ||
+    Boolean(
+      quote.customer_id
+    );
 
   return (
     <ProtectedRoute>
       <AppLayout
         title={
-          quote.quote_number || "Quote Workspace"
+          quote.quote_number ||
+          "Quote Workspace"
         }
-        description="Quotation details, client information and conversion actions."
+        description="Quotation details, client information and approval workflow."
       >
-        <div className={styles.page}>
+        <div
+          className={
+            styles.page
+          }
+        >
+          {/* HEADER */}
+
           <section
             className={`${styles.pageHeader} ${styles.noPrint}`}
           >
-            <div className={styles.headerCopy}>
+            <div
+              className={
+                styles.headerCopy
+              }
+            >
               <Link
                 href="/quotes"
-                className={styles.backLink}
+                className={
+                  styles.backLink
+                }
               >
                 ← Back to quotes
               </Link>
 
-              <span className={styles.eyebrow}>
+              <span
+                className={
+                  styles.eyebrow
+                }
+              >
                 Quote workspace
               </span>
 
               <h2>
-                {quote.quote_number || "Quote"}
+                {quote.quote_number ||
+                  "Quote"}
               </h2>
 
               <p>
-                Review the full quotation and continue
-                the customer conversion workflow.
+                Review the full
+                quotation, submit it
+                for internal approval
+                and continue the
+                customer workflow.
               </p>
             </div>
 
-            <div className={styles.headerActions}>
+            <div
+              className={
+                styles.headerActions
+              }
+            >
               <button
                 type="button"
-                className={styles.secondaryButton}
-                onClick={copyQuote}
+                className={
+                  styles.secondaryButton
+                }
+                onClick={
+                  copyQuote
+                }
               >
                 Copy quote
               </button>
 
               <button
                 type="button"
-                className={styles.secondaryButton}
-                onClick={downloadPDF}
+                className={
+                  styles.secondaryButton
+                }
+                onClick={
+                  downloadPDF
+                }
               >
                 Download PDF
               </button>
 
+              {canSubmitForApproval && (
+                <button
+                  type="button"
+                  className={
+                    styles.primaryButton
+                  }
+                  disabled={
+                    submittingApproval
+                  }
+                  onClick={
+                    submitForApproval
+                  }
+                >
+                  {submittingApproval
+                    ? "Submitting..."
+                    : isRejected
+                      ? "Resubmit for approval"
+                      : "Submit for approval"}
+                </button>
+              )}
+
+              {isPendingApproval && (
+                <button
+                  type="button"
+                  className={
+                    styles.secondaryButton
+                  }
+                  disabled
+                >
+                  Pending approval
+                </button>
+              )}
+
+              {isApproved && (
+                <button
+                  type="button"
+                  className={
+                    styles.secondaryButton
+                  }
+                  disabled
+                >
+                  Approved
+                </button>
+              )}
+
               <button
                 type="button"
-                className={styles.primaryButton}
-                disabled={converting}
-                onClick={convertToCustomer}
+                className={
+                  styles.primaryButton
+                }
+                disabled={
+                  converting ||
+                  !canConvertToCustomer
+                }
+                onClick={
+                  convertToCustomer
+                }
+                title={
+                  canConvertToCustomer
+                    ? undefined
+                    : "The quote must be approved before it can be converted to a customer."
+                }
               >
                 {converting
                   ? "Converting..."
@@ -306,17 +654,111 @@ export default function QuoteDetailsPage() {
             </div>
           </section>
 
-          <section className={styles.heroCard}>
-            <div className={styles.quoteIdentity}>
-              <span className={styles.quoteIcon}>◇</span>
+          {/* SUCCESS MESSAGE */}
 
-              <div className={styles.quoteIdentityCopy}>
-                <span className={styles.heroLabel}>
+          {approvalMessage && (
+            <section
+              className={
+                styles.panel
+              }
+            >
+              <div
+                className={
+                  styles.panelHeader
+                }
+              >
+                <div>
+                  <h3>
+                    Workflow started
+                  </h3>
+
+                  <p>
+                    {
+                      approvalMessage
+                    }
+                  </p>
+                </div>
+
+                <StatusBadge
+                  status={
+                    quote.status ||
+                    "Draft"
+                  }
+                />
+              </div>
+            </section>
+          )}
+
+          {/* ERROR MESSAGE */}
+
+          {errorMessage && quote && (
+            <section
+              className={
+                styles.errorPanel
+              }
+            >
+              <div>
+                <strong>
+                  Quote action failed
+                </strong>
+
+                <p>
+                  {errorMessage}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className={
+                  styles.secondaryButton
+                }
+                onClick={() =>
+                  setErrorMessage(
+                    ""
+                  )
+                }
+              >
+                Dismiss
+              </button>
+            </section>
+          )}
+
+          {/* HERO */}
+
+          <section
+            className={
+              styles.heroCard
+            }
+          >
+            <div
+              className={
+                styles.quoteIdentity
+              }
+            >
+              <span
+                className={
+                  styles.quoteIcon
+                }
+              >
+                ◇
+              </span>
+
+              <div
+                className={
+                  styles.quoteIdentityCopy
+                }
+              >
+                <span
+                  className={
+                    styles.heroLabel
+                  }
+                >
                   Commercial quotation
                 </span>
 
                 <h3>
-                  {quote.client || "Unnamed client"}
+                  {quote.client ||
+                    "Unnamed client"}
                 </h3>
 
                 <p>
@@ -324,18 +766,35 @@ export default function QuoteDetailsPage() {
                     "Professional services"}
                 </p>
 
-                <div className={styles.identityMeta}>
+                <div
+                  className={
+                    styles.identityMeta
+                  }
+                >
                   <StatusBadge
-                    status={quote.status || "Draft"}
+                    status={
+                      quote.status ||
+                      "Draft"
+                    }
                   />
 
-                  <span className={styles.metaBadge}>
+                  <span
+                    className={
+                      styles.metaBadge
+                    }
+                  >
                     Created{" "}
-                    {formatDate(quote.created_at)}
+                    {formatDate(
+                      quote.created_at
+                    )}
                   </span>
 
                   {quote.customer_id && (
-                    <span className={styles.linkedBadge}>
+                    <span
+                      className={
+                        styles.linkedBadge
+                      }
+                    >
                       Linked customer
                     </span>
                   )}
@@ -343,40 +802,187 @@ export default function QuoteDetailsPage() {
               </div>
             </div>
 
-            <div className={styles.amountCard}>
-              <span>Quote value</span>
-              <strong>{amount}</strong>
+            <div
+              className={
+                styles.amountCard
+              }
+            >
+              <span>
+                Quote value
+              </span>
+
+              <strong>
+                {amount}
+              </strong>
+
               <small>
-                {quote.status || "Draft"}
+                {quote.status ||
+                  "Draft"}
               </small>
             </div>
           </section>
 
-          <section className={styles.detailsGrid}>
-            <section className={styles.panel}>
-              <div className={styles.panelHeader}>
+          {/* APPROVAL WORKFLOW */}
+
+          <section
+            className={
+              styles.panel
+            }
+          >
+            <div
+              className={
+                styles.panelHeader
+              }
+            >
+              <div>
+                <h3>
+                  Approval workflow
+                </h3>
+
+                <p>
+                  Internal quote
+                  approval and business
+                  process status.
+                </p>
+              </div>
+
+              <StatusBadge
+                status={
+                  quote.status ||
+                  "Draft"
+                }
+              />
+            </div>
+
+            <div
+              className={
+                styles.detailList
+              }
+            >
+              <DetailRow
+                label="Current status"
+                customValue={
+                  <StatusBadge
+                    status={
+                      quote.status ||
+                      "Draft"
+                    }
+                  />
+                }
+              />
+
+              <DetailRow
+                label="Approval state"
+                value={
+                  getApprovalState(
+                    quote.status
+                  )
+                }
+              />
+
+              {workflowResult && (
+                <>
+                  <DetailRow
+                    label="Triggered workflows"
+                    value={String(
+                      workflowResult.workflow_count ??
+                        0
+                    )}
+                  />
+
+                  <DetailRow
+                    label="Workflow event"
+                    value={
+                      workflowResult
+                        .event
+                        ?.event_name ||
+                      "Quote Submitted"
+                    }
+                  />
+
+                  <DetailRow
+                    label="Event status"
+                    value={
+                      workflowResult
+                        .event
+                        ?.status ||
+                      "Processed"
+                    }
+                  />
+                </>
+              )}
+
+              {isPendingApproval && (
+                <DetailRow
+                  label="Next action"
+                  customValue={
+                    <Link
+                      href="/approvals"
+                      className={
+                        styles.customerLink
+                      }
+                    >
+                      Open My Approvals →
+                    </Link>
+                  }
+                />
+              )}
+            </div>
+          </section>
+
+          {/* DETAILS */}
+
+          <section
+            className={
+              styles.detailsGrid
+            }
+          >
+            <section
+              className={
+                styles.panel
+              }
+            >
+              <div
+                className={
+                  styles.panelHeader
+                }
+              >
                 <div>
-                  <h3>Client information</h3>
+                  <h3>
+                    Client information
+                  </h3>
+
                   <p>
-                    Sensitive contact information
+                    Sensitive contact
+                    information
                   </p>
                 </div>
               </div>
 
-              <div className={styles.detailList}>
+              <div
+                className={
+                  styles.detailList
+                }
+              >
                 <DetailRow
                   label="Client"
-                  value={quote.client}
+                  value={
+                    quote.client
+                  }
                 />
 
                 <DetailRow
                   label="Primary contact"
-                  value={quote.contact}
+                  value={
+                    quote.contact
+                  }
                 />
 
                 <DetailRow
                   label="Email"
-                  value={quote.email}
+                  value={
+                    quote.email
+                  }
                   href={
                     quote.email
                       ? `mailto:${quote.email}`
@@ -386,7 +992,9 @@ export default function QuoteDetailsPage() {
 
                 <DetailRow
                   label="Phone"
-                  value={quote.phone}
+                  value={
+                    quote.phone
+                  }
                   href={
                     quote.phone
                       ? `tel:${quote.phone}`
@@ -396,37 +1004,62 @@ export default function QuoteDetailsPage() {
               </div>
             </section>
 
-            <section className={styles.panel}>
-              <div className={styles.panelHeader}>
+            <section
+              className={
+                styles.panel
+              }
+            >
+              <div
+                className={
+                  styles.panelHeader
+                }
+              >
                 <div>
-                  <h3>Quote information</h3>
+                  <h3>
+                    Quote information
+                  </h3>
+
                   <p>
-                    Commercial and workflow details
+                    Commercial and
+                    workflow details
                   </p>
                 </div>
               </div>
 
-              <div className={styles.detailList}>
+              <div
+                className={
+                  styles.detailList
+                }
+              >
                 <DetailRow
                   label="Quote number"
-                  value={quote.quote_number}
+                  value={
+                    quote.quote_number
+                  }
                 />
 
                 <DetailRow
                   label="Service"
-                  value={quote.service}
+                  value={
+                    quote.service
+                  }
                 />
 
                 <DetailRow
                   label="Amount"
-                  value={amount}
+                  value={
+                    amount
+                  }
                 />
 
                 <DetailRow
                   label="Status"
                   customValue={
                     <StatusBadge
-                      status={quote.status || "Draft"}
+                      status={
+                        quote.status ||
+                        "Draft"
+                      }
                     />
                   }
                 />
@@ -444,12 +1077,19 @@ export default function QuoteDetailsPage() {
                     quote.customer_id ? (
                       <Link
                         href={`/customers/${quote.customer_id}`}
-                        className={styles.customerLink}
+                        className={
+                          styles.customerLink
+                        }
                       >
-                        Open linked customer →
+                        Open linked
+                        customer →
                       </Link>
                     ) : (
-                      <strong className={styles.emptyValue}>
+                      <strong
+                        className={
+                          styles.emptyValue
+                        }
+                      >
                         Not converted
                       </strong>
                     )
@@ -459,93 +1099,168 @@ export default function QuoteDetailsPage() {
             </section>
           </section>
 
-          <section className={styles.documentPanel}>
+          {/* DOCUMENT */}
+
+          <section
+            className={
+              styles.documentPanel
+            }
+          >
             <div
               className={`${styles.documentToolbar} ${styles.noPrint}`}
             >
               <div>
-                <span className={styles.eyebrow}>
+                <span
+                  className={
+                    styles.eyebrow
+                  }
+                >
                   Customer document
                 </span>
 
-                <h3>Full quotation</h3>
+                <h3>
+                  Full quotation
+                </h3>
               </div>
 
               <div>
                 <button
                   type="button"
-                  className={styles.secondaryButton}
-                  onClick={copyQuote}
+                  className={
+                    styles.secondaryButton
+                  }
+                  onClick={
+                    copyQuote
+                  }
                 >
                   Copy
                 </button>
 
                 <button
                   type="button"
-                  className={styles.primaryButton}
-                  onClick={downloadPDF}
+                  className={
+                    styles.primaryButton
+                  }
+                  onClick={
+                    downloadPDF
+                  }
                 >
                   Export PDF
                 </button>
               </div>
             </div>
 
-            <article className={styles.quoteDocument}>
-              <header className={styles.documentHeader}>
+            <article
+              className={
+                styles.quoteDocument
+              }
+            >
+              <header
+                className={
+                  styles.documentHeader
+                }
+              >
                 <div>
-                  <span className={styles.documentBrandMark}>
+                  <span
+                    className={
+                      styles.documentBrandMark
+                    }
+                  >
                     SN
                   </span>
 
                   <div>
                     <strong>
-                      SaiNal Technologies Ltd
+                      SaiNal
+                      Technologies Ltd
                     </strong>
-                    <p>Business technology solutions</p>
+
+                    <p>
+                      Business technology
+                      solutions
+                    </p>
                   </div>
                 </div>
 
-                <div className={styles.documentTitle}>
-                  <span>QUOTE</span>
+                <div
+                  className={
+                    styles.documentTitle
+                  }
+                >
+                  <span>
+                    QUOTE
+                  </span>
+
                   <strong>
-                    {quote.quote_number || "Quote"}
+                    {quote.quote_number ||
+                      "Quote"}
                   </strong>
                 </div>
               </header>
 
-              <section className={styles.documentMeta}>
+              <section
+                className={
+                  styles.documentMeta
+                }
+              >
                 <div>
-                  <span>Prepared for</span>
+                  <span>
+                    Prepared for
+                  </span>
+
                   <strong>
-                    {quote.client || "Client"}
+                    {quote.client ||
+                      "Client"}
                   </strong>
+
                   <p>
-                    {quote.contact || ""}
+                    {quote.contact ||
+                      ""}
                   </p>
+
                   <p>
-                    {quote.email || ""}
+                    {quote.email ||
+                      ""}
                   </p>
+
                   <p>
-                    {quote.phone || ""}
+                    {quote.phone ||
+                      ""}
                   </p>
                 </div>
 
                 <div>
-                  <span>Quote date</span>
+                  <span>
+                    Quote date
+                  </span>
+
                   <strong>
-                    {formatDate(quote.created_at)}
+                    {formatDate(
+                      quote.created_at
+                    )}
                   </strong>
 
-                  <span>Status</span>
+                  <span>
+                    Status
+                  </span>
+
                   <strong>
-                    {quote.status || "Draft"}
+                    {quote.status ||
+                      "Draft"}
                   </strong>
                 </div>
               </section>
 
-              <section className={styles.documentSummary}>
+              <section
+                className={
+                  styles.documentSummary
+                }
+              >
                 <div>
-                  <span>Service</span>
+                  <span>
+                    Service
+                  </span>
+
                   <strong>
                     {quote.service ||
                       "Professional Services"}
@@ -553,19 +1268,33 @@ export default function QuoteDetailsPage() {
                 </div>
 
                 <div>
-                  <span>Total</span>
-                  <strong>{amount}</strong>
+                  <span>
+                    Total
+                  </span>
+
+                  <strong>
+                    {amount}
+                  </strong>
                 </div>
               </section>
 
-              <pre className={styles.quotePreview}>
+              <pre
+                className={
+                  styles.quotePreview
+                }
+              >
                 {quote.quote_text ||
                   "No full quote content is available."}
               </pre>
 
-              <footer className={styles.documentFooter}>
+              <footer
+                className={
+                  styles.documentFooter
+                }
+              >
                 <p>
-                  SaiNal Technologies Ltd
+                  SaiNal Technologies
+                  Ltd
                 </p>
 
                 <p>
@@ -580,6 +1309,10 @@ export default function QuoteDetailsPage() {
   );
 }
 
+// =========================================================
+// DETAIL ROW
+// =========================================================
+
 function DetailRow({
   label,
   value,
@@ -587,40 +1320,113 @@ function DetailRow({
   customValue,
 }) {
   return (
-    <div className={styles.detailRow}>
-      <span>{label}</span>
+    <div
+      className={
+        styles.detailRow
+      }
+    >
+      <span>
+        {label}
+      </span>
 
       {customValue ? (
         customValue
       ) : href && value ? (
-        <a href={href}>{value}</a>
+        <a href={href}>
+          {value}
+        </a>
       ) : (
         <strong
           className={
-            value ? "" : styles.emptyValue
+            value
+              ? ""
+              : styles.emptyValue
           }
         >
-          {value || "Not available"}
+          {value ||
+            "Not available"}
         </strong>
       )}
     </div>
   );
 }
 
+// =========================================================
+// LOADING
+// =========================================================
+
 function LoadingState() {
   return (
-    <section className={styles.loadingPanel}>
-      {Array.from({ length: 6 }).map((_, index) => (
-        <div
-          key={index}
-          className={styles.loadingRow}
-        />
-      ))}
+    <section
+      className={
+        styles.loadingPanel
+      }
+    >
+      {Array.from({
+        length: 6,
+      }).map(
+        (_, index) => (
+          <div
+            key={index}
+            className={
+              styles.loadingRow
+            }
+          />
+        )
+      )}
     </section>
   );
 }
 
-function getMoneyValue(value) {
+// =========================================================
+// HELPERS
+// =========================================================
+
+function normaliseStatus(
+  value
+) {
+  return String(
+    value || ""
+  )
+    .trim()
+    .toLowerCase();
+}
+
+function getApprovalState(
+  status
+) {
+  const normalized =
+    normaliseStatus(
+      status
+    );
+
+  switch (normalized) {
+    case "pending approval":
+      return "Waiting for internal approval";
+
+    case "approved":
+      return "Internal approval completed";
+
+    case "rejected":
+      return "Approval rejected";
+
+    case "accepted":
+      return "Accepted by customer";
+
+    case "expired":
+      return "Quote expired";
+
+    case "sent":
+      return "Sent to customer";
+
+    default:
+      return "Not submitted";
+  }
+}
+
+function getMoneyValue(
+  value
+) {
   if (
     value === null ||
     value === undefined ||
@@ -631,22 +1437,32 @@ function getMoneyValue(value) {
 
   return (
     Number(
-      String(value).replace(/[^0-9.-]/g, "")
+      String(value).replace(
+        /[^0-9.-]/g,
+        ""
+      )
     ) || 0
   );
 }
 
-function formatQuoteAmount(value) {
+function formatQuoteAmount(
+  value
+) {
   if (!value) {
     return "Not set";
   }
 
-  return getMoneyValue(value).toLocaleString("en-GB", {
-    style: "currency",
-    currency: "GBP",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  });
+  return getMoneyValue(
+    value
+  ).toLocaleString(
+    "en-GB",
+    {
+      style: "currency",
+      currency: "GBP",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }
+  );
 }
 
 function formatDate(value) {
@@ -654,15 +1470,23 @@ function formatDate(value) {
     return "Not available";
   }
 
-  const date = new Date(value);
+  const date =
+    new Date(value);
 
-  if (Number.isNaN(date.getTime())) {
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
     return "Not available";
   }
 
-  return date.toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  return date.toLocaleDateString(
+    "en-GB",
+    {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }
+  );
 }
