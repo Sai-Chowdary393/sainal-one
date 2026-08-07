@@ -12,6 +12,7 @@
     "react": "latest",
     "react-dom": "latest",
     "resend": "^4.0.1"
+    "@xyflow/react": "^12.8.5"
   },
   "devDependencies": {}
 }
