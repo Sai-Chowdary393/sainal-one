@@ -72,7 +72,9 @@ const CONDITION_OPERATORS = [
 
 export default function WorkflowDesignerPage() {
   const params = useParams();
-  const workflowId = params?.id;
+
+  const workflowId =
+    params?.id;
 
   const [
     workflow,
@@ -1883,6 +1885,21 @@ export default function WorkflowDesignerPage() {
                       />
                     )}
 
+                    {selectedStep.step_type ===
+                      "Notification" && (
+                      <NotificationEditor
+                        step={
+                          selectedStep
+                        }
+                        disabled={
+                          !canManage
+                        }
+                        onUpdate={
+                          updateActionConfig
+                        }
+                      />
+                    )}
+
                     {selectedStep.step_type !==
                       "Condition" && (
                       <Field
@@ -2389,6 +2406,308 @@ function EmailEditor({
           }
         />
       </Field>
+    </div>
+  );
+}
+
+// =========================================================
+// NOTIFICATION EDITOR
+// =========================================================
+
+function NotificationEditor({
+  step,
+  disabled,
+  onUpdate,
+}) {
+  const config = {
+    ...(step.configuration ||
+      {}),
+
+    ...(step.action_config ||
+      {}),
+  };
+
+  return (
+    <div
+      className={
+        styles.specialConfig
+      }
+    >
+      <strong>
+        Notification settings
+      </strong>
+
+      <Field label="Recipient">
+        <select
+          value={
+            config.recipient ||
+            "Record Owner"
+          }
+          disabled={
+            disabled
+          }
+          onChange={(event) =>
+            onUpdate(
+              "recipient",
+              event.target.value
+            )
+          }
+        >
+          <option value="Record Owner">
+            Record owner
+          </option>
+
+          <option value="Manager">
+            Record owner's manager
+          </option>
+
+          <option value="Employee">
+            Specific employee
+          </option>
+
+          <option value="Department Manager">
+            Department manager
+          </option>
+
+          <option value="Role">
+            Employee with role
+          </option>
+
+          <option value="Organisation">
+            Everyone in organisation
+          </option>
+        </select>
+      </Field>
+
+      <Field label="Notification title">
+        <input
+          value={
+            config.title ||
+            ""
+          }
+          disabled={
+            disabled
+          }
+          placeholder="Example: Quote approved"
+          onChange={(event) =>
+            onUpdate(
+              "title",
+              event.target.value
+            )
+          }
+        />
+      </Field>
+
+      <Field label="Message">
+        <textarea
+          rows={5}
+          value={
+            config.message ||
+            ""
+          }
+          disabled={
+            disabled
+          }
+          placeholder="Example: Quote {{quote_number}} for {{client}} has been approved."
+          onChange={(event) =>
+            onUpdate(
+              "message",
+              event.target.value
+            )
+          }
+        />
+      </Field>
+
+      <Field label="Severity">
+        <select
+          value={
+            config.type ||
+            config.severity ||
+            "success"
+          }
+          disabled={
+            disabled
+          }
+          onChange={(event) => {
+            onUpdate(
+              "type",
+              event.target.value
+            );
+
+            onUpdate(
+              "severity",
+              event.target.value
+            );
+          }}
+        >
+          <option value="info">
+            Information
+          </option>
+
+          <option value="success">
+            Success
+          </option>
+
+          <option value="warning">
+            Warning
+          </option>
+
+          <option value="error">
+            Error
+          </option>
+        </select>
+      </Field>
+
+      <label
+        className={
+          styles.toggleField
+        }
+      >
+        <input
+          type="checkbox"
+          checked={
+            config.open_record !==
+            false
+          }
+          disabled={
+            disabled
+          }
+          onChange={(event) =>
+            onUpdate(
+              "open_record",
+              event.target.checked
+            )
+          }
+        />
+
+        <span>
+          <strong>
+            Open originating record
+          </strong>
+
+          <small>
+            Clicking the notification
+            opens the related quote,
+            lead, project or other
+            business record.
+          </small>
+        </span>
+      </label>
+
+      <label
+        className={
+          styles.toggleField
+        }
+      >
+        <input
+          type="checkbox"
+          checked={
+            config.create_notification !==
+            false
+          }
+          disabled={
+            disabled
+          }
+          onChange={(event) =>
+            onUpdate(
+              "create_notification",
+              event.target.checked
+            )
+          }
+        />
+
+        <span>
+          <strong>
+            Create in-app notification
+          </strong>
+
+          <small>
+            Adds this message to the
+            SaiNal One Notification
+            Center.
+          </small>
+        </span>
+      </label>
+
+      <label
+        className={
+          styles.toggleField
+        }
+      >
+        <input
+          type="checkbox"
+          checked={
+            Boolean(
+              config.send_email
+            )
+          }
+          disabled={
+            disabled
+          }
+          onChange={(event) =>
+            onUpdate(
+              "send_email",
+              event.target.checked
+            )
+          }
+        />
+
+        <span>
+          <strong>
+            Send email also
+          </strong>
+
+          <small>
+            Reserved for the Email
+            Engine milestone. The
+            setting can be saved now
+            but email delivery is not
+            active yet.
+          </small>
+        </span>
+      </label>
+
+      <div
+        className={
+          styles.notificationVariables
+        }
+      >
+        <strong>
+          Available variables
+        </strong>
+
+        <p>
+          Use variables in the title
+          or message. We will connect
+          runtime replacement next.
+        </p>
+
+        <div
+          className={
+            styles.variableList
+          }
+        >
+          <code>
+            {"{{quote_number}}"}
+          </code>
+
+          <code>
+            {"{{client}}"}
+          </code>
+
+          <code>
+            {"{{amount}}"}
+          </code>
+
+          <code>
+            {"{{email}}"}
+          </code>
+
+          <code>
+            {"{{record_type}}"}
+          </code>
+        </div>
+      </div>
     </div>
   );
 }
