@@ -2408,7 +2408,9 @@ function WorkflowCard({
                 styles.previewStep
               }
             >
-              <span>{index + 1}</span>
+              <span>
+                {index + 1}
+              </span>
 
               <div>
                 <strong>
@@ -2439,14 +2441,24 @@ function WorkflowCard({
             styles.cardActions
           }
         >
-          <button
-            type="button"
+          <Link
+            href={`/settings/workflows/${workflow.id}`}
             className={
               styles.openButton
             }
+          >
+            Open designer
+            <span>→</span>
+          </Link>
+
+          <button
+            type="button"
+            className={
+              styles.statusButton
+            }
             onClick={onEdit}
           >
-            Edit workflow
+            Edit details
           </button>
 
           {workflow.status ===
