@@ -74,30 +74,77 @@ export default function WorkflowDesignerPage() {
   const params = useParams();
   const workflowId = params?.id;
 
-  const [workflow, setWorkflow] =
-    useState(null);
+  const [
+    workflow,
+    setWorkflow,
+  ] = useState(null);
 
-  const [steps, setSteps] =
-    useState([]);
+  const [
+    steps,
+    setSteps,
+  ] = useState([]);
 
   const [
     selectedStepId,
     setSelectedStepId,
   ] = useState(null);
 
-  const [loading, setLoading] =
-    useState(true);
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
 
-  const [saving, setSaving] =
-    useState(false);
+  const [
+    saving,
+    setSaving,
+  ] = useState(false);
 
   const [
     errorMessage,
     setErrorMessage,
   ] = useState("");
 
-  const [canManage, setCanManage] =
-    useState(false);
+  const [
+    canManage,
+    setCanManage,
+  ] = useState(false);
+
+  // =======================================================
+  // WORKFLOW TEST STATE
+  // =======================================================
+
+  const [
+    testPanelOpen,
+    setTestPanelOpen,
+  ] = useState(false);
+
+  const [
+    testPayload,
+    setTestPayload,
+  ] = useState(
+    JSON.stringify(
+      {
+        amount: 12000,
+      },
+      null,
+      2
+    )
+  );
+
+  const [
+    testing,
+    setTesting,
+  ] = useState(false);
+
+  const [
+    testResult,
+    setTestResult,
+  ] = useState(null);
+
+  const [
+    testError,
+    setTestError,
+  ] = useState("");
 
   // =======================================================
   // LOAD WORKFLOW
@@ -111,14 +158,16 @@ export default function WorkflowDesignerPage() {
 
       try {
         setLoading(true);
+
         setErrorMessage("");
 
-        const response = await fetch(
-          `/api/workflows/${workflowId}`,
-          {
-            cache: "no-store",
-          }
-        );
+        const response =
+          await fetch(
+            `/api/workflows/${workflowId}`,
+            {
+              cache: "no-store",
+            }
+          );
 
         const data =
           await response.json();
@@ -135,7 +184,8 @@ export default function WorkflowDesignerPage() {
 
         const loadedSteps =
           normalizeCanvasPositions(
-            loadedWorkflow.steps || []
+            loadedWorkflow.steps ||
+              []
           );
 
         setWorkflow(
@@ -147,7 +197,9 @@ export default function WorkflowDesignerPage() {
         );
 
         setCanManage(
-          Boolean(data.canManage)
+          Boolean(
+            data.canManage
+          )
         );
 
         setSelectedStepId(
@@ -205,8 +257,10 @@ export default function WorkflowDesignerPage() {
         step.id === stepId
           ? {
               ...step,
+
               position_x:
                 Math.round(x),
+
               position_y:
                 Math.round(y),
             }
@@ -227,7 +281,8 @@ export default function WorkflowDesignerPage() {
     setSteps((current) =>
       current.map((step) => {
         if (
-          step.id !== sourceStepId
+          step.id !==
+          sourceStepId
         ) {
           return step;
         }
@@ -237,10 +292,9 @@ export default function WorkflowDesignerPage() {
             targetStepId
           );
 
-        /*
-         * YES branch from a condition.
-         */
-        if (branch === "true") {
+        if (
+          branch === "true"
+        ) {
           return {
             ...step,
 
@@ -254,19 +308,17 @@ export default function WorkflowDesignerPage() {
                 ? null
                 : targetStepId,
 
-            /*
-             * Condition nodes use branches,
-             * not the ordinary next connection.
-             */
-            next_step_id: null,
-            next_step_ref: null,
+            next_step_id:
+              null,
+
+            next_step_ref:
+              null,
           };
         }
 
-        /*
-         * NO branch from a condition.
-         */
-        if (branch === "false") {
+        if (
+          branch === "false"
+        ) {
           return {
             ...step,
 
@@ -280,14 +332,14 @@ export default function WorkflowDesignerPage() {
                 ? null
                 : targetStepId,
 
-            next_step_id: null,
-            next_step_ref: null,
+            next_step_id:
+              null,
+
+            next_step_ref:
+              null,
           };
         }
 
-        /*
-         * Normal connection.
-         */
         return {
           ...step,
 
@@ -323,7 +375,9 @@ export default function WorkflowDesignerPage() {
         selectedStepId
           ? {
               ...step,
-              [field]: value,
+
+              [field]:
+                value,
             }
           : step
       )
@@ -361,7 +415,9 @@ export default function WorkflowDesignerPage() {
 
         const nextConfig = {
           ...currentConfig,
-          [field]: value,
+
+          [field]:
+            value,
         };
 
         return {
@@ -424,7 +480,8 @@ export default function WorkflowDesignerPage() {
         : 220;
 
     const newStep = {
-      id: temporaryId,
+      id:
+        temporaryId,
 
       local_id:
         temporaryId,
@@ -438,53 +495,65 @@ export default function WorkflowDesignerPage() {
       step_type:
         "Notification",
 
-      description: "",
+      description:
+        "",
 
-      configuration: {},
+      configuration:
+        {},
 
-      action_config: {},
+      action_config:
+        {},
 
       condition_configuration:
         {},
 
-      is_required: true,
+      is_required:
+        true,
 
-      is_active: true,
+      is_active:
+        true,
 
-      position_x: x,
+      position_x:
+        x,
 
-      position_y: y,
+      position_y:
+        y,
 
-      next_step_id: null,
+      next_step_id:
+        null,
 
-      next_step_ref: null,
+      next_step_ref:
+        null,
 
-      true_step_id: null,
+      true_step_id:
+        null,
 
-      true_step_ref: null,
+      true_step_ref:
+        null,
 
-      false_step_id: null,
+      false_step_id:
+        null,
 
-      false_step_ref: null,
+      false_step_ref:
+        null,
 
-      condition_type: null,
+      condition_type:
+        null,
 
-      condition_field: null,
+      condition_field:
+        null,
 
-      condition_operator: null,
+      condition_operator:
+        null,
 
-      condition_value: null,
+      condition_value:
+        null,
     };
 
     setSteps((current) => {
       const updatedExistingSteps =
         current.map(
           (step) => {
-            /*
-             * Automatically connect the
-             * previous non-condition step
-             * to the newly-created node.
-             */
             if (
               previousStep &&
               step.id ===
@@ -495,7 +564,8 @@ export default function WorkflowDesignerPage() {
               return {
                 ...step,
 
-                next_step_id: null,
+                next_step_id:
+                  null,
 
                 next_step_ref:
                   temporaryId,
@@ -546,7 +616,10 @@ export default function WorkflowDesignerPage() {
             removedId
         )
         .map(
-          (step, index) => ({
+          (
+            step,
+            index
+          ) => ({
             ...step,
 
             step_order:
@@ -590,7 +663,9 @@ export default function WorkflowDesignerPage() {
           })
         );
 
-    setSteps(nextSteps);
+    setSteps(
+      nextSteps
+    );
 
     setSelectedStepId(
       nextSteps[0]?.id ||
@@ -619,16 +694,128 @@ export default function WorkflowDesignerPage() {
             )
         )
         .map(
-          (step, index) => ({
+          (
+            step,
+            index
+          ) => ({
             ...step,
 
-            position_x: 280,
+            position_x:
+              280,
 
             position_y:
               220 +
               index * 170,
           })
         )
+    );
+  }
+
+  // =======================================================
+  // RUN WORKFLOW TEST
+  // =======================================================
+
+  async function runWorkflowTest() {
+    if (!workflow) {
+      return;
+    }
+
+    try {
+      setTesting(true);
+
+      setTestError("");
+
+      setTestResult(
+        null
+      );
+
+      let parsedPayload =
+        {};
+
+      try {
+        parsedPayload =
+          JSON.parse(
+            testPayload ||
+              "{}"
+          );
+      } catch {
+        throw new Error(
+          "Test payload must be valid JSON."
+        );
+      }
+
+      if (
+        !parsedPayload ||
+        typeof parsedPayload !==
+          "object" ||
+        Array.isArray(
+          parsedPayload
+        )
+      ) {
+        throw new Error(
+          "Test payload must be a JSON object."
+        );
+      }
+
+      const response =
+        await fetch(
+          `/api/workflows/${workflow.id}/test`,
+          {
+            method:
+              "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify({
+                payload:
+                  parsedPayload,
+              }),
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error ||
+            "Unable to run workflow test."
+        );
+      }
+
+      setTestResult(
+        data
+      );
+    } catch (error) {
+      console.error(
+        "Workflow test error:",
+        error
+      );
+
+      setTestError(
+        error.message ||
+          "Unable to run workflow test."
+      );
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  function closeTestPanel() {
+    setTestPanelOpen(
+      false
+    );
+
+    setTestResult(
+      null
+    );
+
+    setTestError(
+      ""
     );
   }
 
@@ -681,9 +868,10 @@ export default function WorkflowDesignerPage() {
                 );
 
               return {
-                id: isNew
-                  ? undefined
-                  : step.id,
+                id:
+                  isNew
+                    ? undefined
+                    : step.id,
 
                 local_id:
                   isNew
@@ -816,7 +1004,8 @@ export default function WorkflowDesignerPage() {
         await fetch(
           `/api/workflows/${workflow.id}`,
           {
-            method: "PATCH",
+            method:
+              "PATCH",
 
             headers: {
               "Content-Type":
@@ -854,11 +1043,6 @@ export default function WorkflowDesignerPage() {
         savedSteps
       );
 
-      /*
-       * Try to keep the same selection
-       * after saving if that step still
-       * exists.
-       */
       const stillExists =
         savedSteps.some(
           (step) =>
@@ -1043,6 +1227,38 @@ export default function WorkflowDesignerPage() {
                   <button
                     type="button"
                     className={
+                      styles.secondaryButton
+                    }
+                    onClick={() => {
+                      setTestPanelOpen(
+                        true
+                      );
+
+                      setTestError(
+                        ""
+                      );
+
+                      setTestResult(
+                        null
+                      );
+                    }}
+                    disabled={
+                      workflow.status !==
+                      "Active"
+                    }
+                    title={
+                      workflow.status !==
+                      "Active"
+                        ? "Activate the workflow before testing it."
+                        : "Run this workflow with sample data."
+                    }
+                  >
+                    Test workflow
+                  </button>
+
+                  <button
+                    type="button"
+                    className={
                       styles.primaryButton
                     }
                     onClick={
@@ -1060,6 +1276,289 @@ export default function WorkflowDesignerPage() {
               )}
             </div>
           </section>
+
+          {/* TEST WORKFLOW PANEL */}
+
+          {testPanelOpen && (
+            <section
+              className={
+                styles.testPanel
+              }
+            >
+              <div
+                className={
+                  styles.testPanelHeader
+                }
+              >
+                <div>
+                  <span
+                    className={
+                      styles.eyebrow
+                    }
+                  >
+                    Workflow Test
+                  </span>
+
+                  <h3>
+                    Test{" "}
+                    {workflow.name}
+                  </h3>
+
+                  <p>
+                    Run this workflow
+                    with sample business
+                    data before connecting
+                    it to real records.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  className={
+                    styles.secondaryButton
+                  }
+                  onClick={
+                    closeTestPanel
+                  }
+                  disabled={
+                    testing
+                  }
+                >
+                  Close
+                </button>
+              </div>
+
+              <div
+                className={
+                  styles.testGrid
+                }
+              >
+                <div>
+                  <label
+                    className={
+                      styles.field
+                    }
+                  >
+                    <span>
+                      Test payload
+                    </span>
+
+                    <textarea
+                      rows={12}
+                      value={
+                        testPayload
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setTestPayload(
+                          event
+                            .target
+                            .value
+                        )
+                      }
+                      disabled={
+                        testing
+                      }
+                    />
+                  </label>
+
+                  <p
+                    className={
+                      styles.testHint
+                    }
+                  >
+                    This is sample
+                    business data only.
+                    No real quote will
+                    be changed during
+                    this test.
+                  </p>
+
+                  <button
+                    type="button"
+                    className={
+                      styles.primaryButton
+                    }
+                    onClick={
+                      runWorkflowTest
+                    }
+                    disabled={
+                      testing ||
+                      workflow.status !==
+                        "Active"
+                    }
+                  >
+                    {testing
+                      ? "Running test..."
+                      : "Run workflow test"}
+                  </button>
+                </div>
+
+                <div
+                  className={
+                    styles.testResultPanel
+                  }
+                >
+                  <span
+                    className={
+                      styles.eyebrow
+                    }
+                  >
+                    Test Result
+                  </span>
+
+                  {testError && (
+                    <div
+                      className={
+                        styles.testError
+                      }
+                    >
+                      <strong>
+                        Test failed
+                      </strong>
+
+                      <p>
+                        {
+                          testError
+                        }
+                      </p>
+                    </div>
+                  )}
+
+                  {!testError &&
+                    !testResult && (
+                      <div
+                        className={
+                          styles.testEmpty
+                        }
+                      >
+                        Run the
+                        workflow to
+                        see execution
+                        details here.
+                      </div>
+                    )}
+
+                  {testResult && (
+                    <div
+                      className={
+                        styles.testSuccess
+                      }
+                    >
+                      <strong>
+                        {
+                          testResult.message
+                        }
+                      </strong>
+
+                      <div
+                        className={
+                          styles.testDetails
+                        }
+                      >
+                        <div>
+                          <span>
+                            Workflow
+                          </span>
+
+                          <strong>
+                            {testResult
+                              .workflow
+                              ?.name ||
+                              "—"}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span>
+                            Event
+                          </span>
+
+                          <strong>
+                            {formatTrigger(
+                              testResult
+                                .event
+                                ?.event_name
+                            ) ||
+                              "—"}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span>
+                            Event status
+                          </span>
+
+                          <strong>
+                            {testResult
+                              .event
+                              ?.status ||
+                              "—"}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span>
+                            Workflow run
+                          </span>
+
+                          <strong>
+                            {testResult
+                              .workflow_run
+                              ?.id ||
+                              "—"}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span>
+                            Result
+                          </span>
+
+                          <strong>
+                            {testResult
+                              .execution
+                              ?.result
+                              ?.state ||
+                              "Processed"}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span>
+                            Current step
+                          </span>
+
+                          <strong>
+                            {testResult
+                              .execution
+                              ?.result
+                              ?.stepName ||
+                              "Completed"}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span>
+                            Assigned employee
+                          </span>
+
+                          <strong>
+                            {testResult
+                              .execution
+                              ?.result
+                              ?.assignedEmployeeId ||
+                              "Not resolved"}
+                          </strong>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </section>
+          )}
 
           {/* WORKFLOW SUMMARY */}
 
@@ -1185,7 +1684,9 @@ export default function WorkflowDesignerPage() {
                   workflow={
                     workflow
                   }
-                  steps={steps}
+                  steps={
+                    steps
+                  }
                   selectedStepId={
                     selectedStepId
                   }
@@ -1334,8 +1835,6 @@ export default function WorkflowDesignerPage() {
                       />
                     </Field>
 
-                    {/* CONDITION */}
-
                     {selectedStep.step_type ===
                       "Condition" && (
                       <ConditionEditor
@@ -1354,8 +1853,6 @@ export default function WorkflowDesignerPage() {
                       />
                     )}
 
-                    {/* APPROVAL */}
-
                     {selectedStep.step_type ===
                       "Approval" && (
                       <ApprovalEditor
@@ -1371,8 +1868,6 @@ export default function WorkflowDesignerPage() {
                       />
                     )}
 
-                    {/* EMAIL */}
-
                     {selectedStep.step_type ===
                       "Email" && (
                       <EmailEditor
@@ -1387,8 +1882,6 @@ export default function WorkflowDesignerPage() {
                         }
                       />
                     )}
-
-                    {/* NORMAL NEXT STEP */}
 
                     {selectedStep.step_type !==
                       "Condition" && (
@@ -1452,8 +1945,6 @@ export default function WorkflowDesignerPage() {
                         </select>
                       </Field>
                     )}
-
-                    {/* REQUIRED */}
 
                     <label
                       className={
@@ -1567,7 +2058,9 @@ function ConditionEditor({
             step.condition_type ||
             "Field"
           }
-          disabled={disabled}
+          disabled={
+            disabled
+          }
           onChange={(event) =>
             onUpdate(
               "condition_type",
@@ -1595,7 +2088,9 @@ function ConditionEditor({
             step.condition_field ||
             ""
           }
-          disabled={disabled}
+          disabled={
+            disabled
+          }
           placeholder="Example: amount"
           onChange={(event) =>
             onUpdate(
@@ -1612,7 +2107,9 @@ function ConditionEditor({
             step.condition_operator ||
             "equals"
           }
-          disabled={disabled}
+          disabled={
+            disabled
+          }
           onChange={(event) =>
             onUpdate(
               "condition_operator",
@@ -1630,7 +2127,9 @@ function ConditionEditor({
                   operator.value
                 }
               >
-                {operator.label}
+                {
+                  operator.label
+                }
               </option>
             )
           )}
@@ -1643,7 +2142,9 @@ function ConditionEditor({
             step.condition_value ??
             ""
           }
-          disabled={disabled}
+          disabled={
+            disabled
+          }
           placeholder="Example: 10000"
           onChange={(event) =>
             onUpdate(
@@ -1660,7 +2161,9 @@ function ConditionEditor({
             step.true_step_id ||
             ""
           }
-          disabled={disabled}
+          disabled={
+            disabled
+          }
           onChange={(event) =>
             onUpdate(
               "true_step_id",
@@ -1707,7 +2210,9 @@ function ConditionEditor({
             step.false_step_id ||
             ""
           }
-          disabled={disabled}
+          disabled={
+            disabled
+          }
           onChange={(event) =>
             onUpdate(
               "false_step_id",
@@ -1781,7 +2286,9 @@ function ApprovalEditor({
             config.approver_type ||
             "Manager"
           }
-          disabled={disabled}
+          disabled={
+            disabled
+          }
           onChange={(event) =>
             onUpdate(
               "approver_type",
@@ -1840,7 +2347,9 @@ function EmailEditor({
             config.recipient ||
             "Record Contact"
           }
-          disabled={disabled}
+          disabled={
+            disabled
+          }
           onChange={(event) =>
             onUpdate(
               "recipient",
@@ -1868,7 +2377,9 @@ function EmailEditor({
             config.subject ||
             ""
           }
-          disabled={disabled}
+          disabled={
+            disabled
+          }
           placeholder="Email subject"
           onChange={(event) =>
             onUpdate(
@@ -1896,7 +2407,9 @@ function Field({
         styles.field
       }
     >
-      <span>{label}</span>
+      <span>
+        {label}
+      </span>
 
       {children}
     </label>
@@ -1917,7 +2430,9 @@ function MetaCard({
         styles.metaCard
       }
     >
-      <span>{label}</span>
+      <span>
+        {label}
+      </span>
 
       <strong>
         {value}
@@ -1934,7 +2449,10 @@ function normalizeCanvasPositions(
   steps
 ) {
   return steps.map(
-    (step, index) => {
+    (
+      step,
+      index
+    ) => {
       const hasPosition =
         Number(
           step.position_x
@@ -1974,11 +2492,14 @@ function normalizeCanvasPositions(
           step.condition_configuration ||
           {},
 
-        next_step_ref: null,
+        next_step_ref:
+          null,
 
-        true_step_ref: null,
+        true_step_ref:
+          null,
 
-        false_step_ref: null,
+        false_step_ref:
+          null,
       };
     }
   );
@@ -1989,7 +2510,9 @@ function normalizeCanvasPositions(
 // =========================================================
 
 function formatTrigger(value) {
-  return String(value || "")
+  return String(
+    value || ""
+  )
     .split("_")
     .filter(Boolean)
     .map(
