@@ -9,8 +9,8 @@ import {
 } from "../../../../../lib/workflows/workflowEngine";
 
 import {
-  emitWorkflowEvent,
-} from "../../../../../lib/workflow-runtime/engine";
+  startWorkflowRun,
+} from "../../../../../lib/workflow-runtime/runner";
 
 function isUuid(value) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
@@ -18,10 +18,17 @@ function isUuid(value) {
   );
 }
 
+function now() {
+  return new Date().toISOString();
+}
+
 export async function POST(
   request,
   context
 ) {
+  let workflowEvent = null;
+  let access = null;
+
   try {
     const { id } =
       await context.params;
@@ -38,7 +45,7 @@ export async function POST(
       );
     }
 
-    const access =
+    access =
       await getServerAccess();
 
     if (!access.employee) {
@@ -52,14 +59,15 @@ export async function POST(
       );
     }
 
+    const organizationId =
+      access.employee.organization_id;
+
     const workflow =
       await loadWorkflowById({
         supabase:
           access.supabase,
 
-        organizationId:
-          access.employee
-            .organization_id,
+        organizationId,
 
         workflowId: id,
       });
@@ -92,39 +100,105 @@ export async function POST(
       );
     }
 
-    const body =
-      await request.json();
+    let body = {};
 
-    const payload =
-      body.payload &&
+    try {
+      body =
+        await request.json();
+    } catch {
+      body = {};
+    }
+
+    const suppliedPayload =
+      body?.payload &&
       typeof body.payload ===
-        "object"
+        "object" &&
+      !Array.isArray(
+        body.payload
+      )
         ? body.payload
         : {};
 
+    const testPayload = {
+      ...suppliedPayload,
+
+      __test_mode: true,
+
+      __workflow_id:
+        workflow.id,
+
+      __workflow_code:
+        workflow.code,
+
+      __tested_at: now(),
+    };
+
     /*
-     * During a test we don't need a real
-     * quote/customer/project record yet.
+     * Create a workflow event specifically
+     * for this test.
      *
-     * record_id remains null.
+     * IMPORTANT:
+     * We intentionally start ONLY the workflow
+     * being tested rather than every workflow
+     * using the same trigger.
      */
-    const result =
-      await emitWorkflowEvent({
+    const {
+      data: createdEvent,
+      error: eventError,
+    } = await access.supabase
+      .from("workflow_events")
+      .insert([
+        {
+          organization_id:
+            organizationId,
+
+          event_name:
+            workflow.trigger_event,
+
+          record_type:
+            String(
+              workflow.module ||
+                "record"
+            ).toLowerCase(),
+
+          record_id: null,
+
+          payload:
+            testPayload,
+
+          status:
+            "Processing",
+
+          error_message: null,
+
+          created_by:
+            access.user.id,
+        },
+      ])
+      .select()
+      .single();
+
+    if (eventError) {
+      throw new Error(
+        `Unable to create workflow test event: ${eventError.message}`
+      );
+    }
+
+    workflowEvent =
+      createdEvent;
+
+    const execution =
+      await startWorkflowRun({
         supabase:
           access.supabase,
 
-        organizationId:
-          access.employee
-            .organization_id,
+        organizationId,
 
-        userId:
-          access.user.id,
+        workflowId:
+          workflow.id,
 
-        module:
-          workflow.module,
-
-        eventName:
-          workflow.trigger_event,
+        workflowEventId:
+          workflowEvent.id,
 
         recordType:
           String(
@@ -134,54 +208,100 @@ export async function POST(
 
         recordId: null,
 
-        payload: {
-          ...payload,
+        triggerEvent:
+          workflow.trigger_event,
 
-          __test_mode: true,
+        inputPayload:
+          testPayload,
 
-          __workflow_id:
-            workflow.id,
-
-          __workflow_code:
-            workflow.code,
-        },
+        initiatedBy:
+          access.user.id,
       });
 
-    const execution =
-      result.executions?.find(
-        (item) =>
-          item.workflow_id ===
-          workflow.id
+    const {
+      error: eventUpdateError,
+    } = await access.supabase
+      .from("workflow_events")
+      .update({
+        status:
+          "Processed",
+
+        error_message:
+          null,
+
+        processed_at:
+          now(),
+      })
+      .eq(
+        "id",
+        workflowEvent.id
+      )
+      .eq(
+        "organization_id",
+        organizationId
       );
+
+    if (eventUpdateError) {
+      console.error(
+        "Workflow test event update error:",
+        eventUpdateError
+      );
+    }
+
+    const result =
+      execution?.result ||
+      {};
+
+    const waiting =
+      result.state ===
+      "Waiting";
 
     return NextResponse.json(
       {
         workflow: {
-          id: workflow.id,
+          id:
+            workflow.id,
+
           name:
             workflow.name,
+
           code:
             workflow.code,
+
           module:
             workflow.module,
+
           trigger_event:
             workflow.trigger_event,
+
+          version:
+            workflow.version,
         },
 
-        event:
-          result.event,
+        event: {
+          ...workflowEvent,
 
-        execution:
-          execution || null,
+          status:
+            "Processed",
+
+          processed_at:
+            now(),
+        },
+
+        workflow_run:
+          execution.workflowRun ||
+          null,
+
+        execution: {
+          success: true,
+
+          result,
+        },
 
         message:
-          execution?.success
-            ? execution.result
-                ?.state ===
-              "Waiting"
-              ? `Workflow test started successfully and is waiting at "${execution.result.stepName}".`
-              : "Workflow test completed successfully."
-            : "Workflow test event was processed.",
+          waiting
+            ? `Workflow test started successfully and is waiting at "${result.stepName || "an approval step"}".`
+            : "Workflow test completed successfully.",
       },
       {
         status: 201,
@@ -193,14 +313,71 @@ export async function POST(
       error
     );
 
+    if (
+      workflowEvent &&
+      access?.employee
+    ) {
+      try {
+        await access.supabase
+          .from(
+            "workflow_events"
+          )
+          .update({
+            status: "Failed",
+
+            error_message:
+              error.message ||
+              "Workflow test failed.",
+
+            processed_at:
+              now(),
+          })
+          .eq(
+            "id",
+            workflowEvent.id
+          )
+          .eq(
+            "organization_id",
+            access.employee
+              .organization_id
+          );
+      } catch (
+        eventUpdateError
+      ) {
+        console.error(
+          "Unable to mark workflow test event as failed:",
+          eventUpdateError
+        );
+      }
+    }
+
+    const message =
+      error.message ||
+      "Unable to test workflow.";
+
+    const lowerMessage =
+      message.toLowerCase();
+
+    const isBusinessError =
+      lowerMessage.includes(
+        "not active"
+      ) ||
+      lowerMessage.includes(
+        "required"
+      ) ||
+      lowerMessage.includes(
+        "valid workflow"
+      );
+
     return NextResponse.json(
       {
-        error:
-          error.message ||
-          "Unable to test workflow.",
+        error: message,
       },
       {
-        status: 500,
+        status:
+          isBusinessError
+            ? 400
+            : 500,
       }
     );
   }
