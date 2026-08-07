@@ -1,38 +1,160 @@
-import { supabase } from "../../../lib/supabase";
-import { NextResponse } from "next/server";
+import {
+  NextResponse,
+} from "next/server";
 
-const ORGANIZATION_ID = "9d5bbb05-866b-4c38-b2ac-3019e7cf88e5";
+import {
+  getServerAccess,
+} from "../../../lib/serverAccess";
+
+import {
+  createQuote,
+  loadQuotes,
+} from "../../../lib/quotes/quoteEngine";
+
+// =========================================================
+// GET ALL QUOTES
+// =========================================================
 
 export async function GET() {
-  const { data, error } = await supabase
-    .from("quotes")
-    .select("*")
-    .eq("organization_id", ORGANIZATION_ID)
-    .order("created_at", { ascending: false });
+  try {
+    const access =
+      await getServerAccess();
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!access.employee) {
+      return NextResponse.json(
+        {
+          error:
+            access.error,
+        },
+        {
+          status:
+            access.status,
+        }
+      );
+    }
+
+    const quotes =
+      await loadQuotes({
+        supabase:
+          access.supabase,
+
+        organizationId:
+          access.employee
+            .organization_id,
+      });
+
+    /*
+     * Keep returning the array directly
+     * so your existing Quotes UI is less
+     * likely to break.
+     */
+    return NextResponse.json(
+      quotes
+    );
+  } catch (error) {
+    console.error(
+      "Quotes GET error:",
+      error
+    );
+
+    return NextResponse.json(
+      {
+        error:
+          error.message ||
+          "Unable to load quotes.",
+      },
+      {
+        status: 500,
+      }
+    );
   }
-
-  return NextResponse.json(data);
 }
 
-export async function POST(request) {
-  const body = await request.json();
+// =========================================================
+// CREATE QUOTE
+// =========================================================
 
-  const { data, error } = await supabase
-    .from("quotes")
-    .insert([
+export async function POST(
+  request
+) {
+  try {
+    const access =
+      await getServerAccess();
+
+    if (!access.employee) {
+      return NextResponse.json(
+        {
+          error:
+            access.error,
+        },
+        {
+          status:
+            access.status,
+        }
+      );
+    }
+
+    const body =
+      await request.json();
+
+    const quote =
+      await createQuote({
+        supabase:
+          access.supabase,
+
+        organizationId:
+          access.employee
+            .organization_id,
+
+        input:
+          body,
+      });
+
+    /*
+     * Your old endpoint returned an array
+     * after insert().select().
+     *
+     * Keep the same response shape for now
+     * to avoid breaking the current UI.
+     */
+    return NextResponse.json(
+      [quote],
       {
-        ...body,
-        organization_id: ORGANIZATION_ID,
+        status: 201,
+      }
+    );
+  } catch (error) {
+    console.error(
+      "Quotes POST error:",
+      error
+    );
+
+    const message =
+      error.message ||
+      "Unable to create quote.";
+
+    const validationError =
+      [
+        "invalid",
+        "required",
+        "uuid",
+      ].some((word) =>
+        message
+          .toLowerCase()
+          .includes(word)
+      );
+
+    return NextResponse.json(
+      {
+        error:
+          message,
       },
-    ])
-    .select();
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+      {
+        status:
+          validationError
+            ? 400
+            : 500,
+      }
+    );
   }
-
-  return NextResponse.json(data);
 }
