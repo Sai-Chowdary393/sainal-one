@@ -646,3 +646,43 @@
     flex-direction: column;
   }
 }
+/* =========================================================
+   NOTIFICATION CONFIGURATION
+   ========================================================= */
+
+.notificationVariables {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px dashed #d8d0b8;
+  border-radius: 10px;
+  background: #fffdf7;
+}
+
+.notificationVariables > strong {
+  color: #785a00;
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.notificationVariables > p {
+  margin: 0;
+  color: #918b80;
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.variableList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.variableList code {
+  padding: 5px 7px;
+  border: 1px solid #e2dcc9;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #6f580f;
+  font-size: 9px;
+}
