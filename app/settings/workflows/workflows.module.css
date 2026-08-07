@@ -870,9 +870,16 @@
 
 .openButton {
   flex: 1;
-  border: 1px solid #ded9ca;
+  border: 1px solid #c99a18;
   background: #fbf8ef;
   color: #8c6800;
+  text-decoration: none;
+}
+
+.openButton:hover {
+  border-color: #b78605;
+  background: #f8f0d5;
+  color: #725400;
 }
 
 .activateButton {
