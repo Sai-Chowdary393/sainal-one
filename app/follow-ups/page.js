@@ -1,6 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import Link from "next/link";
 
 import AppLayout from "../../components/layout/AppLayout";
@@ -26,35 +31,102 @@ const RELATED_TYPE_OPTIONS = [
   "Invoice",
 ];
 
-const STATUS_OPTIONS = [
+const FOLLOW_UP_STATUS_OPTIONS = [
   "Pending",
   "Completed",
 ];
 
+const TASK_STATUS_OPTIONS = [
+  "Open",
+  "In Progress",
+  "Blocked",
+  "Completed",
+];
+
+const WORK_FILTERS = [
+  "All",
+  "Tasks",
+  "Follow-ups",
+];
+
 export default function FollowUpsPage() {
-  const [followUps, setFollowUps] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [
+    followUps,
+    setFollowUps,
+  ] = useState([]);
 
-  const [showForm, setShowForm] = useState(false);
-  const [searchValue, setSearchValue] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
-  const [typeFilter, setTypeFilter] = useState("All");
+  const [
+    tasks,
+    setTasks,
+  ] = useState([]);
 
-  const [formData, setFormData] = useState(EMPTY_FORM);
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
+
+  const [
+    saving,
+    setSaving,
+  ] = useState(false);
+
+  const [
+    errorMessage,
+    setErrorMessage,
+  ] = useState("");
+
+  const [
+    showForm,
+    setShowForm,
+  ] = useState(false);
+
+  const [
+    searchValue,
+    setSearchValue,
+  ] = useState("");
+
+  const [
+    statusFilter,
+    setStatusFilter,
+  ] = useState("All");
+
+  const [
+    typeFilter,
+    setTypeFilter,
+  ] = useState("All");
+
+  const [
+    workFilter,
+    setWorkFilter,
+  ] = useState("All");
+
+  const [
+    formData,
+    setFormData,
+  ] = useState(
+    EMPTY_FORM
+  );
+
+  // =======================================================
+  // INITIAL LOAD
+  // =======================================================
 
   useEffect(() => {
-    fetchFollowUps();
+    fetchWork();
   }, []);
 
   useEffect(() => {
     try {
-      const searchParams = new URLSearchParams(
-        window.location.search
-      );
+      const searchParams =
+        new URLSearchParams(
+          window.location.search
+        );
 
-      if (searchParams.get("create") === "true") {
+      if (
+        searchParams.get(
+          "create"
+        ) === "true"
+      ) {
         setShowForm(true);
 
         window.history.replaceState(
@@ -65,98 +137,195 @@ export default function FollowUpsPage() {
       }
     } catch (error) {
       console.error(
-        "Unable to read follow-up parameters:",
+        "Unable to read work parameters:",
         error
       );
     }
   }, []);
 
-  async function fetchFollowUps() {
+  // =======================================================
+  // LOAD TASKS + FOLLOW UPS
+  // =======================================================
+
+  async function fetchWork() {
     try {
       setLoading(true);
       setErrorMessage("");
 
-      const response = await fetch("/api/follow-ups", {
-        cache: "no-store",
-      });
+      const [
+        followUpResponse,
+        taskResponse,
+      ] = await Promise.all([
+        fetch(
+          "/api/follow-ups",
+          {
+            cache:
+              "no-store",
+          }
+        ),
 
-      const data = await response.json();
+        fetch(
+          "/api/tasks",
+          {
+            cache:
+              "no-store",
+          }
+        ),
+      ]);
 
-      if (!response.ok) {
+      const [
+        followUpData,
+        taskData,
+      ] = await Promise.all([
+        followUpResponse.json(),
+        taskResponse.json(),
+      ]);
+
+      if (
+        !followUpResponse.ok
+      ) {
         throw new Error(
-          data.error || "Failed to load follow-ups."
+          followUpData.error ||
+            "Failed to load follow-ups."
         );
       }
 
-      setFollowUps(Array.isArray(data) ? data : []);
+      if (
+        !taskResponse.ok
+      ) {
+        throw new Error(
+          taskData.error ||
+            "Failed to load tasks."
+        );
+      }
+
+      setFollowUps(
+        Array.isArray(
+          followUpData
+        )
+          ? followUpData
+          : []
+      );
+
+      setTasks(
+        Array.isArray(
+          taskData
+        )
+          ? taskData
+          : []
+      );
     } catch (error) {
-      console.error("Follow-up loading error:", error);
+      console.error(
+        "My Work loading error:",
+        error
+      );
 
       setErrorMessage(
         error.message ||
-          "We could not load the follow-ups."
+          "We could not load your work."
       );
     } finally {
       setLoading(false);
     }
   }
 
-  function handleChange(event) {
-    const { name, value } = event.target;
+  // =======================================================
+  // CREATE FOLLOW UP
+  // =======================================================
 
-    setFormData((currentForm) => ({
-      ...currentForm,
-      [name]: value,
-    }));
+  function handleChange(
+    event
+  ) {
+    const {
+      name,
+      value,
+    } = event.target;
+
+    setFormData(
+      (
+        currentForm
+      ) => ({
+        ...currentForm,
+        [name]:
+          value,
+      })
+    );
   }
 
   function openCreateForm() {
-    setFormData(EMPTY_FORM);
+    setFormData(
+      EMPTY_FORM
+    );
+
     setShowForm(true);
   }
 
   function closeCreateForm() {
-    setFormData(EMPTY_FORM);
+    setFormData(
+      EMPTY_FORM
+    );
+
     setShowForm(false);
   }
 
-  async function createFollowUp(event) {
+  async function createFollowUp(
+    event
+  ) {
     event.preventDefault();
 
-    const cleanTitle = formData.title.trim();
+    const cleanTitle =
+      formData.title.trim();
 
     if (!cleanTitle) {
-      alert("Please enter a follow-up title.");
+      alert(
+        "Please enter a follow-up title."
+      );
+
       return;
     }
 
     try {
       setSaving(true);
 
-      const response = await fetch("/api/follow-ups", {
-        method: "POST",
+      const response =
+        await fetch(
+          "/api/follow-ups",
+          {
+            method:
+              "POST",
 
-        headers: {
-          "Content-Type": "application/json",
-        },
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
 
-        body: JSON.stringify({
-          related_type:
-            formData.related_type || "General",
+            body:
+              JSON.stringify(
+                {
+                  related_type:
+                    formData.related_type ||
+                    "General",
 
-          title: cleanTitle,
+                  title:
+                    cleanTitle,
 
-          note: formData.note.trim(),
+                  note:
+                    formData.note.trim(),
 
-          due_date:
-            formData.due_date || null,
+                  due_date:
+                    formData.due_date ||
+                    null,
 
-          status:
-            formData.status || "Pending",
-        }),
-      });
+                  status:
+                    formData.status ||
+                    "Pending",
+                }
+              ),
+          }
+        );
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
       if (!response.ok) {
         throw new Error(
@@ -165,22 +334,31 @@ export default function FollowUpsPage() {
         );
       }
 
-      const createdFollowUp = Array.isArray(data)
-        ? data[0]
-        : data;
+      const created =
+        Array.isArray(
+          data
+        )
+          ? data[0]
+          : data;
 
-      if (createdFollowUp) {
-        setFollowUps((currentFollowUps) => [
-          createdFollowUp,
-          ...currentFollowUps,
-        ]);
+      if (created) {
+        setFollowUps(
+          (
+            current
+          ) => [
+            created,
+            ...current,
+          ]
+        );
       } else {
-        await fetchFollowUps();
+        await fetchWork();
       }
 
       closeCreateForm();
 
-      alert("Follow-up created successfully.");
+      alert(
+        "Follow-up created successfully."
+      );
     } catch (error) {
       console.error(
         "Follow-up creation error:",
@@ -196,24 +374,36 @@ export default function FollowUpsPage() {
     }
   }
 
-  async function updateStatus(id, status) {
+  // =======================================================
+  // FOLLOW-UP STATUS
+  // =======================================================
+
+  async function updateFollowUpStatus(
+    id,
+    status
+  ) {
     try {
-      const response = await fetch(
-        `/api/follow-ups/${id}`,
-        {
-          method: "PATCH",
+      const response =
+        await fetch(
+          `/api/follow-ups/${id}`,
+          {
+            method:
+              "PATCH",
 
-          headers: {
-            "Content-Type": "application/json",
-          },
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
 
-          body: JSON.stringify({
-            status,
-          }),
-        }
-      );
+            body:
+              JSON.stringify({
+                status,
+              }),
+          }
+        );
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
       if (!response.ok) {
         throw new Error(
@@ -222,18 +412,30 @@ export default function FollowUpsPage() {
         );
       }
 
-      setFollowUps((currentFollowUps) =>
-        currentFollowUps.map((followUp) =>
-          String(followUp.id) === String(id)
-            ? {
-                ...followUp,
-                ...(Array.isArray(data)
-                  ? data[0]
-                  : data),
-                status,
-              }
-            : followUp
-        )
+      const updated =
+        Array.isArray(data)
+          ? data[0]
+          : data;
+
+      setFollowUps(
+        (
+          current
+        ) =>
+          current.map(
+            (
+              followUp
+            ) =>
+              String(
+                followUp.id
+              ) ===
+              String(id)
+                ? {
+                    ...followUp,
+                    ...updated,
+                    status,
+                  }
+                : followUp
+          )
       );
     } catch (error) {
       console.error(
@@ -246,28 +448,114 @@ export default function FollowUpsPage() {
           "Error updating follow-up."
       );
 
-      await fetchFollowUps();
+      await fetchWork();
     }
   }
 
-  async function deleteFollowUp(id) {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this follow-up?"
-    );
+  // =======================================================
+  // TASK STATUS
+  // =======================================================
+
+  async function updateTaskStatus(
+    id,
+    status
+  ) {
+    try {
+      const response =
+        await fetch(
+          `/api/tasks/${id}`,
+          {
+            method:
+              "PATCH",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify({
+                status,
+              }),
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error ||
+            "Failed to update task."
+        );
+      }
+
+      const updated =
+        Array.isArray(data)
+          ? data[0]
+          : data;
+
+      setTasks(
+        (
+          current
+        ) =>
+          current.map(
+            (task) =>
+              String(
+                task.id
+              ) ===
+              String(id)
+                ? {
+                    ...task,
+                    ...updated,
+                    status,
+                  }
+                : task
+          )
+      );
+    } catch (error) {
+      console.error(
+        "Task status error:",
+        error
+      );
+
+      alert(
+        error.message ||
+          "Error updating task."
+      );
+
+      await fetchWork();
+    }
+  }
+
+  // =======================================================
+  // DELETE FOLLOW UP
+  // =======================================================
+
+  async function deleteFollowUp(
+    id
+  ) {
+    const confirmed =
+      window.confirm(
+        "Are you sure you want to delete this follow-up?"
+      );
 
     if (!confirmed) {
       return;
     }
 
     try {
-      const response = await fetch(
-        `/api/follow-ups/${id}`,
-        {
-          method: "DELETE",
-        }
-      );
+      const response =
+        await fetch(
+          `/api/follow-ups/${id}`,
+          {
+            method:
+              "DELETE",
+          }
+        );
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
       if (!response.ok) {
         throw new Error(
@@ -276,11 +564,19 @@ export default function FollowUpsPage() {
         );
       }
 
-      setFollowUps((currentFollowUps) =>
-        currentFollowUps.filter(
-          (followUp) =>
-            String(followUp.id) !== String(id)
-        )
+      setFollowUps(
+        (
+          current
+        ) =>
+          current.filter(
+            (
+              followUp
+            ) =>
+              String(
+                followUp.id
+              ) !==
+              String(id)
+          )
       );
     } catch (error) {
       console.error(
@@ -295,117 +591,420 @@ export default function FollowUpsPage() {
     }
   }
 
-  const filteredFollowUps = useMemo(() => {
-    const search = searchValue
-      .trim()
-      .toLowerCase();
+  // =======================================================
+  // DELETE TASK
+  // =======================================================
 
-    return followUps
-      .filter((followUp) => {
-        const matchesSearch =
-          !search ||
-          [
-            followUp.title,
-            followUp.note,
-            followUp.related_type,
-            followUp.status,
-          ].some((value) =>
-            String(value || "")
-              .toLowerCase()
-              .includes(search)
-          );
+  async function deleteTask(
+    id
+  ) {
+    const confirmed =
+      window.confirm(
+        "Are you sure you want to delete this task?"
+      );
 
-        const matchesStatus =
-          statusFilter === "All" ||
-          normaliseStatus(followUp.status) ===
-            normaliseStatus(statusFilter);
+    if (!confirmed) {
+      return;
+    }
 
-        const matchesType =
-          typeFilter === "All" ||
-          normaliseStatus(
-            followUp.related_type
-          ) === normaliseStatus(typeFilter);
-
-        return (
-          matchesSearch &&
-          matchesStatus &&
-          matchesType
+    try {
+      const response =
+        await fetch(
+          `/api/tasks/${id}`,
+          {
+            method:
+              "DELETE",
+          }
         );
-      })
-      .sort(sortFollowUps);
-  }, [
-    followUps,
-    searchValue,
-    statusFilter,
-    typeFilter,
-  ]);
 
-  const pendingCount = followUps.filter(
-    (item) =>
-      normaliseStatus(item.status) !==
-      "completed"
-  ).length;
+      const data =
+        await response.json();
 
-  const completedCount = followUps.filter(
-    (item) =>
-      normaliseStatus(item.status) ===
-      "completed"
-  ).length;
+      if (!response.ok) {
+        throw new Error(
+          data.error ||
+            "Failed to delete task."
+        );
+      }
 
-  const overdueCount = followUps.filter(
-    (item) => isFollowUpOverdue(item)
-  ).length;
+      setTasks(
+        (
+          current
+        ) =>
+          current.filter(
+            (task) =>
+              String(
+                task.id
+              ) !==
+              String(id)
+          )
+      );
+    } catch (error) {
+      console.error(
+        "Task deletion error:",
+        error
+      );
 
-  const todayCount = followUps.filter(
-    (item) =>
-      normaliseStatus(item.status) !==
-        "completed" &&
-      isToday(item.due_date)
-  ).length;
+      alert(
+        error.message ||
+          "Error deleting task."
+      );
+    }
+  }
+
+  // =======================================================
+  // NORMALISE INTO ONE WORK LIST
+  // =======================================================
+
+  const workItems =
+    useMemo(() => {
+      const taskItems =
+        tasks.map(
+          (task) => ({
+            id:
+              task.id,
+
+            itemType:
+              "Task",
+
+            title:
+              task.task_name ||
+              "Untitled task",
+
+            description:
+              task.description ||
+              "",
+
+            relatedType:
+              task.record_type
+                ? formatRecordType(
+                    task.record_type
+                  )
+                : task.project_id
+                  ? "Project"
+                  : "General",
+
+            status:
+              task.status ||
+              "Open",
+
+            dueDate:
+              task.due_date,
+
+            createdAt:
+              task.created_at,
+
+            priority:
+              task.priority ||
+              "Medium",
+
+            recordType:
+              task.record_type,
+
+            recordId:
+              task.record_id,
+
+            workflowRunId:
+              task.workflow_run_id,
+
+            assignedEmployeeId:
+              task.assigned_employee_id,
+
+            automatic:
+              Boolean(
+                task.workflow_run_id
+              ),
+
+            source:
+              task,
+          })
+        );
+
+      const followUpItems =
+        followUps.map(
+          (followUp) => ({
+            id:
+              followUp.id,
+
+            itemType:
+              "Follow-up",
+
+            title:
+              followUp.title ||
+              "Untitled follow-up",
+
+            description:
+              followUp.note ||
+              "",
+
+            relatedType:
+              followUp.related_type ||
+              "General",
+
+            status:
+              followUp.status ||
+              "Pending",
+
+            dueDate:
+              followUp.due_date,
+
+            createdAt:
+              followUp.created_at,
+
+            priority:
+              null,
+
+            recordType:
+              null,
+
+            recordId:
+              null,
+
+            workflowRunId:
+              null,
+
+            assignedEmployeeId:
+              null,
+
+            automatic:
+              false,
+
+            source:
+              followUp,
+          })
+        );
+
+      return [
+        ...taskItems,
+        ...followUpItems,
+      ];
+    }, [
+      tasks,
+      followUps,
+    ]);
+
+  // =======================================================
+  // FILTERING
+  // =======================================================
+
+  const filteredWork =
+    useMemo(() => {
+      const search =
+        searchValue
+          .trim()
+          .toLowerCase();
+
+      return workItems
+        .filter(
+          (item) => {
+            const matchesSearch =
+              !search ||
+              [
+                item.title,
+                item.description,
+                item.relatedType,
+                item.status,
+                item.priority,
+                item.itemType,
+              ].some(
+                (
+                  value
+                ) =>
+                  String(
+                    value ||
+                      ""
+                  )
+                    .toLowerCase()
+                    .includes(
+                      search
+                    )
+              );
+
+            const matchesWorkType =
+              workFilter ===
+                "All" ||
+              (
+                workFilter ===
+                  "Tasks" &&
+                item.itemType ===
+                  "Task"
+              ) ||
+              (
+                workFilter ===
+                  "Follow-ups" &&
+                item.itemType ===
+                  "Follow-up"
+              );
+
+            const matchesStatus =
+              statusFilter ===
+                "All" ||
+              normaliseStatus(
+                item.status
+              ) ===
+                normaliseStatus(
+                  statusFilter
+                );
+
+            const matchesType =
+              typeFilter ===
+                "All" ||
+              normaliseStatus(
+                item.relatedType
+              ) ===
+                normaliseStatus(
+                  typeFilter
+                );
+
+            return (
+              matchesSearch &&
+              matchesWorkType &&
+              matchesStatus &&
+              matchesType
+            );
+          }
+        )
+        .sort(
+          sortWorkItems
+        );
+    }, [
+      workItems,
+      searchValue,
+      workFilter,
+      statusFilter,
+      typeFilter,
+    ]);
+
+  // =======================================================
+  // SUMMARY
+  // =======================================================
+
+  const openCount =
+    workItems.filter(
+      (item) =>
+        !isCompleted(
+          item.status
+        )
+    ).length;
+
+  const completedCount =
+    workItems.filter(
+      (item) =>
+        isCompleted(
+          item.status
+        )
+    ).length;
+
+  const overdueCount =
+    workItems.filter(
+      isWorkItemOverdue
+    ).length;
+
+  const todayCount =
+    workItems.filter(
+      (item) =>
+        !isCompleted(
+          item.status
+        ) &&
+        isToday(
+          item.dueDate
+        )
+    ).length;
+
+  const workflowTaskCount =
+    workItems.filter(
+      (item) =>
+        item.itemType ===
+          "Task" &&
+        item.automatic
+    ).length;
 
   const filtersActive =
-    Boolean(searchValue) ||
-    statusFilter !== "All" ||
-    typeFilter !== "All";
+    Boolean(
+      searchValue
+    ) ||
+    statusFilter !==
+      "All" ||
+    typeFilter !==
+      "All" ||
+    workFilter !==
+      "All";
 
   function clearFilters() {
     setSearchValue("");
-    setStatusFilter("All");
-    setTypeFilter("All");
+    setStatusFilter(
+      "All"
+    );
+    setTypeFilter(
+      "All"
+    );
+    setWorkFilter(
+      "All"
+    );
   }
+
+  // =======================================================
+  // PAGE
+  // =======================================================
 
   return (
     <ProtectedRoute>
       <AppLayout
-        title="Follow-ups"
-        description="Manage reminders, customer actions and upcoming business commitments."
+        title="My Work"
+        description="Manage tasks, follow-ups and workflow-generated actions from one workspace."
       >
-        <div className={styles.page}>
-          <section className={styles.pageHeader}>
-            <div className={styles.pageHeaderCopy}>
-              <span className={styles.eyebrow}>
+        <div
+          className={
+            styles.page
+          }
+        >
+          <section
+            className={
+              styles.pageHeader
+            }
+          >
+            <div
+              className={
+                styles.pageHeaderCopy
+              }
+            >
+              <span
+                className={
+                  styles.eyebrow
+                }
+              >
                 Action workspace
               </span>
 
-              <h2>Follow-up management</h2>
+              <h2>
+                My Work
+              </h2>
 
               <p>
-                Track customer actions, reminders,
-                upcoming commitments and overdue
-                follow-ups across SaiNal One.
+                Review tasks,
+                customer follow-ups
+                and actions created
+                automatically by
+                SaiNal One workflows.
               </p>
             </div>
 
             <button
               type="button"
-              className={styles.primaryButton}
+              className={
+                styles.primaryButton
+              }
               onClick={
                 showForm
                   ? closeCreateForm
                   : openCreateForm
               }
             >
-              <span>{showForm ? "×" : "+"}</span>
+              <span>
+                {showForm
+                  ? "×"
+                  : "+"}
+              </span>
 
               {showForm
                 ? "Close form"
@@ -413,23 +1012,49 @@ export default function FollowUpsPage() {
             </button>
           </section>
 
+          {/* CREATE FOLLOW UP */}
+
           {showForm && (
-            <section className={styles.formPanel}>
-              <div className={styles.formHeading}>
-                <h3>Create a new follow-up</h3>
+            <section
+              className={
+                styles.formPanel
+              }
+            >
+              <div
+                className={
+                  styles.formHeading
+                }
+              >
+                <h3>
+                  Create a new
+                  follow-up
+                </h3>
 
                 <p>
-                  Add an action, reminder, note and
+                  Add an action,
+                  reminder, note and
                   due date.
                 </p>
               </div>
 
               <form
-                className={styles.followUpForm}
-                onSubmit={createFollowUp}
+                className={
+                  styles.followUpForm
+                }
+                onSubmit={
+                  createFollowUp
+                }
               >
-                <div className={styles.formGrid}>
-                  <div className={styles.field}>
+                <div
+                  className={
+                    styles.formGrid
+                  }
+                >
+                  <div
+                    className={
+                      styles.field
+                    }
+                  >
                     <label htmlFor="follow-up-type">
                       Related area
                     </label>
@@ -437,24 +1062,42 @@ export default function FollowUpsPage() {
                     <select
                       id="follow-up-type"
                       name="related_type"
-                      value={formData.related_type}
-                      onChange={handleChange}
-                      disabled={saving}
+                      value={
+                        formData.related_type
+                      }
+                      onChange={
+                        handleChange
+                      }
+                      disabled={
+                        saving
+                      }
                     >
                       {RELATED_TYPE_OPTIONS.map(
-                        (option) => (
+                        (
+                          option
+                        ) => (
                           <option
-                            key={option}
-                            value={option}
+                            key={
+                              option
+                            }
+                            value={
+                              option
+                            }
                           >
-                            {option}
+                            {
+                              option
+                            }
                           </option>
                         )
                       )}
                     </select>
                   </div>
 
-                  <div className={styles.field}>
+                  <div
+                    className={
+                      styles.field
+                    }
+                  >
                     <label htmlFor="follow-up-status">
                       Status
                     </label>
@@ -462,17 +1105,31 @@ export default function FollowUpsPage() {
                     <select
                       id="follow-up-status"
                       name="status"
-                      value={formData.status}
-                      onChange={handleChange}
-                      disabled={saving}
+                      value={
+                        formData.status
+                      }
+                      onChange={
+                        handleChange
+                      }
+                      disabled={
+                        saving
+                      }
                     >
-                      {STATUS_OPTIONS.map(
-                        (status) => (
+                      {FOLLOW_UP_STATUS_OPTIONS.map(
+                        (
+                          status
+                        ) => (
                           <option
-                            key={status}
-                            value={status}
+                            key={
+                              status
+                            }
+                            value={
+                              status
+                            }
                           >
-                            {status}
+                            {
+                              status
+                            }
                           </option>
                         )
                       )}
@@ -490,10 +1147,16 @@ export default function FollowUpsPage() {
                       id="follow-up-title"
                       name="title"
                       type="text"
-                      value={formData.title}
-                      onChange={handleChange}
+                      value={
+                        formData.title
+                      }
+                      onChange={
+                        handleChange
+                      }
                       placeholder="Example: Call customer about proposal approval"
-                      disabled={saving}
+                      disabled={
+                        saving
+                      }
                       required
                     />
                   </div>
@@ -508,15 +1171,25 @@ export default function FollowUpsPage() {
                     <textarea
                       id="follow-up-note"
                       name="note"
-                      value={formData.note}
-                      onChange={handleChange}
+                      value={
+                        formData.note
+                      }
+                      onChange={
+                        handleChange
+                      }
                       placeholder="Add context or the expected next action."
                       rows={5}
-                      disabled={saving}
+                      disabled={
+                        saving
+                      }
                     />
                   </div>
 
-                  <div className={styles.field}>
+                  <div
+                    className={
+                      styles.field
+                    }
+                  >
                     <label htmlFor="follow-up-due-date">
                       Due date
                     </label>
@@ -525,27 +1198,47 @@ export default function FollowUpsPage() {
                       id="follow-up-due-date"
                       type="date"
                       name="due_date"
-                      value={formData.due_date}
-                      onChange={handleChange}
-                      disabled={saving}
+                      value={
+                        formData.due_date
+                      }
+                      onChange={
+                        handleChange
+                      }
+                      disabled={
+                        saving
+                      }
                     />
                   </div>
                 </div>
 
-                <div className={styles.formActions}>
+                <div
+                  className={
+                    styles.formActions
+                  }
+                >
                   <button
                     type="button"
-                    className={styles.secondaryButton}
-                    onClick={closeCreateForm}
-                    disabled={saving}
+                    className={
+                      styles.secondaryButton
+                    }
+                    onClick={
+                      closeCreateForm
+                    }
+                    disabled={
+                      saving
+                    }
                   >
                     Cancel
                   </button>
 
                   <button
                     type="submit"
-                    className={styles.primaryButton}
-                    disabled={saving}
+                    className={
+                      styles.primaryButton
+                    }
+                    disabled={
+                      saving
+                    }
                   >
                     {saving
                       ? "Saving follow-up..."
@@ -556,19 +1249,29 @@ export default function FollowUpsPage() {
             </section>
           )}
 
-          <section className={styles.summaryGrid}>
+          {/* SUMMARY */}
+
+          <section
+            className={
+              styles.summaryGrid
+            }
+          >
             <SummaryCard
               icon="◷"
-              label="Pending"
-              value={pendingCount}
-              detail="Actions still open"
+              label="Open work"
+              value={
+                openCount
+              }
+              detail="Tasks and follow-ups"
               tone="Gold"
             />
 
             <SummaryCard
               icon="!"
               label="Overdue"
-              value={overdueCount}
+              value={
+                overdueCount
+              }
               detail="Require attention"
               tone="Red"
             />
@@ -576,7 +1279,9 @@ export default function FollowUpsPage() {
             <SummaryCard
               icon="○"
               label="Due today"
-              value={todayCount}
+              value={
+                todayCount
+              }
               detail="Today's commitments"
               tone="Blue"
             />
@@ -584,67 +1289,175 @@ export default function FollowUpsPage() {
             <SummaryCard
               icon="✓"
               label="Completed"
-              value={completedCount}
-              detail="Actions finished"
+              value={
+                completedCount
+              }
+              detail={`${workflowTaskCount} workflow task${
+                workflowTaskCount ===
+                1
+                  ? ""
+                  : "s"
+              } created`}
               tone="Green"
             />
           </section>
 
-          <section className={styles.toolbarPanel}>
-            <label className={styles.searchBox}>
-              <span aria-hidden="true">⌕</span>
+          {/* TOOLBAR */}
+
+          <section
+            className={
+              styles.toolbarPanel
+            }
+          >
+            <label
+              className={
+                styles.searchBox
+              }
+            >
+              <span
+                aria-hidden="true"
+              >
+                ⌕
+              </span>
 
               <input
                 type="search"
-                placeholder="Search title, note, type or status..."
-                value={searchValue}
-                onChange={(event) =>
-                  setSearchValue(event.target.value)
+                placeholder="Search tasks, follow-ups, records or status..."
+                value={
+                  searchValue
                 }
-                aria-label="Search follow-ups"
+                onChange={(
+                  event
+                ) =>
+                  setSearchValue(
+                    event
+                      .target
+                      .value
+                  )
+                }
               />
             </label>
 
-            <div className={styles.filters}>
+            <div
+              className={
+                styles.filters
+              }
+            >
               <select
-                className={styles.filterSelect}
-                value={statusFilter}
-                onChange={(event) =>
-                  setStatusFilter(event.target.value)
+                className={
+                  styles.filterSelect
                 }
-                aria-label="Filter by status"
+                value={
+                  workFilter
+                }
+                onChange={(
+                  event
+                ) =>
+                  setWorkFilter(
+                    event
+                      .target
+                      .value
+                  )
+                }
+              >
+                {WORK_FILTERS.map(
+                  (
+                    option
+                  ) => (
+                    <option
+                      key={
+                        option
+                      }
+                      value={
+                        option
+                      }
+                    >
+                      {
+                        option
+                      }
+                    </option>
+                  )
+                )}
+              </select>
+
+              <select
+                className={
+                  styles.filterSelect
+                }
+                value={
+                  statusFilter
+                }
+                onChange={(
+                  event
+                ) =>
+                  setStatusFilter(
+                    event
+                      .target
+                      .value
+                  )
+                }
               >
                 <option value="All">
                   All statuses
                 </option>
 
-                {STATUS_OPTIONS.map((status) => (
-                  <option
-                    key={status}
-                    value={status}
-                  >
-                    {status}
-                  </option>
-                ))}
+                <option value="Open">
+                  Open
+                </option>
+
+                <option value="Pending">
+                  Pending
+                </option>
+
+                <option value="In Progress">
+                  In Progress
+                </option>
+
+                <option value="Blocked">
+                  Blocked
+                </option>
+
+                <option value="Completed">
+                  Completed
+                </option>
               </select>
 
               <select
-                className={styles.filterSelect}
-                value={typeFilter}
-                onChange={(event) =>
-                  setTypeFilter(event.target.value)
+                className={
+                  styles.filterSelect
                 }
-                aria-label="Filter by type"
+                value={
+                  typeFilter
+                }
+                onChange={(
+                  event
+                ) =>
+                  setTypeFilter(
+                    event
+                      .target
+                      .value
+                  )
+                }
               >
-                <option value="All">All types</option>
+                <option value="All">
+                  All related areas
+                </option>
 
                 {RELATED_TYPE_OPTIONS.map(
-                  (option) => (
+                  (
+                    option
+                  ) => (
                     <option
-                      key={option}
-                      value={option}
+                      key={
+                        option
+                      }
+                      value={
+                        option
+                      }
                     >
-                      {option}
+                      {
+                        option
+                      }
                     </option>
                   )
                 )}
@@ -653,8 +1466,12 @@ export default function FollowUpsPage() {
               {filtersActive && (
                 <button
                   type="button"
-                  className={styles.clearButton}
-                  onClick={clearFilters}
+                  className={
+                    styles.clearButton
+                  }
+                  onClick={
+                    clearFilters
+                  }
                 >
                   Clear filters
                 </button>
@@ -662,79 +1479,153 @@ export default function FollowUpsPage() {
             </div>
           </section>
 
+          {/* CONTENT */}
+
           {loading ? (
             <LoadingState />
           ) : errorMessage ? (
-            <section className={styles.errorPanel}>
+            <section
+              className={
+                styles.errorPanel
+              }
+            >
               <div>
                 <strong>
-                  Unable to load follow-ups
+                  Unable to load
+                  My Work
                 </strong>
 
-                <p>{errorMessage}</p>
+                <p>
+                  {
+                    errorMessage
+                  }
+                </p>
               </div>
 
               <button
                 type="button"
-                className={styles.secondaryButton}
-                onClick={fetchFollowUps}
+                className={
+                  styles.secondaryButton
+                }
+                onClick={
+                  fetchWork
+                }
               >
                 Try again
               </button>
             </section>
           ) : (
-            <section className={styles.tablePanel}>
-              <div className={styles.tableHeading}>
+            <section
+              className={
+                styles.tablePanel
+              }
+            >
+              <div
+                className={
+                  styles.tableHeading
+                }
+              >
                 <div>
-                  <h3>Follow-up records</h3>
+                  <h3>
+                    Work items
+                  </h3>
 
                   <p>
-                    Notes and full action details are
-                    available inside each follow-up
-                    workspace.
+                    Manual follow-ups
+                    and tasks created
+                    by people or
+                    workflow automation.
                   </p>
                 </div>
 
-                <span className={styles.resultCount}>
-                  {filteredFollowUps.length} result
-                  {filteredFollowUps.length === 1
+                <span
+                  className={
+                    styles.resultCount
+                  }
+                >
+                  {
+                    filteredWork.length
+                  }{" "}
+                  result
+                  {filteredWork.length ===
+                  1
                     ? ""
                     : "s"}
                 </span>
               </div>
 
-              {filteredFollowUps.length === 0 ? (
+              {filteredWork.length ===
+              0 ? (
                 <EmptyState
-                  hasFilters={filtersActive}
-                  onClearFilters={clearFilters}
-                  onCreateFollowUp={openCreateForm}
+                  hasFilters={
+                    filtersActive
+                  }
+                  onClearFilters={
+                    clearFilters
+                  }
+                  onCreateFollowUp={
+                    openCreateForm
+                  }
                 />
               ) : (
-                <div className={styles.tableWrapper}>
+                <div
+                  className={
+                    styles.tableWrapper
+                  }
+                >
                   <table
-                    className={styles.followUpTable}
+                    className={
+                      styles.followUpTable
+                    }
                   >
                     <thead>
                       <tr>
-                        <th>Follow-up</th>
-                        <th>Related area</th>
-                        <th>Due date</th>
-                        <th>Status</th>
-                        <th>Action</th>
-                        <th aria-label="Open" />
+                        <th>
+                          Work item
+                        </th>
+
+                        <th>
+                          Related
+                        </th>
+
+                        <th>
+                          Due date
+                        </th>
+
+                        <th>
+                          Status
+                        </th>
+
+                        <th>
+                          Action
+                        </th>
+
+                        <th
+                          aria-label="Open"
+                        />
                       </tr>
                     </thead>
 
                     <tbody>
-                      {filteredFollowUps.map(
-                        (followUp) => {
+                      {filteredWork.map(
+                        (
+                          item
+                        ) => {
                           const overdue =
-                            isFollowUpOverdue(
-                              followUp
+                            isWorkItemOverdue(
+                              item
+                            );
+
+                          const recordHref =
+                            getRecordHref(
+                              item.recordType,
+                              item.recordId
                             );
 
                           return (
-                            <tr key={followUp.id}>
+                            <tr
+                              key={`${item.itemType}-${item.id}`}
+                            >
                               <td>
                                 <div
                                   className={
@@ -746,7 +1637,10 @@ export default function FollowUpsPage() {
                                       styles.followUpIcon
                                     }
                                   >
-                                    ◷
+                                    {item.itemType ===
+                                    "Task"
+                                      ? "☑"
+                                      : "◷"}
                                   </span>
 
                                   <div
@@ -754,18 +1648,36 @@ export default function FollowUpsPage() {
                                       styles.followUpIdentityCopy
                                     }
                                   >
-                                    <Link
-                                      href={`/follow-ups/${followUp.id}`}
-                                      className={
-                                        styles.followUpLink
-                                      }
-                                    >
-                                      {followUp.title ||
-                                        "Untitled follow-up"}
-                                    </Link>
+                                    {item.itemType ===
+                                    "Follow-up" ? (
+                                      <Link
+                                        href={`/follow-ups/${item.id}`}
+                                        className={
+                                          styles.followUpLink
+                                        }
+                                      >
+                                        {
+                                          item.title
+                                        }
+                                      </Link>
+                                    ) : (
+                                      <strong>
+                                        {
+                                          item.title
+                                        }
+                                      </strong>
+                                    )}
 
                                     <small>
-                                      Open follow-up workspace
+                                      {item.itemType}
+
+                                      {item.automatic
+                                        ? " · Workflow generated"
+                                        : ""}
+
+                                      {item.priority
+                                        ? ` · ${item.priority} priority`
+                                        : ""}
                                     </small>
                                   </div>
                                 </div>
@@ -777,8 +1689,9 @@ export default function FollowUpsPage() {
                                     styles.typeBadge
                                   }
                                 >
-                                  {followUp.related_type ||
-                                    "General"}
+                                  {
+                                    item.relatedType
+                                  }
                                 </span>
                               </td>
 
@@ -791,7 +1704,7 @@ export default function FollowUpsPage() {
                                   }`}
                                 >
                                   {formatDate(
-                                    followUp.due_date
+                                    item.dueDate
                                   )}
                                 </span>
 
@@ -809,39 +1722,90 @@ export default function FollowUpsPage() {
                               <td>
                                 <StatusBadge
                                   status={
-                                    followUp.status ||
-                                    "Pending"
+                                    item.status
                                   }
                                 />
                               </td>
 
                               <td>
-                                <select
-                                  className={
-                                    styles.statusSelect
-                                  }
-                                  value={
-                                    followUp.status ||
-                                    "Pending"
-                                  }
-                                  onChange={(event) =>
-                                    updateStatus(
-                                      followUp.id,
-                                      event.target.value
-                                    )
-                                  }
-                                >
-                                  {STATUS_OPTIONS.map(
-                                    (status) => (
-                                      <option
-                                        key={status}
-                                        value={status}
-                                      >
-                                        {status}
-                                      </option>
-                                    )
-                                  )}
-                                </select>
+                                {item.itemType ===
+                                "Task" ? (
+                                  <select
+                                    className={
+                                      styles.statusSelect
+                                    }
+                                    value={
+                                      item.status
+                                    }
+                                    onChange={(
+                                      event
+                                    ) =>
+                                      updateTaskStatus(
+                                        item.id,
+                                        event
+                                          .target
+                                          .value
+                                      )
+                                    }
+                                  >
+                                    {TASK_STATUS_OPTIONS.map(
+                                      (
+                                        status
+                                      ) => (
+                                        <option
+                                          key={
+                                            status
+                                          }
+                                          value={
+                                            status
+                                          }
+                                        >
+                                          {
+                                            status
+                                          }
+                                        </option>
+                                      )
+                                    )}
+                                  </select>
+                                ) : (
+                                  <select
+                                    className={
+                                      styles.statusSelect
+                                    }
+                                    value={
+                                      item.status
+                                    }
+                                    onChange={(
+                                      event
+                                    ) =>
+                                      updateFollowUpStatus(
+                                        item.id,
+                                        event
+                                          .target
+                                          .value
+                                      )
+                                    }
+                                  >
+                                    {FOLLOW_UP_STATUS_OPTIONS.map(
+                                      (
+                                        status
+                                      ) => (
+                                        <option
+                                          key={
+                                            status
+                                          }
+                                          value={
+                                            status
+                                          }
+                                        >
+                                          {
+                                            status
+                                          }
+                                        </option>
+                                      )
+                                    )}
+                                  </select>
+                                )}
 
                                 <button
                                   type="button"
@@ -849,9 +1813,14 @@ export default function FollowUpsPage() {
                                     styles.deleteButton
                                   }
                                   onClick={() =>
-                                    deleteFollowUp(
-                                      followUp.id
-                                    )
+                                    item.itemType ===
+                                    "Task"
+                                      ? deleteTask(
+                                          item.id
+                                        )
+                                      : deleteFollowUp(
+                                          item.id
+                                        )
                                   }
                                 >
                                   Delete
@@ -859,14 +1828,32 @@ export default function FollowUpsPage() {
                               </td>
 
                               <td>
-                                <Link
-                                  href={`/follow-ups/${followUp.id}`}
-                                  className={
-                                    styles.openButton
-                                  }
-                                >
-                                  Open →
-                                </Link>
+                                {recordHref ? (
+                                  <Link
+                                    href={
+                                      recordHref
+                                    }
+                                    className={
+                                      styles.openButton
+                                    }
+                                  >
+                                    Open record →
+                                  </Link>
+                                ) : item.itemType ===
+                                  "Follow-up" ? (
+                                  <Link
+                                    href={`/follow-ups/${item.id}`}
+                                    className={
+                                      styles.openButton
+                                    }
+                                  >
+                                    Open →
+                                  </Link>
+                                ) : (
+                                  <span>
+                                    —
+                                  </span>
+                                )}
                               </td>
                             </tr>
                           );
@@ -884,6 +1871,10 @@ export default function FollowUpsPage() {
   );
 }
 
+// =========================================================
+// SUMMARY CARD
+// =========================================================
+
 function SummaryCard({
   icon,
   label,
@@ -894,22 +1885,41 @@ function SummaryCard({
   return (
     <div
       className={`${styles.summaryCard} ${
-        styles[`summary${tone}`] || ""
+        styles[
+          `summary${tone}`
+        ] || ""
       }`}
     >
-      <span className={styles.summaryIcon}>
+      <span
+        className={
+          styles.summaryIcon
+        }
+      >
         {icon}
       </span>
 
-      <span className={styles.summaryLabel}>
+      <span
+        className={
+          styles.summaryLabel
+        }
+      >
         {label}
       </span>
 
-      <strong>{value}</strong>
-      <small>{detail}</small>
+      <strong>
+        {value}
+      </strong>
+
+      <small>
+        {detail}
+      </small>
     </div>
   );
 }
+
+// =========================================================
+// EMPTY
+// =========================================================
 
 function EmptyState({
   hasFilters,
@@ -917,26 +1927,36 @@ function EmptyState({
   onCreateFollowUp,
 }) {
   return (
-    <div className={styles.emptyState}>
-      <span className={styles.emptyIcon}>
+    <div
+      className={
+        styles.emptyState
+      }
+    >
+      <span
+        className={
+          styles.emptyIcon
+        }
+      >
         ◷
       </span>
 
       <h3>
         {hasFilters
-          ? "No matching follow-ups"
-          : "No follow-ups yet"}
+          ? "No matching work"
+          : "No work items yet"}
       </h3>
 
       <p>
         {hasFilters
           ? "Try changing or clearing the current filters."
-          : "Create your first follow-up to begin tracking business actions and reminders."}
+          : "Tasks created by workflows and manual follow-ups will appear here."}
       </p>
 
       <button
         type="button"
-        className={styles.primaryButton}
+        className={
+          styles.primaryButton
+        }
         onClick={
           hasFilters
             ? onClearFilters
@@ -951,102 +1971,246 @@ function EmptyState({
   );
 }
 
+// =========================================================
+// LOADING
+// =========================================================
+
 function LoadingState() {
   return (
-    <section className={styles.loadingPanel}>
+    <section
+      className={
+        styles.loadingPanel
+      }
+    >
       {Array.from({
         length: 5,
-      }).map((_, index) => (
-        <div
-          key={index}
-          className={styles.loadingRow}
-        />
-      ))}
+      }).map(
+        (
+          _,
+          index
+        ) => (
+          <div
+            key={index}
+            className={
+              styles.loadingRow
+            }
+          />
+        )
+      )}
     </section>
   );
 }
 
-function sortFollowUps(firstItem, secondItem) {
+// =========================================================
+// HELPERS
+// =========================================================
+
+function sortWorkItems(
+  first,
+  second
+) {
   const firstCompleted =
-    normaliseStatus(firstItem.status) ===
-    "completed";
+    isCompleted(
+      first.status
+    );
 
   const secondCompleted =
-    normaliseStatus(secondItem.status) ===
-    "completed";
+    isCompleted(
+      second.status
+    );
 
-  if (firstCompleted !== secondCompleted) {
-    return firstCompleted ? 1 : -1;
+  if (
+    firstCompleted !==
+    secondCompleted
+  ) {
+    return firstCompleted
+      ? 1
+      : -1;
   }
 
   const firstDate =
-    firstItem.due_date || "9999-12-31";
+    first.dueDate ||
+    "9999-12-31";
 
   const secondDate =
-    secondItem.due_date || "9999-12-31";
+    second.dueDate ||
+    "9999-12-31";
 
-  return firstDate.localeCompare(secondDate);
+  return firstDate.localeCompare(
+    secondDate
+  );
 }
 
-function normaliseStatus(value) {
-  return String(value || "")
+function normaliseStatus(
+  value
+) {
+  return String(
+    value || ""
+  )
     .trim()
     .toLowerCase();
 }
 
-function isFollowUpOverdue(followUp) {
+function isCompleted(
+  value
+) {
+  return (
+    normaliseStatus(
+      value
+    ) === "completed"
+  );
+}
+
+function isWorkItemOverdue(
+  item
+) {
   if (
-    !followUp.due_date ||
-    normaliseStatus(followUp.status) ===
-      "completed"
+    !item.dueDate ||
+    isCompleted(
+      item.status
+    )
   ) {
     return false;
   }
 
-  const dueDate = new Date(
-    `${String(followUp.due_date).split("T")[0]}T23:59:59`
-  );
+  const dueDate =
+    new Date(
+      `${String(
+        item.dueDate
+      ).split("T")[0]}T23:59:59`
+    );
 
   return (
-    !Number.isNaN(dueDate.getTime()) &&
-    dueDate < new Date()
+    !Number.isNaN(
+      dueDate.getTime()
+    ) &&
+    dueDate <
+      new Date()
   );
 }
 
-function isToday(value) {
+function isToday(
+  value
+) {
   if (!value) {
     return false;
   }
 
-  const date = new Date(
-    `${String(value).split("T")[0]}T12:00:00`
-  );
+  const date =
+    new Date(
+      `${String(
+        value
+      ).split("T")[0]}T12:00:00`
+    );
 
-  const today = new Date();
+  const today =
+    new Date();
 
   return (
-    date.getFullYear() === today.getFullYear() &&
-    date.getMonth() === today.getMonth() &&
-    date.getDate() === today.getDate()
+    date.getFullYear() ===
+      today.getFullYear() &&
+    date.getMonth() ===
+      today.getMonth() &&
+    date.getDate() ===
+      today.getDate()
   );
 }
 
-function formatDate(value) {
+function formatDate(
+  value
+) {
   if (!value) {
     return "Not scheduled";
   }
 
-  const date = new Date(
-    `${String(value).split("T")[0]}T12:00:00`
-  );
+  const date =
+    new Date(
+      `${String(
+        value
+      ).split("T")[0]}T12:00:00`
+    );
 
-  if (Number.isNaN(date.getTime())) {
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
     return "Not scheduled";
   }
 
-  return date.toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  return date.toLocaleDateString(
+    "en-GB",
+    {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }
+  );
+}
+
+function formatRecordType(
+  value
+) {
+  const clean =
+    String(
+      value || ""
+    )
+      .trim()
+      .toLowerCase();
+
+  if (!clean) {
+    return "General";
+  }
+
+  return (
+    clean
+      .charAt(0)
+      .toUpperCase() +
+    clean.slice(1)
+  );
+}
+
+function getRecordHref(
+  recordType,
+  recordId
+) {
+  if (
+    !recordType ||
+    !recordId
+  ) {
+    return null;
+  }
+
+  switch (
+    normaliseStatus(
+      recordType
+    )
+  ) {
+    case "quote":
+    case "quotes":
+      return `/quotes/${recordId}`;
+
+    case "lead":
+    case "leads":
+      return `/leads/${recordId}`;
+
+    case "customer":
+    case "customers":
+      return `/customers/${recordId}`;
+
+    case "project":
+    case "projects":
+      return `/projects/${recordId}`;
+
+    case "proposal":
+    case "proposals":
+      return `/proposals/${recordId}`;
+
+    case "invoice":
+    case "invoices":
+      return `/invoices/${recordId}`;
+
+    default:
+      return null;
+  }
 }
