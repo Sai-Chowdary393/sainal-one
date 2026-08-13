@@ -1,7 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useState,
+} from "react";
+
 import Link from "next/link";
+
 import {
   useParams,
   useRouter,
@@ -10,77 +15,140 @@ import {
 import AppLayout from "../../../components/layout/AppLayout";
 import StatusBadge from "../../../components/StatusBadge";
 import ProtectedRoute from "../../../components/ProtectedRoute";
+
 import styles from "./quote-details.module.css";
 
 export default function QuoteDetailsPage() {
-  const params = useParams();
-  const router = useRouter();
+  const params =
+    useParams();
 
-  const quoteId = params?.id;
+  const router =
+    useRouter();
 
-  const [quote, setQuote] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const quoteId =
+    params?.id;
 
-  const [converting, setConverting] =
-    useState(false);
+  const [
+    quote,
+    setQuote,
+  ] = useState(null);
 
-  const [submittingApproval, setSubmittingApproval] =
-    useState(false);
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
 
-  const [errorMessage, setErrorMessage] =
-    useState("");
+  const [
+    converting,
+    setConverting,
+  ] = useState(false);
 
-  const [approvalMessage, setApprovalMessage] =
-    useState("");
+  const [
+    submittingApproval,
+    setSubmittingApproval,
+  ] = useState(false);
 
-  const [workflowResult, setWorkflowResult] =
-    useState(null);
+  const [
+    errorMessage,
+    setErrorMessage,
+  ] = useState("");
+
+  const [
+    approvalMessage,
+    setApprovalMessage,
+  ] = useState("");
+
+  const [
+    workflowResult,
+    setWorkflowResult,
+  ] = useState(null);
+
+  // =======================================================
+  // WORKFLOW HISTORY STATE
+  // =======================================================
+
+  const [
+    workflowHistory,
+    setWorkflowHistory,
+  ] = useState([]);
+
+  const [
+    workflowHistoryLoading,
+    setWorkflowHistoryLoading,
+  ] = useState(false);
+
+  const [
+    workflowHistoryError,
+    setWorkflowHistoryError,
+  ] = useState("");
+
+  // =======================================================
+  // INITIAL LOAD
+  // =======================================================
 
   useEffect(() => {
-    if (quoteId) {
-      fetchQuote();
+    if (!quoteId) {
+      return;
     }
+
+    fetchQuote();
+
+    fetchWorkflowHistory();
   }, [quoteId]);
+
+  // =======================================================
+  // FETCH QUOTE
+  // =======================================================
 
   async function fetchQuote() {
     try {
       setLoading(true);
+
       setErrorMessage("");
 
-      const directResponse = await fetch(
-        `/api/quotes/${quoteId}`,
-        {
-          cache: "no-store",
-        }
-      );
+      const directResponse =
+        await fetch(
+          `/api/quotes/${quoteId}`,
+          {
+            cache:
+              "no-store",
+          }
+        );
 
-      if (directResponse.ok) {
+      if (
+        directResponse.ok
+      ) {
         const directData =
           await directResponse.json();
 
-        const selectedQuote = Array.isArray(
-          directData
-        )
-          ? directData[0]
-          : directData;
+        const selectedQuote =
+          Array.isArray(
+            directData
+          )
+            ? directData[0]
+            : directData;
 
         setQuote(
-          selectedQuote || null
+          selectedQuote ||
+            null
         );
 
         return;
       }
 
       /*
-       * Temporary fallback for compatibility
-       * with older deployments.
+       * Temporary compatibility
+       * fallback for older deployments.
        */
-      const response = await fetch(
-        "/api/quotes",
-        {
-          cache: "no-store",
-        }
-      );
+
+      const response =
+        await fetch(
+          "/api/quotes",
+          {
+            cache:
+              "no-store",
+          }
+        );
 
       const data =
         await response.json();
@@ -92,18 +160,26 @@ export default function QuoteDetailsPage() {
         );
       }
 
-      const selectedQuote = (
-        Array.isArray(data)
-          ? data
-          : []
-      ).find(
-        (item) =>
-          String(item.id) ===
-          String(quoteId)
-      );
+      const selectedQuote =
+        (
+          Array.isArray(
+            data
+          )
+            ? data
+            : []
+        ).find(
+          (item) =>
+            String(
+              item.id
+            ) ===
+            String(
+              quoteId
+            )
+        );
 
       setQuote(
-        selectedQuote || null
+        selectedQuote ||
+          null
       );
     } catch (error) {
       console.error(
@@ -120,14 +196,84 @@ export default function QuoteDetailsPage() {
     }
   }
 
+  // =======================================================
+  // FETCH WORKFLOW HISTORY
+  // =======================================================
+
+  async function fetchWorkflowHistory() {
+    if (!quoteId) {
+      return;
+    }
+
+    try {
+      setWorkflowHistoryLoading(
+        true
+      );
+
+      setWorkflowHistoryError(
+        ""
+      );
+
+      const response =
+        await fetch(
+          `/api/quotes/${quoteId}/workflow-history`,
+          {
+            cache:
+              "no-store",
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error ||
+            "Unable to load workflow history."
+        );
+      }
+
+      setWorkflowHistory(
+        Array.isArray(
+          data.runs
+        )
+          ? data.runs
+          : []
+      );
+    } catch (error) {
+      console.error(
+        "Workflow history loading error:",
+        error
+      );
+
+      setWorkflowHistoryError(
+        error.message ||
+          "Unable to load workflow history."
+      );
+    } finally {
+      setWorkflowHistoryLoading(
+        false
+      );
+    }
+  }
+
+  // =======================================================
+  // PDF
+  // =======================================================
+
   function downloadPDF() {
     window.print();
   }
 
+  // =======================================================
+  // COPY QUOTE
+  // =======================================================
+
   async function copyQuote() {
     try {
       await navigator.clipboard.writeText(
-        quote?.quote_text || ""
+        quote?.quote_text ||
+          ""
       );
 
       alert(
@@ -215,17 +361,19 @@ export default function QuoteDetailsPage() {
         await fetch(
           `/api/quotes/${quote.id}`,
           {
-            method: "POST",
+            method:
+              "POST",
 
             headers: {
               "Content-Type":
                 "application/json",
             },
 
-            body: JSON.stringify({
-              action:
-                "submit_for_approval",
-            }),
+            body:
+              JSON.stringify({
+                action:
+                  "submit_for_approval",
+              }),
           }
         );
 
@@ -256,6 +404,12 @@ export default function QuoteDetailsPage() {
         data.message ||
           "Quote submitted for approval successfully."
       );
+
+      /*
+       * Reload permanent history.
+       */
+
+      await fetchWorkflowHistory();
     } catch (error) {
       console.error(
         "Quote approval submission error:",
@@ -285,7 +439,9 @@ export default function QuoteDetailsPage() {
       return;
     }
 
-    if (quote.customer_id) {
+    if (
+      quote.customer_id
+    ) {
       router.push(
         `/customers/${quote.customer_id}`
       );
@@ -300,7 +456,8 @@ export default function QuoteDetailsPage() {
         await fetch(
           `/api/quotes/${quote.id}/convert`,
           {
-            method: "POST",
+            method:
+              "POST",
           }
         );
 
@@ -314,7 +471,9 @@ export default function QuoteDetailsPage() {
         );
       }
 
-      if (!data.customer?.id) {
+      if (
+        !data.customer?.id
+      ) {
         throw new Error(
           "Customer conversion completed, but no customer ID was returned."
         );
@@ -460,6 +619,10 @@ export default function QuoteDetailsPage() {
     );
   }
 
+  // =======================================================
+  // DERIVED VALUES
+  // =======================================================
+
   const amount =
     formatQuoteAmount(
       quote.amount
@@ -497,6 +660,10 @@ export default function QuoteDetailsPage() {
     Boolean(
       quote.customer_id
     );
+
+  // =======================================================
+  // PAGE
+  // =======================================================
 
   return (
     <ProtectedRoute>
@@ -689,39 +856,40 @@ export default function QuoteDetailsPage() {
             </section>
           )}
 
-          {/* ERROR MESSAGE */}
+          {/* ERROR */}
 
-          {errorMessage && quote && (
-            <section
-              className={
-                styles.errorPanel
-              }
-            >
-              <div>
-                <strong>
-                  Quote action failed
-                </strong>
-
-                <p>
-                  {errorMessage}
-                </p>
-              </div>
-
-              <button
-                type="button"
+          {errorMessage &&
+            quote && (
+              <section
                 className={
-                  styles.secondaryButton
-                }
-                onClick={() =>
-                  setErrorMessage(
-                    ""
-                  )
+                  styles.errorPanel
                 }
               >
-                Dismiss
-              </button>
-            </section>
-          )}
+                <div>
+                  <strong>
+                    Quote action failed
+                  </strong>
+
+                  <p>
+                    {errorMessage}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  className={
+                    styles.secondaryButton
+                  }
+                  onClick={() =>
+                    setErrorMessage(
+                      ""
+                    )
+                  }
+                >
+                  Dismiss
+                </button>
+              </section>
+            )}
 
           {/* HERO */}
 
@@ -928,6 +1096,266 @@ export default function QuoteDetailsPage() {
                 />
               )}
             </div>
+          </section>
+
+          {/* =================================================
+              WORKFLOW EXECUTION HISTORY
+             ================================================= */}
+
+          <section
+            className={
+              styles.panel
+            }
+          >
+            <div
+              className={
+                styles.panelHeader
+              }
+            >
+              <div>
+                <h3>
+                  Workflow history
+                </h3>
+
+                <p>
+                  Automation runs and
+                  actions executed for
+                  this quotation.
+                </p>
+              </div>
+
+              {!workflowHistoryLoading &&
+                workflowHistory.length >
+                  0 && (
+                  <span
+                    className={
+                      styles.metaBadge
+                    }
+                  >
+                    {
+                      workflowHistory.length
+                    }{" "}
+                    run
+                    {workflowHistory.length ===
+                    1
+                      ? ""
+                      : "s"}
+                  </span>
+                )}
+            </div>
+
+            {workflowHistoryLoading ? (
+              <div
+                className={
+                  styles.detailList
+                }
+              >
+                <DetailRow
+                  label="History"
+                  value="Loading workflow history..."
+                />
+              </div>
+            ) : workflowHistoryError ? (
+              <div
+                className={
+                  styles.detailList
+                }
+              >
+                <DetailRow
+                  label="History"
+                  customValue={
+                    <div>
+                      <strong>
+                        {
+                          workflowHistoryError
+                        }
+                      </strong>
+
+                      <button
+                        type="button"
+                        className={
+                          styles.secondaryButton
+                        }
+                        onClick={
+                          fetchWorkflowHistory
+                        }
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  }
+                />
+              </div>
+            ) : workflowHistory.length ===
+              0 ? (
+              <div
+                className={
+                  styles.detailList
+                }
+              >
+                <DetailRow
+                  label="Workflow"
+                  value="No workflow has run for this quote yet."
+                />
+              </div>
+            ) : (
+              workflowHistory.map(
+                (
+                  run,
+                  runIndex
+                ) => (
+                  <div
+                    key={
+                      run.id
+                    }
+                  >
+                    <div
+                      className={
+                        styles.detailList
+                      }
+                    >
+                      <DetailRow
+                        label={`Run ${
+                          workflowHistory.length -
+                          runIndex
+                        }`}
+                        customValue={
+                          <strong>
+                            {run.workflow_name ||
+                              "Workflow"}
+                          </strong>
+                        }
+                      />
+
+                      <DetailRow
+                        label="Run status"
+                        customValue={
+                          <StatusBadge
+                            status={
+                              run.status ||
+                              "Unknown"
+                            }
+                          />
+                        }
+                      />
+
+                      <DetailRow
+                        label="Started"
+                        value={formatDateTime(
+                          run.started_at
+                        )}
+                      />
+
+                      <DetailRow
+                        label="Completed"
+                        value={
+                          run.completed_at
+                            ? formatDateTime(
+                                run.completed_at
+                              )
+                            : "Not completed"
+                        }
+                      />
+
+                      <DetailRow
+                        label="Steps executed"
+                        value={String(
+                          run.step_count ??
+                            run.steps
+                              ?.length ??
+                            0
+                        )}
+                      />
+                    </div>
+
+                    {Array.isArray(
+                      run.steps
+                    ) &&
+                      run.steps.map(
+                        (
+                          step,
+                          index
+                        ) => (
+                          <div
+                            key={
+                              step.id ||
+                              `${run.id}-${index}`
+                            }
+                            className={
+                              styles.detailList
+                            }
+                          >
+                            <DetailRow
+                              label={`Step ${
+                                step.step_order ??
+                                index +
+                                  1
+                              }`}
+                              customValue={
+                                <div>
+                                  <strong>
+                                    {getStepSymbol(
+                                      step.status
+                                    )}{" "}
+                                    {step.name ||
+                                      "Workflow step"}
+                                  </strong>
+
+                                  <div>
+                                    <small>
+                                      {formatStepType(
+                                        step.step_type
+                                      )}
+                                    </small>
+                                  </div>
+                                </div>
+                              }
+                            />
+
+                            <DetailRow
+                              label="Status"
+                              customValue={
+                                <StatusBadge
+                                  status={
+                                    step.status ||
+                                    "Unknown"
+                                  }
+                                />
+                              }
+                            />
+
+                            <DetailRow
+                              label="Completed"
+                              value={
+                                step.completed_at
+                                  ? formatDateTime(
+                                      step.completed_at
+                                    )
+                                  : "Not completed"
+                              }
+                            />
+
+                            {step.error_message && (
+                              <DetailRow
+                                label="Error"
+                                value={
+                                  step.error_message
+                                }
+                              />
+                            )}
+                          </div>
+                        )
+                      )}
+
+                    {runIndex <
+                      workflowHistory.length -
+                        1 && (
+                      <hr />
+                    )}
+                  </div>
+                )
+              )
+            )}
           </section>
 
           {/* DETAILS */}
@@ -1457,10 +1885,17 @@ function formatQuoteAmount(
   ).toLocaleString(
     "en-GB",
     {
-      style: "currency",
-      currency: "GBP",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
+      style:
+        "currency",
+
+      currency:
+        "GBP",
+
+      minimumFractionDigits:
+        0,
+
+      maximumFractionDigits:
+        0,
     }
   );
 }
@@ -1484,9 +1919,107 @@ function formatDate(value) {
   return date.toLocaleDateString(
     "en-GB",
     {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
+      day:
+        "2-digit",
+
+      month:
+        "short",
+
+      year:
+        "numeric",
     }
   );
+}
+
+function formatDateTime(
+  value
+) {
+  if (!value) {
+    return "Not available";
+  }
+
+  const date =
+    new Date(value);
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return "Not available";
+  }
+
+  return date.toLocaleString(
+    "en-GB",
+    {
+      day:
+        "2-digit",
+
+      month:
+        "short",
+
+      year:
+        "numeric",
+
+      hour:
+        "2-digit",
+
+      minute:
+        "2-digit",
+    }
+  );
+}
+
+function formatStepType(
+  value
+) {
+  const cleanValue =
+    String(
+      value || "Action"
+    )
+      .replace(
+        /_/g,
+        " "
+      )
+      .trim();
+
+  return cleanValue;
+}
+
+function getStepSymbol(
+  status
+) {
+  const normalized =
+    normaliseStatus(
+      status
+    );
+
+  if (
+    normalized ===
+      "completed" ||
+    normalized ===
+      "approved"
+  ) {
+    return "✓";
+  }
+
+  if (
+    normalized ===
+      "failed" ||
+    normalized ===
+      "rejected"
+  ) {
+    return "✕";
+  }
+
+  if (
+    normalized ===
+      "waiting" ||
+    normalized ===
+      "pending"
+  ) {
+    return "◷";
+  }
+
+  return "○";
 }
