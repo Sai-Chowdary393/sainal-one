@@ -213,14 +213,12 @@ export default function FollowUpsPage() {
       );
 
       /*
-       * Supports both:
+       * Supports:
        *
-       * OLD API:
-       * [
-       *   {...task}
-       * ]
+       * OLD:
+       * [task, task]
        *
-       * NEW EMPLOYEE-SPECIFIC API:
+       * NEW:
        * {
        *   tasks: [...],
        *   currentEmployee: {...}
@@ -228,15 +226,9 @@ export default function FollowUpsPage() {
        */
 
       setTasks(
-        Array.isArray(
+        extractTasksFromResponse(
           taskData
         )
-          ? taskData
-          : Array.isArray(
-              taskData?.tasks
-            )
-            ? taskData.tasks
-            : []
       );
 
       setCurrentEmployee(
@@ -279,6 +271,7 @@ export default function FollowUpsPage() {
         currentForm
       ) => ({
         ...currentForm,
+
         [name]:
           value,
       })
@@ -333,27 +326,25 @@ export default function FollowUpsPage() {
             },
 
             body:
-              JSON.stringify(
-                {
-                  related_type:
-                    formData.related_type ||
-                    "General",
+              JSON.stringify({
+                related_type:
+                  formData.related_type ||
+                  "General",
 
-                  title:
-                    cleanTitle,
+                title:
+                  cleanTitle,
 
-                  note:
-                    formData.note.trim(),
+                note:
+                  formData.note.trim(),
 
-                  due_date:
-                    formData.due_date ||
-                    null,
+                due_date:
+                  formData.due_date ||
+                  null,
 
-                  status:
-                    formData.status ||
-                    "Pending",
-                }
-              ),
+                status:
+                  formData.status ||
+                  "Pending",
+              }),
           }
         );
 
@@ -523,10 +514,35 @@ export default function FollowUpsPage() {
         );
       }
 
-      const updated =
-        Array.isArray(data)
-          ? data[0]
-          : data;
+      /*
+       * NEW API:
+       *
+       * {
+       *   task: {...},
+       *   message: "Task updated successfully."
+       * }
+       *
+       * Also supports old API shapes.
+       */
+
+      const updatedTask =
+        extractTaskFromResponse(
+          data
+        );
+
+      if (!updatedTask) {
+        /*
+         * The API succeeded but returned
+         * an unexpected structure.
+         *
+         * Reload from the database so the
+         * UI still remains correct.
+         */
+
+        await fetchWork();
+
+        return;
+      }
 
       setTasks(
         (
@@ -540,8 +556,7 @@ export default function FollowUpsPage() {
               String(id)
                 ? {
                     ...task,
-                    ...updated,
-                    status,
+                    ...updatedTask,
                   }
                 : task
           )
@@ -660,6 +675,18 @@ export default function FollowUpsPage() {
         );
       }
 
+      /*
+       * DELETE API now returns:
+       *
+       * {
+       *   task: {...},
+       *   message: "Task deleted successfully."
+       * }
+       *
+       * We already know the ID, so the
+       * local item can safely be removed.
+       */
+
       setTasks(
         (
           current
@@ -682,6 +709,8 @@ export default function FollowUpsPage() {
         error.message ||
           "Error deleting task."
       );
+
+      await fetchWork();
     }
   }
 
@@ -965,12 +994,15 @@ export default function FollowUpsPage() {
 
   function clearFilters() {
     setSearchValue("");
+
     setStatusFilter(
       "All"
     );
+
     setTypeFilter(
       "All"
     );
+
     setWorkFilter(
       "All"
     );
@@ -991,6 +1023,8 @@ export default function FollowUpsPage() {
             styles.page
           }
         >
+          {/* PAGE HEADER */}
+
           <section
             className={
               styles.pageHeader
@@ -1023,7 +1057,8 @@ export default function FollowUpsPage() {
 
               {currentEmployee && (
                 <small>
-                  Showing tasks assigned to{" "}
+                  Showing tasks assigned
+                  to{" "}
                   <strong>
                     {currentEmployee.full_name ||
                       currentEmployee.email ||
@@ -1917,7 +1952,7 @@ export default function FollowUpsPage() {
 
 // =========================================================
 // SUMMARY CARD
-// =========================================================
+// =======================================================
 
 function SummaryCard({
   icon,
@@ -1963,7 +1998,7 @@ function SummaryCard({
 
 // =========================================================
 // EMPTY
-// =========================================================
+// =======================================================
 
 function EmptyState({
   hasFilters,
@@ -2017,7 +2052,7 @@ function EmptyState({
 
 // =========================================================
 // LOADING
-// =========================================================
+// =======================================================
 
 function LoadingState() {
   return (
@@ -2046,8 +2081,71 @@ function LoadingState() {
 }
 
 // =========================================================
-// HELPERS
+// API RESPONSE HELPERS
+// =======================================================
+
+function extractTasksFromResponse(
+  data
+) {
+  if (
+    Array.isArray(
+      data
+    )
+  ) {
+    return data;
+  }
+
+  if (
+    Array.isArray(
+      data?.tasks
+    )
+  ) {
+    return data.tasks;
+  }
+
+  return [];
+}
+
+function extractTaskFromResponse(
+  data
+) {
+  if (!data) {
+    return null;
+  }
+
+  if (
+    data.task &&
+    typeof data.task ===
+      "object"
+  ) {
+    return data.task;
+  }
+
+  if (
+    Array.isArray(
+      data
+    )
+  ) {
+    return (
+      data[0] ||
+      null
+    );
+  }
+
+  if (
+    typeof data ===
+      "object" &&
+    data.id
+  ) {
+    return data;
+  }
+
+  return null;
+}
+
 // =========================================================
+// HELPERS
+// =======================================================
 
 function sortWorkItems(
   first,
@@ -2101,7 +2199,8 @@ function isCompleted(
   return (
     normaliseStatus(
       value
-    ) === "completed"
+    ) ===
+    "completed"
   );
 }
 
@@ -2185,9 +2284,14 @@ function formatDate(
   return date.toLocaleDateString(
     "en-GB",
     {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
+      day:
+        "2-digit",
+
+      month:
+        "short",
+
+      year:
+        "numeric",
     }
   );
 }
