@@ -61,6 +61,11 @@ export default function FollowUpsPage() {
   ] = useState([]);
 
   const [
+    currentEmployee,
+    setCurrentEmployee,
+  ] = useState(null);
+
+  const [
     loading,
     setLoading,
   ] = useState(true);
@@ -207,12 +212,40 @@ export default function FollowUpsPage() {
           : []
       );
 
+      /*
+       * Supports both:
+       *
+       * OLD API:
+       * [
+       *   {...task}
+       * ]
+       *
+       * NEW EMPLOYEE-SPECIFIC API:
+       * {
+       *   tasks: [...],
+       *   currentEmployee: {...}
+       * }
+       */
+
       setTasks(
         Array.isArray(
           taskData
         )
           ? taskData
-          : []
+          : Array.isArray(
+              taskData?.tasks
+            )
+            ? taskData.tasks
+            : []
+      );
+
+      setCurrentEmployee(
+        !Array.isArray(
+          taskData
+        )
+          ? taskData?.currentEmployee ||
+              null
+          : null
       );
     } catch (error) {
       console.error(
@@ -987,6 +1020,17 @@ export default function FollowUpsPage() {
                 automatically by
                 SaiNal One workflows.
               </p>
+
+              {currentEmployee && (
+                <small>
+                  Showing tasks assigned to{" "}
+                  <strong>
+                    {currentEmployee.full_name ||
+                      currentEmployee.email ||
+                      "you"}
+                  </strong>
+                </small>
+              )}
             </div>
 
             <button
