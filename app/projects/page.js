@@ -1,6 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import AppLayout from "../../components/layout/AppLayout";
 import ProtectedRoute from "../../components/ProtectedRoute";
@@ -36,25 +40,50 @@ export const PROJECT_STATUS_OPTIONS = [
 ];
 
 export default function ProjectsPage() {
-  const [projects, setProjects] = useState([]);
-  const [tasks, setTasks] = useState([]);
+  const [
+    projects,
+    setProjects,
+  ] = useState([]);
 
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [
+    tasks,
+    setTasks,
+  ] = useState([]);
 
-  const [errorMessage, setErrorMessage] =
-    useState("");
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
 
-  const [showForm, setShowForm] =
-    useState(false);
+  const [
+    saving,
+    setSaving,
+  ] = useState(false);
 
-  const [searchValue, setSearchValue] =
-    useState("");
+  const [
+    errorMessage,
+    setErrorMessage,
+  ] = useState("");
 
-  const [statusFilter, setStatusFilter] =
-    useState("All");
+  const [
+    showForm,
+    setShowForm,
+  ] = useState(false);
 
-  const [formData, setFormData] = useState(
+  const [
+    searchValue,
+    setSearchValue,
+  ] = useState("");
+
+  const [
+    statusFilter,
+    setStatusFilter,
+  ] = useState("All");
+
+  const [
+    formData,
+    setFormData,
+  ] = useState(
     INITIAL_FORM_DATA
   );
 
@@ -70,8 +99,9 @@ export default function ProjectsPage() {
         );
 
       if (
-        searchParams.get("create") ===
-        "true"
+        searchParams.get(
+          "create"
+        ) === "true"
       ) {
         setShowForm(true);
 
@@ -89,49 +119,73 @@ export default function ProjectsPage() {
     }
   }, []);
 
+  // =======================================================
+  // LOAD PROJECT WORKSPACE
+  // =======================================================
+
   async function fetchProjectWorkspace() {
     try {
       setLoading(true);
+
       setErrorMessage("");
 
       const [
         projectsResponse,
         tasksResponse,
       ] = await Promise.all([
-        fetch("/api/projects", {
-          cache: "no-store",
-        }),
+        fetch(
+          "/api/projects",
+          {
+            cache:
+              "no-store",
+          }
+        ),
 
-        fetch("/api/tasks", {
-          cache: "no-store",
-        }),
+        fetch(
+          "/api/tasks?scope=projects",
+          {
+            cache:
+              "no-store",
+          }
+        ),
       ]);
 
       const projectsData =
         await projectsResponse.json();
 
       const tasksData =
-        tasksResponse.ok
-          ? await tasksResponse.json()
-          : [];
+        await tasksResponse.json();
 
-      if (!projectsResponse.ok) {
+      if (
+        !projectsResponse.ok
+      ) {
         throw new Error(
           projectsData.error ||
             "Failed to load projects."
         );
       }
 
+      if (
+        !tasksResponse.ok
+      ) {
+        throw new Error(
+          tasksData.error ||
+            "Failed to load project tasks."
+        );
+      }
+
       setProjects(
-        Array.isArray(projectsData)
+        Array.isArray(
+          projectsData
+        )
           ? projectsData
           : []
       );
 
       setTasks(
-        Array.isArray(tasksData)
-          ? tasksData
-          : []
+        extractTasksFromResponse(
+          tasksData
+        )
       );
     } catch (error) {
       console.error(
@@ -148,29 +202,53 @@ export default function ProjectsPage() {
     }
   }
 
-  function handleFormChange(event) {
-    const { name, value } =
-      event.target;
+  // =======================================================
+  // FORM
+  // =======================================================
+
+  function handleFormChange(
+    event
+  ) {
+    const {
+      name,
+      value,
+    } = event.target;
 
     setFormData(
-      (currentFormData) => ({
+      (
+        currentFormData
+      ) => ({
         ...currentFormData,
-        [name]: value,
+
+        [name]:
+          value,
       })
     );
   }
 
   function openCreateForm() {
-    setFormData(INITIAL_FORM_DATA);
+    setFormData(
+      INITIAL_FORM_DATA
+    );
+
     setShowForm(true);
   }
 
   function closeCreateForm() {
-    setFormData(INITIAL_FORM_DATA);
+    setFormData(
+      INITIAL_FORM_DATA
+    );
+
     setShowForm(false);
   }
 
-  async function createProject(event) {
+  // =======================================================
+  // CREATE PROJECT
+  // =======================================================
+
+  async function createProject(
+    event
+  ) {
     event.preventDefault();
 
     const projectName =
@@ -187,40 +265,49 @@ export default function ProjectsPage() {
     try {
       setSaving(true);
 
-      const response = await fetch(
-        "/api/projects",
-        {
-          method: "POST",
+      const response =
+        await fetch(
+          "/api/projects",
+          {
+            method:
+              "POST",
 
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
 
-          body: JSON.stringify({
-            project_name: projectName,
+            body:
+              JSON.stringify({
+                project_name:
+                  projectName,
 
-            description:
-              formData.description.trim(),
+                description:
+                  formData.description.trim(),
 
-            amount:
-              formData.amount.trim(),
+                amount:
+                  formData.amount.trim(),
 
-            status:
-              formData.status ||
-              "Planning",
+                status:
+                  formData.status ||
+                  "Planning",
 
-            start_date:
-              formData.start_date || null,
+                start_date:
+                  formData.start_date ||
+                  null,
 
-            due_date:
-              formData.due_date || null,
+                due_date:
+                  formData.due_date ||
+                  null,
 
-            customer_id: null,
-            quote_id: null,
-          }),
-        }
-      );
+                customer_id:
+                  null,
+
+                quote_id:
+                  null,
+              }),
+          }
+        );
 
       const data =
         await response.json();
@@ -233,13 +320,20 @@ export default function ProjectsPage() {
       }
 
       const createdProject =
-        Array.isArray(data)
+        Array.isArray(
+          data
+        )
           ? data[0]
-          : data;
+          : data?.project ||
+            data;
 
-      if (createdProject) {
+      if (
+        createdProject?.id
+      ) {
         setProjects(
-          (currentProjects) => [
+          (
+            currentProjects
+          ) => [
             createdProject,
             ...currentProjects,
           ]
@@ -268,110 +362,161 @@ export default function ProjectsPage() {
     }
   }
 
-  const projectRecords = useMemo(
-    () =>
-      buildProjectRecords(
+  // =======================================================
+  // BUILD RECORDS
+  // =======================================================
+
+  const projectRecords =
+    useMemo(
+      () =>
+        buildProjectRecords(
+          projects,
+          tasks
+        ),
+      [
         projects,
-        tasks
-      ),
-    [projects, tasks]
-  );
+        tasks,
+      ]
+    );
 
-  const filteredProjects = useMemo(() => {
-    const search = searchValue
-      .trim()
-      .toLowerCase();
+  // =======================================================
+  // FILTERS
+  // =======================================================
 
-    return projectRecords.filter(
-      (project) => {
-        const matchesSearch =
-          !search ||
-          [
-            project.project_name,
-            project.description,
-            project.status,
-          ].some((value) =>
-            String(value || "")
-              .toLowerCase()
-              .includes(search)
-          );
+  const filteredProjects =
+    useMemo(() => {
+      const search =
+        searchValue
+          .trim()
+          .toLowerCase();
 
-        const matchesStatus =
-          statusFilter === "All" ||
-          normaliseStatus(
-            project.status
-          ) ===
-            normaliseStatus(
-              statusFilter
+      return projectRecords.filter(
+        (project) => {
+          const matchesSearch =
+            !search ||
+            [
+              project.project_name,
+              project.description,
+              project.status,
+            ].some(
+              (
+                value
+              ) =>
+                String(
+                  value ||
+                    ""
+                )
+                  .toLowerCase()
+                  .includes(
+                    search
+                  )
             );
 
-        return (
-          matchesSearch &&
-          matchesStatus
-        );
-      }
-    );
-  }, [
-    projectRecords,
-    searchValue,
-    statusFilter,
-  ]);
+          const matchesStatus =
+            statusFilter ===
+              "All" ||
+            normaliseStatus(
+              project.status
+            ) ===
+              normaliseStatus(
+                statusFilter
+              );
 
-  const summary = useMemo(() => {
-    const active = projectRecords.filter(
-      (project) =>
-        [
-          "planning",
-          "in progress",
-          "on hold",
-        ].includes(
-          normaliseStatus(
-            project.status
-          )
-        )
-    ).length;
-
-    const completed =
-      projectRecords.filter(
-        (project) =>
-          normaliseStatus(
-            project.status
-          ) === "completed"
-      ).length;
-
-    const delayed =
-      projectRecords.filter(
-        (project) =>
-          project.metrics.delayed
-      ).length;
-
-    const totalValue =
-      projectRecords.reduce(
-        (total, project) =>
-          total +
-          getMoneyValue(
-            project.amount
-          ),
-        0
+          return (
+            matchesSearch &&
+            matchesStatus
+          );
+        }
       );
+    }, [
+      projectRecords,
+      searchValue,
+      statusFilter,
+    ]);
 
-    return {
-      total: projectRecords.length,
-      active,
-      completed,
-      delayed,
-      totalValue,
-    };
-  }, [projectRecords]);
+  // =======================================================
+  // SUMMARY
+  // =======================================================
+
+  const summary =
+    useMemo(() => {
+      const active =
+        projectRecords.filter(
+          (project) =>
+            [
+              "planning",
+              "in progress",
+              "on hold",
+            ].includes(
+              normaliseStatus(
+                project.status
+              )
+            )
+        ).length;
+
+      const completed =
+        projectRecords.filter(
+          (project) =>
+            normaliseStatus(
+              project.status
+            ) ===
+            "completed"
+        ).length;
+
+      const delayed =
+        projectRecords.filter(
+          (project) =>
+            project.metrics
+              .delayed
+        ).length;
+
+      const totalValue =
+        projectRecords.reduce(
+          (
+            total,
+            project
+          ) =>
+            total +
+            getMoneyValue(
+              project.amount
+            ),
+          0
+        );
+
+      return {
+        total:
+          projectRecords.length,
+
+        active,
+
+        completed,
+
+        delayed,
+
+        totalValue,
+      };
+    }, [
+      projectRecords,
+    ]);
 
   const filtersActive =
-    Boolean(searchValue) ||
-    statusFilter !== "All";
+    Boolean(
+      searchValue
+    ) ||
+    statusFilter !==
+      "All";
 
   function clearFilters() {
     setSearchValue("");
-    setStatusFilter("All");
+
+    setStatusFilter(
+      "All"
+    );
   }
+
+  // =======================================================
+  // PAGE
+  // =======================================================
 
   return (
     <ProtectedRoute>
@@ -379,7 +524,11 @@ export default function ProjectsPage() {
         title="Projects"
         description="Manage delivery, progress, tasks and project risk."
       >
-        <div className={styles.page}>
+        <div
+          className={
+            styles.page
+          }
+        >
           <section
             className={
               styles.pageHeader
@@ -424,7 +573,9 @@ export default function ProjectsPage() {
               }
             >
               <span>
-                {showForm ? "×" : "+"}
+                {showForm
+                  ? "×"
+                  : "+"}
               </span>
 
               {showForm
@@ -435,8 +586,12 @@ export default function ProjectsPage() {
 
           {showForm && (
             <ProjectCreateForm
-              formData={formData}
-              saving={saving}
+              formData={
+                formData
+              }
+              saving={
+                saving
+              }
               statusOptions={
                 PROJECT_STATUS_OPTIONS
               }
@@ -453,11 +608,15 @@ export default function ProjectsPage() {
           )}
 
           <ProjectSummaryCards
-            summary={summary}
+            summary={
+              summary
+            }
           />
 
           <ProjectToolbar
-            searchValue={searchValue}
+            searchValue={
+              searchValue
+            }
             statusFilter={
               statusFilter
             }
@@ -482,7 +641,9 @@ export default function ProjectsPage() {
             projects={
               filteredProjects
             }
-            loading={loading}
+            loading={
+              loading
+            }
             errorMessage={
               errorMessage
             }
@@ -503,4 +664,30 @@ export default function ProjectsPage() {
       </AppLayout>
     </ProtectedRoute>
   );
+}
+
+// =========================================================
+// API HELPERS
+// =======================================================
+
+function extractTasksFromResponse(
+  data
+) {
+  if (
+    Array.isArray(
+      data
+    )
+  ) {
+    return data;
+  }
+
+  if (
+    Array.isArray(
+      data?.tasks
+    )
+  ) {
+    return data.tasks;
+  }
+
+  return [];
 }
