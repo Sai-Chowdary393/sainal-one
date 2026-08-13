@@ -160,7 +160,6 @@ export default function WorkflowDesignerPage() {
 
       try {
         setLoading(true);
-
         setErrorMessage("");
 
         const response =
@@ -259,10 +258,8 @@ export default function WorkflowDesignerPage() {
         step.id === stepId
           ? {
               ...step,
-
               position_x:
                 Math.round(x),
-
               position_y:
                 Math.round(y),
             }
@@ -377,7 +374,6 @@ export default function WorkflowDesignerPage() {
         selectedStepId
           ? {
               ...step,
-
               [field]:
                 value,
             }
@@ -410,24 +406,20 @@ export default function WorkflowDesignerPage() {
         const currentConfig = {
           ...(step.configuration ||
             {}),
-
           ...(step.action_config ||
             {}),
         };
 
         const nextConfig = {
           ...currentConfig,
-
           [field]:
             value,
         };
 
         return {
           ...step,
-
           configuration:
             nextConfig,
-
           action_config:
             nextConfig,
         };
@@ -724,12 +716,8 @@ export default function WorkflowDesignerPage() {
 
     try {
       setTesting(true);
-
       setTestError("");
-
-      setTestResult(
-        null
-      );
+      setTestResult(null);
 
       let parsedPayload =
         {};
@@ -1606,8 +1594,6 @@ export default function WorkflowDesignerPage() {
               styles.designerLayout
             }
           >
-            {/* CANVAS */}
-
             <div
               className={
                 styles.canvasPanel
@@ -1888,6 +1874,21 @@ export default function WorkflowDesignerPage() {
                     {selectedStep.step_type ===
                       "Notification" && (
                       <NotificationEditor
+                        step={
+                          selectedStep
+                        }
+                        disabled={
+                          !canManage
+                        }
+                        onUpdate={
+                          updateActionConfig
+                        }
+                      />
+                    )}
+
+                    {selectedStep.step_type ===
+                      "Update Record" && (
+                      <UpdateRecordEditor
                         step={
                           selectedStep
                         }
@@ -2705,6 +2706,194 @@ function NotificationEditor({
 
           <code>
             {"{{record_type}}"}
+          </code>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// =========================================================
+// UPDATE RECORD EDITOR
+// =========================================================
+
+function UpdateRecordEditor({
+  step,
+  disabled,
+  onUpdate,
+}) {
+  const config = {
+    ...(step.configuration ||
+      {}),
+    ...(step.action_config ||
+      {}),
+  };
+
+  return (
+    <div
+      className={
+        styles.specialConfig
+      }
+    >
+      <strong>
+        Update Record settings
+      </strong>
+
+      <Field label="Record">
+        <select
+          value={
+            config.record_target ||
+            "Current Record"
+          }
+          disabled={
+            disabled
+          }
+          onChange={(event) =>
+            onUpdate(
+              "record_target",
+              event.target.value
+            )
+          }
+        >
+          <option value="Current Record">
+            Current record
+          </option>
+        </select>
+      </Field>
+
+      <Field label="Field">
+        <input
+          value={
+            config.field ||
+            ""
+          }
+          disabled={
+            disabled
+          }
+          placeholder="Example: status"
+          onChange={(event) =>
+            onUpdate(
+              "field",
+              event.target.value
+            )
+          }
+        />
+      </Field>
+
+      <Field label="Value">
+        <input
+          value={
+            config.value ??
+            ""
+          }
+          disabled={
+            disabled
+          }
+          placeholder="Example: Approved"
+          onChange={(event) =>
+            onUpdate(
+              "value",
+              event.target.value
+            )
+          }
+        />
+      </Field>
+
+      <Field label="Value type">
+        <select
+          value={
+            config.value_type ||
+            "text"
+          }
+          disabled={
+            disabled
+          }
+          onChange={(event) =>
+            onUpdate(
+              "value_type",
+              event.target.value
+            )
+          }
+        >
+          <option value="text">
+            Text
+          </option>
+
+          <option value="number">
+            Number
+          </option>
+
+          <option value="boolean">
+            True / False
+          </option>
+
+          <option value="null">
+            Empty / Null
+          </option>
+        </select>
+      </Field>
+
+      <label
+        className={
+          styles.toggleField
+        }
+      >
+        <input
+          type="checkbox"
+          checked={
+            config.only_if_changed !==
+            false
+          }
+          disabled={
+            disabled
+          }
+          onChange={(event) =>
+            onUpdate(
+              "only_if_changed",
+              event.target.checked
+            )
+          }
+        />
+
+        <span>
+          <strong>
+            Update only when value changed
+          </strong>
+
+          <small>
+            Avoid unnecessary database
+            updates when the record already
+            contains this value.
+          </small>
+        </span>
+      </label>
+
+      <div
+        className={
+          styles.notificationVariables
+        }
+      >
+        <strong>
+          Current record
+        </strong>
+
+        <p>
+          This action updates a field on
+          the business record that started
+          this workflow.
+        </p>
+
+        <div
+          className={
+            styles.variableList
+          }
+        >
+          <code>
+            status
+          </code>
+
+          <code>
+            Approved
           </code>
         </div>
       </div>
