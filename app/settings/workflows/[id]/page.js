@@ -1147,8 +1147,6 @@ export default function WorkflowDesignerPage() {
             styles.page
           }
         >
-          {/* PAGE HEADER */}
-
           <section
             className={
               styles.pageHeader
@@ -1236,12 +1234,6 @@ export default function WorkflowDesignerPage() {
                       workflow.status !==
                       "Active"
                     }
-                    title={
-                      workflow.status !==
-                      "Active"
-                        ? "Activate the workflow before testing it."
-                        : "Run this workflow with sample data."
-                    }
                   >
                     Test workflow
                   </button>
@@ -1266,8 +1258,6 @@ export default function WorkflowDesignerPage() {
               )}
             </div>
           </section>
-
-          {/* TEST WORKFLOW PANEL */}
 
           {testPanelOpen && (
             <section
@@ -1423,9 +1413,8 @@ export default function WorkflowDesignerPage() {
                           styles.testEmpty
                         }
                       >
-                        Run the
-                        workflow to
-                        see execution
+                        Run the workflow
+                        to see execution
                         details here.
                       </div>
                     )}
@@ -1500,48 +1489,6 @@ export default function WorkflowDesignerPage() {
                               "—"}
                           </strong>
                         </div>
-
-                        <div>
-                          <span>
-                            Result
-                          </span>
-
-                          <strong>
-                            {testResult
-                              .execution
-                              ?.result
-                              ?.state ||
-                              "Processed"}
-                          </strong>
-                        </div>
-
-                        <div>
-                          <span>
-                            Current step
-                          </span>
-
-                          <strong>
-                            {testResult
-                              .execution
-                              ?.result
-                              ?.stepName ||
-                              "Completed"}
-                          </strong>
-                        </div>
-
-                        <div>
-                          <span>
-                            Assigned employee
-                          </span>
-
-                          <strong>
-                            {testResult
-                              .execution
-                              ?.result
-                              ?.assignedEmployeeId ||
-                              "Not resolved"}
-                          </strong>
-                        </div>
                       </div>
                     </div>
                   )}
@@ -1549,8 +1496,6 @@ export default function WorkflowDesignerPage() {
               </div>
             </section>
           )}
-
-          {/* WORKFLOW SUMMARY */}
 
           <section
             className={
@@ -1586,8 +1531,6 @@ export default function WorkflowDesignerPage() {
               }
             />
           </section>
-
-          {/* DESIGNER */}
 
           <section
             className={
@@ -1691,8 +1634,6 @@ export default function WorkflowDesignerPage() {
               )}
             </div>
 
-            {/* CONFIGURATION */}
-
             <aside
               className={
                 styles.configurationPanel
@@ -1737,9 +1678,7 @@ export default function WorkflowDesignerPage() {
                       styles.configurationBody
                     }
                   >
-                    <Field
-                      label="Step name"
-                    >
+                    <Field label="Step name">
                       <input
                         value={
                           selectedStep.name
@@ -1752,17 +1691,13 @@ export default function WorkflowDesignerPage() {
                         ) =>
                           updateSelectedStep(
                             "name",
-                            event
-                              .target
-                              .value
+                            event.target.value
                           )
                         }
                       />
                     </Field>
 
-                    <Field
-                      label="Step type"
-                    >
+                    <Field label="Step type">
                       <select
                         value={
                           selectedStep.step_type
@@ -1775,21 +1710,15 @@ export default function WorkflowDesignerPage() {
                         ) =>
                           updateSelectedStep(
                             "step_type",
-                            event
-                              .target
-                              .value
+                            event.target.value
                           )
                         }
                       >
                         {STEP_TYPES.map(
                           (type) => (
                             <option
-                              key={
-                                type
-                              }
-                              value={
-                                type
-                              }
+                              key={type}
+                              value={type}
                             >
                               {type}
                             </option>
@@ -1798,9 +1727,7 @@ export default function WorkflowDesignerPage() {
                       </select>
                     </Field>
 
-                    <Field
-                      label="Description"
-                    >
+                    <Field label="Description">
                       <textarea
                         rows={3}
                         value={
@@ -1815,9 +1742,7 @@ export default function WorkflowDesignerPage() {
                         ) =>
                           updateSelectedStep(
                             "description",
-                            event
-                              .target
-                              .value
+                            event.target.value
                           )
                         }
                       />
@@ -1829,9 +1754,7 @@ export default function WorkflowDesignerPage() {
                         step={
                           selectedStep
                         }
-                        steps={
-                          steps
-                        }
+                        steps={steps}
                         disabled={
                           !canManage
                         }
@@ -1901,11 +1824,24 @@ export default function WorkflowDesignerPage() {
                       />
                     )}
 
+                    {selectedStep.step_type ===
+                      "Create Task" && (
+                      <CreateTaskEditor
+                        step={
+                          selectedStep
+                        }
+                        disabled={
+                          !canManage
+                        }
+                        onUpdate={
+                          updateActionConfig
+                        }
+                      />
+                    )}
+
                     {selectedStep.step_type !==
                       "Condition" && (
-                      <Field
-                        label="Next step"
-                      >
+                      <Field label="Next step">
                         <select
                           value={
                             selectedStep.next_step_id ||
@@ -1919,9 +1855,7 @@ export default function WorkflowDesignerPage() {
                           ) =>
                             updateSelectedStep(
                               "next_step_id",
-                              event
-                                .target
-                                .value ||
+                              event.target.value ||
                                 null
                             )
                           }
@@ -1933,9 +1867,7 @@ export default function WorkflowDesignerPage() {
 
                           {steps
                             .filter(
-                              (
-                                step
-                              ) =>
+                              (step) =>
                                 step.id !==
                                   selectedStep.id &&
                                 isDatabaseId(
@@ -1943,9 +1875,7 @@ export default function WorkflowDesignerPage() {
                                 )
                             )
                             .map(
-                              (
-                                step
-                              ) => (
+                              (step) => (
                                 <option
                                   key={
                                     step.id
@@ -1984,9 +1914,7 @@ export default function WorkflowDesignerPage() {
                         ) =>
                           updateSelectedStep(
                             "is_required",
-                            event
-                              .target
-                              .checked
+                            event.target.checked
                           )
                         }
                       />
@@ -1997,9 +1925,8 @@ export default function WorkflowDesignerPage() {
                         </strong>
 
                         <small>
-                          Workflow waits
-                          for this step to
-                          complete.
+                          Workflow waits for
+                          this step to complete.
                         </small>
                       </span>
                     </label>
@@ -2059,26 +1986,18 @@ function ConditionEditor({
   onUpdate,
 }) {
   return (
-    <div
-      className={
-        styles.specialConfig
-      }
-    >
+    <div className={styles.specialConfig}>
       <strong>
         Condition settings
       </strong>
 
-      <Field
-        label="Condition type"
-      >
+      <Field label="Condition type">
         <select
           value={
             step.condition_type ||
             "Field"
           }
-          disabled={
-            disabled
-          }
+          disabled={disabled}
           onChange={(event) =>
             onUpdate(
               "condition_type",
@@ -2089,11 +2008,9 @@ function ConditionEditor({
           <option value="Field">
             Record field
           </option>
-
           <option value="Formula">
             Formula
           </option>
-
           <option value="AI">
             AI decision
           </option>
@@ -2106,9 +2023,7 @@ function ConditionEditor({
             step.condition_field ||
             ""
           }
-          disabled={
-            disabled
-          }
+          disabled={disabled}
           placeholder="Example: amount"
           onChange={(event) =>
             onUpdate(
@@ -2125,9 +2040,7 @@ function ConditionEditor({
             step.condition_operator ||
             "equals"
           }
-          disabled={
-            disabled
-          }
+          disabled={disabled}
           onChange={(event) =>
             onUpdate(
               "condition_operator",
@@ -2138,16 +2051,10 @@ function ConditionEditor({
           {CONDITION_OPERATORS.map(
             (operator) => (
               <option
-                key={
-                  operator.value
-                }
-                value={
-                  operator.value
-                }
+                key={operator.value}
+                value={operator.value}
               >
-                {
-                  operator.label
-                }
+                {operator.label}
               </option>
             )
           )}
@@ -2160,10 +2067,7 @@ function ConditionEditor({
             step.condition_value ??
             ""
           }
-          disabled={
-            disabled
-          }
-          placeholder="Example: 10000"
+          disabled={disabled}
           onChange={(event) =>
             onUpdate(
               "condition_value",
@@ -2179,9 +2083,7 @@ function ConditionEditor({
             step.true_step_id ||
             ""
           }
-          disabled={
-            disabled
-          }
+          disabled={disabled}
           onChange={(event) =>
             onUpdate(
               "true_step_id",
@@ -2206,16 +2108,10 @@ function ConditionEditor({
             .map(
               (candidate) => (
                 <option
-                  key={
-                    candidate.id
-                  }
-                  value={
-                    candidate.id
-                  }
+                  key={candidate.id}
+                  value={candidate.id}
                 >
-                  {
-                    candidate.name
-                  }
+                  {candidate.name}
                 </option>
               )
             )}
@@ -2228,9 +2124,7 @@ function ConditionEditor({
             step.false_step_id ||
             ""
           }
-          disabled={
-            disabled
-          }
+          disabled={disabled}
           onChange={(event) =>
             onUpdate(
               "false_step_id",
@@ -2255,16 +2149,10 @@ function ConditionEditor({
             .map(
               (candidate) => (
                 <option
-                  key={
-                    candidate.id
-                  }
-                  value={
-                    candidate.id
-                  }
+                  key={candidate.id}
+                  value={candidate.id}
                 >
-                  {
-                    candidate.name
-                  }
+                  {candidate.name}
                 </option>
               )
             )}
@@ -2289,11 +2177,7 @@ function ApprovalEditor({
     {};
 
   return (
-    <div
-      className={
-        styles.specialConfig
-      }
-    >
+    <div className={styles.specialConfig}>
       <strong>
         Approval settings
       </strong>
@@ -2304,9 +2188,7 @@ function ApprovalEditor({
             config.approver_type ||
             "Manager"
           }
-          disabled={
-            disabled
-          }
+          disabled={disabled}
           onChange={(event) =>
             onUpdate(
               "approver_type",
@@ -2317,15 +2199,12 @@ function ApprovalEditor({
           <option value="Manager">
             Record owner's manager
           </option>
-
           <option value="Employee">
             Specific employee
           </option>
-
           <option value="Department">
             Department manager
           </option>
-
           <option value="Role">
             Employee with role
           </option>
@@ -2350,11 +2229,7 @@ function EmailEditor({
     {};
 
   return (
-    <div
-      className={
-        styles.specialConfig
-      }
-    >
+    <div className={styles.specialConfig}>
       <strong>
         Email settings
       </strong>
@@ -2365,9 +2240,7 @@ function EmailEditor({
             config.recipient ||
             "Record Contact"
           }
-          disabled={
-            disabled
-          }
+          disabled={disabled}
           onChange={(event) =>
             onUpdate(
               "recipient",
@@ -2378,11 +2251,9 @@ function EmailEditor({
           <option value="Record Contact">
             Record contact
           </option>
-
           <option value="Record Owner">
             Record owner
           </option>
-
           <option value="Manager">
             Owner's manager
           </option>
@@ -2395,9 +2266,7 @@ function EmailEditor({
             config.subject ||
             ""
           }
-          disabled={
-            disabled
-          }
+          disabled={disabled}
           placeholder="Email subject"
           onChange={(event) =>
             onUpdate(
@@ -2423,17 +2292,12 @@ function NotificationEditor({
   const config = {
     ...(step.configuration ||
       {}),
-
     ...(step.action_config ||
       {}),
   };
 
   return (
-    <div
-      className={
-        styles.specialConfig
-      }
-    >
+    <div className={styles.specialConfig}>
       <strong>
         Notification settings
       </strong>
@@ -2444,9 +2308,7 @@ function NotificationEditor({
             config.recipient ||
             "Record Owner"
           }
-          disabled={
-            disabled
-          }
+          disabled={disabled}
           onChange={(event) =>
             onUpdate(
               "recipient",
@@ -2457,23 +2319,18 @@ function NotificationEditor({
           <option value="Record Owner">
             Record owner
           </option>
-
           <option value="Manager">
             Record owner's manager
           </option>
-
           <option value="Employee">
             Specific employee
           </option>
-
           <option value="Department Manager">
             Department manager
           </option>
-
           <option value="Role">
             Employee with role
           </option>
-
           <option value="Organisation">
             Everyone in organisation
           </option>
@@ -2486,10 +2343,7 @@ function NotificationEditor({
             config.title ||
             ""
           }
-          disabled={
-            disabled
-          }
-          placeholder="Example: Quote approved"
+          disabled={disabled}
           onChange={(event) =>
             onUpdate(
               "title",
@@ -2506,10 +2360,7 @@ function NotificationEditor({
             config.message ||
             ""
           }
-          disabled={
-            disabled
-          }
-          placeholder="Example: Quote {{quote_number}} for {{client}} has been approved."
+          disabled={disabled}
           onChange={(event) =>
             onUpdate(
               "message",
@@ -2526,9 +2377,7 @@ function NotificationEditor({
             config.severity ||
             "success"
           }
-          disabled={
-            disabled
-          }
+          disabled={disabled}
           onChange={(event) => {
             onUpdate(
               "type",
@@ -2544,35 +2393,26 @@ function NotificationEditor({
           <option value="info">
             Information
           </option>
-
           <option value="success">
             Success
           </option>
-
           <option value="warning">
             Warning
           </option>
-
           <option value="error">
             Error
           </option>
         </select>
       </Field>
 
-      <label
-        className={
-          styles.toggleField
-        }
-      >
+      <label className={styles.toggleField}>
         <input
           type="checkbox"
           checked={
             config.open_record !==
             false
           }
-          disabled={
-            disabled
-          }
+          disabled={disabled}
           onChange={(event) =>
             onUpdate(
               "open_record",
@@ -2587,28 +2427,21 @@ function NotificationEditor({
           </strong>
 
           <small>
-            Clicking the notification
-            opens the related quote,
-            lead, project or other
-            business record.
+            Open the related record
+            when the notification is
+            selected.
           </small>
         </span>
       </label>
 
-      <label
-        className={
-          styles.toggleField
-        }
-      >
+      <label className={styles.toggleField}>
         <input
           type="checkbox"
           checked={
             config.create_notification !==
             false
           }
-          disabled={
-            disabled
-          }
+          disabled={disabled}
           onChange={(event) =>
             onUpdate(
               "create_notification",
@@ -2623,18 +2456,13 @@ function NotificationEditor({
           </strong>
 
           <small>
-            Adds this message to the
-            SaiNal One Notification
-            Center.
+            Add this message to the
+            Notification Center.
           </small>
         </span>
       </label>
 
-      <label
-        className={
-          styles.toggleField
-        }
-      >
+      <label className={styles.toggleField}>
         <input
           type="checkbox"
           checked={
@@ -2642,9 +2470,7 @@ function NotificationEditor({
               config.send_email
             )
           }
-          disabled={
-            disabled
-          }
+          disabled={disabled}
           onChange={(event) =>
             onUpdate(
               "send_email",
@@ -2659,56 +2485,13 @@ function NotificationEditor({
           </strong>
 
           <small>
-            Reserved for the Email
-            Engine milestone. The
-            setting can be saved now
-            but email delivery is not
-            active yet.
+            Email delivery will be
+            enabled in the Email Engine.
           </small>
         </span>
       </label>
 
-      <div
-        className={
-          styles.notificationVariables
-        }
-      >
-        <strong>
-          Available variables
-        </strong>
-
-        <p>
-          Use variables in the title
-          or message. We will connect
-          runtime replacement next.
-        </p>
-
-        <div
-          className={
-            styles.variableList
-          }
-        >
-          <code>
-            {"{{quote_number}}"}
-          </code>
-
-          <code>
-            {"{{client}}"}
-          </code>
-
-          <code>
-            {"{{amount}}"}
-          </code>
-
-          <code>
-            {"{{email}}"}
-          </code>
-
-          <code>
-            {"{{record_type}}"}
-          </code>
-        </div>
-      </div>
+      <VariableHelp />
     </div>
   );
 }
@@ -2730,11 +2513,7 @@ function UpdateRecordEditor({
   };
 
   return (
-    <div
-      className={
-        styles.specialConfig
-      }
-    >
+    <div className={styles.specialConfig}>
       <strong>
         Update Record settings
       </strong>
@@ -2745,9 +2524,7 @@ function UpdateRecordEditor({
             config.record_target ||
             "Current Record"
           }
-          disabled={
-            disabled
-          }
+          disabled={disabled}
           onChange={(event) =>
             onUpdate(
               "record_target",
@@ -2767,9 +2544,7 @@ function UpdateRecordEditor({
             config.field ||
             ""
           }
-          disabled={
-            disabled
-          }
+          disabled={disabled}
           placeholder="Example: status"
           onChange={(event) =>
             onUpdate(
@@ -2786,9 +2561,7 @@ function UpdateRecordEditor({
             config.value ??
             ""
           }
-          disabled={
-            disabled
-          }
+          disabled={disabled}
           placeholder="Example: Approved"
           onChange={(event) =>
             onUpdate(
@@ -2805,9 +2578,7 @@ function UpdateRecordEditor({
             config.value_type ||
             "text"
           }
-          disabled={
-            disabled
-          }
+          disabled={disabled}
           onChange={(event) =>
             onUpdate(
               "value_type",
@@ -2818,35 +2589,26 @@ function UpdateRecordEditor({
           <option value="text">
             Text
           </option>
-
           <option value="number">
             Number
           </option>
-
           <option value="boolean">
             True / False
           </option>
-
           <option value="null">
             Empty / Null
           </option>
         </select>
       </Field>
 
-      <label
-        className={
-          styles.toggleField
-        }
-      >
+      <label className={styles.toggleField}>
         <input
           type="checkbox"
           checked={
             config.only_if_changed !==
             false
           }
-          disabled={
-            disabled
-          }
+          disabled={disabled}
           onChange={(event) =>
             onUpdate(
               "only_if_changed",
@@ -2861,41 +2623,287 @@ function UpdateRecordEditor({
           </strong>
 
           <small>
-            Avoid unnecessary database
-            updates when the record already
-            contains this value.
+            Avoid unnecessary record
+            updates.
+          </small>
+        </span>
+      </label>
+    </div>
+  );
+}
+
+// =========================================================
+// CREATE TASK EDITOR
+// =========================================================
+
+function CreateTaskEditor({
+  step,
+  disabled,
+  onUpdate,
+}) {
+  const config = {
+    ...(step.configuration ||
+      {}),
+    ...(step.action_config ||
+      {}),
+  };
+
+  return (
+    <div className={styles.specialConfig}>
+      <strong>
+        Create Task settings
+      </strong>
+
+      <Field label="Task title">
+        <input
+          value={
+            config.task_name ||
+            ""
+          }
+          disabled={disabled}
+          placeholder="Example: Follow up with {{client}}"
+          onChange={(event) =>
+            onUpdate(
+              "task_name",
+              event.target.value
+            )
+          }
+        />
+      </Field>
+
+      <Field label="Description">
+        <textarea
+          rows={4}
+          value={
+            config.task_description ||
+            ""
+          }
+          disabled={disabled}
+          placeholder="Example: Contact customer regarding approved quote {{quote_number}}."
+          onChange={(event) =>
+            onUpdate(
+              "task_description",
+              event.target.value
+            )
+          }
+        />
+      </Field>
+
+      <Field label="Assign to">
+        <select
+          value={
+            config.task_assignee ||
+            "Record Owner"
+          }
+          disabled={disabled}
+          onChange={(event) =>
+            onUpdate(
+              "task_assignee",
+              event.target.value
+            )
+          }
+        >
+          <option value="Record Owner">
+            Record owner
+          </option>
+
+          <option value="Manager">
+            Record owner's manager
+          </option>
+
+          <option value="Employee">
+            Specific employee
+          </option>
+
+          <option value="Department Manager">
+            Department manager
+          </option>
+        </select>
+      </Field>
+
+      <Field label="Due">
+        <select
+          value={
+            config.due_offset ||
+            "1_day"
+          }
+          disabled={disabled}
+          onChange={(event) =>
+            onUpdate(
+              "due_offset",
+              event.target.value
+            )
+          }
+        >
+          <option value="today">
+            Today
+          </option>
+
+          <option value="1_day">
+            Tomorrow
+          </option>
+
+          <option value="2_days">
+            In 2 days
+          </option>
+
+          <option value="3_days">
+            In 3 days
+          </option>
+
+          <option value="7_days">
+            In 1 week
+          </option>
+
+          <option value="14_days">
+            In 2 weeks
+          </option>
+
+          <option value="30_days">
+            In 30 days
+          </option>
+        </select>
+      </Field>
+
+      <Field label="Priority">
+        <select
+          value={
+            config.priority ||
+            "Medium"
+          }
+          disabled={disabled}
+          onChange={(event) =>
+            onUpdate(
+              "priority",
+              event.target.value
+            )
+          }
+        >
+          <option value="Low">
+            Low
+          </option>
+
+          <option value="Medium">
+            Medium
+          </option>
+
+          <option value="High">
+            High
+          </option>
+
+          <option value="Urgent">
+            Urgent
+          </option>
+        </select>
+      </Field>
+
+      <Field label="Initial status">
+        <select
+          value={
+            config.task_status ||
+            "Open"
+          }
+          disabled={disabled}
+          onChange={(event) =>
+            onUpdate(
+              "task_status",
+              event.target.value
+            )
+          }
+        >
+          <option value="Open">
+            Open
+          </option>
+
+          <option value="In Progress">
+            In Progress
+          </option>
+
+          <option value="Blocked">
+            Blocked
+          </option>
+        </select>
+      </Field>
+
+      <label className={styles.toggleField}>
+        <input
+          type="checkbox"
+          checked={
+            config.link_record !==
+            false
+          }
+          disabled={disabled}
+          onChange={(event) =>
+            onUpdate(
+              "link_record",
+              event.target.checked
+            )
+          }
+        />
+
+        <span>
+          <strong>
+            Link originating record
+          </strong>
+
+          <small>
+            Store the quote, lead,
+            customer or project that
+            caused this task.
           </small>
         </span>
       </label>
 
+      <VariableHelp />
+    </div>
+  );
+}
+
+// =========================================================
+// VARIABLE HELP
+// =========================================================
+
+function VariableHelp() {
+  return (
+    <div
+      className={
+        styles.notificationVariables
+      }
+    >
+      <strong>
+        Available variables
+      </strong>
+
+      <p>
+        Use record values inside task
+        titles, descriptions and
+        workflow messages.
+      </p>
+
       <div
         className={
-          styles.notificationVariables
+          styles.variableList
         }
       >
-        <strong>
-          Current record
-        </strong>
+        <code>
+          {"{{quote_number}}"}
+        </code>
 
-        <p>
-          This action updates a field on
-          the business record that started
-          this workflow.
-        </p>
+        <code>
+          {"{{client}}"}
+        </code>
 
-        <div
-          className={
-            styles.variableList
-          }
-        >
-          <code>
-            status
-          </code>
+        <code>
+          {"{{amount}}"}
+        </code>
 
-          <code>
-            Approved
-          </code>
-        </div>
+        <code>
+          {"{{email}}"}
+        </code>
+
+        <code>
+          {"{{record_type}}"}
+        </code>
       </div>
     </div>
   );
