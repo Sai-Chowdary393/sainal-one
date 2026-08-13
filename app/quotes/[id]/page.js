@@ -63,10 +63,6 @@ export default function QuoteDetailsPage() {
     setWorkflowResult,
   ] = useState(null);
 
-  // =======================================================
-  // WORKFLOW HISTORY STATE
-  // =======================================================
-
   const [
     workflowHistory,
     setWorkflowHistory,
@@ -82,9 +78,10 @@ export default function QuoteDetailsPage() {
     setWorkflowHistoryError,
   ] = useState("");
 
-  // =======================================================
-  // INITIAL LOAD
-  // =======================================================
+  const [
+    expandedRuns,
+    setExpandedRuns,
+  ] = useState({});
 
   useEffect(() => {
     if (!quoteId) {
@@ -92,13 +89,8 @@ export default function QuoteDetailsPage() {
     }
 
     fetchQuote();
-
     fetchWorkflowHistory();
   }, [quoteId]);
-
-  // =======================================================
-  // FETCH QUOTE
-  // =======================================================
 
   async function fetchQuote() {
     try {
@@ -135,11 +127,6 @@ export default function QuoteDetailsPage() {
 
         return;
       }
-
-      /*
-       * Temporary compatibility
-       * fallback for older deployments.
-       */
 
       const response =
         await fetch(
@@ -196,10 +183,6 @@ export default function QuoteDetailsPage() {
     }
   }
 
-  // =======================================================
-  // FETCH WORKFLOW HISTORY
-  // =======================================================
-
   async function fetchWorkflowHistory() {
     if (!quoteId) {
       return;
@@ -233,13 +216,53 @@ export default function QuoteDetailsPage() {
         );
       }
 
-      setWorkflowHistory(
+      const runs =
         Array.isArray(
           data.runs
         )
           ? data.runs
-          : []
+          : [];
+
+      setWorkflowHistory(
+        runs
       );
+
+      if (
+        runs.length >
+        0
+      ) {
+        setExpandedRuns(
+          (
+            current
+          ) => {
+            const next = {
+              ...current,
+            };
+
+            runs.forEach(
+              (
+                run,
+                index
+              ) => {
+                if (
+                  next[
+                    run.id
+                  ] ===
+                  undefined
+                ) {
+                  next[
+                    run.id
+                  ] =
+                    index ===
+                    0;
+                }
+              }
+            );
+
+            return next;
+          }
+        );
+      }
     } catch (error) {
       console.error(
         "Workflow history loading error:",
@@ -257,17 +280,26 @@ export default function QuoteDetailsPage() {
     }
   }
 
-  // =======================================================
-  // PDF
-  // =======================================================
+  function toggleRun(
+    runId
+  ) {
+    setExpandedRuns(
+      (
+        current
+      ) => ({
+        ...current,
+
+        [runId]:
+          !current[
+            runId
+          ],
+      })
+    );
+  }
 
   function downloadPDF() {
     window.print();
   }
-
-  // =======================================================
-  // COPY QUOTE
-  // =======================================================
 
   async function copyQuote() {
     try {
@@ -290,10 +322,6 @@ export default function QuoteDetailsPage() {
       );
     }
   }
-
-  // =======================================================
-  // SUBMIT FOR APPROVAL
-  // =======================================================
 
   async function submitForApproval() {
     if (
@@ -350,9 +378,7 @@ export default function QuoteDetailsPage() {
       );
 
       setErrorMessage("");
-
       setApprovalMessage("");
-
       setWorkflowResult(
         null
       );
@@ -405,10 +431,6 @@ export default function QuoteDetailsPage() {
           "Quote submitted for approval successfully."
       );
 
-      /*
-       * Reload permanent history.
-       */
-
       await fetchWorkflowHistory();
     } catch (error) {
       console.error(
@@ -426,10 +448,6 @@ export default function QuoteDetailsPage() {
       );
     }
   }
-
-  // =======================================================
-  // CONVERT TO CUSTOMER
-  // =======================================================
 
   async function convertToCustomer() {
     if (
@@ -507,10 +525,6 @@ export default function QuoteDetailsPage() {
     }
   }
 
-  // =======================================================
-  // LOADING
-  // =======================================================
-
   if (loading) {
     return (
       <ProtectedRoute>
@@ -523,10 +537,6 @@ export default function QuoteDetailsPage() {
       </ProtectedRoute>
     );
   }
-
-  // =======================================================
-  // ERROR
-  // =======================================================
 
   if (
     errorMessage &&
@@ -569,10 +579,6 @@ export default function QuoteDetailsPage() {
       </ProtectedRoute>
     );
   }
-
-  // =======================================================
-  // NOT FOUND
-  // =======================================================
 
   if (!quote) {
     return (
@@ -619,10 +625,6 @@ export default function QuoteDetailsPage() {
     );
   }
 
-  // =======================================================
-  // DERIVED VALUES
-  // =======================================================
-
   const amount =
     formatQuoteAmount(
       quote.amount
@@ -660,10 +662,6 @@ export default function QuoteDetailsPage() {
     Boolean(
       quote.customer_id
     );
-
-  // =======================================================
-  // PAGE
-  // =======================================================
 
   return (
     <ProtectedRoute>
@@ -821,7 +819,7 @@ export default function QuoteDetailsPage() {
             </div>
           </section>
 
-          {/* SUCCESS MESSAGE */}
+          {/* SUCCESS */}
 
           {approvalMessage && (
             <section
@@ -990,7 +988,7 @@ export default function QuoteDetailsPage() {
             </div>
           </section>
 
-          {/* APPROVAL WORKFLOW */}
+          {/* APPROVAL */}
 
           <section
             className={
@@ -1098,263 +1096,175 @@ export default function QuoteDetailsPage() {
             </div>
           </section>
 
-          {/* =================================================
-              WORKFLOW EXECUTION HISTORY
-             ================================================= */}
+          {/* WORKFLOW HISTORY */}
 
           <section
-            className={
-              styles.panel
-            }
+            className={`${styles.workflowHistoryPanel} ${styles.noPrint}`}
           >
             <div
               className={
-                styles.panelHeader
+                styles.workflowHistoryHeader
               }
             >
               <div>
+                <span
+                  className={
+                    styles.eyebrow
+                  }
+                >
+                  Automation audit
+                </span>
+
                 <h3>
                   Workflow history
                 </h3>
 
                 <p>
-                  Automation runs and
-                  actions executed for
+                  Review every
+                  automation run and
+                  action executed for
                   this quotation.
                 </p>
               </div>
 
-              {!workflowHistoryLoading &&
-                workflowHistory.length >
-                  0 && (
-                  <span
-                    className={
-                      styles.metaBadge
-                    }
-                  >
-                    {
-                      workflowHistory.length
-                    }{" "}
-                    run
-                    {workflowHistory.length ===
-                    1
-                      ? ""
-                      : "s"}
-                  </span>
-                )}
+              <div
+                className={
+                  styles.workflowHistoryHeaderActions
+                }
+              >
+                {!workflowHistoryLoading &&
+                  workflowHistory.length >
+                    0 && (
+                    <span
+                      className={
+                        styles.workflowRunCount
+                      }
+                    >
+                      {
+                        workflowHistory.length
+                      }{" "}
+                      run
+                      {workflowHistory.length ===
+                      1
+                        ? ""
+                        : "s"}
+                    </span>
+                  )}
+
+                <button
+                  type="button"
+                  className={
+                    styles.workflowRefreshButton
+                  }
+                  onClick={
+                    fetchWorkflowHistory
+                  }
+                  disabled={
+                    workflowHistoryLoading
+                  }
+                >
+                  ↻
+                </button>
+              </div>
             </div>
 
             {workflowHistoryLoading ? (
-              <div
-                className={
-                  styles.detailList
-                }
-              >
-                <DetailRow
-                  label="History"
-                  value="Loading workflow history..."
-                />
-              </div>
+              <WorkflowHistoryLoading />
             ) : workflowHistoryError ? (
               <div
                 className={
-                  styles.detailList
+                  styles.workflowHistoryError
                 }
               >
-                <DetailRow
-                  label="History"
-                  customValue={
-                    <div>
-                      <strong>
-                        {
-                          workflowHistoryError
-                        }
-                      </strong>
+                <span>
+                  !
+                </span>
 
-                      <button
-                        type="button"
-                        className={
-                          styles.secondaryButton
-                        }
-                        onClick={
-                          fetchWorkflowHistory
-                        }
-                      >
-                        Retry
-                      </button>
-                    </div>
+                <div>
+                  <strong>
+                    Unable to load
+                    workflow history
+                  </strong>
+
+                  <p>
+                    {
+                      workflowHistoryError
+                    }
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  className={
+                    styles.secondaryButton
                   }
-                />
+                  onClick={
+                    fetchWorkflowHistory
+                  }
+                >
+                  Retry
+                </button>
               </div>
             ) : workflowHistory.length ===
               0 ? (
               <div
                 className={
-                  styles.detailList
+                  styles.workflowEmpty
                 }
               >
-                <DetailRow
-                  label="Workflow"
-                  value="No workflow has run for this quote yet."
-                />
+                <span>
+                  ◌
+                </span>
+
+                <h4>
+                  No workflow runs yet
+                </h4>
+
+                <p>
+                  When this quote
+                  enters an automation,
+                  its execution history
+                  will appear here.
+                </p>
               </div>
             ) : (
-              workflowHistory.map(
-                (
-                  run,
-                  runIndex
-                ) => (
-                  <div
-                    key={
-                      run.id
-                    }
-                  >
-                    <div
-                      className={
-                        styles.detailList
+              <div
+                className={
+                  styles.workflowRuns
+                }
+              >
+                {workflowHistory.map(
+                  (
+                    run,
+                    runIndex
+                  ) => (
+                    <WorkflowRunCard
+                      key={
+                        run.id
                       }
-                    >
-                      <DetailRow
-                        label={`Run ${
-                          workflowHistory.length -
-                          runIndex
-                        }`}
-                        customValue={
-                          <strong>
-                            {run.workflow_name ||
-                              "Workflow"}
-                          </strong>
-                        }
-                      />
-
-                      <DetailRow
-                        label="Run status"
-                        customValue={
-                          <StatusBadge
-                            status={
-                              run.status ||
-                              "Unknown"
-                            }
-                          />
-                        }
-                      />
-
-                      <DetailRow
-                        label="Started"
-                        value={formatDateTime(
-                          run.started_at
-                        )}
-                      />
-
-                      <DetailRow
-                        label="Completed"
-                        value={
-                          run.completed_at
-                            ? formatDateTime(
-                                run.completed_at
-                              )
-                            : "Not completed"
-                        }
-                      />
-
-                      <DetailRow
-                        label="Steps executed"
-                        value={String(
-                          run.step_count ??
-                            run.steps
-                              ?.length ??
-                            0
-                        )}
-                      />
-                    </div>
-
-                    {Array.isArray(
-                      run.steps
-                    ) &&
-                      run.steps.map(
-                        (
-                          step,
-                          index
-                        ) => (
-                          <div
-                            key={
-                              step.id ||
-                              `${run.id}-${index}`
-                            }
-                            className={
-                              styles.detailList
-                            }
-                          >
-                            <DetailRow
-                              label={`Step ${
-                                step.step_order ??
-                                index +
-                                  1
-                              }`}
-                              customValue={
-                                <div>
-                                  <strong>
-                                    {getStepSymbol(
-                                      step.status
-                                    )}{" "}
-                                    {step.name ||
-                                      "Workflow step"}
-                                  </strong>
-
-                                  <div>
-                                    <small>
-                                      {formatStepType(
-                                        step.step_type
-                                      )}
-                                    </small>
-                                  </div>
-                                </div>
-                              }
-                            />
-
-                            <DetailRow
-                              label="Status"
-                              customValue={
-                                <StatusBadge
-                                  status={
-                                    step.status ||
-                                    "Unknown"
-                                  }
-                                />
-                              }
-                            />
-
-                            <DetailRow
-                              label="Completed"
-                              value={
-                                step.completed_at
-                                  ? formatDateTime(
-                                      step.completed_at
-                                    )
-                                  : "Not completed"
-                              }
-                            />
-
-                            {step.error_message && (
-                              <DetailRow
-                                label="Error"
-                                value={
-                                  step.error_message
-                                }
-                              />
-                            )}
-                          </div>
+                      run={
+                        run
+                      }
+                      runNumber={
+                        workflowHistory.length -
+                        runIndex
+                      }
+                      expanded={
+                        Boolean(
+                          expandedRuns[
+                            run.id
+                          ]
                         )
-                      )}
-
-                    {runIndex <
-                      workflowHistory.length -
-                        1 && (
-                      <hr />
-                    )}
-                  </div>
-                )
-              )
+                      }
+                      onToggle={() =>
+                        toggleRun(
+                          run.id
+                        )
+                      }
+                    />
+                  )
+                )}
+              </div>
             )}
           </section>
 
@@ -1738,6 +1648,434 @@ export default function QuoteDetailsPage() {
 }
 
 // =========================================================
+// WORKFLOW RUN
+// =========================================================
+
+function WorkflowRunCard({
+  run,
+  runNumber,
+  expanded,
+  onToggle,
+}) {
+  const steps =
+    Array.isArray(
+      run.steps
+    )
+      ? run.steps
+      : [];
+
+  const completedSteps =
+    steps.filter(
+      (step) =>
+        isSuccessfulStatus(
+          step.status
+        )
+    ).length;
+
+  const failedSteps =
+    steps.filter(
+      (step) =>
+        isFailedStatus(
+          step.status
+        )
+    ).length;
+
+  const duration =
+    calculateDuration(
+      run.started_at,
+      run.completed_at
+    );
+
+  return (
+    <article
+      className={
+        styles.workflowRunCard
+      }
+    >
+      <button
+        type="button"
+        className={
+          styles.workflowRunSummary
+        }
+        onClick={
+          onToggle
+        }
+        aria-expanded={
+          expanded
+        }
+      >
+        <div
+          className={
+            styles.workflowRunIdentity
+          }
+        >
+          <span
+            className={`${styles.workflowRunIcon} ${getRunStatusClass(
+              run.status
+            )}`}
+          >
+            {getStepSymbol(
+              run.status
+            )}
+          </span>
+
+          <div>
+            <span
+              className={
+                styles.workflowRunEyebrow
+              }
+            >
+              Run {runNumber}
+            </span>
+
+            <h4>
+              {run.workflow_name ||
+                "Workflow"}
+            </h4>
+
+            <p>
+              Started{" "}
+              {formatDateTime(
+                run.started_at
+              )}
+            </p>
+          </div>
+        </div>
+
+        <div
+          className={
+            styles.workflowRunSummaryRight
+          }
+        >
+          <span
+            className={`${styles.workflowRunStatus} ${getRunStatusClass(
+              run.status
+            )}`}
+          >
+            {run.status ||
+              "Unknown"}
+          </span>
+
+          <span
+            className={
+              styles.workflowChevron
+            }
+          >
+            {expanded
+              ? "⌃"
+              : "⌄"}
+          </span>
+        </div>
+      </button>
+
+      {expanded && (
+        <div
+          className={
+            styles.workflowRunBody
+          }
+        >
+          <div
+            className={
+              styles.workflowRunMetrics
+            }
+          >
+            <WorkflowMetric
+              label="Steps"
+              value={
+                String(
+                  steps.length
+                )
+              }
+            />
+
+            <WorkflowMetric
+              label="Completed"
+              value={
+                String(
+                  completedSteps
+                )
+              }
+            />
+
+            <WorkflowMetric
+              label="Failed"
+              value={
+                String(
+                  failedSteps
+                )
+              }
+            />
+
+            <WorkflowMetric
+              label="Duration"
+              value={
+                duration
+              }
+            />
+          </div>
+
+          {steps.length ===
+          0 ? (
+            <div
+              className={
+                styles.workflowEmptySteps
+              }
+            >
+              No step execution
+              records were found.
+            </div>
+          ) : (
+            <div
+              className={
+                styles.workflowTimeline
+              }
+            >
+              {steps.map(
+                (
+                  step,
+                  index
+                ) => (
+                  <WorkflowTimelineStep
+                    key={
+                      step.id ||
+                      `${run.id}-${index}`
+                    }
+                    step={
+                      step
+                    }
+                    index={
+                      index
+                    }
+                    last={
+                      index ===
+                      steps.length -
+                        1
+                    }
+                  />
+                )
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </article>
+  );
+}
+
+// =========================================================
+// WORKFLOW TIMELINE STEP
+// =========================================================
+
+function WorkflowTimelineStep({
+  step,
+  index,
+  last,
+}) {
+  const failed =
+    isFailedStatus(
+      step.status
+    );
+
+  const waiting =
+    isWaitingStatus(
+      step.status
+    );
+
+  const successful =
+    isSuccessfulStatus(
+      step.status
+    );
+
+  return (
+    <div
+      className={`${styles.timelineStep} ${
+        failed
+          ? styles.timelineStepFailed
+          : waiting
+            ? styles.timelineStepWaiting
+            : successful
+              ? styles.timelineStepCompleted
+              : ""
+      }`}
+    >
+      <div
+        className={
+          styles.timelineRail
+        }
+      >
+        <span
+          className={
+            styles.timelineNode
+          }
+        >
+          {getStepSymbol(
+            step.status
+          )}
+        </span>
+
+        {!last && (
+          <span
+            className={
+              styles.timelineConnector
+            }
+          />
+        )}
+      </div>
+
+      <div
+        className={
+          styles.timelineContent
+        }
+      >
+        <div
+          className={
+            styles.timelineContentHeader
+          }
+        >
+          <div>
+            <span
+              className={
+                styles.timelineStepNumber
+              }
+            >
+              Step{" "}
+              {step.step_order ??
+                index + 1}
+            </span>
+
+            <h5>
+              {step.name ||
+                "Workflow step"}
+            </h5>
+
+            <p>
+              {formatStepType(
+                step.step_type
+              )}
+            </p>
+          </div>
+
+          <span
+            className={`${styles.timelineStatus} ${getRunStatusClass(
+              step.status
+            )}`}
+          >
+            {step.status ||
+              "Unknown"}
+          </span>
+        </div>
+
+        <div
+          className={
+            styles.timelineMeta
+          }
+        >
+          <span>
+            <strong>
+              Started
+            </strong>
+
+            {formatDateTime(
+              step.started_at
+            )}
+          </span>
+
+          <span>
+            <strong>
+              Completed
+            </strong>
+
+            {step.completed_at
+              ? formatDateTime(
+                  step.completed_at
+                )
+              : "Not completed"}
+          </span>
+
+          <span>
+            <strong>
+              Duration
+            </strong>
+
+            {calculateDuration(
+              step.started_at,
+              step.completed_at
+            )}
+          </span>
+        </div>
+
+        {step.error_message && (
+          <div
+            className={
+              styles.timelineError
+            }
+          >
+            <span>
+              !
+            </span>
+
+            <div>
+              <strong>
+                Execution error
+              </strong>
+
+              <p>
+                {
+                  step.error_message
+                }
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// =========================================================
+// WORKFLOW METRIC
+// =========================================================
+
+function WorkflowMetric({
+  label,
+  value,
+}) {
+  return (
+    <div
+      className={
+        styles.workflowMetric
+      }
+    >
+      <span>
+        {label}
+      </span>
+
+      <strong>
+        {value}
+      </strong>
+    </div>
+  );
+}
+
+// =========================================================
+// WORKFLOW LOADING
+// =========================================================
+
+function WorkflowHistoryLoading() {
+  return (
+    <div
+      className={
+        styles.workflowHistoryLoading
+      }
+    >
+      <div />
+      <div />
+      <div />
+    </div>
+  );
+}
+
+// =========================================================
 // DETAIL ROW
 // =========================================================
 
@@ -1818,6 +2156,90 @@ function normaliseStatus(
   )
     .trim()
     .toLowerCase();
+}
+
+function isSuccessfulStatus(
+  status
+) {
+  const normalized =
+    normaliseStatus(
+      status
+    );
+
+  return [
+    "completed",
+    "approved",
+    "processed",
+    "success",
+  ].includes(
+    normalized
+  );
+}
+
+function isFailedStatus(
+  status
+) {
+  const normalized =
+    normaliseStatus(
+      status
+    );
+
+  return [
+    "failed",
+    "rejected",
+    "error",
+  ].includes(
+    normalized
+  );
+}
+
+function isWaitingStatus(
+  status
+) {
+  const normalized =
+    normaliseStatus(
+      status
+    );
+
+  return [
+    "waiting",
+    "pending",
+    "pending approval",
+    "running",
+    "in progress",
+  ].includes(
+    normalized
+  );
+}
+
+function getRunStatusClass(
+  status
+) {
+  if (
+    isSuccessfulStatus(
+      status
+    )
+  ) {
+    return styles.workflowStatusCompleted;
+  }
+
+  if (
+    isFailedStatus(
+      status
+    )
+  ) {
+    return styles.workflowStatusFailed;
+  }
+
+  if (
+    isWaitingStatus(
+      status
+    )
+  ) {
+    return styles.workflowStatusWaiting;
+  }
+
+  return styles.workflowStatusNeutral;
 }
 
 function getApprovalState(
@@ -1970,6 +2392,89 @@ function formatDateTime(
   );
 }
 
+function calculateDuration(
+  startedAt,
+  completedAt
+) {
+  if (
+    !startedAt ||
+    !completedAt
+  ) {
+    return "—";
+  }
+
+  const start =
+    new Date(
+      startedAt
+    );
+
+  const end =
+    new Date(
+      completedAt
+    );
+
+  if (
+    Number.isNaN(
+      start.getTime()
+    ) ||
+    Number.isNaN(
+      end.getTime()
+    )
+  ) {
+    return "—";
+  }
+
+  const difference =
+    Math.max(
+      0,
+      end.getTime() -
+        start.getTime()
+    );
+
+  if (
+    difference <
+    1000
+  ) {
+    return "< 1 sec";
+  }
+
+  const seconds =
+    Math.floor(
+      difference / 1000
+    );
+
+  if (
+    seconds <
+    60
+  ) {
+    return `${seconds} sec`;
+  }
+
+  const minutes =
+    Math.floor(
+      seconds / 60
+    );
+
+  if (
+    minutes <
+    60
+  ) {
+    return `${minutes} min`;
+  }
+
+  const hours =
+    Math.floor(
+      minutes / 60
+    );
+
+  const remainingMinutes =
+    minutes % 60;
+
+  return remainingMinutes
+    ? `${hours}h ${remainingMinutes}m`
+    : `${hours}h`;
+}
+
 function formatStepType(
   value
 ) {
@@ -1989,34 +2494,26 @@ function formatStepType(
 function getStepSymbol(
   status
 ) {
-  const normalized =
-    normaliseStatus(
-      status
-    );
-
   if (
-    normalized ===
-      "completed" ||
-    normalized ===
-      "approved"
+    isSuccessfulStatus(
+      status
+    )
   ) {
     return "✓";
   }
 
   if (
-    normalized ===
-      "failed" ||
-    normalized ===
-      "rejected"
+    isFailedStatus(
+      status
+    )
   ) {
-    return "✕";
+    return "×";
   }
 
   if (
-    normalized ===
-      "waiting" ||
-    normalized ===
-      "pending"
+    isWaitingStatus(
+      status
+    )
   ) {
     return "◷";
   }
