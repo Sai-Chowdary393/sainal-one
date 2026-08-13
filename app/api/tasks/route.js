@@ -1,44 +1,271 @@
-import { supabase } from "../../../lib/supabase";
-import { NextResponse } from "next/server";
+import {
+  NextResponse,
+} from "next/server";
 
-const ORGANIZATION_ID = "9d5bbb05-866b-4c38-b2ac-3019e7cf88e5";
+import {
+  getServerAccess,
+} from "../../../lib/serverAccess";
+
+// =========================================================
+// GET MY TASKS
+// =========================================================
+//
+// Returns tasks assigned to the authenticated employee.
+//
+// =========================================================
 
 export async function GET() {
-  const { data, error } = await supabase
-    .from("tasks")
-    .select("*")
-    .eq("organization_id", ORGANIZATION_ID)
-    .order("created_at", { ascending: false });
+  try {
+    const access =
+      await getServerAccess();
 
-  if (error) {
+    if (!access.employee) {
+      return NextResponse.json(
+        {
+          error:
+            access.error,
+        },
+        {
+          status:
+            access.status,
+        }
+      );
+    }
+
+    const organizationId =
+      access.employee
+        .organization_id;
+
+    const employeeId =
+      access.employee.id;
+
+    const {
+      data,
+      error,
+    } = await access.supabase
+      .from("tasks")
+      .select("*")
+      .eq(
+        "organization_id",
+        organizationId
+      )
+      .eq(
+        "assigned_employee_id",
+        employeeId
+      )
+      .order(
+        "created_at",
+        {
+          ascending: false,
+        }
+      );
+
+    if (error) {
+      throw new Error(
+        error.message
+      );
+    }
+
+    return NextResponse.json({
+      tasks:
+        data || [],
+
+      currentEmployee: {
+        id:
+          access.employee.id,
+
+        full_name:
+          access.employee
+            .full_name,
+
+        email:
+          access.employee
+            .email,
+
+        is_organization_owner:
+          Boolean(
+            access.employee
+              .is_organization_owner
+          ),
+      },
+    });
+  } catch (error) {
+    console.error(
+      "Tasks GET error:",
+      error
+    );
+
     return NextResponse.json(
-      { error: error.message },
-      { status: 500 }
+      {
+        error:
+          error.message ||
+          "Unable to load tasks.",
+      },
+      {
+        status: 500,
+      }
     );
   }
-
-  return NextResponse.json(data || []);
 }
 
-export async function POST(request) {
-  const body = await request.json();
+// =========================================================
+// CREATE TASK
+// =========================================================
+//
+// Creates a task inside the authenticated organisation.
+//
+// If assigned_employee_id is not supplied, the task is
+// assigned to the current employee.
+//
+// =========================================================
 
-  const { data, error } = await supabase
-    .from("tasks")
-    .insert([
-      {
-        ...body,
-        organization_id: ORGANIZATION_ID,
-      },
-    ])
-    .select();
+export async function POST(
+  request
+) {
+  try {
+    const access =
+      await getServerAccess();
 
-  if (error) {
+    if (!access.employee) {
+      return NextResponse.json(
+        {
+          error:
+            access.error,
+        },
+        {
+          status:
+            access.status,
+        }
+      );
+    }
+
+    const body =
+      await request.json();
+
+    const taskName =
+      String(
+        body.task_name ||
+          body.title ||
+          ""
+      ).trim();
+
+    if (!taskName) {
+      return NextResponse.json(
+        {
+          error:
+            "Task name is required.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
+    const organizationId =
+      access.employee
+        .organization_id;
+
+    const assignedEmployeeId =
+      body.assigned_employee_id ||
+      access.employee.id;
+
+    const now =
+      new Date().toISOString();
+
+    const taskValues = {
+      project_id:
+        body.project_id ||
+        null,
+
+      task_name:
+        taskName,
+
+      description:
+        body.description ||
+        null,
+
+      status:
+        body.status ||
+        "Open",
+
+      due_date:
+        body.due_date ||
+        null,
+
+      organization_id:
+        organizationId,
+
+      assigned_employee_id:
+        assignedEmployeeId,
+
+      record_type:
+        body.record_type ||
+        null,
+
+      record_id:
+        body.record_id ||
+        null,
+
+      workflow_run_id:
+        body.workflow_run_id ||
+        null,
+
+      priority:
+        body.priority ||
+        "Medium",
+
+      created_at:
+        body.created_at ||
+        now,
+
+      updated_at:
+        now,
+    };
+
+    const {
+      data,
+      error,
+    } = await access.supabase
+      .from("tasks")
+      .insert([
+        taskValues,
+      ])
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(
+        error.message
+      );
+    }
+
     return NextResponse.json(
-      { error: error.message },
-      { status: 500 }
+      {
+        task:
+          data,
+
+        message:
+          "Task created successfully.",
+      },
+      {
+        status: 201,
+      }
+    );
+  } catch (error) {
+    console.error(
+      "Tasks POST error:",
+      error
+    );
+
+    return NextResponse.json(
+      {
+        error:
+          error.message ||
+          "Unable to create task.",
+      },
+      {
+        status: 500,
+      }
     );
   }
-
-  return NextResponse.json(data);
 }
