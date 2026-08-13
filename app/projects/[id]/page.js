@@ -1,8 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+
+import {
+  useParams,
+  useRouter,
+} from "next/navigation";
 
 import AppLayout from "../../../components/layout/AppLayout";
 import ProtectedRoute from "../../../components/ProtectedRoute";
@@ -27,56 +36,119 @@ const COMPLETED_TASK_STATUSES = [
 ];
 
 export default function ProjectDetailsPage() {
-  const params = useParams();
-  const router = useRouter();
+  const params =
+    useParams();
 
-  const projectId = params?.id;
+  const router =
+    useRouter();
 
-  const [project, setProject] = useState(null);
-  const [tasks, setTasks] = useState([]);
+  const projectId =
+    params?.id;
 
-  const [loading, setLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [
+    project,
+    setProject,
+  ] = useState(null);
 
-  const [showTaskForm, setShowTaskForm] = useState(false);
-  const [taskForm, setTaskForm] = useState(
+  const [
+    tasks,
+    setTasks,
+  ] = useState([]);
+
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
+
+  const [
+    errorMessage,
+    setErrorMessage,
+  ] = useState("");
+
+  const [
+    showTaskForm,
+    setShowTaskForm,
+  ] = useState(false);
+
+  const [
+    taskForm,
+    setTaskForm,
+  ] = useState(
     EMPTY_TASK_FORM
   );
 
-  const [addingTask, setAddingTask] = useState(false);
-  const [generatingTasks, setGeneratingTasks] =
-    useState(false);
-  const [generatingInvoice, setGeneratingInvoice] =
-    useState(false);
+  const [
+    addingTask,
+    setAddingTask,
+  ] = useState(false);
 
-  const [updatingTaskId, setUpdatingTaskId] =
-    useState(null);
-  const [savingTaskId, setSavingTaskId] =
-    useState(null);
-  const [deletingTaskId, setDeletingTaskId] =
-    useState(null);
+  const [
+    generatingTasks,
+    setGeneratingTasks,
+  ] = useState(false);
+
+  const [
+    generatingInvoice,
+    setGeneratingInvoice,
+  ] = useState(false);
+
+  const [
+    updatingTaskId,
+    setUpdatingTaskId,
+  ] = useState(null);
+
+  const [
+    savingTaskId,
+    setSavingTaskId,
+  ] = useState(null);
+
+  const [
+    deletingTaskId,
+    setDeletingTaskId,
+  ] = useState(null);
 
   useEffect(() => {
-    if (projectId) {
+    if (
+      projectId
+    ) {
       fetchProjectDetails();
     }
-  }, [projectId]);
+  }, [
+    projectId,
+  ]);
+
+  // =======================================================
+  // LOAD PROJECT
+  // =======================================================
 
   async function fetchProjectDetails() {
     try {
       setLoading(true);
+
       setErrorMessage("");
 
-      const [projectsResponse, tasksResponse] =
-        await Promise.all([
-          fetch("/api/projects", {
-            cache: "no-store",
-          }),
+      const [
+        projectsResponse,
+        tasksResponse,
+      ] = await Promise.all([
+        fetch(
+          "/api/projects",
+          {
+            cache:
+              "no-store",
+          }
+        ),
 
-          fetch("/api/tasks", {
-            cache: "no-store",
-          }),
-        ]);
+        fetch(
+          `/api/tasks?scope=project&project_id=${encodeURIComponent(
+            projectId
+          )}`,
+          {
+            cache:
+              "no-store",
+          }
+        ),
+      ]);
 
       const projectsData =
         await projectsResponse.json();
@@ -84,41 +156,56 @@ export default function ProjectDetailsPage() {
       const tasksData =
         await tasksResponse.json();
 
-      if (!projectsResponse.ok) {
+      if (
+        !projectsResponse.ok
+      ) {
         throw new Error(
           projectsData.error ||
             "Failed to load projects."
         );
       }
 
-      if (!tasksResponse.ok) {
+      if (
+        !tasksResponse.ok
+      ) {
         throw new Error(
           tasksData.error ||
-            "Failed to load tasks."
+            "Failed to load project tasks."
         );
       }
 
-      const selectedProject = (
-        Array.isArray(projectsData)
-          ? projectsData
-          : []
-      ).find(
-        (item) =>
-          String(item.id) === String(projectId)
+      const selectedProject =
+        (
+          Array.isArray(
+            projectsData
+          )
+            ? projectsData
+            : []
+        ).find(
+          (item) =>
+            String(
+              item.id
+            ) ===
+            String(
+              projectId
+            )
+        );
+
+      const projectTasks =
+        extractTasksFromResponse(
+          tasksData
+        ).sort(
+          sortTasks
+        );
+
+      setProject(
+        selectedProject ||
+          null
       );
 
-      const projectTasks = (
-        Array.isArray(tasksData) ? tasksData : []
-      )
-        .filter(
-          (task) =>
-            String(task.project_id) ===
-            String(projectId)
-        )
-        .sort(sortTasks);
-
-      setProject(selectedProject || null);
-      setTasks(projectTasks);
+      setTasks(
+        projectTasks
+      );
     } catch (error) {
       console.error(
         "Project details loading error:",
@@ -134,64 +221,119 @@ export default function ProjectDetailsPage() {
     }
   }
 
-  function handleTaskChange(event) {
-    const { name, value } = event.target;
+  // =======================================================
+  // TASK FORM
+  // =======================================================
 
-    setTaskForm((currentTaskForm) => ({
-      ...currentTaskForm,
-      [name]: value,
-    }));
+  function handleTaskChange(
+    event
+  ) {
+    const {
+      name,
+      value,
+    } = event.target;
+
+    setTaskForm(
+      (
+        currentTaskForm
+      ) => ({
+        ...currentTaskForm,
+
+        [name]:
+          value,
+      })
+    );
   }
 
   function openTaskForm() {
-    setTaskForm(EMPTY_TASK_FORM);
-    setShowTaskForm(true);
+    setTaskForm(
+      EMPTY_TASK_FORM
+    );
+
+    setShowTaskForm(
+      true
+    );
   }
 
   function closeTaskForm() {
-    setTaskForm(EMPTY_TASK_FORM);
-    setShowTaskForm(false);
+    setTaskForm(
+      EMPTY_TASK_FORM
+    );
+
+    setShowTaskForm(
+      false
+    );
   }
 
-  async function addTask(event) {
+  // =======================================================
+  // ADD TASK
+  // =======================================================
+
+  async function addTask(
+    event
+  ) {
     event.preventDefault();
 
-    const taskName = taskForm.task_name.trim();
+    const taskName =
+      taskForm.task_name.trim();
 
     if (!taskName) {
-      alert("Please enter the task name.");
+      alert(
+        "Please enter the task name."
+      );
+
       return;
     }
 
     try {
-      setAddingTask(true);
+      setAddingTask(
+        true
+      );
 
-      const response = await fetch("/api/tasks", {
-        method: "POST",
+      const response =
+        await fetch(
+          "/api/tasks",
+          {
+            method:
+              "POST",
 
-        headers: {
-          "Content-Type": "application/json",
-        },
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
 
-        body: JSON.stringify({
-          project_id: projectId,
+            body:
+              JSON.stringify({
+                project_id:
+                  projectId,
 
-          task_name: taskName,
+                task_name:
+                  taskName,
 
-          description:
-            taskForm.description.trim(),
+                description:
+                  taskForm.description.trim(),
 
-          status: taskForm.status || "To Do",
+                status:
+                  taskForm.status ||
+                  "To Do",
 
-          due_date: taskForm.due_date || null,
-        }),
-      });
+                due_date:
+                  taskForm.due_date ||
+                  null,
 
-      const data = await response.json();
+                priority:
+                  "Medium",
+              }),
+          }
+        );
+
+      const data =
+        await response.json();
 
       if (!response.ok) {
         throw new Error(
-          data.error || "Failed to add task."
+          data.error ||
+            "Failed to add task."
         );
       }
 
@@ -199,50 +341,76 @@ export default function ProjectDetailsPage() {
 
       await refreshTasksAndProjectStatus();
 
-      alert("Task added successfully.");
+      alert(
+        data.message ||
+          "Task added successfully."
+      );
     } catch (error) {
-      console.error("Task creation error:", error);
+      console.error(
+        "Task creation error:",
+        error
+      );
 
       alert(
-        error.message || "Error adding task."
+        error.message ||
+          "Error adding task."
       );
     } finally {
-      setAddingTask(false);
+      setAddingTask(
+        false
+      );
     }
   }
 
-  async function saveTask(taskId, taskData) {
+  // =======================================================
+  // SAVE TASK
+  // =======================================================
+
+  async function saveTask(
+    taskId,
+    taskData
+  ) {
     try {
-      setSavingTaskId(taskId);
-
-      const response = await fetch(
-        `/api/tasks/${taskId}`,
-        {
-          method: "PATCH",
-
-          headers: {
-            "Content-Type": "application/json",
-          },
-
-          body: JSON.stringify({
-            task_name:
-              taskData.task_name.trim(),
-
-            description:
-              String(
-                taskData.description || ""
-              ).trim(),
-
-            status:
-              taskData.status || "To Do",
-
-            due_date:
-              taskData.due_date || null,
-          }),
-        }
+      setSavingTaskId(
+        taskId
       );
 
-      const data = await response.json();
+      const response =
+        await fetch(
+          `/api/tasks/${taskId}`,
+          {
+            method:
+              "PATCH",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify({
+                task_name:
+                  taskData.task_name.trim(),
+
+                description:
+                  String(
+                    taskData.description ||
+                      ""
+                  ).trim(),
+
+                status:
+                  taskData.status ||
+                  "To Do",
+
+                due_date:
+                  taskData.due_date ||
+                  null,
+              }),
+          }
+        );
+
+      const data =
+        await response.json();
 
       if (!response.ok) {
         throw new Error(
@@ -253,11 +421,17 @@ export default function ProjectDetailsPage() {
 
       await refreshTasksAndProjectStatus();
 
-      alert("Task updated successfully.");
+      alert(
+        data.message ||
+          "Task updated successfully."
+      );
 
       return true;
     } catch (error) {
-      console.error("Task save error:", error);
+      console.error(
+        "Task save error:",
+        error
+      );
 
       alert(
         error.message ||
@@ -266,33 +440,47 @@ export default function ProjectDetailsPage() {
 
       return false;
     } finally {
-      setSavingTaskId(null);
+      setSavingTaskId(
+        null
+      );
     }
   }
+
+  // =======================================================
+  // STATUS
+  // =======================================================
 
   async function updateTaskStatus(
     taskId,
     newStatus
   ) {
     try {
-      setUpdatingTaskId(taskId);
-
-      const response = await fetch(
-        `/api/tasks/${taskId}`,
-        {
-          method: "PATCH",
-
-          headers: {
-            "Content-Type": "application/json",
-          },
-
-          body: JSON.stringify({
-            status: newStatus,
-          }),
-        }
+      setUpdatingTaskId(
+        taskId
       );
 
-      const data = await response.json();
+      const response =
+        await fetch(
+          `/api/tasks/${taskId}`,
+          {
+            method:
+              "PATCH",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify({
+                status:
+                  newStatus,
+              }),
+          }
+        );
+
+      const data =
+        await response.json();
 
       if (!response.ok) {
         throw new Error(
@@ -313,30 +501,44 @@ export default function ProjectDetailsPage() {
           "Error updating task status."
       );
     } finally {
-      setUpdatingTaskId(null);
+      setUpdatingTaskId(
+        null
+      );
     }
   }
 
-  async function deleteTask(taskId) {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this task?"
-    );
+  // =======================================================
+  // DELETE TASK
+  // =======================================================
+
+  async function deleteTask(
+    taskId
+  ) {
+    const confirmed =
+      window.confirm(
+        "Are you sure you want to delete this task?"
+      );
 
     if (!confirmed) {
       return;
     }
 
     try {
-      setDeletingTaskId(taskId);
-
-      const response = await fetch(
-        `/api/tasks/${taskId}`,
-        {
-          method: "DELETE",
-        }
+      setDeletingTaskId(
+        taskId
       );
 
-      const data = await response.json();
+      const response =
+        await fetch(
+          `/api/tasks/${taskId}`,
+          {
+            method:
+              "DELETE",
+          }
+        );
+
+      const data =
+        await response.json();
 
       if (!response.ok) {
         throw new Error(
@@ -347,7 +549,10 @@ export default function ProjectDetailsPage() {
 
       await refreshTasksAndProjectStatus();
 
-      alert("Task deleted successfully.");
+      alert(
+        data.message ||
+          "Task deleted successfully."
+      );
     } catch (error) {
       console.error(
         "Task deletion error:",
@@ -359,19 +564,32 @@ export default function ProjectDetailsPage() {
           "Error deleting task."
       );
     } finally {
-      setDeletingTaskId(null);
+      setDeletingTaskId(
+        null
+      );
     }
   }
 
+  // =======================================================
+  // DEFAULT TASKS
+  // =======================================================
+
   async function generateDefaultTasks() {
-    if (!project || generatingTasks) {
+    if (
+      !project ||
+      generatingTasks
+    ) {
       return;
     }
 
-    if (tasks.length > 0) {
-      const confirmed = window.confirm(
-        "This project already has tasks. The default-task generator should prevent duplicates. Continue?"
-      );
+    if (
+      tasks.length >
+      0
+    ) {
+      const confirmed =
+        window.confirm(
+          "This project already has tasks. The default-task generator should prevent duplicates. Continue?"
+        );
 
       if (!confirmed) {
         return;
@@ -379,16 +597,21 @@ export default function ProjectDetailsPage() {
     }
 
     try {
-      setGeneratingTasks(true);
-
-      const response = await fetch(
-        `/api/projects/${project.id}/generate-tasks`,
-        {
-          method: "POST",
-        }
+      setGeneratingTasks(
+        true
       );
 
-      const data = await response.json();
+      const response =
+        await fetch(
+          `/api/projects/${project.id}/generate-tasks`,
+          {
+            method:
+              "POST",
+          }
+        );
+
+      const data =
+        await response.json();
 
       if (!response.ok) {
         throw new Error(
@@ -414,95 +637,130 @@ export default function ProjectDetailsPage() {
           "Error generating default tasks."
       );
     } finally {
-      setGeneratingTasks(false);
+      setGeneratingTasks(
+        false
+      );
     }
   }
 
+  // =======================================================
+  // REFRESH TASKS
+  // =======================================================
+
   async function refreshTasksAndProjectStatus() {
-    const tasksResponse = await fetch(
-      "/api/tasks",
-      {
-        cache: "no-store",
-      }
-    );
+    const response =
+      await fetch(
+        `/api/tasks?scope=project&project_id=${encodeURIComponent(
+          projectId
+        )}`,
+        {
+          cache:
+            "no-store",
+        }
+      );
 
-    const tasksData = await tasksResponse.json();
+    const data =
+      await response.json();
 
-    if (!tasksResponse.ok) {
+    if (!response.ok) {
       throw new Error(
-        tasksData.error ||
+        data.error ||
           "Failed to refresh tasks."
       );
     }
 
-    const projectTasks = (
-      Array.isArray(tasksData) ? tasksData : []
-    )
-      .filter(
-        (task) =>
-          String(task.project_id) ===
-          String(projectId)
-      )
-      .sort(sortTasks);
+    const projectTasks =
+      extractTasksFromResponse(
+        data
+      ).sort(
+        sortTasks
+      );
 
-    setTasks(projectTasks);
+    setTasks(
+      projectTasks
+    );
 
-    await updateProjectStatus(projectTasks);
+    await updateProjectStatus(
+      projectTasks
+    );
   }
+
+  // =======================================================
+  // PROJECT STATUS
+  // =======================================================
 
   async function updateProjectStatus(
     projectTasks
   ) {
     try {
-      let newStatus = "Planning";
+      let newStatus =
+        "Planning";
 
-      if (projectTasks.length > 0) {
+      if (
+        projectTasks.length >
+        0
+      ) {
         const completedTaskCount =
-          projectTasks.filter((task) =>
-            COMPLETED_TASK_STATUSES.includes(
-              normaliseStatus(task.status)
-            )
+          projectTasks.filter(
+            (task) =>
+              COMPLETED_TASK_STATUSES.includes(
+                normaliseStatus(
+                  task.status
+                )
+              )
           ).length;
 
         const hasActiveTask =
-          projectTasks.some((task) =>
-            [
-              "in progress",
-              "blocked",
-            ].includes(
-              normaliseStatus(task.status)
-            )
+          projectTasks.some(
+            (task) =>
+              [
+                "in progress",
+                "blocked",
+              ].includes(
+                normaliseStatus(
+                  task.status
+                )
+              )
           );
 
         if (
           completedTaskCount ===
           projectTasks.length
         ) {
-          newStatus = "Completed";
+          newStatus =
+            "Completed";
         } else if (
-          completedTaskCount > 0 ||
+          completedTaskCount >
+            0 ||
           hasActiveTask
         ) {
-          newStatus = "In Progress";
+          newStatus =
+            "In Progress";
         }
       }
 
-      const response = await fetch(
-        `/api/projects/${projectId}`,
-        {
-          method: "PATCH",
+      const response =
+        await fetch(
+          `/api/projects/${projectId}`,
+          {
+            method:
+              "PATCH",
 
-          headers: {
-            "Content-Type": "application/json",
-          },
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
 
-          body: JSON.stringify({
-            status: newStatus,
-          }),
-        }
-      );
+            body:
+              JSON.stringify({
+                status:
+                  newStatus,
+              }),
+          }
+        );
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
       if (!response.ok) {
         console.error(
@@ -514,17 +772,27 @@ export default function ProjectDetailsPage() {
       }
 
       const updatedProject =
-        Array.isArray(data)
+        Array.isArray(
+          data
+        )
           ? data[0]
-          : data;
+          : data?.project ||
+            data;
 
-      setProject((currentProject) => ({
-        ...currentProject,
-        ...(updatedProject || {}),
-        status:
-          updatedProject?.status ||
-          newStatus,
-      }));
+      setProject(
+        (
+          currentProject
+        ) => ({
+          ...currentProject,
+
+          ...(updatedProject ||
+            {}),
+
+          status:
+            updatedProject?.status ||
+            newStatus,
+        })
+      );
     } catch (error) {
       console.error(
         "Automatic project status error:",
@@ -533,63 +801,87 @@ export default function ProjectDetailsPage() {
     }
   }
 
+  // =======================================================
+  // INVOICE
+  // =======================================================
+
   async function generateInvoice() {
-    if (!project || generatingInvoice) {
+    if (
+      !project ||
+      generatingInvoice
+    ) {
       return;
     }
 
     try {
-      setGeneratingInvoice(true);
-
-      const response = await fetch(
-        "/api/invoices",
-        {
-          method: "POST",
-
-          headers: {
-            "Content-Type": "application/json",
-          },
-
-          body: JSON.stringify({
-            project_id: project.id,
-
-            customer_id:
-              project.customer_id || null,
-
-            quote_id:
-              project.quote_id || null,
-
-            client:
-              project.project_name,
-
-            service:
-              project.description ||
-              "Project Service",
-
-            amount:
-              project.amount || "£0.00",
-
-            subtotal:
-              project.amount || "£0.00",
-
-            vat_rate: "0%",
-
-            vat_amount: "£0.00",
-
-            total_amount:
-              project.amount || "£0.00",
-
-            status: "Draft Invoice",
-
-            due_date: null,
-
-            payment_terms:
-              "Payment due within 14 days of invoice date.",
-          }),
-        }
+      setGeneratingInvoice(
+        true
       );
 
-      const data = await response.json();
+      const response =
+        await fetch(
+          "/api/invoices",
+          {
+            method:
+              "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify({
+                project_id:
+                  project.id,
+
+                customer_id:
+                  project.customer_id ||
+                  null,
+
+                quote_id:
+                  project.quote_id ||
+                  null,
+
+                client:
+                  project.project_name,
+
+                service:
+                  project.description ||
+                  "Project Service",
+
+                amount:
+                  project.amount ||
+                  "£0.00",
+
+                subtotal:
+                  project.amount ||
+                  "£0.00",
+
+                vat_rate:
+                  "0%",
+
+                vat_amount:
+                  "£0.00",
+
+                total_amount:
+                  project.amount ||
+                  "£0.00",
+
+                status:
+                  "Draft Invoice",
+
+                due_date:
+                  null,
+
+                payment_terms:
+                  "Payment due within 14 days of invoice date.",
+              }),
+          }
+        );
+
+      const data =
+        await response.json();
 
       if (!response.ok) {
         throw new Error(
@@ -599,15 +891,20 @@ export default function ProjectDetailsPage() {
       }
 
       const createdInvoice =
-        Array.isArray(data)
+        Array.isArray(
+          data
+        )
           ? data[0]
-          : data;
+          : data?.invoice ||
+            data;
 
       alert(
         "Invoice generated successfully."
       );
 
-      if (createdInvoice?.id) {
+      if (
+        createdInvoice?.id
+      ) {
         router.push(
           `/invoices/${createdInvoice.id}`
         );
@@ -623,63 +920,105 @@ export default function ProjectDetailsPage() {
           "Error generating invoice."
       );
     } finally {
-      setGeneratingInvoice(false);
+      setGeneratingInvoice(
+        false
+      );
     }
   }
 
-  const projectMetrics = useMemo(() => {
-    const totalTasks = tasks.length;
+  // =======================================================
+  // METRICS
+  // =======================================================
 
-    const completedTasks = tasks.filter(
-      (task) =>
-        COMPLETED_TASK_STATUSES.includes(
-          normaliseStatus(task.status)
-        )
-    ).length;
+  const projectMetrics =
+    useMemo(() => {
+      const totalTasks =
+        tasks.length;
 
-    const blockedTasks = tasks.filter(
-      (task) =>
-        normaliseStatus(task.status) ===
-        "blocked"
-    ).length;
+      const completedTasks =
+        tasks.filter(
+          (task) =>
+            COMPLETED_TASK_STATUSES.includes(
+              normaliseStatus(
+                task.status
+              )
+            )
+        ).length;
 
-    const overdueTasks = tasks.filter(
-      (task) => isTaskOverdue(task)
-    ).length;
+      const blockedTasks =
+        tasks.filter(
+          (task) =>
+            normaliseStatus(
+              task.status
+            ) ===
+            "blocked"
+        ).length;
 
-    const inProgressTasks = tasks.filter(
-      (task) =>
-        normaliseStatus(task.status) ===
-        "in progress"
-    ).length;
+      const overdueTasks =
+        tasks.filter(
+          (task) =>
+            isTaskOverdue(
+              task
+            )
+        ).length;
 
-    const progress =
-      totalTasks === 0
-        ? 0
-        : Math.round(
-            (completedTasks / totalTasks) *
-              100
-          );
+      const inProgressTasks =
+        tasks.filter(
+          (task) =>
+            normaliseStatus(
+              task.status
+            ) ===
+            "in progress"
+        ).length;
 
-    const delayed =
-      !COMPLETED_TASK_STATUSES.includes(
-        normaliseStatus(project?.status)
-      ) &&
-      (isDateOverdue(
-        project?.due_date
-      ) ||
-        overdueTasks > 0);
+      const progress =
+        totalTasks ===
+        0
+          ? 0
+          : Math.round(
+              (
+                completedTasks /
+                totalTasks
+              ) * 100
+            );
 
-    return {
-      totalTasks,
-      completedTasks,
-      blockedTasks,
-      overdueTasks,
-      inProgressTasks,
-      progress,
-      delayed,
-    };
-  }, [tasks, project]);
+      const delayed =
+        !COMPLETED_TASK_STATUSES.includes(
+          normaliseStatus(
+            project?.status
+          )
+        ) &&
+        (
+          isDateOverdue(
+            project?.due_date
+          ) ||
+          overdueTasks >
+            0
+        );
+
+      return {
+        totalTasks,
+
+        completedTasks,
+
+        blockedTasks,
+
+        overdueTasks,
+
+        inProgressTasks,
+
+        progress,
+
+        delayed,
+      };
+    }, [
+      tasks,
+      project,
+    ]);
+
+  // =======================================================
+  // LOADING / ERRORS
+  // =======================================================
 
   if (loading) {
     return (
@@ -702,14 +1041,18 @@ export default function ProjectDetailsPage() {
           description="Manage project delivery and tasks."
         >
           <section
-            className={styles.errorPanel}
+            className={
+              styles.errorPanel
+            }
           >
             <div>
               <strong>
                 Unable to load project
               </strong>
 
-              <p>{errorMessage}</p>
+              <p>
+                {errorMessage}
+              </p>
             </div>
 
             <button
@@ -737,7 +1080,9 @@ export default function ProjectDetailsPage() {
           description="Manage project delivery and tasks."
         >
           <section
-            className={styles.notFound}
+            className={
+              styles.notFound
+            }
           >
             <span
               className={
@@ -747,12 +1092,14 @@ export default function ProjectDetailsPage() {
               ▰
             </span>
 
-            <h2>Project not found</h2>
+            <h2>
+              Project not found
+            </h2>
 
             <p>
-              This project may have been
-              deleted or you may not have
-              access to it.
+              This project may have
+              been deleted or you may
+              not have access to it.
             </p>
 
             <Link
@@ -781,6 +1128,10 @@ export default function ProjectDetailsPage() {
       projectMetrics
     );
 
+  // =======================================================
+  // PAGE
+  // =======================================================
+
   return (
     <ProtectedRoute>
       <AppLayout
@@ -790,7 +1141,11 @@ export default function ProjectDetailsPage() {
         }
         description="Manage project delivery, tasks, progress and invoicing."
       >
-        <div className={styles.page}>
+        <div
+          className={
+            styles.page
+          }
+        >
           <section
             className={
               styles.pageHeader
@@ -824,8 +1179,9 @@ export default function ProjectDetailsPage() {
               </h2>
 
               <p>
-                Manage tasks, delivery
-                progress, risk and project
+                Manage tasks,
+                delivery progress,
+                risk and project
                 invoicing.
               </p>
             </div>
@@ -856,21 +1212,25 @@ export default function ProjectDetailsPage() {
                 className={
                   styles.secondaryButton
                 }
-                disabled={generatingTasks}
+                disabled={
+                  generatingTasks
+                }
                 onClick={
                   generateDefaultTasks
                 }
               >
                 {generatingTasks
                   ? "Generating..."
-                  : tasks.length > 0
+                  : tasks.length >
+                      0
                     ? "Check default tasks"
                     : "Generate default tasks"}
               </button>
 
               {normaliseStatus(
                 project.status
-              ) === "completed" && (
+              ) ===
+                "completed" && (
                 <button
                   type="button"
                   className={
@@ -1005,9 +1365,12 @@ export default function ProjectDetailsPage() {
 
               <HeroMetric
                 label="Delivery risk"
-                value={deliveryRisk}
+                value={
+                  deliveryRisk
+                }
                 warning={
-                  deliveryRisk === "High"
+                  deliveryRisk ===
+                  "High"
                 }
               />
             </div>
@@ -1019,7 +1382,9 @@ export default function ProjectDetailsPage() {
             }
           >
             <section
-              className={styles.panel}
+              className={
+                styles.panel
+              }
             >
               <div
                 className={
@@ -1032,8 +1397,8 @@ export default function ProjectDetailsPage() {
                   </h3>
 
                   <p>
-                    Scope, dates, value and
-                    business links
+                    Scope, dates, value
+                    and business links
                   </p>
                 </div>
               </div>
@@ -1142,7 +1507,9 @@ export default function ProjectDetailsPage() {
             </section>
 
             <section
-              className={styles.aiPanel}
+              className={
+                styles.aiPanel
+              }
             >
               <div
                 className={
@@ -1175,7 +1542,9 @@ export default function ProjectDetailsPage() {
               >
                 <RiskMetric
                   label="Delivery risk"
-                  value={deliveryRisk}
+                  value={
+                    deliveryRisk
+                  }
                 />
 
                 <RiskMetric
@@ -1218,10 +1587,14 @@ export default function ProjectDetailsPage() {
                         styles.recommendationItem
                       }
                     >
-                      <span>→</span>
+                      <span>
+                        →
+                      </span>
 
                       <p>
-                        {recommendation}
+                        {
+                          recommendation
+                        }
                       </p>
                     </div>
                   )
@@ -1231,7 +1604,9 @@ export default function ProjectDetailsPage() {
           </section>
 
           <section
-            className={styles.panel}
+            className={
+              styles.panel
+            }
           >
             <div
               className={
@@ -1244,8 +1619,8 @@ export default function ProjectDetailsPage() {
                 </h3>
 
                 <p>
-                  Delivery completion based
-                  on project tasks
+                  Delivery completion
+                  based on project tasks
                 </p>
               </div>
             </div>
@@ -1261,7 +1636,9 @@ export default function ProjectDetailsPage() {
                 }
               >
                 <strong>
-                  {projectMetrics.progress}%
+                  {
+                    projectMetrics.progress
+                  }%
                 </strong>
 
                 <span>
@@ -1337,12 +1714,18 @@ export default function ProjectDetailsPage() {
 
           {showTaskForm && (
             <TaskForm
-              formData={taskForm}
-              saving={addingTask}
+              formData={
+                taskForm
+              }
+              saving={
+                addingTask
+              }
               onChange={
                 handleTaskChange
               }
-              onSubmit={addTask}
+              onSubmit={
+                addTask
+              }
               onCancel={
                 closeTaskForm
               }
@@ -1360,12 +1743,14 @@ export default function ProjectDetailsPage() {
               }
             >
               <div>
-                <h3>Project tasks</h3>
+                <h3>
+                  Project tasks
+                </h3>
 
                 <p>
-                  Add, edit, complete and
-                  manage project delivery
-                  tasks.
+                  Add, edit, complete
+                  and manage project
+                  delivery tasks.
                 </p>
               </div>
 
@@ -1375,14 +1760,17 @@ export default function ProjectDetailsPage() {
                 }
               >
                 {tasks.length} task
-                {tasks.length === 1
+                {tasks.length ===
+                1
                   ? ""
                   : "s"}
               </span>
             </div>
 
             <TaskTable
-              tasks={tasks}
+              tasks={
+                tasks
+              }
               updatingTaskId={
                 updatingTaskId
               }
@@ -1412,6 +1800,10 @@ export default function ProjectDetailsPage() {
   );
 }
 
+// =========================================================
+// COMPONENTS
+// =======================================================
+
 function DetailRow({
   label,
   value,
@@ -1419,9 +1811,13 @@ function DetailRow({
 }) {
   return (
     <div
-      className={styles.detailRow}
+      className={
+        styles.detailRow
+      }
     >
-      <span>{label}</span>
+      <span>
+        {label}
+      </span>
 
       {customValue ? (
         customValue
@@ -1433,7 +1829,8 @@ function DetailRow({
               : styles.emptyValue
           }
         >
-          {value || "Not available"}
+          {value ||
+            "Not available"}
         </strong>
       )}
     </div>
@@ -1458,8 +1855,13 @@ function HeroMetric({
           : ""
       }`}
     >
-      <span>{label}</span>
-      <strong>{value}</strong>
+      <span>
+        {label}
+      </span>
+
+      <strong>
+        {value}
+      </strong>
     </div>
   );
 }
@@ -1482,8 +1884,13 @@ function ProgressMetric({
           : ""
       }`}
     >
-      <span>{label}</span>
-      <strong>{value}</strong>
+      <span>
+        {label}
+      </span>
+
+      <strong>
+        {value}
+      </strong>
     </div>
   );
 }
@@ -1494,10 +1901,17 @@ function RiskMetric({
 }) {
   return (
     <div
-      className={styles.riskMetric}
+      className={
+        styles.riskMetric
+      }
     >
-      <span>{label}</span>
-      <strong>{value}</strong>
+      <span>
+        {label}
+      </span>
+
+      <strong>
+        {value}
+      </strong>
     </div>
   );
 }
@@ -1511,51 +1925,108 @@ function LoadingState() {
     >
       {Array.from({
         length: 6,
-      }).map((_, index) => (
-        <div
-          key={index}
-          className={
-            styles.loadingRow
-          }
-        />
-      ))}
+      }).map(
+        (
+          _,
+          index
+        ) => (
+          <div
+            key={
+              index
+            }
+            className={
+              styles.loadingRow
+            }
+          />
+        )
+      )}
     </section>
   );
 }
 
-function sortTasks(firstTask, secondTask) {
+// =========================================================
+// API HELPERS
+// =======================================================
+
+function extractTasksFromResponse(
+  data
+) {
+  if (
+    Array.isArray(
+      data
+    )
+  ) {
+    return data;
+  }
+
+  if (
+    Array.isArray(
+      data?.tasks
+    )
+  ) {
+    return data.tasks;
+  }
+
+  return [];
+}
+
+// =========================================================
+// TASK HELPERS
+// =======================================================
+
+function sortTasks(
+  firstTask,
+  secondTask
+) {
   const firstCompleted =
     COMPLETED_TASK_STATUSES.includes(
-      normaliseStatus(firstTask.status)
+      normaliseStatus(
+        firstTask.status
+      )
     );
 
   const secondCompleted =
     COMPLETED_TASK_STATUSES.includes(
-      normaliseStatus(secondTask.status)
+      normaliseStatus(
+        secondTask.status
+      )
     );
 
-  if (firstCompleted !== secondCompleted) {
-    return firstCompleted ? 1 : -1;
+  if (
+    firstCompleted !==
+    secondCompleted
+  ) {
+    return firstCompleted
+      ? 1
+      : -1;
   }
 
   const firstDate =
-    firstTask.due_date || "9999-12-31";
+    firstTask.due_date ||
+    "9999-12-31";
 
   const secondDate =
-    secondTask.due_date || "9999-12-31";
+    secondTask.due_date ||
+    "9999-12-31";
 
   return firstDate.localeCompare(
     secondDate
   );
 }
 
-function normaliseStatus(value) {
-  return String(value || "")
+function normaliseStatus(
+  value
+) {
+  return String(
+    value || ""
+  )
     .trim()
     .toLowerCase();
 }
 
-function getMoneyValue(value) {
+function getMoneyValue(
+  value
+) {
   if (
     value === null ||
     value === undefined ||
@@ -1564,19 +2035,32 @@ function getMoneyValue(value) {
     return 0;
   }
 
-  const cleanedValue = String(value)
-    .replace(/,/g, "")
-    .replace(/[^\d.-]/g, "");
+  const cleanedValue =
+    String(value)
+      .replace(
+        /,/g,
+        ""
+      )
+      .replace(
+        /[^\d.-]/g,
+        ""
+      );
 
   const parsedValue =
-    Number.parseFloat(cleanedValue);
+    Number.parseFloat(
+      cleanedValue
+    );
 
-  return Number.isFinite(parsedValue)
+  return Number.isFinite(
+    parsedValue
+  )
     ? parsedValue
     : 0;
 }
 
-function formatProjectAmount(value) {
+function formatProjectAmount(
+  value
+) {
   if (!value) {
     return "Not set";
   }
@@ -1584,58 +2068,111 @@ function formatProjectAmount(value) {
   return new Intl.NumberFormat(
     "en-GB",
     {
-      style: "currency",
-      currency: "GBP",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
+      style:
+        "currency",
+
+      currency:
+        "GBP",
+
+      minimumFractionDigits:
+        0,
+
+      maximumFractionDigits:
+        0,
     }
-  ).format(getMoneyValue(value));
+  ).format(
+    getMoneyValue(
+      value
+    )
+  );
 }
 
-function formatDate(value) {
+function formatDate(
+  value
+) {
   if (!value) {
     return "Not available";
   }
 
-  const date = String(value).includes("T")
-    ? new Date(value)
-    : new Date(`${value}T12:00:00`);
+  const date =
+    String(
+      value
+    ).includes(
+      "T"
+    )
+      ? new Date(
+          value
+        )
+      : new Date(
+          `${value}T12:00:00`
+        );
 
-  if (Number.isNaN(date.getTime())) {
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
     return "Not available";
   }
 
   return date.toLocaleDateString(
     "en-GB",
     {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
+      day:
+        "2-digit",
+
+      month:
+        "short",
+
+      year:
+        "numeric",
     }
   );
 }
 
-function isDateOverdue(value) {
+function isDateOverdue(
+  value
+) {
   if (!value) {
     return false;
   }
 
-  const date = String(value).includes("T")
-    ? new Date(value)
-    : new Date(`${value}T23:59:59`);
+  const date =
+    String(
+      value
+    ).includes(
+      "T"
+    )
+      ? new Date(
+          value
+        )
+      : new Date(
+          `${value}T23:59:59`
+        );
 
-  if (Number.isNaN(date.getTime())) {
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
     return false;
   }
 
-  return date < new Date();
+  return (
+    date <
+    new Date()
+  );
 }
 
-function isTaskOverdue(task) {
+function isTaskOverdue(
+  task
+) {
   if (
     !task.due_date ||
     COMPLETED_TASK_STATUSES.includes(
-      normaliseStatus(task.status)
+      normaliseStatus(
+        task.status
+      )
     )
   ) {
     return false;
@@ -1653,14 +2190,17 @@ function getDeliveryRisk(
   if (
     normaliseStatus(
       project.status
-    ) === "completed"
+    ) ===
+    "completed"
   ) {
     return "No risk";
   }
 
   if (
-    metrics.overdueTasks > 0 ||
-    metrics.blockedTasks > 1 ||
+    metrics.overdueTasks >
+      0 ||
+    metrics.blockedTasks >
+      1 ||
     isDateOverdue(
       project.due_date
     )
@@ -1669,8 +2209,10 @@ function getDeliveryRisk(
   }
 
   if (
-    metrics.blockedTasks === 1 ||
-    metrics.progress < 30
+    metrics.blockedTasks ===
+      1 ||
+    metrics.progress <
+      30
   ) {
     return "Medium";
   }
@@ -1682,62 +2224,86 @@ function buildProjectRecommendations(
   project,
   metrics
 ) {
-  const recommendations = [];
+  const recommendations =
+    [];
 
-  if (metrics.totalTasks === 0) {
+  if (
+    metrics.totalTasks ===
+    0
+  ) {
     recommendations.push(
       "Add project tasks or generate the default delivery workflow."
     );
   }
 
-  if (metrics.overdueTasks > 0) {
+  if (
+    metrics.overdueTasks >
+    0
+  ) {
     recommendations.push(
       `Review the ${metrics.overdueTasks} overdue task${
-        metrics.overdueTasks === 1
+        metrics.overdueTasks ===
+        1
           ? ""
           : "s"
       } and update their delivery dates.`
     );
   }
 
-  if (metrics.blockedTasks > 0) {
+  if (
+    metrics.blockedTasks >
+    0
+  ) {
     recommendations.push(
       `Resolve the ${metrics.blockedTasks} blocked task${
-        metrics.blockedTasks === 1
+        metrics.blockedTasks ===
+        1
           ? ""
           : "s"
       } before delivery is delayed further.`
     );
   }
 
-  if (!project.due_date) {
+  if (
+    !project.due_date
+  ) {
     recommendations.push(
       "Add a project due date so delivery risk can be tracked."
     );
   }
 
-  if (!project.customer_id) {
+  if (
+    !project.customer_id
+  ) {
     recommendations.push(
       "Link the project to a customer for a complete business history."
     );
   }
 
   if (
-    metrics.progress === 100 &&
+    metrics.progress ===
+      100 &&
     normaliseStatus(
       project.status
-    ) === "completed"
+    ) ===
+      "completed"
   ) {
     recommendations.push(
       "The project is complete and ready for invoice generation and customer handover."
     );
   }
 
-  if (recommendations.length === 0) {
+  if (
+    recommendations.length ===
+    0
+  ) {
     recommendations.push(
       "The project is progressing normally. Continue monitoring upcoming task due dates."
     );
   }
 
-  return recommendations.slice(0, 5);
+  return recommendations.slice(
+    0,
+    5
+  );
 }
