@@ -49,9 +49,19 @@ export default function TaskDetailsPage() {
   ] = useState(null);
 
   const [
+    activity,
+    setActivity,
+  ] = useState([]);
+
+  const [
     loading,
     setLoading,
   ] = useState(true);
+
+  const [
+    activityLoading,
+    setActivityLoading,
+  ] = useState(false);
 
   const [
     saving,
@@ -66,6 +76,11 @@ export default function TaskDetailsPage() {
   const [
     errorMessage,
     setErrorMessage,
+  ] = useState("");
+
+  const [
+    activityError,
+    setActivityError,
   ] = useState("");
 
   const [
@@ -89,68 +104,101 @@ export default function TaskDetailsPage() {
       return;
     }
 
-    fetchTask();
-  }, [taskId]);
+    loadWorkspace();
+  }, [
+    taskId,
+  ]);
 
-  async function fetchTask() {
+  // =======================================================
+  // LOAD WORKSPACE
+  // =======================================================
+
+  async function loadWorkspace() {
     try {
       setLoading(true);
       setErrorMessage("");
 
-      const response =
-        await fetch(
+      const [
+        taskResponse,
+        activityResponse,
+      ] = await Promise.all([
+        fetch(
           `/api/tasks/${taskId}`,
           {
             cache:
               "no-store",
           }
-        );
+        ),
 
-      const data =
-        await response.json();
+        fetch(
+          `/api/tasks/${taskId}/activity`,
+          {
+            cache:
+              "no-store",
+          }
+        ),
+      ]);
 
-      if (!response.ok) {
+      const [
+        taskData,
+        activityData,
+      ] =
+        await Promise.all([
+          taskResponse.json(),
+          activityResponse.json(),
+        ]);
+
+      if (
+        !taskResponse.ok
+      ) {
         throw new Error(
-          data.error ||
+          taskData.error ||
             "Failed to load task."
         );
       }
 
       const selectedTask =
-        data?.task ||
+        taskData?.task ||
         null;
 
       setTask(
         selectedTask
       );
 
-      if (selectedTask) {
-        setFormData({
-          task_name:
-            selectedTask.task_name ||
-            "",
+      if (
+        selectedTask
+      ) {
+        syncFormWithTask(
+          selectedTask
+        );
+      }
 
-          description:
-            selectedTask.description ||
-            "",
+      if (
+        activityResponse.ok
+      ) {
+        setActivity(
+          Array.isArray(
+            activityData
+              ?.activity
+          )
+            ? activityData.activity
+            : []
+        );
 
-          status:
-            selectedTask.status ||
-            "Open",
+        setActivityError(
+          ""
+        );
+      } else {
+        setActivity([]);
 
-          priority:
-            selectedTask.priority ||
-            "Medium",
-
-          due_date:
-            normaliseDateInput(
-              selectedTask.due_date
-            ),
-        });
+        setActivityError(
+          activityData.error ||
+            "Unable to load task activity."
+        );
       }
     } catch (error) {
       console.error(
-        "Task loading error:",
+        "Task workspace loading error:",
         error
       );
 
@@ -163,13 +211,94 @@ export default function TaskDetailsPage() {
     }
   }
 
+  async function fetchActivity() {
+    try {
+      setActivityLoading(
+        true
+      );
+
+      setActivityError(
+        ""
+      );
+
+      const response =
+        await fetch(
+          `/api/tasks/${taskId}/activity`,
+          {
+            cache:
+              "no-store",
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error ||
+            "Unable to load task activity."
+        );
+      }
+
+      setActivity(
+        Array.isArray(
+          data?.activity
+        )
+          ? data.activity
+          : []
+      );
+    } catch (error) {
+      console.error(
+        "Task activity loading error:",
+        error
+      );
+
+      setActivityError(
+        error.message ||
+          "Unable to load task activity."
+      );
+    } finally {
+      setActivityLoading(
+        false
+      );
+    }
+  }
+
+  function syncFormWithTask(
+    selectedTask
+  ) {
+    setFormData({
+      task_name:
+        selectedTask.task_name ||
+        "",
+
+      description:
+        selectedTask.description ||
+        "",
+
+      status:
+        selectedTask.status ||
+        "Open",
+
+      priority:
+        selectedTask.priority ||
+        "Medium",
+
+      due_date:
+        normaliseDateInput(
+          selectedTask.due_date
+        ),
+    });
+  }
+
   function handleChange(
     event
   ) {
     const {
       name,
       value,
-    } = event.target;
+    } =
+      event.target;
 
     setFormData(
       (
@@ -183,13 +312,19 @@ export default function TaskDetailsPage() {
     );
   }
 
+  // =======================================================
+  // SAVE
+  // =======================================================
+
   async function saveTask(
     event
   ) {
     event.preventDefault();
 
     if (
-      !formData.task_name.trim()
+      !formData
+        .task_name
+        .trim()
     ) {
       alert(
         "Task name is required."
@@ -216,10 +351,14 @@ export default function TaskDetailsPage() {
             body:
               JSON.stringify({
                 task_name:
-                  formData.task_name.trim(),
+                  formData
+                    .task_name
+                    .trim(),
 
                 description:
-                  formData.description.trim(),
+                  formData
+                    .description
+                    .trim(),
 
                 status:
                   formData.status,
@@ -248,9 +387,15 @@ export default function TaskDetailsPage() {
         data.task
       );
 
+      syncFormWithTask(
+        data.task
+      );
+
       setEditMode(
         false
       );
+
+      await fetchActivity();
 
       alert(
         data.message ||
@@ -270,6 +415,10 @@ export default function TaskDetailsPage() {
       setSaving(false);
     }
   }
+
+  // =======================================================
+  // CHANGE STATUS
+  // =======================================================
 
   async function changeStatus(
     status
@@ -310,14 +459,11 @@ export default function TaskDetailsPage() {
         data.task
       );
 
-      setFormData(
-        (
-          current
-        ) => ({
-          ...current,
-          status,
-        })
+      syncFormWithTask(
+        data.task
       );
+
+      await fetchActivity();
     } catch (error) {
       console.error(
         "Task status update error:",
@@ -332,6 +478,10 @@ export default function TaskDetailsPage() {
       setSaving(false);
     }
   }
+
+  // =======================================================
+  // DELETE
+  // =======================================================
 
   async function deleteTask() {
     const confirmed =
@@ -388,6 +538,10 @@ export default function TaskDetailsPage() {
     }
   }
 
+  // =======================================================
+  // DERIVED VALUES
+  // =======================================================
+
   const relatedHref =
     useMemo(
       () =>
@@ -405,6 +559,10 @@ export default function TaskDetailsPage() {
       task?.workflow_run_id
     );
 
+  // =======================================================
+  // LOADING
+  // =======================================================
+
   if (loading) {
     return (
       <ProtectedRoute>
@@ -417,6 +575,10 @@ export default function TaskDetailsPage() {
       </ProtectedRoute>
     );
   }
+
+  // =======================================================
+  // ERROR
+  // =======================================================
 
   if (
     errorMessage &&
@@ -447,7 +609,7 @@ export default function TaskDetailsPage() {
                 styles.secondaryButton
               }
               onClick={
-                fetchTask
+                loadWorkspace
               }
             >
               Try again
@@ -457,6 +619,10 @@ export default function TaskDetailsPage() {
       </ProtectedRoute>
     );
   }
+
+  // =======================================================
+  // NOT FOUND
+  // =======================================================
 
   if (!task) {
     return (
@@ -496,6 +662,10 @@ export default function TaskDetailsPage() {
     );
   }
 
+  // =======================================================
+  // PAGE
+  // =======================================================
+
   return (
     <ProtectedRoute>
       <AppLayout
@@ -510,6 +680,8 @@ export default function TaskDetailsPage() {
             styles.page
           }
         >
+          {/* HEADER */}
+
           <section
             className={
               styles.pageHeader
@@ -578,6 +750,28 @@ export default function TaskDetailsPage() {
 
               {normaliseStatus(
                 task.status
+              ) ===
+              "open" && (
+                <button
+                  type="button"
+                  className={
+                    styles.secondaryButton
+                  }
+                  disabled={
+                    saving
+                  }
+                  onClick={() =>
+                    changeStatus(
+                      "In Progress"
+                    )
+                  }
+                >
+                  Start work
+                </button>
+              )}
+
+              {normaliseStatus(
+                task.status
               ) !==
                 "completed" && (
                 <button
@@ -599,6 +793,8 @@ export default function TaskDetailsPage() {
               )}
             </div>
           </section>
+
+          {/* HERO */}
 
           <section
             className={
@@ -695,6 +891,8 @@ export default function TaskDetailsPage() {
               </small>
             </div>
           </section>
+
+          {/* EDIT */}
 
           {editMode ? (
             <section
@@ -892,6 +1090,8 @@ export default function TaskDetailsPage() {
                 styles.detailsGrid
               }
             >
+              {/* INFORMATION */}
+
               <section
                 className={
                   styles.panel
@@ -960,6 +1160,8 @@ export default function TaskDetailsPage() {
                   />
                 </div>
               </section>
+
+              {/* LINKAGE */}
 
               <section
                 className={
@@ -1068,6 +1270,8 @@ export default function TaskDetailsPage() {
             </section>
           )}
 
+          {/* DESCRIPTION */}
+
           <section
             className={
               styles.descriptionPanel
@@ -1090,6 +1294,143 @@ export default function TaskDetailsPage() {
                 "No task description has been added."}
             </p>
           </section>
+
+          {/* ACTIVITY */}
+
+          <section
+            className={
+              styles.activityPanel
+            }
+          >
+            <div
+              className={
+                styles.activityHeader
+              }
+            >
+              <div>
+                <span
+                  className={
+                    styles.eyebrow
+                  }
+                >
+                  Audit trail
+                </span>
+
+                <h3>
+                  Task activity
+                </h3>
+
+                <p>
+                  Track status, priority, schedule and other changes to this task.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className={
+                  styles.secondaryButton
+                }
+                onClick={
+                  fetchActivity
+                }
+                disabled={
+                  activityLoading
+                }
+              >
+                {activityLoading
+                  ? "Refreshing..."
+                  : "Refresh activity"}
+              </button>
+            </div>
+
+            {activityError && (
+              <div
+                className={
+                  styles.activityError
+                }
+              >
+                {activityError}
+              </div>
+            )}
+
+            <div
+              className={
+                styles.timeline
+              }
+            >
+              {/* SYNTHETIC CREATION EVENT */}
+
+              <ActivityItem
+                icon="+"
+                title={
+                  workflowGenerated
+                    ? "Task created by workflow"
+                    : "Task created"
+                }
+                message={
+                  workflowGenerated
+                    ? "SaiNal One workflow automation created this task."
+                    : "This task was created in SaiNal One."
+                }
+                actor={
+                  workflowGenerated
+                    ? "Workflow automation"
+                    : "SaiNal One"
+                }
+                createdAt={
+                  task.created_at
+                }
+                isFirst={
+                  activity.length ===
+                  0
+                }
+              />
+
+              {[
+                ...activity,
+              ]
+                .reverse()
+                .map(
+                  (
+                    item,
+                    index
+                  ) => (
+                    <ActivityItem
+                      key={
+                        item.id
+                      }
+                      icon={getActivityIcon(
+                        item.activity_type
+                      )}
+                      title={getActivityTitle(
+                        item
+                      )}
+                      message={
+                        item.message ||
+                        "Task updated."
+                      }
+                      actor={
+                        item.employee
+                          ?.full_name ||
+                        item.employee
+                          ?.email ||
+                        "SaiNal One user"
+                      }
+                      createdAt={
+                        item.created_at
+                      }
+                      isFirst={
+                        index ===
+                        activity.length -
+                          1
+                      }
+                    />
+                  )
+                )}
+            </div>
+          </section>
+
+          {/* DELETE */}
 
           <section
             className={
@@ -1129,6 +1470,10 @@ export default function TaskDetailsPage() {
   );
 }
 
+// =========================================================
+// DETAIL ROW
+// =========================================================
+
 function DetailRow({
   label,
   value,
@@ -1162,6 +1507,83 @@ function DetailRow({
   );
 }
 
+// =========================================================
+// ACTIVITY ITEM
+// =========================================================
+
+function ActivityItem({
+  icon,
+  title,
+  message,
+  actor,
+  createdAt,
+  isFirst,
+}) {
+  return (
+    <div
+      className={
+        styles.timelineItem
+      }
+    >
+      <div
+        className={
+          styles.timelineRail
+        }
+      >
+        <span
+          className={
+            styles.timelineIcon
+          }
+        >
+          {icon}
+        </span>
+
+        {!isFirst && (
+          <span
+            className={
+              styles.timelineLine
+            }
+          />
+        )}
+      </div>
+
+      <div
+        className={
+          styles.timelineContent
+        }
+      >
+        <div
+          className={
+            styles.timelineTop
+          }
+        >
+          <strong>
+            {title}
+          </strong>
+
+          <span>
+            {formatDateTime(
+              createdAt
+            )}
+          </span>
+        </div>
+
+        <p>
+          {message}
+        </p>
+
+        <small>
+          {actor}
+        </small>
+      </div>
+    </div>
+  );
+}
+
+// =========================================================
+// LOADING
+// =========================================================
+
 function LoadingState() {
   return (
     <section
@@ -1189,6 +1611,10 @@ function LoadingState() {
     </section>
   );
 }
+
+// =========================================================
+// HELPERS
+// =========================================================
 
 function normaliseStatus(
   value
@@ -1417,4 +1843,84 @@ function getDueState(
   }
 
   return "Upcoming";
+}
+
+function getActivityIcon(
+  type
+) {
+  switch (
+    String(
+      type || ""
+    ).toLowerCase()
+  ) {
+    case "task_completed":
+      return "✓";
+
+    case "status_changed":
+      return "↻";
+
+    case "assignment_changed":
+      return "→";
+
+    case "field_changed":
+      return "•";
+
+    default:
+      return "•";
+  }
+}
+
+function getActivityTitle(
+  activity
+) {
+  switch (
+    String(
+      activity
+        ?.activity_type ||
+        ""
+    ).toLowerCase()
+  ) {
+    case "task_completed":
+      return "Task completed";
+
+    case "status_changed":
+      return "Status changed";
+
+    case "assignment_changed":
+      return "Assignment changed";
+
+    case "field_changed":
+      if (
+        activity.field_name ===
+        "priority"
+      ) {
+        return "Priority changed";
+      }
+
+      if (
+        activity.field_name ===
+        "due_date"
+      ) {
+        return "Due date changed";
+      }
+
+      if (
+        activity.field_name ===
+        "task_name"
+      ) {
+        return "Task renamed";
+      }
+
+      if (
+        activity.field_name ===
+        "description"
+      ) {
+        return "Description updated";
+      }
+
+      return "Task updated";
+
+    default:
+      return "Task updated";
+  }
 }
