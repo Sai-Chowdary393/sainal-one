@@ -118,13 +118,23 @@
   background:
     radial-gradient(
       circle at 95% 0,
-      rgba(212, 175, 55, 0.13),
+      rgba(
+        212,
+        175,
+        55,
+        0.13
+      ),
       transparent 30%
     ),
     #ffffff;
   box-shadow:
     0 10px 30px
-    rgba(43, 36, 17, 0.05);
+    rgba(
+      43,
+      36,
+      17,
+      0.05
+    );
 }
 
 .taskIdentity {
@@ -233,6 +243,7 @@
 
 .panel,
 .descriptionPanel,
+.activityPanel,
 .dangerPanel,
 .loadingPanel,
 .errorPanel {
@@ -241,11 +252,17 @@
   background: #ffffff;
   box-shadow:
     0 10px 30px
-    rgba(43, 36, 17, 0.05);
+    rgba(
+      43,
+      36,
+      17,
+      0.05
+    );
 }
 
 .panel,
 .descriptionPanel,
+.activityPanel,
 .dangerPanel {
   padding: 21px;
 }
@@ -258,6 +275,7 @@
 
 .panelHeader h3,
 .descriptionPanel h3,
+.activityPanel h3,
 .dangerPanel h3 {
   margin: 0;
   color: #2c2923;
@@ -265,6 +283,7 @@
 }
 
 .panelHeader p,
+.activityHeader p,
 .dangerPanel p {
   margin: 4px 0 0;
   color: #98948b;
@@ -305,7 +324,7 @@
 }
 
 .recordLink {
-  color: #8d6800;
+  color: #8d6800 !important;
   font-weight: 800;
 }
 
@@ -325,6 +344,10 @@
   font-size: 13px;
   line-height: 1.7;
 }
+
+/* =========================================================
+   EDIT FORM
+========================================================= */
 
 .editForm {
   display: grid;
@@ -379,7 +402,12 @@
   border-color: #c69a1d;
   box-shadow:
     0 0 0 3px
-    rgba(198, 154, 29, 0.1);
+    rgba(
+      198,
+      154,
+      29,
+      0.1
+    );
 }
 
 .fullField {
@@ -393,6 +421,127 @@
   gap: 9px;
   margin-top: 4px;
 }
+
+/* =========================================================
+   TASK ACTIVITY
+========================================================= */
+
+.activityPanel {
+  overflow: hidden;
+}
+
+.activityHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 18px;
+  border-bottom:
+    1px solid #ece9e2;
+}
+
+.activityHeader > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.activityError {
+  margin-top: 15px;
+  padding: 11px 13px;
+  border: 1px solid #e8c3c3;
+  border-radius: 10px;
+  background: #fff6f6;
+  color: #9b4a4a;
+  font-size: 11px;
+}
+
+.timeline {
+  display: grid;
+  padding-top: 18px;
+}
+
+.timelineItem {
+  display: grid;
+  grid-template-columns:
+    42px
+    minmax(0, 1fr);
+  gap: 12px;
+  min-height: 94px;
+}
+
+.timelineRail {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.timelineIcon {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid #dfca7c;
+  border-radius: 50%;
+  background: #fbf2ce;
+  color: #8e6800;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.timelineLine {
+  position: absolute;
+  top: 32px;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: #ded9ca;
+  transform:
+    translateX(
+      -50%
+    );
+}
+
+.timelineContent {
+  min-width: 0;
+  padding: 3px 0 22px;
+}
+
+.timelineTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.timelineTop strong {
+  color: #302d27;
+  font-size: 12px;
+}
+
+.timelineTop span {
+  flex: 0 0 auto;
+  color: #aaa69c;
+  font-size: 9px;
+}
+
+.timelineContent p {
+  margin: 6px 0 4px;
+  color: #68645c;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.timelineContent small {
+  color: #9b978e;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+/* =========================================================
+   DELETE / ERROR
+========================================================= */
 
 .dangerPanel {
   display: flex;
@@ -419,7 +568,8 @@
       #f5f3ee 50%,
       #e9e6df 75%
     );
-  background-size: 200% 100%;
+  background-size:
+    200% 100%;
   animation:
     loading 1.4s infinite;
 }
@@ -487,18 +637,27 @@
   }
 }
 
-@media (max-width: 900px) {
-  .pageHeader {
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (
+  max-width: 900px
+) {
+  .pageHeader,
+  .activityHeader {
     flex-direction: column;
   }
 
   .headerActions {
-    justify-content: flex-start;
+    justify-content:
+      flex-start;
   }
 
   .heroCard,
   .detailsGrid {
-    grid-template-columns: 1fr;
+    grid-template-columns:
+      1fr;
   }
 
   .dueCard {
@@ -506,7 +665,9 @@
   }
 }
 
-@media (max-width: 620px) {
+@media (
+  max-width: 620px
+) {
   .headerActions,
   .formActions,
   .dangerPanel {
@@ -521,7 +682,8 @@
   }
 
   .editForm {
-    grid-template-columns: 1fr;
+    grid-template-columns:
+      1fr;
   }
 
   .fullField,
@@ -530,18 +692,25 @@
   }
 
   .detailRow {
-    grid-template-columns: 1fr;
+    grid-template-columns:
+      1fr;
     gap: 6px;
   }
 
   .taskIdentity {
-    align-items: flex-start;
+    align-items:
+      flex-start;
   }
 
   .taskIcon {
     width: 50px;
     height: 50px;
     flex-basis: 50px;
+  }
+
+  .timelineTop {
+    flex-direction: column;
+    gap: 4px;
   }
 }
 
@@ -569,6 +738,7 @@
 .pageHeader p,
 .taskIdentity p,
 .panelHeader p,
+.activityHeader p,
 .dangerPanel p,
 .notFound p {
   font-size:
@@ -596,6 +766,7 @@
 
 .panelHeader h3,
 .descriptionPanel h3,
+.activityPanel h3,
 .dangerPanel h3 {
   font-size:
     var(
