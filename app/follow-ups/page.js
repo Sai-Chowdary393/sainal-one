@@ -212,19 +212,6 @@ export default function FollowUpsPage() {
           : []
       );
 
-      /*
-       * Supports:
-       *
-       * OLD:
-       * [task, task]
-       *
-       * NEW:
-       * {
-       *   tasks: [...],
-       *   currentEmployee: {...}
-       * }
-       */
-
       setTasks(
         extractTasksFromResponse(
           taskData
@@ -514,31 +501,12 @@ export default function FollowUpsPage() {
         );
       }
 
-      /*
-       * NEW API:
-       *
-       * {
-       *   task: {...},
-       *   message: "Task updated successfully."
-       * }
-       *
-       * Also supports old API shapes.
-       */
-
       const updatedTask =
         extractTaskFromResponse(
           data
         );
 
       if (!updatedTask) {
-        /*
-         * The API succeeded but returned
-         * an unexpected structure.
-         *
-         * Reload from the database so the
-         * UI still remains correct.
-         */
-
         await fetchWork();
 
         return;
@@ -674,18 +642,6 @@ export default function FollowUpsPage() {
             "Failed to delete task."
         );
       }
-
-      /*
-       * DELETE API now returns:
-       *
-       * {
-       *   task: {...},
-       *   message: "Task deleted successfully."
-       * }
-       *
-       * We already know the ID, so the
-       * local item can safely be removed.
-       */
 
       setTasks(
         (
@@ -1023,8 +979,6 @@ export default function FollowUpsPage() {
             styles.page
           }
         >
-          {/* PAGE HEADER */}
-
           <section
             className={
               styles.pageHeader
@@ -1090,8 +1044,6 @@ export default function FollowUpsPage() {
                 : "Create follow-up"}
             </button>
           </section>
-
-          {/* CREATE FOLLOW UP */}
 
           {showForm && (
             <section
@@ -1328,8 +1280,6 @@ export default function FollowUpsPage() {
             </section>
           )}
 
-          {/* SUMMARY */}
-
           <section
             className={
               styles.summaryGrid
@@ -1380,8 +1330,6 @@ export default function FollowUpsPage() {
               tone="Green"
             />
           </section>
-
-          {/* TOOLBAR */}
 
           <section
             className={
@@ -1558,8 +1506,6 @@ export default function FollowUpsPage() {
             </div>
           </section>
 
-          {/* CONTENT */}
-
           {loading ? (
             <LoadingState />
           ) : errorMessage ? (
@@ -1735,16 +1681,17 @@ export default function FollowUpsPage() {
                                           styles.followUpLink
                                         }
                                       >
-                                        {
-                                          item.title
-                                        }
+                                        {item.title}
                                       </Link>
                                     ) : (
-                                      <strong>
-                                        {
-                                          item.title
+                                      <Link
+                                        href={`/tasks/${item.id}`}
+                                        className={
+                                          styles.followUpLink
                                         }
-                                      </strong>
+                                      >
+                                        {item.title}
+                                      </Link>
                                     )}
 
                                     <small>
@@ -1929,9 +1876,14 @@ export default function FollowUpsPage() {
                                     Open →
                                   </Link>
                                 ) : (
-                                  <span>
-                                    —
-                                  </span>
+                                  <Link
+                                    href={`/tasks/${item.id}`}
+                                    className={
+                                      styles.openButton
+                                    }
+                                  >
+                                    Open task →
+                                  </Link>
                                 )}
                               </td>
                             </tr>
@@ -1949,10 +1901,6 @@ export default function FollowUpsPage() {
     </ProtectedRoute>
   );
 }
-
-// =========================================================
-// SUMMARY CARD
-// =======================================================
 
 function SummaryCard({
   icon,
@@ -1995,10 +1943,6 @@ function SummaryCard({
     </div>
   );
 }
-
-// =========================================================
-// EMPTY
-// =======================================================
 
 function EmptyState({
   hasFilters,
@@ -2050,10 +1994,6 @@ function EmptyState({
   );
 }
 
-// =========================================================
-// LOADING
-// =======================================================
-
 function LoadingState() {
   return (
     <section
@@ -2079,10 +2019,6 @@ function LoadingState() {
     </section>
   );
 }
-
-// =========================================================
-// API RESPONSE HELPERS
-// =======================================================
 
 function extractTasksFromResponse(
   data
@@ -2142,10 +2078,6 @@ function extractTaskFromResponse(
 
   return null;
 }
-
-// =========================================================
-// HELPERS
-// =======================================================
 
 function sortWorkItems(
   first,
