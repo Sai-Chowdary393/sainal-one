@@ -49,6 +49,287 @@ function buildTaskAccessQuery({
   return query;
 }
 
+function valuesAreEqual(
+  first,
+  second
+) {
+  const firstValue =
+    normaliseActivityValue(
+      first
+    );
+
+  const secondValue =
+    normaliseActivityValue(
+      second
+    );
+
+  return (
+    firstValue ===
+    secondValue
+  );
+}
+
+function normaliseActivityValue(
+  value
+) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return "";
+  }
+
+  if (
+    typeof value ===
+      "object"
+  ) {
+    try {
+      return JSON.stringify(
+        value
+      );
+    } catch {
+      return String(
+        value
+      );
+    }
+  }
+
+  return String(
+    value
+  );
+}
+
+function getActivityMessage({
+  field,
+  oldValue,
+  newValue,
+}) {
+  const fieldLabel =
+    getFieldLabel(
+      field
+    );
+
+  const oldText =
+    normaliseActivityValue(
+      oldValue
+    ) || "Empty";
+
+  const newText =
+    normaliseActivityValue(
+      newValue
+    ) || "Empty";
+
+  if (
+    field === "status"
+  ) {
+    if (
+      newText
+        .trim()
+        .toLowerCase() ===
+      "completed"
+    ) {
+      return `Task completed. Status changed from ${oldText} to ${newText}.`;
+    }
+
+    return `Status changed from ${oldText} to ${newText}.`;
+  }
+
+  if (
+    field === "priority"
+  ) {
+    return `Priority changed from ${oldText} to ${newText}.`;
+  }
+
+  if (
+    field === "due_date"
+  ) {
+    return `Due date changed from ${oldText} to ${newText}.`;
+  }
+
+  if (
+    field === "task_name"
+  ) {
+    return "Task name was updated.";
+  }
+
+  if (
+    field === "description"
+  ) {
+    return "Task description was updated.";
+  }
+
+  if (
+    field ===
+    "assigned_employee_id"
+  ) {
+    return "Task assignment was changed.";
+  }
+
+  return `${fieldLabel} changed from ${oldText} to ${newText}.`;
+}
+
+function getFieldLabel(
+  field
+) {
+  switch (field) {
+    case "task_name":
+      return "Task name";
+
+    case "description":
+      return "Description";
+
+    case "status":
+      return "Status";
+
+    case "priority":
+      return "Priority";
+
+    case "due_date":
+      return "Due date";
+
+    case "assigned_employee_id":
+      return "Assigned employee";
+
+    default:
+      return String(
+        field || "Field"
+      );
+  }
+}
+
+function getActivityType({
+  field,
+  newValue,
+}) {
+  if (
+    field === "status"
+  ) {
+    if (
+      String(
+        newValue || ""
+      )
+        .trim()
+        .toLowerCase() ===
+      "completed"
+    ) {
+      return "task_completed";
+    }
+
+    return "status_changed";
+  }
+
+  if (
+    field === "assigned_employee_id"
+  ) {
+    return "assignment_changed";
+  }
+
+  return "field_changed";
+}
+
+async function writeTaskActivity({
+  supabase,
+  organizationId,
+  employeeId,
+  taskId,
+  existingTask,
+  updatedTask,
+  fields,
+}) {
+  const activityRows =
+    [];
+
+  for (
+    const field of fields
+  ) {
+    const oldValue =
+      existingTask?.[
+        field
+      ];
+
+    const newValue =
+      updatedTask?.[
+        field
+      ];
+
+    if (
+      valuesAreEqual(
+        oldValue,
+        newValue
+      )
+    ) {
+      continue;
+    }
+
+    activityRows.push({
+      organization_id:
+        organizationId,
+
+      task_id:
+        taskId,
+
+      employee_id:
+        employeeId,
+
+      activity_type:
+        getActivityType({
+          field,
+          newValue,
+        }),
+
+      field_name:
+        field,
+
+      old_value:
+        normaliseActivityValue(
+          oldValue
+        ) || null,
+
+      new_value:
+        normaliseActivityValue(
+          newValue
+        ) || null,
+
+      message:
+        getActivityMessage({
+          field,
+          oldValue,
+          newValue,
+        }),
+    });
+  }
+
+  if (
+    activityRows.length ===
+    0
+  ) {
+    return;
+  }
+
+  const {
+    error,
+  } =
+    await supabase
+      .from(
+        "task_activity"
+      )
+      .insert(
+        activityRows
+      );
+
+  if (error) {
+    /*
+     * Do not roll back a successful task update just because
+     * activity logging fails. We log the issue so it can be
+     * diagnosed separately.
+     */
+    console.error(
+      "Task activity logging error:",
+      error
+    );
+  }
+}
+
 // =========================================================
 // GET ONE TASK
 // =========================================================
@@ -191,13 +472,14 @@ export async function PATCH(
     const body =
       await request.json();
 
-    // -----------------------------------------------------
-    // CONFIRM TASK ACCESS FIRST
-    // -----------------------------------------------------
+    // =====================================================
+    // LOAD CURRENT TASK
+    // =====================================================
 
     const {
       data: existingTask,
-      error: existingTaskError,
+      error:
+        existingTaskError,
     } =
       await buildTaskAccessQuery({
         supabase:
@@ -214,7 +496,9 @@ export async function PATCH(
           id,
       }).maybeSingle();
 
-    if (existingTaskError) {
+    if (
+      existingTaskError
+    ) {
       throw new Error(
         existingTaskError.message
       );
@@ -232,9 +516,9 @@ export async function PATCH(
       );
     }
 
-    // -----------------------------------------------------
+    // =====================================================
     // PROTECTED FIELDS
-    // -----------------------------------------------------
+    // =====================================================
 
     const protectedFields =
       new Set([
@@ -244,6 +528,7 @@ export async function PATCH(
         "workflow_run_id",
         "record_type",
         "record_id",
+        "project_id",
       ]);
 
     const updateValues =
@@ -271,14 +556,24 @@ export async function PATCH(
       }
     );
 
-    updateValues.updated_at =
-      new Date().toISOString();
+    // Normal employees cannot reassign tasks.
 
     if (
+      !access.employee
+        .is_organization_owner
+    ) {
+      delete updateValues
+        .assigned_employee_id;
+    }
+
+    const editableFields =
       Object.keys(
         updateValues
-      ).length ===
-      1
+      );
+
+    if (
+      editableFields.length ===
+      0
     ) {
       return NextResponse.json(
         {
@@ -291,21 +586,12 @@ export async function PATCH(
       );
     }
 
-    // -----------------------------------------------------
-    // RESTRICT REASSIGNMENT FOR NORMAL EMPLOYEES
-    // -----------------------------------------------------
+    updateValues.updated_at =
+      new Date().toISOString();
 
-    if (
-      !access.employee
-        .is_organization_owner
-    ) {
-      delete updateValues
-        .assigned_employee_id;
-    }
-
-    // -----------------------------------------------------
-    // UPDATE
-    // -----------------------------------------------------
+    // =====================================================
+    // UPDATE TASK
+    // =====================================================
 
     let updateQuery =
       access.supabase
@@ -359,6 +645,33 @@ export async function PATCH(
         }
       );
     }
+
+    // =====================================================
+    // WRITE ACTIVITY
+    // =====================================================
+
+    await writeTaskActivity({
+      supabase:
+        access.supabase,
+
+      organizationId:
+        access.employee
+          .organization_id,
+
+      employeeId:
+        access.employee.id,
+
+      taskId:
+        id,
+
+      existingTask,
+
+      updatedTask:
+        task,
+
+      fields:
+        editableFields,
+    });
 
     return NextResponse.json({
       task,
@@ -425,13 +738,10 @@ export async function DELETE(
       );
     }
 
-    // -----------------------------------------------------
-    // CONFIRM TASK ACCESS FIRST
-    // -----------------------------------------------------
-
     const {
       data: existingTask,
-      error: existingTaskError,
+      error:
+        existingTaskError,
     } =
       await buildTaskAccessQuery({
         supabase:
@@ -448,7 +758,9 @@ export async function DELETE(
           id,
       }).maybeSingle();
 
-    if (existingTaskError) {
+    if (
+      existingTaskError
+    ) {
       throw new Error(
         existingTaskError.message
       );
@@ -466,9 +778,38 @@ export async function DELETE(
       );
     }
 
-    // -----------------------------------------------------
-    // DELETE
-    // -----------------------------------------------------
+    /*
+     * Delete activity first because task_activity currently
+     * does not have an ON DELETE CASCADE foreign key.
+     */
+
+    const {
+      error:
+        activityDeleteError,
+    } =
+      await access.supabase
+        .from(
+          "task_activity"
+        )
+        .delete()
+        .eq(
+          "organization_id",
+          access.employee
+            .organization_id
+        )
+        .eq(
+          "task_id",
+          id
+        );
+
+    if (
+      activityDeleteError
+    ) {
+      console.error(
+        "Task activity cleanup error:",
+        activityDeleteError
+      );
+    }
 
     let deleteQuery =
       access.supabase
@@ -510,7 +851,8 @@ export async function DELETE(
 
     if (
       !data ||
-      data.length === 0
+      data.length ===
+      0
     ) {
       return NextResponse.json(
         {
