@@ -22,56 +22,23 @@ function buildTaskAccessQuery({
   employee,
   taskId,
 }) {
-  let query =
-    supabase
-      .from("tasks")
-      .select("*")
-      .eq(
-        "id",
-        taskId
-      )
-      .eq(
-        "organization_id",
-        organizationId
-      );
+  let query = supabase
+    .from("tasks")
+    .select("*")
+    .eq("id", taskId)
+    .eq("organization_id", organizationId);
 
-  if (
-    !employee
-      .is_organization_owner
-  ) {
-    query =
-      query.eq(
-        "assigned_employee_id",
-        employee.id
-      );
+  if (!employee.is_organization_owner) {
+    query = query.eq(
+      "assigned_employee_id",
+      employee.id
+    );
   }
 
   return query;
 }
 
-function valuesAreEqual(
-  first,
-  second
-) {
-  const firstValue =
-    normaliseActivityValue(
-      first
-    );
-
-  const secondValue =
-    normaliseActivityValue(
-      second
-    );
-
-  return (
-    firstValue ===
-    secondValue
-  );
-}
-
-function normaliseActivityValue(
-  value
-) {
+function normaliseActivityValue(value) {
   if (
     value === null ||
     value === undefined
@@ -79,98 +46,28 @@ function normaliseActivityValue(
     return "";
   }
 
-  if (
-    typeof value ===
-      "object"
-  ) {
+  if (typeof value === "object") {
     try {
-      return JSON.stringify(
-        value
-      );
+      return JSON.stringify(value);
     } catch {
-      return String(
-        value
-      );
+      return String(value);
     }
   }
 
-  return String(
-    value
+  return String(value);
+}
+
+function valuesAreEqual(
+  first,
+  second
+) {
+  return (
+    normaliseActivityValue(first) ===
+    normaliseActivityValue(second)
   );
 }
 
-function getActivityMessage({
-  field,
-  oldValue,
-  newValue,
-}) {
-  const fieldLabel =
-    getFieldLabel(
-      field
-    );
-
-  const oldText =
-    normaliseActivityValue(
-      oldValue
-    ) || "Empty";
-
-  const newText =
-    normaliseActivityValue(
-      newValue
-    ) || "Empty";
-
-  if (
-    field === "status"
-  ) {
-    if (
-      newText
-        .trim()
-        .toLowerCase() ===
-      "completed"
-    ) {
-      return `Task completed. Status changed from ${oldText} to ${newText}.`;
-    }
-
-    return `Status changed from ${oldText} to ${newText}.`;
-  }
-
-  if (
-    field === "priority"
-  ) {
-    return `Priority changed from ${oldText} to ${newText}.`;
-  }
-
-  if (
-    field === "due_date"
-  ) {
-    return `Due date changed from ${oldText} to ${newText}.`;
-  }
-
-  if (
-    field === "task_name"
-  ) {
-    return "Task name was updated.";
-  }
-
-  if (
-    field === "description"
-  ) {
-    return "Task description was updated.";
-  }
-
-  if (
-    field ===
-    "assigned_employee_id"
-  ) {
-    return "Task assignment was changed.";
-  }
-
-  return `${fieldLabel} changed from ${oldText} to ${newText}.`;
-}
-
-function getFieldLabel(
-  field
-) {
+function getFieldLabel(field) {
   switch (field) {
     case "task_name":
       return "Task name";
@@ -201,13 +98,9 @@ function getActivityType({
   field,
   newValue,
 }) {
-  if (
-    field === "status"
-  ) {
+  if (field === "status") {
     if (
-      String(
-        newValue || ""
-      )
+      String(newValue || "")
         .trim()
         .toLowerCase() ===
       "completed"
@@ -219,12 +112,70 @@ function getActivityType({
   }
 
   if (
-    field === "assigned_employee_id"
+    field ===
+    "assigned_employee_id"
   ) {
     return "assignment_changed";
   }
 
   return "field_changed";
+}
+
+function getActivityMessage({
+  field,
+  oldValue,
+  newValue,
+}) {
+  const fieldLabel =
+    getFieldLabel(field);
+
+  const oldText =
+    normaliseActivityValue(
+      oldValue
+    ) || "Empty";
+
+  const newText =
+    normaliseActivityValue(
+      newValue
+    ) || "Empty";
+
+  if (field === "status") {
+    if (
+      newText
+        .trim()
+        .toLowerCase() ===
+      "completed"
+    ) {
+      return `Task completed. Status changed from ${oldText} to ${newText}.`;
+    }
+
+    return `Status changed from ${oldText} to ${newText}.`;
+  }
+
+  if (field === "priority") {
+    return `Priority changed from ${oldText} to ${newText}.`;
+  }
+
+  if (field === "due_date") {
+    return `Due date changed from ${oldText} to ${newText}.`;
+  }
+
+  if (field === "task_name") {
+    return "Task name was updated.";
+  }
+
+  if (field === "description") {
+    return "Task description was updated.";
+  }
+
+  if (
+    field ===
+    "assigned_employee_id"
+  ) {
+    return "Task assignment was changed.";
+  }
+
+  return `${fieldLabel} changed from ${oldText} to ${newText}.`;
 }
 
 async function writeTaskActivity({
@@ -236,21 +187,14 @@ async function writeTaskActivity({
   updatedTask,
   fields,
 }) {
-  const activityRows =
-    [];
+  const activityRows = [];
 
-  for (
-    const field of fields
-  ) {
+  for (const field of fields) {
     const oldValue =
-      existingTask?.[
-        field
-      ];
+      existingTask?.[field];
 
     const newValue =
-      updatedTask?.[
-        field
-      ];
+      updatedTask?.[field];
 
     if (
       valuesAreEqual(
@@ -306,22 +250,15 @@ async function writeTaskActivity({
     return;
   }
 
-  const {
-    error,
-  } =
+  const { error } =
     await supabase
-      .from(
-        "task_activity"
-      )
-      .insert(
-        activityRows
-      );
+      .from("task_activity")
+      .insert(activityRows);
 
   if (error) {
     /*
-     * Do not roll back a successful task update just because
-     * activity logging fails. We log the issue so it can be
-     * diagnosed separately.
+     * A task update should remain successful
+     * even if audit logging temporarily fails.
      */
     console.error(
       "Task activity logging error:",
@@ -496,9 +433,7 @@ export async function PATCH(
           id,
       }).maybeSingle();
 
-    if (
-      existingTaskError
-    ) {
+    if (existingTaskError) {
       throw new Error(
         existingTaskError.message
       );
@@ -531,16 +466,12 @@ export async function PATCH(
         "project_id",
       ]);
 
-    const updateValues =
-      {};
+    const updateValues = {};
 
     Object.entries(
       body || {}
     ).forEach(
-      ([
-        key,
-        value,
-      ]) => {
+      ([key, value]) => {
         if (
           protectedFields.has(
             key
@@ -549,15 +480,15 @@ export async function PATCH(
           return;
         }
 
-        updateValues[
-          key
-        ] =
+        updateValues[key] =
           value;
       }
     );
 
-    // Normal employees cannot reassign tasks.
-
+    /*
+     * Normal employees may update their own
+     * assigned task, but may not reassign it.
+     */
     if (
       !access.employee
         .is_organization_owner
@@ -599,10 +530,7 @@ export async function PATCH(
         .update(
           updateValues
         )
-        .eq(
-          "id",
-          id
-        )
+        .eq("id", id)
         .eq(
           "organization_id",
           access.employee
@@ -647,7 +575,7 @@ export async function PATCH(
     }
 
     // =====================================================
-    // WRITE ACTIVITY
+    // ACTIVITY / AUDIT LOG
     // =====================================================
 
     await writeTaskActivity({
@@ -758,9 +686,7 @@ export async function DELETE(
           id,
       }).maybeSingle();
 
-    if (
-      existingTaskError
-    ) {
+    if (existingTaskError) {
       throw new Error(
         existingTaskError.message
       );
@@ -779,8 +705,8 @@ export async function DELETE(
     }
 
     /*
-     * Delete activity first because task_activity currently
-     * does not have an ON DELETE CASCADE foreign key.
+     * Remove associated task history first.
+     * The current table does not use ON DELETE CASCADE.
      */
 
     const {
@@ -788,9 +714,7 @@ export async function DELETE(
         activityDeleteError,
     } =
       await access.supabase
-        .from(
-          "task_activity"
-        )
+        .from("task_activity")
         .delete()
         .eq(
           "organization_id",
@@ -811,14 +735,15 @@ export async function DELETE(
       );
     }
 
+    // =====================================================
+    // DELETE TASK
+    // =====================================================
+
     let deleteQuery =
       access.supabase
         .from("tasks")
         .delete()
-        .eq(
-          "id",
-          id
-        )
+        .eq("id", id)
         .eq(
           "organization_id",
           access.employee
@@ -851,8 +776,7 @@ export async function DELETE(
 
     if (
       !data ||
-      data.length ===
-      0
+      data.length === 0
     ) {
       return NextResponse.json(
         {
