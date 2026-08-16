@@ -83,6 +83,21 @@ export default function QuoteDetailsPage() {
     setExpandedRuns,
   ] = useState({});
 
+  const [
+    relatedTasks,
+    setRelatedTasks,
+  ] = useState([]);
+
+  const [
+    relatedTasksLoading,
+    setRelatedTasksLoading,
+  ] = useState(false);
+
+  const [
+    relatedTasksError,
+    setRelatedTasksError,
+  ] = useState("");
+
   useEffect(() => {
     if (!quoteId) {
       return;
@@ -90,7 +105,14 @@ export default function QuoteDetailsPage() {
 
     fetchQuote();
     fetchWorkflowHistory();
-  }, [quoteId]);
+    fetchRelatedTasks();
+  }, [
+    quoteId,
+  ]);
+
+  // =======================================================
+  // QUOTE
+  // =======================================================
 
   async function fetchQuote() {
     try {
@@ -182,6 +204,73 @@ export default function QuoteDetailsPage() {
       setLoading(false);
     }
   }
+
+  // =======================================================
+  // RELATED TASKS
+  // =======================================================
+
+  async function fetchRelatedTasks() {
+    if (!quoteId) {
+      return;
+    }
+
+    try {
+      setRelatedTasksLoading(
+        true
+      );
+
+      setRelatedTasksError(
+        ""
+      );
+
+      const response =
+        await fetch(
+          `/api/tasks?scope=record&record_type=quote&record_id=${encodeURIComponent(
+            quoteId
+          )}`,
+          {
+            cache:
+              "no-store",
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error ||
+            "Unable to load related work."
+        );
+      }
+
+      setRelatedTasks(
+        Array.isArray(
+          data?.tasks
+        )
+          ? data.tasks
+          : []
+      );
+    } catch (error) {
+      console.error(
+        "Quote related work loading error:",
+        error
+      );
+
+      setRelatedTasksError(
+        error.message ||
+          "Unable to load related work."
+      );
+    } finally {
+      setRelatedTasksLoading(
+        false
+      );
+    }
+  }
+
+  // =======================================================
+  // WORKFLOW HISTORY
+  // =======================================================
 
   async function fetchWorkflowHistory() {
     if (!quoteId) {
@@ -323,6 +412,10 @@ export default function QuoteDetailsPage() {
     }
   }
 
+  // =======================================================
+  // APPROVAL
+  // =======================================================
+
   async function submitForApproval() {
     if (
       !quote ||
@@ -431,7 +524,10 @@ export default function QuoteDetailsPage() {
           "Quote submitted for approval successfully."
       );
 
-      await fetchWorkflowHistory();
+      await Promise.all([
+        fetchWorkflowHistory(),
+        fetchRelatedTasks(),
+      ]);
     } catch (error) {
       console.error(
         "Quote approval submission error:",
@@ -448,6 +544,10 @@ export default function QuoteDetailsPage() {
       );
     }
   }
+
+  // =======================================================
+  // CONVERT
+  // =======================================================
 
   async function convertToCustomer() {
     if (
@@ -524,6 +624,10 @@ export default function QuoteDetailsPage() {
       setConverting(false);
     }
   }
+
+  // =======================================================
+  // STATES
+  // =======================================================
 
   if (loading) {
     return (
@@ -625,6 +729,10 @@ export default function QuoteDetailsPage() {
     );
   }
 
+  // =======================================================
+  // DERIVED VALUES
+  // =======================================================
+
   const amount =
     formatQuoteAmount(
       quote.amount
@@ -662,6 +770,26 @@ export default function QuoteDetailsPage() {
     Boolean(
       quote.customer_id
     );
+
+  const openTaskCount =
+    relatedTasks.filter(
+      (task) =>
+        !isTaskCompleted(
+          task.status
+        )
+    ).length;
+
+  const completedTaskCount =
+    relatedTasks.filter(
+      (task) =>
+        isTaskCompleted(
+          task.status
+        )
+    ).length;
+
+  // =======================================================
+  // PAGE
+  // =======================================================
 
   return (
     <ProtectedRoute>
@@ -1268,6 +1396,170 @@ export default function QuoteDetailsPage() {
             )}
           </section>
 
+          {/* RELATED WORK */}
+
+          <section
+            className={`${styles.relatedWorkPanel} ${styles.noPrint}`}
+          >
+            <div
+              className={
+                styles.relatedWorkHeader
+              }
+            >
+              <div>
+                <span
+                  className={
+                    styles.eyebrow
+                  }
+                >
+                  Execution follow-through
+                </span>
+
+                <h3>
+                  Related work
+                </h3>
+
+                <p>
+                  Tasks created manually
+                  or by workflows for
+                  this quotation.
+                </p>
+              </div>
+
+              <div
+                className={
+                  styles.relatedWorkActions
+                }
+              >
+                {!relatedTasksLoading &&
+                  relatedTasks.length >
+                    0 && (
+                    <>
+                      <span
+                        className={
+                          styles.relatedWorkMetric
+                        }
+                      >
+                        {
+                          openTaskCount
+                        }{" "}
+                        open
+                      </span>
+
+                      <span
+                        className={
+                          styles.relatedWorkMetricSuccess
+                        }
+                      >
+                        {
+                          completedTaskCount
+                        }{" "}
+                        completed
+                      </span>
+                    </>
+                  )}
+
+                <button
+                  type="button"
+                  className={
+                    styles.workflowRefreshButton
+                  }
+                  disabled={
+                    relatedTasksLoading
+                  }
+                  onClick={
+                    fetchRelatedTasks
+                  }
+                  title="Refresh related work"
+                >
+                  ↻
+                </button>
+              </div>
+            </div>
+
+            {relatedTasksLoading ? (
+              <div
+                className={
+                  styles.relatedWorkLoading
+                }
+              >
+                <div />
+                <div />
+              </div>
+            ) : relatedTasksError ? (
+              <div
+                className={
+                  styles.relatedWorkError
+                }
+              >
+                <div>
+                  <strong>
+                    Unable to load related work
+                  </strong>
+
+                  <p>
+                    {
+                      relatedTasksError
+                    }
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  className={
+                    styles.secondaryButton
+                  }
+                  onClick={
+                    fetchRelatedTasks
+                  }
+                >
+                  Retry
+                </button>
+              </div>
+            ) : relatedTasks.length ===
+              0 ? (
+              <div
+                className={
+                  styles.relatedWorkEmpty
+                }
+              >
+                <span>
+                  ☑
+                </span>
+
+                <h4>
+                  No related tasks
+                </h4>
+
+                <p>
+                  When a workflow or
+                  employee creates a
+                  task for this quote,
+                  it will appear here.
+                </p>
+              </div>
+            ) : (
+              <div
+                className={
+                  styles.relatedWorkList
+                }
+              >
+                {relatedTasks.map(
+                  (task) => (
+                    <RelatedTaskCard
+                      key={
+                        task.id
+                      }
+                      task={
+                        task
+                      }
+                    />
+                  )
+                )}
+              </div>
+            )}
+          </section>
+
           {/* DETAILS */}
 
           <section
@@ -1644,6 +1936,133 @@ export default function QuoteDetailsPage() {
         </div>
       </AppLayout>
     </ProtectedRoute>
+  );
+}
+
+// =========================================================
+// RELATED TASK
+// =========================================================
+
+function RelatedTaskCard({
+  task,
+}) {
+  const completed =
+    isTaskCompleted(
+      task.status
+    );
+
+  const overdue =
+    isTaskOverdue(
+      task
+    );
+
+  const assignee =
+    task.assigned_employee
+      ?.full_name ||
+    task.assigned_employee
+      ?.email ||
+    "Unassigned";
+
+  return (
+    <article
+      className={
+        styles.relatedTaskCard
+      }
+    >
+      <div
+        className={
+          styles.relatedTaskMain
+        }
+      >
+        <span
+          className={`${styles.relatedTaskIcon} ${
+            completed
+              ? styles.relatedTaskIconCompleted
+              : ""
+          }`}
+        >
+          {completed
+            ? "✓"
+            : "☑"}
+        </span>
+
+        <div
+          className={
+            styles.relatedTaskCopy
+          }
+        >
+          <div
+            className={
+              styles.relatedTaskTitleRow
+            }
+          >
+            <Link
+              href={`/tasks/${task.id}`}
+            >
+              {task.task_name ||
+                "Untitled task"}
+            </Link>
+
+            <StatusBadge
+              status={
+                task.status ||
+                "Open"
+              }
+            />
+          </div>
+
+          <p>
+            {task.description ||
+              "No task description."}
+          </p>
+
+          <div
+            className={
+              styles.relatedTaskMeta
+            }
+          >
+            <span>
+              {task.workflow_run_id
+                ? "Workflow generated"
+                : "Manual task"}
+            </span>
+
+            <span>
+              {task.priority ||
+                "Medium"}{" "}
+              priority
+            </span>
+
+            <span>
+              Assigned to{" "}
+              {assignee}
+            </span>
+
+            <span
+              className={
+                overdue
+                  ? styles.relatedTaskOverdue
+                  : ""
+              }
+            >
+              Due{" "}
+              {formatDate(
+                task.due_date
+              )}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <Link
+        href={`/tasks/${task.id}`}
+        className={
+          styles.relatedTaskOpen
+        }
+      >
+        Open task →
+      </Link>
+    </article>
   );
 }
 
@@ -2057,10 +2476,6 @@ function WorkflowMetric({
   );
 }
 
-// =========================================================
-// WORKFLOW LOADING
-// =========================================================
-
 function WorkflowHistoryLoading() {
   return (
     <div
@@ -2074,10 +2489,6 @@ function WorkflowHistoryLoading() {
     </div>
   );
 }
-
-// =========================================================
-// DETAIL ROW
-// =========================================================
 
 function DetailRow({
   label,
@@ -2117,10 +2528,6 @@ function DetailRow({
   );
 }
 
-// =========================================================
-// LOADING
-// =========================================================
-
 function LoadingState() {
   return (
     <section
@@ -2156,6 +2563,48 @@ function normaliseStatus(
   )
     .trim()
     .toLowerCase();
+}
+
+function isTaskCompleted(
+  status
+) {
+  return [
+    "completed",
+    "complete",
+    "done",
+  ].includes(
+    normaliseStatus(
+      status
+    )
+  );
+}
+
+function isTaskOverdue(
+  task
+) {
+  if (
+    !task?.due_date ||
+    isTaskCompleted(
+      task.status
+    )
+  ) {
+    return false;
+  }
+
+  const dueDate =
+    new Date(
+      `${String(
+        task.due_date
+      ).split("T")[0]}T23:59:59`
+    );
+
+  return (
+    !Number.isNaN(
+      dueDate.getTime()
+    ) &&
+    dueDate <
+      new Date()
+  );
 }
 
 function isSuccessfulStatus(
@@ -2322,13 +2771,23 @@ function formatQuoteAmount(
   );
 }
 
-function formatDate(value) {
+function formatDate(
+  value
+) {
   if (!value) {
-    return "Not available";
+    return "Not scheduled";
   }
 
   const date =
-    new Date(value);
+    String(
+      value
+    ).includes("T")
+      ? new Date(
+          value
+        )
+      : new Date(
+          `${value}T12:00:00`
+        );
 
   if (
     Number.isNaN(
@@ -2361,7 +2820,9 @@ function formatDateTime(
   }
 
   const date =
-    new Date(value);
+    new Date(
+      value
+    );
 
   if (
     Number.isNaN(
@@ -2478,17 +2939,14 @@ function calculateDuration(
 function formatStepType(
   value
 ) {
-  const cleanValue =
-    String(
-      value || "Action"
+  return String(
+    value || "Action"
+  )
+    .replace(
+      /_/g,
+      " "
     )
-      .replace(
-        /_/g,
-        " "
-      )
-      .trim();
-
-  return cleanValue;
+    .trim();
 }
 
 function getStepSymbol(
