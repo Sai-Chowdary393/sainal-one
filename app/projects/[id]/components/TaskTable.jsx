@@ -1,6 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useState,
+} from "react";
+
+import Link from "next/link";
 
 import styles from "../project-details.module.css";
 
@@ -28,37 +33,57 @@ export default function TaskTable({
   onDeleteTask,
   onAddTask,
 }) {
-  const [editingTaskId, setEditingTaskId] =
-    useState(null);
+  const [
+    editingTaskId,
+    setEditingTaskId,
+  ] = useState(null);
 
-  const [editForm, setEditForm] =
-    useState(EMPTY_EDIT_FORM);
+  const [
+    editForm,
+    setEditForm,
+  ] = useState(
+    EMPTY_EDIT_FORM
+  );
 
   useEffect(() => {
     if (
       editingTaskId &&
       !tasks.some(
         (task) =>
-          String(task.id) ===
-          String(editingTaskId)
+          String(
+            task.id
+          ) ===
+          String(
+            editingTaskId
+          )
       )
     ) {
       cancelEditing();
     }
-  }, [tasks, editingTaskId]);
+  }, [
+    tasks,
+    editingTaskId,
+  ]);
 
-  function startEditing(task) {
-    setEditingTaskId(task.id);
+  function startEditing(
+    task
+  ) {
+    setEditingTaskId(
+      task.id
+    );
 
     setEditForm({
       task_name:
-        task.task_name || "",
+        task.task_name ||
+        "",
 
       description:
-        task.description || "",
+        task.description ||
+        "",
 
       status:
-        task.status || "To Do",
+        task.status ||
+        "To Do",
 
       due_date:
         normaliseDateInput(
@@ -68,31 +93,51 @@ export default function TaskTable({
   }
 
   function cancelEditing() {
-    setEditingTaskId(null);
-    setEditForm(EMPTY_EDIT_FORM);
+    setEditingTaskId(
+      null
+    );
+
+    setEditForm(
+      EMPTY_EDIT_FORM
+    );
   }
 
-  function handleEditChange(event) {
-    const { name, value } =
+  function handleEditChange(
+    event
+  ) {
+    const {
+      name,
+      value,
+    } =
       event.target;
 
     setEditForm(
-      (currentForm) => ({
+      (
+        currentForm
+      ) => ({
         ...currentForm,
-        [name]: value,
+
+        [name]:
+          value,
       })
     );
   }
 
-  async function submitEdit(event) {
+  async function submitEdit(
+    event
+  ) {
     event.preventDefault();
 
-    if (!editingTaskId) {
+    if (
+      !editingTaskId
+    ) {
       return;
     }
 
     if (
-      !editForm.task_name.trim()
+      !editForm
+        .task_name
+        .trim()
     ) {
       alert(
         "Please enter the task name."
@@ -106,10 +151,14 @@ export default function TaskTable({
         editingTaskId,
         {
           task_name:
-            editForm.task_name.trim(),
+            editForm
+              .task_name
+              .trim(),
 
           description:
-            editForm.description.trim(),
+            editForm
+              .description
+              .trim(),
 
           status:
             editForm.status,
@@ -120,12 +169,22 @@ export default function TaskTable({
         }
       );
 
-    if (saved !== false) {
+    if (
+      saved !==
+      false
+    ) {
       cancelEditing();
     }
   }
 
-  if (tasks.length === 0) {
+  // =======================================================
+  // EMPTY STATE
+  // =======================================================
+
+  if (
+    tasks.length ===
+    0
+  ) {
     return (
       <div
         className={
@@ -145,9 +204,10 @@ export default function TaskTable({
         </h3>
 
         <p>
-          Add a task manually or generate
-          the default project workflow to
-          begin tracking delivery progress.
+          Add a task manually or
+          generate the default project
+          workflow to begin tracking
+          delivery progress.
         </p>
 
         <button
@@ -155,13 +215,19 @@ export default function TaskTable({
           className={
             styles.primaryButton
           }
-          onClick={onAddTask}
+          onClick={
+            onAddTask
+          }
         >
           Add first task
         </button>
       </div>
     );
   }
+
+  // =======================================================
+  // TASK TABLE
+  // =======================================================
 
   return (
     <div
@@ -176,88 +242,129 @@ export default function TaskTable({
       >
         <thead>
           <tr>
-            <th>Task</th>
-            <th>Description</th>
-            <th>Status</th>
-            <th>Due date</th>
-            <th>Created</th>
-            <th>Actions</th>
+            <th>
+              Task
+            </th>
+
+            <th>
+              Description
+            </th>
+
+            <th>
+              Status
+            </th>
+
+            <th>
+              Due date
+            </th>
+
+            <th>
+              Created
+            </th>
+
+            <th>
+              Actions
+            </th>
           </tr>
         </thead>
 
         <tbody>
-          {tasks.map((task) => {
-            const isEditing =
-              String(
-                editingTaskId
-              ) ===
-              String(task.id);
+          {tasks.map(
+            (task) => {
+              const isEditing =
+                String(
+                  editingTaskId
+                ) ===
+                String(
+                  task.id
+                );
 
-            const overdue =
-              isTaskOverdue(task);
+              const overdue =
+                isTaskOverdue(
+                  task
+                );
 
-            return (
-              <TaskRows
-                key={task.id}
-                task={task}
-                overdue={overdue}
-                isEditing={
-                  isEditing
-                }
-                editForm={
-                  editForm
-                }
-                updating={
-                  String(
-                    updatingTaskId
-                  ) ===
-                  String(task.id)
-                }
-                deleting={
-                  String(
-                    deletingTaskId
-                  ) ===
-                  String(task.id)
-                }
-                saving={
-                  String(
-                    savingTaskId
-                  ) ===
-                  String(task.id)
-                }
-                onEdit={() =>
-                  startEditing(task)
-                }
-                onCancelEdit={
-                  cancelEditing
-                }
-                onEditChange={
-                  handleEditChange
-                }
-                onSubmitEdit={
-                  submitEdit
-                }
-                onUpdateStatus={(
-                  status
-                ) =>
-                  onUpdateStatus(
-                    task.id,
-                    status
-                  )
-                }
-                onDelete={() =>
-                  onDeleteTask(
+              return (
+                <TaskRows
+                  key={
                     task.id
-                  )
-                }
-              />
-            );
-          })}
+                  }
+                  task={
+                    task
+                  }
+                  overdue={
+                    overdue
+                  }
+                  isEditing={
+                    isEditing
+                  }
+                  editForm={
+                    editForm
+                  }
+                  updating={
+                    String(
+                      updatingTaskId
+                    ) ===
+                    String(
+                      task.id
+                    )
+                  }
+                  deleting={
+                    String(
+                      deletingTaskId
+                    ) ===
+                    String(
+                      task.id
+                    )
+                  }
+                  saving={
+                    String(
+                      savingTaskId
+                    ) ===
+                    String(
+                      task.id
+                    )
+                  }
+                  onEdit={() =>
+                    startEditing(
+                      task
+                    )
+                  }
+                  onCancelEdit={
+                    cancelEditing
+                  }
+                  onEditChange={
+                    handleEditChange
+                  }
+                  onSubmitEdit={
+                    submitEdit
+                  }
+                  onUpdateStatus={(
+                    status
+                  ) =>
+                    onUpdateStatus(
+                      task.id,
+                      status
+                    )
+                  }
+                  onDelete={() =>
+                    onDeleteTask(
+                      task.id
+                    )
+                  }
+                />
+              );
+            }
+          )}
         </tbody>
       </table>
     </div>
   );
 }
+
+// =========================================================
+// TASK ROW
+// =========================================================
 
 function TaskRows({
   task,
@@ -274,9 +381,22 @@ function TaskRows({
   onUpdateStatus,
   onDelete,
 }) {
+  const status =
+    normaliseTaskStatus(
+      task.status
+    );
+
+  const busy =
+    updating ||
+    saving ||
+    deleting ||
+    isEditing;
+
   return (
     <>
       <tr>
+        {/* TASK */}
+
         <td>
           <div
             className={
@@ -288,7 +408,13 @@ function TaskRows({
                 styles.taskIcon
               }
             >
-              ✓
+              {status ===
+              "completed"
+                ? "✓"
+                : status ===
+                    "blocked"
+                  ? "!"
+                  : "□"}
             </span>
 
             <div
@@ -321,6 +447,8 @@ function TaskRows({
           </div>
         </td>
 
+        {/* DESCRIPTION */}
+
         <td>
           <span
             className={
@@ -332,6 +460,8 @@ function TaskRows({
           </span>
         </td>
 
+        {/* STATUS */}
+
         <td>
           <select
             className={
@@ -342,14 +472,14 @@ function TaskRows({
               "To Do"
             }
             disabled={
-              updating ||
-              saving ||
-              deleting ||
-              isEditing
+              busy
             }
-            onChange={(event) =>
+            onChange={(
+              event
+            ) =>
               onUpdateStatus(
-                event.target.value
+                event.target
+                  .value
               )
             }
             aria-label={`Update status for ${
@@ -358,33 +488,41 @@ function TaskRows({
             }`}
           >
             {TASK_STATUS_OPTIONS.map(
-              (status) => (
+              (
+                option
+              ) => (
                 <option
-                  key={status}
-                  value={status}
+                  key={
+                    option
+                  }
+                  value={
+                    option
+                  }
                 >
-                  {status}
+                  {option}
                 </option>
               )
             )}
           </select>
         </td>
 
+        {/* DUE DATE */}
+
         <td>
-          <div>
-            <span
-              className={`${styles.taskDate} ${
-                overdue
-                  ? styles.taskDateOverdue
-                  : ""
-              }`}
-            >
-              {formatDate(
-                task.due_date
-              )}
-            </span>
-          </div>
+          <span
+            className={`${styles.taskDate} ${
+              overdue
+                ? styles.taskDateOverdue
+                : ""
+            }`}
+          >
+            {formatDate(
+              task.due_date
+            )}
+          </span>
         </td>
+
+        {/* CREATED */}
 
         <td>
           <span
@@ -398,24 +536,49 @@ function TaskRows({
           </span>
         </td>
 
+        {/* ACTIONS */}
+
         <td>
           <div
             className={
               styles.taskActions
             }
           >
+            <TaskStatusActions
+              status={
+                status
+              }
+              disabled={
+                busy
+              }
+              updating={
+                updating
+              }
+              onUpdateStatus={
+                onUpdateStatus
+              }
+            />
+
+            <Link
+              href={`/follow-ups/${task.id}`}
+              className={
+                styles.smallButton
+              }
+            >
+              Open task →
+            </Link>
+
             <button
               type="button"
               className={
                 styles.smallButton
               }
               disabled={
-                updating ||
-                saving ||
-                deleting ||
-                isEditing
+                busy
               }
-              onClick={onEdit}
+              onClick={
+                onEdit
+              }
             >
               Edit
             </button>
@@ -426,12 +589,11 @@ function TaskRows({
                 styles.dangerButton
               }
               disabled={
-                updating ||
-                saving ||
-                deleting ||
-                isEditing
+                busy
               }
-              onClick={onDelete}
+              onClick={
+                onDelete
+              }
             >
               {deleting
                 ? "Deleting..."
@@ -440,6 +602,8 @@ function TaskRows({
           </div>
         </td>
       </tr>
+
+      {/* INLINE EDITOR */}
 
       {isEditing && (
         <tr
@@ -466,6 +630,8 @@ function TaskRows({
                   styles.inlineEditorGrid
                 }
               >
+                {/* NAME */}
+
                 <div
                   className={
                     styles.field
@@ -482,15 +648,20 @@ function TaskRows({
                     name="task_name"
                     type="text"
                     value={
-                      editForm.task_name
+                      editForm
+                        .task_name
                     }
                     onChange={
                       onEditChange
                     }
-                    disabled={saving}
+                    disabled={
+                      saving
+                    }
                     required
                   />
                 </div>
+
+                {/* STATUS */}
 
                 <div
                   className={
@@ -512,24 +683,30 @@ function TaskRows({
                     onChange={
                       onEditChange
                     }
-                    disabled={saving}
+                    disabled={
+                      saving
+                    }
                   >
                     {TASK_STATUS_OPTIONS.map(
-                      (status) => (
+                      (
+                        option
+                      ) => (
                         <option
                           key={
-                            status
+                            option
                           }
                           value={
-                            status
+                            option
                           }
                         >
-                          {status}
+                          {option}
                         </option>
                       )
                     )}
                   </select>
                 </div>
+
+                {/* DESCRIPTION */}
 
                 <div
                   className={`${styles.field} ${styles.fieldFull}`}
@@ -544,15 +721,22 @@ function TaskRows({
                     id={`edit-task-description-${task.id}`}
                     name="description"
                     value={
-                      editForm.description
+                      editForm
+                        .description
                     }
                     onChange={
                       onEditChange
                     }
-                    rows={4}
-                    disabled={saving}
+                    rows={
+                      4
+                    }
+                    disabled={
+                      saving
+                    }
                   />
                 </div>
+
+                {/* DUE DATE */}
 
                 <div
                   className={
@@ -570,12 +754,15 @@ function TaskRows({
                     name="due_date"
                     type="date"
                     value={
-                      editForm.due_date
+                      editForm
+                        .due_date
                     }
                     onChange={
                       onEditChange
                     }
-                    disabled={saving}
+                    disabled={
+                      saving
+                    }
                   />
                 </div>
               </div>
@@ -590,7 +777,9 @@ function TaskRows({
                   className={
                     styles.secondaryButton
                   }
-                  disabled={saving}
+                  disabled={
+                    saving
+                  }
                   onClick={
                     onCancelEdit
                   }
@@ -603,7 +792,9 @@ function TaskRows({
                   className={
                     styles.primaryButton
                   }
-                  disabled={saving}
+                  disabled={
+                    saving
+                  }
                 >
                   {saving
                     ? "Saving task..."
@@ -618,27 +809,202 @@ function TaskRows({
   );
 }
 
+// =========================================================
+// QUICK STATUS ACTIONS
+// =========================================================
+
+function TaskStatusActions({
+  status,
+  disabled,
+  updating,
+  onUpdateStatus,
+}) {
+  if (
+    updating
+  ) {
+    return (
+      <button
+        type="button"
+        className={
+          styles.smallButton
+        }
+        disabled
+      >
+        Updating...
+      </button>
+    );
+  }
+
+  // =======================================================
+  // TO DO
+  // =======================================================
+
+  if (
+    status ===
+    "to do"
+  ) {
+    return (
+      <button
+        type="button"
+        className={
+          styles.successButton
+        }
+        disabled={
+          disabled
+        }
+        onClick={() =>
+          onUpdateStatus(
+            "In Progress"
+          )
+        }
+      >
+        Start work
+      </button>
+    );
+  }
+
+  // =======================================================
+  // IN PROGRESS
+  // =======================================================
+
+  if (
+    status ===
+    "in progress"
+  ) {
+    return (
+      <>
+        <button
+          type="button"
+          className={
+            styles.successButton
+          }
+          disabled={
+            disabled
+          }
+          onClick={() =>
+            onUpdateStatus(
+              "Completed"
+            )
+          }
+        >
+          Mark completed
+        </button>
+
+        <button
+          type="button"
+          className={
+            styles.warningButton
+          }
+          disabled={
+            disabled
+          }
+          onClick={() =>
+            onUpdateStatus(
+              "Blocked"
+            )
+          }
+        >
+          Block
+        </button>
+      </>
+    );
+  }
+
+  // =======================================================
+  // BLOCKED
+  // =======================================================
+
+  if (
+    status ===
+    "blocked"
+  ) {
+    return (
+      <button
+        type="button"
+        className={
+          styles.warningButton
+        }
+        disabled={
+          disabled
+        }
+        onClick={() =>
+          onUpdateStatus(
+            "In Progress"
+          )
+        }
+      >
+        Resume work
+      </button>
+    );
+  }
+
+  // =======================================================
+  // COMPLETED
+  // =======================================================
+
+  if (
+    status ===
+    "completed"
+  ) {
+    return (
+      <button
+        type="button"
+        className={
+          styles.secondaryButton
+        }
+        disabled={
+          disabled
+        }
+        onClick={() =>
+          onUpdateStatus(
+            "To Do"
+          )
+        }
+      >
+        Reopen
+      </button>
+    );
+  }
+
+  return null;
+}
+
+// =========================================================
+// TASK SUBTITLE
+// =========================================================
+
 function getTaskSubtitle(
   task,
   overdue
 ) {
-  if (overdue) {
+  if (
+    overdue
+  ) {
     return "Action required";
   }
 
   const status =
-    task.status || "To Do";
+    normaliseTaskStatus(
+      task.status
+    );
 
-  if (status === "Completed") {
+  if (
+    status ===
+    "completed"
+  ) {
     return "Task completed";
   }
 
-  if (status === "Blocked") {
+  if (
+    status ===
+    "blocked"
+  ) {
     return "Delivery blocked";
   }
 
   if (
-    status === "In Progress"
+    status ===
+    "in progress"
   ) {
     return "Work in progress";
   }
@@ -646,21 +1012,35 @@ function getTaskSubtitle(
   return "Ready to start";
 }
 
-function isTaskOverdue(task) {
+// =========================================================
+// OVERDUE
+// =========================================================
+
+function isTaskOverdue(
+  task
+) {
   if (
     !task.due_date ||
-    task.status === "Completed"
+    normaliseTaskStatus(
+      task.status
+    ) ===
+      "completed"
   ) {
     return false;
   }
 
-  const dueDate = String(
-    task.due_date
-  ).includes("T")
-    ? new Date(task.due_date)
-    : new Date(
-        `${task.due_date}T23:59:59`
-      );
+  const dueDate =
+    String(
+      task.due_date
+    ).includes(
+      "T"
+    )
+      ? new Date(
+          task.due_date
+        )
+      : new Date(
+          `${task.due_date}T23:59:59`
+        );
 
   if (
     Number.isNaN(
@@ -670,33 +1050,72 @@ function isTaskOverdue(task) {
     return false;
   }
 
-  return dueDate < new Date();
+  return (
+    dueDate <
+    new Date()
+  );
 }
+
+// =========================================================
+// DATE INPUT
+// =========================================================
 
 function normaliseDateInput(
   value
 ) {
-  if (!value) {
+  if (
+    !value
+  ) {
     return "";
   }
 
-  return String(value).split(
+  return String(
+    value
+  ).split(
     "T"
   )[0];
 }
 
-function formatDate(value) {
-  if (!value) {
+// =========================================================
+// STATUS
+// =========================================================
+
+function normaliseTaskStatus(
+  value
+) {
+  return String(
+    value ||
+      "To Do"
+  )
+    .trim()
+    .toLowerCase();
+}
+
+// =========================================================
+// DATE DISPLAY
+// =========================================================
+
+function formatDate(
+  value
+) {
+  if (
+    !value
+  ) {
     return "Not set";
   }
 
-  const date = String(
-    value
-  ).includes("T")
-    ? new Date(value)
-    : new Date(
-        `${value}T12:00:00`
-      );
+  const date =
+    String(
+      value
+    ).includes(
+      "T"
+    )
+      ? new Date(
+          value
+        )
+      : new Date(
+          `${value}T12:00:00`
+        );
 
   if (
     Number.isNaN(
@@ -709,9 +1128,14 @@ function formatDate(value) {
   return date.toLocaleDateString(
     "en-GB",
     {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
+      day:
+        "2-digit",
+
+      month:
+        "short",
+
+      year:
+        "numeric",
     }
   );
 }
