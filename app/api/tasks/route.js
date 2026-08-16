@@ -16,6 +16,176 @@ function isUuid(value) {
   );
 }
 
+function normaliseRecordType(
+  value
+) {
+  return String(
+    value || ""
+  )
+    .trim()
+    .toLowerCase();
+}
+
+function getRecordTypeAliases(
+  value
+) {
+  switch (
+    normaliseRecordType(
+      value
+    )
+  ) {
+    case "quote":
+    case "quotes":
+      return [
+        "quote",
+        "quotes",
+      ];
+
+    case "lead":
+    case "leads":
+      return [
+        "lead",
+        "leads",
+      ];
+
+    case "customer":
+    case "customers":
+      return [
+        "customer",
+        "customers",
+      ];
+
+    case "invoice":
+    case "invoices":
+      return [
+        "invoice",
+        "invoices",
+      ];
+
+    case "project":
+    case "projects":
+      return [
+        "project",
+        "projects",
+      ];
+
+    case "proposal":
+    case "proposals":
+      return [
+        "proposal",
+        "proposals",
+      ];
+
+    default:
+      return [];
+  }
+}
+
+async function enrichTasksWithEmployees({
+  supabase,
+  organizationId,
+  tasks,
+}) {
+  const employeeIds = [
+    ...new Set(
+      (tasks || [])
+        .map(
+          (task) =>
+            task.assigned_employee_id
+        )
+        .filter(Boolean)
+    ),
+  ];
+
+  if (
+    employeeIds.length ===
+    0
+  ) {
+    return (
+      tasks || []
+    ).map(
+      (task) => ({
+        ...task,
+
+        assigned_employee:
+          null,
+      })
+    );
+  }
+
+  const {
+    data:
+      employees,
+    error,
+  } =
+    await supabase
+      .from("employees")
+      .select(
+        `
+          id,
+          full_name,
+          email,
+          job_title
+        `
+      )
+      .eq(
+        "organization_id",
+        organizationId
+      )
+      .in(
+        "id",
+        employeeIds
+      );
+
+  if (error) {
+    console.error(
+      "Task employee enrichment error:",
+      error
+    );
+
+    return (
+      tasks || []
+    ).map(
+      (task) => ({
+        ...task,
+
+        assigned_employee:
+          null,
+      })
+    );
+  }
+
+  const employeeMap =
+    new Map(
+      (
+        employees ||
+        []
+      ).map(
+        (
+          employee
+        ) => [
+          employee.id,
+          employee,
+        ]
+      )
+    );
+
+  return (
+    tasks || []
+  ).map(
+    (task) => ({
+      ...task,
+
+      assigned_employee:
+        task.assigned_employee_id
+          ? employeeMap.get(
+              task.assigned_employee_id
+            ) || null
+          : null,
+    })
+  );
+}
+
 // =========================================================
 // GET TASKS
 // =========================================================
@@ -31,6 +201,10 @@ function isUuid(value) {
 // SINGLE PROJECT
 // GET /api/tasks?scope=project&project_id=UUID
 // → all tasks for one project
+//
+// BUSINESS RECORD
+// GET /api/tasks?scope=record&record_type=quote&record_id=UUID
+// → all tasks linked to one business record
 //
 // =========================================================
 
@@ -80,6 +254,16 @@ export async function GET(
         "project_id"
       );
 
+    const recordType =
+      url.searchParams.get(
+        "record_type"
+      );
+
+    const recordId =
+      url.searchParams.get(
+        "record_id"
+      );
+
     let query =
       access.supabase
         .from("tasks")
@@ -127,7 +311,9 @@ export async function GET(
     ) {
       if (
         !projectId ||
-        !isUuid(projectId)
+        !isUuid(
+          projectId
+        )
       ) {
         return NextResponse.json(
           {
@@ -145,6 +331,62 @@ export async function GET(
           "project_id",
           projectId
         );
+    }
+
+    // =====================================================
+    // BUSINESS RECORD
+    // =====================================================
+
+    else if (
+      scope === "record"
+    ) {
+      if (
+        !recordId ||
+        !isUuid(
+          recordId
+        )
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "A valid record_id is required for record task scope.",
+          },
+          {
+            status: 400,
+          }
+        );
+      }
+
+      const recordAliases =
+        getRecordTypeAliases(
+          recordType
+        );
+
+      if (
+        recordAliases.length ===
+        0
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "A supported record_type is required for record task scope.",
+          },
+          {
+            status: 400,
+          }
+        );
+      }
+
+      query =
+        query
+          .eq(
+            "record_id",
+            recordId
+          )
+          .in(
+            "record_type",
+            recordAliases
+          );
     }
 
     // =====================================================
@@ -180,9 +422,19 @@ export async function GET(
       );
     }
 
+    const tasks =
+      await enrichTasksWithEmployees({
+        supabase:
+          access.supabase,
+
+        organizationId,
+
+        tasks:
+          data || [],
+      });
+
     return NextResponse.json({
-      tasks:
-        data || [],
+      tasks,
 
       scope,
 
