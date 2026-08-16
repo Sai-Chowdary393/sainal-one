@@ -21,6 +21,7 @@ const EMPTY_EDIT_FORM = {
   description: "",
   status: "To Do",
   due_date: "",
+  assigned_employee_id: "",
 };
 
 export default function TaskTable({
@@ -44,6 +45,124 @@ export default function TaskTable({
   ] = useState(
     EMPTY_EDIT_FORM
   );
+
+  const [
+    employees,
+    setEmployees,
+  ] = useState([]);
+
+  const [
+    currentEmployee,
+    setCurrentEmployee,
+  ] = useState(null);
+
+  const [
+    loadingEmployees,
+    setLoadingEmployees,
+  ] = useState(false);
+
+  // =======================================================
+  // LOAD EMPLOYEES
+  // =======================================================
+
+  useEffect(() => {
+    loadEmployees();
+  }, []);
+
+  async function loadEmployees() {
+    try {
+      setLoadingEmployees(
+        true
+      );
+
+      const response =
+        await fetch(
+          "/api/employees",
+          {
+            cache:
+              "no-store",
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error ||
+            "Failed to load employees."
+        );
+      }
+
+      const employeeRows =
+        Array.isArray(
+          data?.employees
+        )
+          ? data.employees
+          : [];
+
+      const activeEmployees =
+        employeeRows
+          .filter(
+            (
+              employee
+            ) =>
+              employee?.id &&
+              employee
+                ?.is_active !==
+                false &&
+              normaliseValue(
+                employee
+                  ?.employment_status
+              ) !==
+                "inactive"
+          )
+          .sort(
+            (
+              first,
+              second
+            ) =>
+              String(
+                first.full_name ||
+                  first.email ||
+                  ""
+              ).localeCompare(
+                String(
+                  second.full_name ||
+                    second.email ||
+                    ""
+                )
+              )
+          );
+
+      setEmployees(
+        activeEmployees
+      );
+
+      setCurrentEmployee(
+        data?.currentEmployee ||
+          null
+      );
+    } catch (error) {
+      console.error(
+        "Task employee loading error:",
+        error
+      );
+
+      setEmployees([]);
+      setCurrentEmployee(
+        null
+      );
+    } finally {
+      setLoadingEmployees(
+        false
+      );
+    }
+  }
+
+  // =======================================================
+  // EDITING
+  // =======================================================
 
   useEffect(() => {
     if (
@@ -89,6 +208,10 @@ export default function TaskTable({
         normaliseDateInput(
           task.due_date
         ),
+
+      assigned_employee_id:
+        task.assigned_employee_id ||
+        "",
     });
   }
 
@@ -165,6 +288,16 @@ export default function TaskTable({
 
           due_date:
             editForm.due_date ||
+            null,
+
+          /*
+           * Empty string deliberately becomes NULL.
+           *
+           * This allows an organisation owner
+           * to make an existing task Unassigned.
+           */
+          assigned_employee_id:
+            editForm.assigned_employee_id ||
             null,
         }
       );
@@ -251,6 +384,10 @@ export default function TaskTable({
             </th>
 
             <th>
+              Assigned to
+            </th>
+
+            <th>
               Status
             </th>
 
@@ -300,6 +437,15 @@ export default function TaskTable({
                   }
                   editForm={
                     editForm
+                  }
+                  employees={
+                    employees
+                  }
+                  currentEmployee={
+                    currentEmployee
+                  }
+                  loadingEmployees={
+                    loadingEmployees
                   }
                   updating={
                     String(
@@ -371,6 +517,9 @@ function TaskRows({
   overdue,
   isEditing,
   editForm,
+  employees,
+  currentEmployee,
+  loadingEmployees,
   updating,
   deleting,
   saving,
@@ -391,6 +540,12 @@ function TaskRows({
     saving ||
     deleting ||
     isEditing;
+
+  const assignee =
+    getAssignee({
+      task,
+      employees,
+    });
 
   return (
     <>
@@ -458,6 +613,26 @@ function TaskRows({
             {task.description ||
               "No description"}
           </span>
+        </td>
+
+        {/* ASSIGNEE */}
+
+        <td>
+          <div>
+            <strong>
+              {assignee.name}
+            </strong>
+
+            {assignee.subtitle && (
+              <div
+                className={
+                  styles.taskDescription
+                }
+              >
+                {assignee.subtitle}
+              </div>
+            )}
+          </div>
         </td>
 
         {/* STATUS */}
@@ -612,7 +787,7 @@ function TaskRows({
           }
         >
           <td
-            colSpan="6"
+            colSpan="7"
             className={
               styles.editCell
             }
@@ -661,6 +836,84 @@ function TaskRows({
                   />
                 </div>
 
+                {/* ASSIGNED TO */}
+
+                <div
+                  className={
+                    styles.field
+                  }
+                >
+                  <label
+                    htmlFor={`edit-task-assignee-${task.id}`}
+                  >
+                    Assigned to
+                  </label>
+
+                  <select
+                    id={`edit-task-assignee-${task.id}`}
+                    name="assigned_employee_id"
+                    value={
+                      editForm.assigned_employee_id ||
+                      ""
+                    }
+                    onChange={
+                      onEditChange
+                    }
+                    disabled={
+                      saving ||
+                      loadingEmployees
+                    }
+                  >
+                    <option value="">
+                      {loadingEmployees
+                        ? "Loading employees..."
+                        : "Unassigned"}
+                    </option>
+
+                    {employees.map(
+                      (
+                        employee
+                      ) => {
+                        const employeeName =
+                          employee.full_name ||
+                          employee.email ||
+                          employee.employee_number ||
+                          "Employee";
+
+                        const isCurrentEmployee =
+                          currentEmployee?.id &&
+                          String(
+                            employee.id
+                          ) ===
+                            String(
+                              currentEmployee.id
+                            );
+
+                        return (
+                          <option
+                            key={
+                              employee.id
+                            }
+                            value={
+                              employee.id
+                            }
+                          >
+                            {employeeName}
+
+                            {employee.job_title
+                              ? ` — ${employee.job_title}`
+                              : ""}
+
+                            {isCurrentEmployee
+                              ? " (You)"
+                              : ""}
+                          </option>
+                        );
+                      }
+                    )}
+                  </select>
+                </div>
+
                 {/* STATUS */}
 
                 <div
@@ -706,36 +959,6 @@ function TaskRows({
                   </select>
                 </div>
 
-                {/* DESCRIPTION */}
-
-                <div
-                  className={`${styles.field} ${styles.fieldFull}`}
-                >
-                  <label
-                    htmlFor={`edit-task-description-${task.id}`}
-                  >
-                    Description
-                  </label>
-
-                  <textarea
-                    id={`edit-task-description-${task.id}`}
-                    name="description"
-                    value={
-                      editForm
-                        .description
-                    }
-                    onChange={
-                      onEditChange
-                    }
-                    rows={
-                      4
-                    }
-                    disabled={
-                      saving
-                    }
-                  />
-                </div>
-
                 {/* DUE DATE */}
 
                 <div
@@ -759,6 +982,36 @@ function TaskRows({
                     }
                     onChange={
                       onEditChange
+                    }
+                    disabled={
+                      saving
+                    }
+                  />
+                </div>
+
+                {/* DESCRIPTION */}
+
+                <div
+                  className={`${styles.field} ${styles.fieldFull}`}
+                >
+                  <label
+                    htmlFor={`edit-task-description-${task.id}`}
+                  >
+                    Description
+                  </label>
+
+                  <textarea
+                    id={`edit-task-description-${task.id}`}
+                    name="description"
+                    value={
+                      editForm
+                        .description
+                    }
+                    onChange={
+                      onEditChange
+                    }
+                    rows={
+                      4
                     }
                     disabled={
                       saving
@@ -835,10 +1088,6 @@ function TaskStatusActions({
     );
   }
 
-  // =======================================================
-  // TO DO
-  // =======================================================
-
   if (
     status ===
     "to do"
@@ -862,10 +1111,6 @@ function TaskStatusActions({
       </button>
     );
   }
-
-  // =======================================================
-  // IN PROGRESS
-  // =======================================================
 
   if (
     status ===
@@ -910,10 +1155,6 @@ function TaskStatusActions({
     );
   }
 
-  // =======================================================
-  // BLOCKED
-  // =======================================================
-
   if (
     status ===
     "blocked"
@@ -937,10 +1178,6 @@ function TaskStatusActions({
       </button>
     );
   }
-
-  // =======================================================
-  // COMPLETED
-  // =======================================================
 
   if (
     status ===
@@ -967,6 +1204,88 @@ function TaskStatusActions({
   }
 
   return null;
+}
+
+// =========================================================
+// ASSIGNEE
+// =========================================================
+
+function getAssignee({
+  task,
+  employees,
+}) {
+  /*
+   * The newer /api/tasks response already
+   * enriches tasks with assigned_employee.
+   */
+
+  if (
+    task.assigned_employee
+  ) {
+    return {
+      name:
+        task.assigned_employee
+          .full_name ||
+        task.assigned_employee
+          .email ||
+        "Assigned employee",
+
+      subtitle:
+        task.assigned_employee
+          .job_title ||
+        null,
+    };
+  }
+
+  /*
+   * Fallback to the employee directory.
+   */
+
+  if (
+    task.assigned_employee_id
+  ) {
+    const employee =
+      employees.find(
+        (
+          item
+        ) =>
+          String(
+            item.id
+          ) ===
+          String(
+            task.assigned_employee_id
+          )
+      );
+
+    if (employee) {
+      return {
+        name:
+          employee.full_name ||
+          employee.email ||
+          "Assigned employee",
+
+        subtitle:
+          employee.job_title ||
+          null,
+      };
+    }
+
+    return {
+      name:
+        "Assigned employee",
+
+      subtitle:
+        null,
+    };
+  }
+
+  return {
+    name:
+      "Unassigned",
+
+    subtitle:
+      null,
+  };
 }
 
 // =========================================================
@@ -1077,7 +1396,7 @@ function normaliseDateInput(
 }
 
 // =========================================================
-// STATUS
+// NORMALISE
 // =========================================================
 
 function normaliseTaskStatus(
@@ -1086,6 +1405,17 @@ function normaliseTaskStatus(
   return String(
     value ||
       "To Do"
+  )
+    .trim()
+    .toLowerCase();
+}
+
+function normaliseValue(
+  value
+) {
+  return String(
+    value ||
+      ""
   )
     .trim()
     .toLowerCase();
