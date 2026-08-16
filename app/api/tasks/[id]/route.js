@@ -16,29 +16,7 @@ function isUuid(value) {
   );
 }
 
-function buildTaskAccessQuery({
-  supabase,
-  organizationId,
-  employee,
-  taskId,
-}) {
-  let query = supabase
-    .from("tasks")
-    .select("*")
-    .eq("id", taskId)
-    .eq("organization_id", organizationId);
-
-  if (!employee.is_organization_owner) {
-    query = query.eq(
-      "assigned_employee_id",
-      employee.id
-    );
-  }
-
-  return query;
-}
-
-function normaliseActivityValue(value) {
+function normaliseText(value) {
   if (
     value === null ||
     value === undefined
@@ -46,15 +24,223 @@ function normaliseActivityValue(value) {
     return "";
   }
 
-  if (typeof value === "object") {
+  return String(value).trim();
+}
+
+class TaskValidationError extends Error {
+  constructor(message) {
+    super(message);
+
+    this.name =
+      "TaskValidationError";
+
+    this.status =
+      400;
+  }
+}
+
+class TaskPermissionError extends Error {
+  constructor(message) {
+    super(message);
+
+    this.name =
+      "TaskPermissionError";
+
+    this.status =
+      403;
+  }
+}
+
+// =========================================================
+// TASK ACCESS
+// =========================================================
+
+function buildTaskAccessQuery({
+  supabase,
+  organizationId,
+  employee,
+  taskId,
+}) {
+  let query =
+    supabase
+      .from("tasks")
+      .select("*")
+      .eq(
+        "id",
+        taskId
+      )
+      .eq(
+        "organization_id",
+        organizationId
+      );
+
+  if (
+    !employee
+      .is_organization_owner
+  ) {
+    query =
+      query.eq(
+        "assigned_employee_id",
+        employee.id
+      );
+  }
+
+  return query;
+}
+
+// =========================================================
+// ASSIGNMENT VALIDATION
+// =========================================================
+
+async function validateAssignedEmployee({
+  access,
+  assignedEmployeeId,
+}) {
+  /*
+   * NULL / empty means deliberately Unassigned.
+   */
+
+  if (
+    assignedEmployeeId ===
+      null ||
+    assignedEmployeeId ===
+      undefined ||
+    normaliseText(
+      assignedEmployeeId
+    ) ===
+      ""
+  ) {
+    return null;
+  }
+
+  const employeeId =
+    normaliseText(
+      assignedEmployeeId
+    );
+
+  if (
+    !isUuid(
+      employeeId
+    )
+  ) {
+    throw new TaskValidationError(
+      "A valid employee ID is required for task assignment."
+    );
+  }
+
+  /*
+   * Only organisation owners may currently
+   * reassign tasks.
+   *
+   * Later this can be extended to managers
+   * or a tasks.assign permission.
+   */
+
+  if (
+    !access.employee
+      .is_organization_owner
+  ) {
+    throw new TaskPermissionError(
+      "You do not have permission to reassign this task."
+    );
+  }
+
+  const {
+    data: employee,
+    error,
+  } =
+    await access.supabase
+      .from("employees")
+      .select(
+        `
+          id,
+          organization_id,
+          full_name,
+          email,
+          job_title,
+          employment_status,
+          is_active
+        `
+      )
+      .eq(
+        "id",
+        employeeId
+      )
+      .eq(
+        "organization_id",
+        access.employee
+          .organization_id
+      )
+      .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      error.message
+    );
+  }
+
+  if (!employee) {
+    throw new TaskValidationError(
+      "The selected employee does not belong to this organisation."
+    );
+  }
+
+  if (
+    employee.is_active ===
+    false
+  ) {
+    throw new TaskValidationError(
+      "Tasks cannot be assigned to an inactive employee."
+    );
+  }
+
+  if (
+    normaliseText(
+      employee.employment_status
+    )
+      .toLowerCase() ===
+    "inactive"
+  ) {
+    throw new TaskValidationError(
+      "Tasks cannot be assigned to an inactive employee."
+    );
+  }
+
+  return employee.id;
+}
+
+// =========================================================
+// ACTIVITY HELPERS
+// =========================================================
+
+function normaliseActivityValue(
+  value
+) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return "";
+  }
+
+  if (
+    typeof value ===
+    "object"
+  ) {
     try {
-      return JSON.stringify(value);
+      return JSON.stringify(
+        value
+      );
     } catch {
-      return String(value);
+      return String(
+        value
+      );
     }
   }
 
-  return String(value);
+  return String(
+    value
+  );
 }
 
 function valuesAreEqual(
@@ -62,12 +248,18 @@ function valuesAreEqual(
   second
 ) {
   return (
-    normaliseActivityValue(first) ===
-    normaliseActivityValue(second)
+    normaliseActivityValue(
+      first
+    ) ===
+    normaliseActivityValue(
+      second
+    )
   );
 }
 
-function getFieldLabel(field) {
+function getFieldLabel(
+  field
+) {
   switch (field) {
     case "task_name":
       return "Task name";
@@ -89,7 +281,8 @@ function getFieldLabel(field) {
 
     default:
       return String(
-        field || "Field"
+        field ||
+          "Field"
       );
   }
 }
@@ -98,9 +291,14 @@ function getActivityType({
   field,
   newValue,
 }) {
-  if (field === "status") {
+  if (
+    field ===
+    "status"
+  ) {
     if (
-      String(newValue || "")
+      String(
+        newValue || ""
+      )
         .trim()
         .toLowerCase() ===
       "completed"
@@ -127,19 +325,26 @@ function getActivityMessage({
   newValue,
 }) {
   const fieldLabel =
-    getFieldLabel(field);
+    getFieldLabel(
+      field
+    );
 
   const oldText =
     normaliseActivityValue(
       oldValue
-    ) || "Empty";
+    ) ||
+    "Empty";
 
   const newText =
     normaliseActivityValue(
       newValue
-    ) || "Empty";
+    ) ||
+    "Empty";
 
-  if (field === "status") {
+  if (
+    field ===
+    "status"
+  ) {
     if (
       newText
         .trim()
@@ -152,19 +357,31 @@ function getActivityMessage({
     return `Status changed from ${oldText} to ${newText}.`;
   }
 
-  if (field === "priority") {
+  if (
+    field ===
+    "priority"
+  ) {
     return `Priority changed from ${oldText} to ${newText}.`;
   }
 
-  if (field === "due_date") {
+  if (
+    field ===
+    "due_date"
+  ) {
     return `Due date changed from ${oldText} to ${newText}.`;
   }
 
-  if (field === "task_name") {
+  if (
+    field ===
+    "task_name"
+  ) {
     return "Task name was updated.";
   }
 
-  if (field === "description") {
+  if (
+    field ===
+    "description"
+  ) {
     return "Task description was updated.";
   }
 
@@ -172,11 +389,27 @@ function getActivityMessage({
     field ===
     "assigned_employee_id"
   ) {
+    if (
+      !newValue
+    ) {
+      return "Task was unassigned.";
+    }
+
+    if (
+      !oldValue
+    ) {
+      return "Task was assigned to an employee.";
+    }
+
     return "Task assignment was changed.";
   }
 
   return `${fieldLabel} changed from ${oldText} to ${newText}.`;
 }
+
+// =========================================================
+// WRITE TASK ACTIVITY
+// =========================================================
 
 async function writeTaskActivity({
   supabase,
@@ -187,14 +420,21 @@ async function writeTaskActivity({
   updatedTask,
   fields,
 }) {
-  const activityRows = [];
+  const activityRows =
+    [];
 
-  for (const field of fields) {
+  for (
+    const field of fields
+  ) {
     const oldValue =
-      existingTask?.[field];
+      existingTask?.[
+        field
+      ];
 
     const newValue =
-      updatedTask?.[field];
+      updatedTask?.[
+        field
+      ];
 
     if (
       valuesAreEqual(
@@ -227,12 +467,14 @@ async function writeTaskActivity({
       old_value:
         normaliseActivityValue(
           oldValue
-        ) || null,
+        ) ||
+        null,
 
       new_value:
         normaliseActivityValue(
           newValue
-        ) || null,
+        ) ||
+        null,
 
       message:
         getActivityMessage({
@@ -250,15 +492,21 @@ async function writeTaskActivity({
     return;
   }
 
-  const { error } =
+  const {
+    error,
+  } =
     await supabase
-      .from("task_activity")
-      .insert(activityRows);
+      .from(
+        "task_activity"
+      )
+      .insert(
+        activityRows
+      );
 
   if (error) {
     /*
-     * A task update should remain successful
-     * even if audit logging temporarily fails.
+     * Do not fail an otherwise successful task update
+     * because audit logging failed.
      */
     console.error(
       "Task activity logging error:",
@@ -276,10 +524,16 @@ export async function GET(
   context
 ) {
   try {
-    const { id } =
+    const {
+      id,
+    } =
       await context.params;
 
-    if (!isUuid(id)) {
+    if (
+      !isUuid(
+        id
+      )
+    ) {
       return NextResponse.json(
         {
           error:
@@ -294,7 +548,9 @@ export async function GET(
     const access =
       await getServerAccess();
 
-    if (!access.employee) {
+    if (
+      !access.employee
+    ) {
       return NextResponse.json(
         {
           error:
@@ -360,7 +616,9 @@ export async function GET(
           "Unable to load task.",
       },
       {
-        status: 500,
+        status:
+          error.status ||
+          500,
       }
     );
   }
@@ -375,10 +633,16 @@ export async function PATCH(
   context
 ) {
   try {
-    const { id } =
+    const {
+      id,
+    } =
       await context.params;
 
-    if (!isUuid(id)) {
+    if (
+      !isUuid(
+        id
+      )
+    ) {
       return NextResponse.json(
         {
           error:
@@ -393,7 +657,9 @@ export async function PATCH(
     const access =
       await getServerAccess();
 
-    if (!access.employee) {
+    if (
+      !access.employee
+    ) {
       return NextResponse.json(
         {
           error:
@@ -414,7 +680,8 @@ export async function PATCH(
     // =====================================================
 
     const {
-      data: existingTask,
+      data:
+        existingTask,
       error:
         existingTaskError,
     } =
@@ -433,13 +700,17 @@ export async function PATCH(
           id,
       }).maybeSingle();
 
-    if (existingTaskError) {
+    if (
+      existingTaskError
+    ) {
       throw new Error(
         existingTaskError.message
       );
     }
 
-    if (!existingTask) {
+    if (
+      !existingTask
+    ) {
       return NextResponse.json(
         {
           error:
@@ -466,12 +737,16 @@ export async function PATCH(
         "project_id",
       ]);
 
-    const updateValues = {};
+    const updateValues =
+      {};
 
     Object.entries(
       body || {}
     ).forEach(
-      ([key, value]) => {
+      ([
+        key,
+        value,
+      ]) => {
         if (
           protectedFields.has(
             key
@@ -480,22 +755,53 @@ export async function PATCH(
           return;
         }
 
-        updateValues[key] =
+        updateValues[
+          key
+        ] =
           value;
       }
     );
 
-    /*
-     * Normal employees may update their own
-     * assigned task, but may not reassign it.
-     */
+    // =====================================================
+    // ASSIGNMENT SECURITY
+    // =====================================================
+
+    const assignmentWasProvided =
+      Object.prototype.hasOwnProperty.call(
+        updateValues,
+        "assigned_employee_id"
+      );
+
     if (
-      !access.employee
-        .is_organization_owner
+      assignmentWasProvided
     ) {
-      delete updateValues
-        .assigned_employee_id;
+      /*
+       * Normal employees may update their assigned
+       * tasks but may not change ownership.
+       */
+
+      if (
+        !access.employee
+          .is_organization_owner
+      ) {
+        throw new TaskPermissionError(
+          "You do not have permission to reassign this task."
+        );
+      }
+
+      updateValues.assigned_employee_id =
+        await validateAssignedEmployee({
+          access,
+
+          assignedEmployeeId:
+            updateValues
+              .assigned_employee_id,
+        });
     }
+
+    // =====================================================
+    // EDITABLE FIELDS
+    // =====================================================
 
     const editableFields =
       Object.keys(
@@ -530,7 +836,10 @@ export async function PATCH(
         .update(
           updateValues
         )
-        .eq("id", id)
+        .eq(
+          "id",
+          id
+        )
         .eq(
           "organization_id",
           access.employee
@@ -605,7 +914,9 @@ export async function PATCH(
       task,
 
       message:
-        "Task updated successfully.",
+        assignmentWasProvided
+          ? "Task updated and assignment saved successfully."
+          : "Task updated successfully.",
     });
   } catch (error) {
     console.error(
@@ -620,7 +931,9 @@ export async function PATCH(
           "Unable to update task.",
       },
       {
-        status: 500,
+        status:
+          error.status ||
+          500,
       }
     );
   }
@@ -635,10 +948,16 @@ export async function DELETE(
   context
 ) {
   try {
-    const { id } =
+    const {
+      id,
+    } =
       await context.params;
 
-    if (!isUuid(id)) {
+    if (
+      !isUuid(
+        id
+      )
+    ) {
       return NextResponse.json(
         {
           error:
@@ -653,7 +972,9 @@ export async function DELETE(
     const access =
       await getServerAccess();
 
-    if (!access.employee) {
+    if (
+      !access.employee
+    ) {
       return NextResponse.json(
         {
           error:
@@ -667,7 +988,8 @@ export async function DELETE(
     }
 
     const {
-      data: existingTask,
+      data:
+        existingTask,
       error:
         existingTaskError,
     } =
@@ -686,13 +1008,17 @@ export async function DELETE(
           id,
       }).maybeSingle();
 
-    if (existingTaskError) {
+    if (
+      existingTaskError
+    ) {
       throw new Error(
         existingTaskError.message
       );
     }
 
-    if (!existingTask) {
+    if (
+      !existingTask
+    ) {
       return NextResponse.json(
         {
           error:
@@ -706,7 +1032,8 @@ export async function DELETE(
 
     /*
      * Remove associated task history first.
-     * The current table does not use ON DELETE CASCADE.
+     * Current task_activity relationship does not
+     * use ON DELETE CASCADE.
      */
 
     const {
@@ -714,7 +1041,9 @@ export async function DELETE(
         activityDeleteError,
     } =
       await access.supabase
-        .from("task_activity")
+        .from(
+          "task_activity"
+        )
         .delete()
         .eq(
           "organization_id",
@@ -743,7 +1072,10 @@ export async function DELETE(
       access.supabase
         .from("tasks")
         .delete()
-        .eq("id", id)
+        .eq(
+          "id",
+          id
+        )
         .eq(
           "organization_id",
           access.employee
@@ -776,7 +1108,8 @@ export async function DELETE(
 
     if (
       !data ||
-      data.length === 0
+      data.length ===
+        0
     ) {
       return NextResponse.json(
         {
@@ -809,7 +1142,9 @@ export async function DELETE(
           "Unable to delete task.",
       },
       {
-        status: 500,
+        status:
+          error.status ||
+          500,
       }
     );
   }
