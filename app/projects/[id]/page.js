@@ -27,6 +27,7 @@ const EMPTY_TASK_FORM = {
   description: "",
   status: "To Do",
   due_date: "",
+  assigned_employee_id: "",
 };
 
 const COMPLETED_TASK_STATUSES = [
@@ -56,9 +57,24 @@ export default function ProjectDetailsPage() {
   ] = useState([]);
 
   const [
+    employees,
+    setEmployees,
+  ] = useState([]);
+
+  const [
+    currentEmployee,
+    setCurrentEmployee,
+  ] = useState(null);
+
+  const [
     loading,
     setLoading,
   ] = useState(true);
+
+  const [
+    loadingEmployees,
+    setLoadingEmployees,
+  ] = useState(false);
 
   const [
     errorMessage,
@@ -118,18 +134,19 @@ export default function ProjectDetailsPage() {
   ]);
 
   // =======================================================
-  // LOAD PROJECT
+  // LOAD PROJECT WORKSPACE
   // =======================================================
 
   async function fetchProjectDetails() {
     try {
       setLoading(true);
-
+      setLoadingEmployees(true);
       setErrorMessage("");
 
       const [
         projectsResponse,
         tasksResponse,
+        employeesResponse,
       ] = await Promise.all([
         fetch(
           "/api/projects",
@@ -148,6 +165,14 @@ export default function ProjectDetailsPage() {
               "no-store",
           }
         ),
+
+        fetch(
+          "/api/employees",
+          {
+            cache:
+              "no-store",
+          }
+        ),
       ]);
 
       const projectsData =
@@ -155,6 +180,21 @@ export default function ProjectDetailsPage() {
 
       const tasksData =
         await tasksResponse.json();
+
+      let employeesData = {
+        employees: [],
+        currentEmployee: null,
+      };
+
+      try {
+        employeesData =
+          await employeesResponse.json();
+      } catch {
+        employeesData = {
+          employees: [],
+          currentEmployee: null,
+        };
+      }
 
       if (
         !projectsResponse.ok
@@ -172,6 +212,67 @@ export default function ProjectDetailsPage() {
           tasksData.error ||
             "Failed to load project tasks."
         );
+      }
+
+      /*
+       * Do not block the entire Project Workspace
+       * if the employee directory temporarily fails.
+       *
+       * Project and task management can still load;
+       * assignment options simply remain unavailable.
+       */
+      if (
+        employeesResponse.ok
+      ) {
+        const activeEmployees =
+          (
+            Array.isArray(
+              employeesData?.employees
+            )
+              ? employeesData.employees
+              : []
+          )
+            .filter(
+              (employee) =>
+                employee?.id &&
+                employee?.is_active !== false &&
+                normaliseStatus(
+                  employee?.employment_status
+                ) !==
+                  "inactive"
+            )
+            .sort(
+              (first, second) =>
+                String(
+                  first.full_name ||
+                    first.email ||
+                    ""
+                ).localeCompare(
+                  String(
+                    second.full_name ||
+                      second.email ||
+                      ""
+                  )
+                )
+            );
+
+        setEmployees(
+          activeEmployees
+        );
+
+        setCurrentEmployee(
+          employeesData?.currentEmployee ||
+            null
+        );
+      } else {
+        console.error(
+          "Employee directory loading error:",
+          employeesData?.error ||
+            "Unable to load employees."
+        );
+
+        setEmployees([]);
+        setCurrentEmployee(null);
       }
 
       const selectedProject =
@@ -218,6 +319,7 @@ export default function ProjectDetailsPage() {
       );
     } finally {
       setLoading(false);
+      setLoadingEmployees(false);
     }
   }
 
@@ -231,7 +333,8 @@ export default function ProjectDetailsPage() {
     const {
       name,
       value,
-    } = event.target;
+    } =
+      event.target;
 
     setTaskForm(
       (
@@ -246,9 +349,19 @@ export default function ProjectDetailsPage() {
   }
 
   function openTaskForm() {
-    setTaskForm(
-      EMPTY_TASK_FORM
-    );
+    setTaskForm({
+      ...EMPTY_TASK_FORM,
+
+      /*
+       * Default new work to the logged-in employee.
+       *
+       * The user can then choose another employee
+       * from the Assigned to selector.
+       */
+      assigned_employee_id:
+        currentEmployee?.id ||
+        "",
+    });
 
     setShowTaskForm(
       true
@@ -275,7 +388,10 @@ export default function ProjectDetailsPage() {
     event.preventDefault();
 
     const taskName =
-      taskForm.task_name.trim();
+      String(
+        taskForm.task_name ||
+          ""
+      ).trim();
 
     if (!taskName) {
       alert(
@@ -311,7 +427,10 @@ export default function ProjectDetailsPage() {
                   taskName,
 
                 description:
-                  taskForm.description.trim(),
+                  String(
+                    taskForm.description ||
+                      ""
+                  ).trim(),
 
                 status:
                   taskForm.status ||
@@ -323,6 +442,10 @@ export default function ProjectDetailsPage() {
 
                 priority:
                   "Medium",
+
+                assigned_employee_id:
+                  taskForm.assigned_employee_id ||
+                  null,
               }),
           }
         );
@@ -375,6 +498,42 @@ export default function ProjectDetailsPage() {
         taskId
       );
 
+      const updatePayload = {
+        task_name:
+          String(
+            taskData.task_name ||
+              ""
+          ).trim(),
+
+        description:
+          String(
+            taskData.description ||
+              ""
+          ).trim(),
+
+        status:
+          taskData.status ||
+          "To Do",
+
+        due_date:
+          taskData.due_date ||
+          null,
+      };
+
+      /*
+       * TaskTable does not expose reassignment yet.
+       * When we add the employee selector to its inline
+       * editor, this page is already prepared to send it.
+       */
+      if (
+        taskData.assigned_employee_id !==
+        undefined
+      ) {
+        updatePayload.assigned_employee_id =
+          taskData.assigned_employee_id ||
+          null;
+      }
+
       const response =
         await fetch(
           `/api/tasks/${taskId}`,
@@ -388,24 +547,9 @@ export default function ProjectDetailsPage() {
             },
 
             body:
-              JSON.stringify({
-                task_name:
-                  taskData.task_name.trim(),
-
-                description:
-                  String(
-                    taskData.description ||
-                      ""
-                  ).trim(),
-
-                status:
-                  taskData.status ||
-                  "To Do",
-
-                due_date:
-                  taskData.due_date ||
-                  null,
-              }),
+              JSON.stringify(
+                updatePayload
+              ),
           }
         );
 
@@ -998,17 +1142,11 @@ export default function ProjectDetailsPage() {
 
       return {
         totalTasks,
-
         completedTasks,
-
         blockedTasks,
-
         overdueTasks,
-
         inProgressTasks,
-
         progress,
-
         delayed,
       };
     }, [
@@ -1146,6 +1284,8 @@ export default function ProjectDetailsPage() {
             styles.page
           }
         >
+          {/* PAGE HEADER */}
+
           <section
             className={
               styles.pageHeader
@@ -1250,6 +1390,8 @@ export default function ProjectDetailsPage() {
               )}
             </div>
           </section>
+
+          {/* HERO */}
 
           <section
             className={
@@ -1375,6 +1517,8 @@ export default function ProjectDetailsPage() {
               />
             </div>
           </section>
+
+          {/* INFORMATION + AI */}
 
           <section
             className={
@@ -1603,6 +1747,8 @@ export default function ProjectDetailsPage() {
             </section>
           </section>
 
+          {/* PROJECT PROGRESS */}
+
           <section
             className={
               styles.panel
@@ -1712,10 +1858,22 @@ export default function ProjectDetailsPage() {
             </div>
           </section>
 
+          {/* ADD TASK FORM */}
+
           {showTaskForm && (
             <TaskForm
               formData={
                 taskForm
+              }
+              employees={
+                employees
+              }
+              currentEmployeeId={
+                currentEmployee?.id ||
+                null
+              }
+              loadingEmployees={
+                loadingEmployees
               }
               saving={
                 addingTask
@@ -1731,6 +1889,8 @@ export default function ProjectDetailsPage() {
               }
             />
           )}
+
+          {/* TASK TABLE */}
 
           <section
             className={
@@ -1748,9 +1908,10 @@ export default function ProjectDetailsPage() {
                 </h3>
 
                 <p>
-                  Add, edit, complete
-                  and manage project
-                  delivery tasks.
+                  Add, assign, edit,
+                  complete and manage
+                  project delivery
+                  tasks.
                 </p>
               </div>
 
