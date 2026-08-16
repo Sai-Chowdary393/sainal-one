@@ -72,6 +72,7 @@
   font-size: 10px;
   font-weight: 800;
   cursor: pointer;
+  text-decoration: none;
   transition:
     border-color 150ms ease,
     background 150ms ease,
@@ -81,21 +82,24 @@
 
 .primaryButton {
   border: 1px solid #bd8d08;
-  background: linear-gradient(
-    145deg,
-    #dfb83d,
-    #c8940b
-  );
+  background:
+    linear-gradient(
+      145deg,
+      #dfb83d,
+      #c8940b
+    );
   color: #1b1a16;
 }
 
 .primaryButton:hover:not(:disabled) {
-  background: linear-gradient(
-    145deg,
-    #e6c14a,
-    #d1a01a
-  );
-  transform: translateY(-1px);
+  background:
+    linear-gradient(
+      145deg,
+      #e6c14a,
+      #d1a01a
+    );
+  transform:
+    translateY(-1px);
 }
 
 .secondaryButton {
@@ -129,6 +133,10 @@
   opacity: 0.65;
 }
 
+/* =========================================================
+   HERO
+========================================================= */
+
 .heroCard {
   display: grid;
   grid-template-columns:
@@ -146,7 +154,9 @@
       transparent 30%
     ),
     #ffffff;
-  box-shadow: 0 10px 30px rgba(43, 36, 17, 0.05);
+  box-shadow:
+    0 10px 30px
+    rgba(43, 36, 17, 0.05);
 }
 
 .identity {
@@ -163,11 +173,12 @@
   place-items: center;
   flex: 0 0 60px;
   border-radius: 17px;
-  background: linear-gradient(
-    145deg,
-    #24231f,
-    #3a3426
-  );
+  background:
+    linear-gradient(
+      145deg,
+      #24231f,
+      #3a3426
+    );
   color: #deb840;
   font-size: 16px;
   font-weight: 900;
@@ -258,7 +269,10 @@
 .heroMetrics {
   display: grid;
   grid-template-columns:
-    repeat(3, minmax(120px, 1fr));
+    repeat(
+      3,
+      minmax(120px, 1fr)
+    );
   overflow: hidden;
   border: 1px solid #e4dfd2;
   border-radius: 14px;
@@ -270,7 +284,8 @@
   min-width: 0;
   gap: 5px;
   padding: 15px;
-  border-right: 1px solid #e7e0cd;
+  border-right:
+    1px solid #e7e0cd;
 }
 
 .heroMetric:last-child {
@@ -296,10 +311,15 @@
   color: #a44646;
 }
 
+/* =========================================================
+   TABS
+========================================================= */
+
 .tabs {
   display: flex;
   overflow-x: auto;
-  border-bottom: 1px solid #ddd9cf;
+  border-bottom:
+    1px solid #ddd9cf;
   background: transparent;
 }
 
@@ -310,7 +330,8 @@
   gap: 7px;
   padding: 0 17px;
   border: 0;
-  border-bottom: 3px solid transparent;
+  border-bottom:
+    3px solid transparent;
   background: transparent;
   color: #77736a;
   font: inherit;
@@ -325,7 +346,8 @@
 }
 
 .tabButtonActive {
-  border-bottom-color: #c99b17;
+  border-bottom-color:
+    #c99b17;
   color: #8f6a00;
 }
 
@@ -341,15 +363,23 @@
   font-size: 8px;
 }
 
-.tabButtonActive .tabCount {
+.tabButtonActive
+.tabCount {
   background: #f5edcf;
   color: #8d6900;
 }
 
+/* =========================================================
+   PANELS
+========================================================= */
+
 .overviewGrid {
   display: grid;
   grid-template-columns:
-    repeat(2, minmax(0, 1fr));
+    repeat(
+      2,
+      minmax(0, 1fr)
+    );
   align-items: start;
   gap: 18px;
 }
@@ -359,12 +389,15 @@
 .financePanel,
 .recordsSection,
 .recordsPanel,
+.relatedWorkSection,
 .loadingPanel,
 .errorPanel {
   border: 1px solid #dfdcd3;
   border-radius: 18px;
   background: #ffffff;
-  box-shadow: 0 10px 30px rgba(43, 36, 17, 0.05);
+  box-shadow:
+    0 10px 30px
+    rgba(43, 36, 17, 0.05);
 }
 
 .panel,
@@ -378,7 +411,8 @@
   justify-content: space-between;
   gap: 15px;
   padding-bottom: 14px;
-  border-bottom: 1px solid #ece9e2;
+  border-bottom:
+    1px solid #ece9e2;
 }
 
 .panelHeader h3 {
@@ -401,10 +435,12 @@
 .detailRow {
   display: grid;
   grid-template-columns:
-    145px minmax(0, 1fr);
+    145px
+    minmax(0, 1fr);
   gap: 18px;
   padding: 13px 0;
-  border-bottom: 1px solid #f0eee8;
+  border-bottom:
+    1px solid #f0eee8;
 }
 
 .detailRow:last-child {
@@ -433,10 +469,17 @@
   font-weight: 500 !important;
 }
 
+/* =========================================================
+   EDIT FORM
+========================================================= */
+
 .formGrid {
   display: grid;
   grid-template-columns:
-    repeat(2, minmax(0, 1fr));
+    repeat(
+      2,
+      minmax(0, 1fr)
+    );
   gap: 14px;
   margin-top: 17px;
 }
@@ -469,8 +512,14 @@
 .field input:focus,
 .field select:focus {
   border-color: #c69a1b;
-  box-shadow: 0 0 0 4px rgba(198, 154, 27, 0.1);
+  box-shadow:
+    0 0 0 4px
+    rgba(198, 154, 27, 0.1);
 }
+
+/* =========================================================
+   AI
+========================================================= */
 
 .aiPanel {
   overflow: hidden;
@@ -489,7 +538,9 @@
   align-items: center;
   gap: 12px;
   padding: 21px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom:
+    1px solid
+    rgba(255, 255, 255, 0.08);
 }
 
 .aiIcon {
@@ -499,11 +550,12 @@
   place-items: center;
   flex: 0 0 42px;
   border-radius: 12px;
-  background: linear-gradient(
-    145deg,
-    #dfb941,
-    #bc8906
-  );
+  background:
+    linear-gradient(
+      145deg,
+      #dfb941,
+      #bc8906
+    );
   color: #201e18;
   font-size: 17px;
 }
@@ -522,12 +574,21 @@
 }
 
 .aiSummary {
-  padding: 20px 21px 8px;
+  padding:
+    20px
+    21px
+    8px;
 }
 
 .aiSummary p {
   margin: 0;
-  color: rgba(255, 255, 255, 0.68);
+  color:
+    rgba(
+      255,
+      255,
+      255,
+      0.68
+    );
   font-size: 10px;
   line-height: 1.7;
 }
@@ -535,7 +596,10 @@
 .recommendations {
   display: grid;
   gap: 10px;
-  padding: 13px 21px 21px;
+  padding:
+    13px
+    21px
+    21px;
 }
 
 .recommendations > span {
@@ -548,7 +612,8 @@
 .recommendationItem {
   display: grid;
   grid-template-columns:
-    23px minmax(0, 1fr);
+    23px
+    minmax(0, 1fr);
   align-items: flex-start;
   gap: 9px;
 }
@@ -559,7 +624,13 @@
   height: 22px;
   place-items: center;
   border-radius: 7px;
-  background: rgba(212, 175, 55, 0.11);
+  background:
+    rgba(
+      212,
+      175,
+      55,
+      0.11
+    );
   color: #dbb63d;
   font-size: 10px;
 }
@@ -567,15 +638,28 @@
 .recommendationItem p,
 .emptyRecommendation {
   margin: 2px 0 0;
-  color: rgba(255, 255, 255, 0.63);
+  color:
+    rgba(
+      255,
+      255,
+      255,
+      0.63
+    );
   font-size: 9px;
   line-height: 1.55;
 }
 
+/* =========================================================
+   FINANCE
+========================================================= */
+
 .financeGrid {
   display: grid;
   grid-template-columns:
-    repeat(4, minmax(0, 1fr));
+    repeat(
+      4,
+      minmax(0, 1fr)
+    );
   gap: 11px;
   margin-top: 17px;
 }
@@ -614,7 +698,10 @@
 .accountGrid {
   display: grid;
   grid-template-columns:
-    repeat(3, minmax(0, 1fr));
+    repeat(
+      3,
+      minmax(0, 1fr)
+    );
   gap: 10px;
   margin-top: 17px;
 }
@@ -638,6 +725,10 @@
   font-size: 8px;
   font-weight: 750;
 }
+
+/* =========================================================
+   LEAD / TIMELINE
+========================================================= */
 
 .originalLead {
   display: grid;
@@ -670,7 +761,8 @@
 .timelineItem {
   display: grid;
   grid-template-columns:
-    12px minmax(0, 1fr);
+    12px
+    minmax(0, 1fr);
   gap: 11px;
 }
 
@@ -682,7 +774,8 @@
   border-radius: 50%;
   background: #c99b17;
   box-shadow:
-    0 0 0 2px #e9ddba;
+    0 0 0 2px
+    #e9ddba;
 }
 
 .timelineItem strong {
@@ -696,13 +789,18 @@
   font-size: 9px;
 }
 
+/* =========================================================
+   RECORDS
+========================================================= */
+
 .recordsSection {
   overflow: hidden;
 }
 
 .recordsSectionHeader {
   padding: 20px 21px;
-  border-bottom: 1px solid #ebe8e1;
+  border-bottom:
+    1px solid #ebe8e1;
 }
 
 .recordsSectionHeader h3 {
@@ -720,7 +818,10 @@
 .recordsGrid {
   display: grid;
   grid-template-columns:
-    repeat(2, minmax(0, 1fr));
+    repeat(
+      2,
+      minmax(0, 1fr)
+    );
   gap: 18px;
   padding: 18px;
   background: #f7f5ef;
@@ -737,7 +838,8 @@
   justify-content: space-between;
   gap: 15px;
   padding: 16px 18px;
-  border-bottom: 1px solid #ece9e2;
+  border-bottom:
+    1px solid #ece9e2;
 }
 
 .recordsPanelHeader h3 {
@@ -770,7 +872,8 @@
 
 .recordsTable th {
   padding: 12px 16px;
-  border-bottom: 1px solid #e9e6df;
+  border-bottom:
+    1px solid #e9e6df;
   background: #faf9f6;
   color: #8c887f;
   font-size: 8px;
@@ -782,17 +885,23 @@
 
 .recordsTable td {
   padding: 15px 16px;
-  border-bottom: 1px solid #efede7;
+  border-bottom:
+    1px solid #efede7;
   color: #4f4b44;
   font-size: 10px;
   vertical-align: middle;
 }
 
-.recordsTable tbody tr:last-child td {
+.recordsTable
+tbody
+tr:last-child
+td {
   border-bottom: 0;
 }
 
-.recordsTable tbody tr:hover {
+.recordsTable
+tbody
+tr:hover {
   background: #fcfaf4;
 }
 
@@ -804,6 +913,287 @@
 .recordLink:hover {
   color: #947000;
 }
+
+/* =========================================================
+   RELATED WORK
+========================================================= */
+
+.relatedWorkSection {
+  overflow: hidden;
+}
+
+.relatedWorkHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 22px 24px;
+  border-bottom:
+    1px solid #e9e6de;
+  background:
+    radial-gradient(
+      circle at 100% 0,
+      rgba(
+        212,
+        175,
+        55,
+        0.12
+      ),
+      transparent 30%
+    ),
+    linear-gradient(
+      180deg,
+      #fdfbf6,
+      #ffffff
+    );
+}
+
+.relatedWorkHeader h3 {
+  margin: 5px 0 0;
+  color: #29261f;
+  font-size: 19px;
+}
+
+.relatedWorkHeader p {
+  max-width: 620px;
+  margin: 5px 0 0;
+  color: #918d84;
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.relatedWorkSummary {
+  display: grid;
+  grid-template-columns:
+    repeat(
+      4,
+      minmax(78px, 1fr)
+    );
+  gap: 8px;
+}
+
+.workMetric {
+  display: grid;
+  min-width: 78px;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f5edcf;
+  text-align: center;
+}
+
+.workMetric strong {
+  color: #886500;
+  font-size: 15px;
+}
+
+.workMetric span {
+  color: #9a7d23;
+  font-size: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.workMetricSuccess {
+  background: #e3f2e8;
+}
+
+.workMetricSuccess strong {
+  color: #357552;
+}
+
+.workMetricSuccess span {
+  color: #5b876c;
+}
+
+.workMetricDanger {
+  background: #fae5e5;
+}
+
+.workMetricDanger strong {
+  color: #a44242;
+}
+
+.workMetricDanger span {
+  color: #ad6666;
+}
+
+.relatedWorkList {
+  display: grid;
+  gap: 12px;
+  padding: 20px;
+  background: #f8f7f3;
+}
+
+.relatedTaskCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px;
+  border: 1px solid #dedad0;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow:
+    0 4px 16px
+    rgba(43, 36, 17, 0.035);
+}
+
+.relatedTaskMain {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: flex-start;
+  gap: 13px;
+}
+
+.relatedTaskIcon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  flex: 0 0 42px;
+  border-radius: 12px;
+  background: #f5edcf;
+  color: #8d6900;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.relatedTaskIconCompleted {
+  background: #e3f2e8;
+  color: #367653;
+}
+
+.relatedTaskCopy {
+  min-width: 0;
+  flex: 1;
+}
+
+.relatedTaskTitleRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 9px;
+}
+
+.relatedTaskTitleRow > a {
+  color: #302d27;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.relatedTaskTitleRow > a:hover {
+  color: #947000;
+}
+
+.relatedTaskCopy > p {
+  max-width: 760px;
+  margin: 6px 0 0;
+  overflow: hidden;
+  color: #858178;
+  font-size: 10px;
+  line-height: 1.55;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.relatedTaskMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.relatedTaskMeta span {
+  display: inline-flex;
+  min-height: 26px;
+  align-items: center;
+  padding: 0 9px;
+  border-radius: 7px;
+  background: #f3f1ec;
+  color: #757168;
+  font-size: 8px;
+  font-weight: 750;
+}
+
+.relatedTaskMeta
+.workflowSourceBadge {
+  background: #f5edcf;
+  color: #8d6800;
+}
+
+.relatedTaskMeta
+.relatedTaskOverdue {
+  background: #fae5e5;
+  color: #a44242;
+}
+
+.relatedTaskActions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.relatedTaskOpen {
+  color: #8d6800;
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.relatedTaskOpen:hover {
+  color: #604800;
+}
+
+.secondaryRecordLink {
+  color: #77736a;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.secondaryRecordLink:hover {
+  color: #947000;
+}
+
+.relatedWorkEmpty {
+  display: grid;
+  min-height: 250px;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  padding: 30px;
+  text-align: center;
+}
+
+.relatedWorkEmpty > span {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: 14px;
+  background: #f5edcf;
+  color: #987000;
+  font-size: 19px;
+}
+
+.relatedWorkEmpty h4 {
+  margin: 3px 0 0;
+  color: #35312b;
+  font-size: 15px;
+}
+
+.relatedWorkEmpty p {
+  max-width: 430px;
+  margin: 0;
+  color: #99958c;
+  font-size: 9px;
+  line-height: 1.6;
+}
+
+/* =========================================================
+   EMPTY / ERROR / LOADING
+========================================================= */
 
 .emptyState {
   display: grid;
@@ -834,15 +1224,19 @@
 .loadingRow {
   height: 70px;
   border-radius: 12px;
-  background: linear-gradient(
-    90deg,
-    #e9e6df 25%,
-    #f5f3ee 50%,
-    #e9e6df 75%
-  );
-  background-size: 200% 100%;
+  background:
+    linear-gradient(
+      90deg,
+      #e9e6df 25%,
+      #f5f3ee 50%,
+      #e9e6df 75%
+    );
+  background-size:
+    200% 100%;
   animation:
-    loadingPulse 1.4s infinite;
+    loadingPulse
+    1.4s
+    infinite;
 }
 
 .errorPanel {
@@ -900,30 +1294,53 @@
 
 @keyframes loadingPulse {
   from {
-    background-position: 200% 0;
+    background-position:
+      200% 0;
   }
 
   to {
-    background-position: -200% 0;
+    background-position:
+      -200% 0;
   }
 }
 
-@media (max-width: 1150px) {
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (
+  max-width: 1150px
+) {
   .heroCard {
-    grid-template-columns: 1fr;
+    grid-template-columns:
+      1fr;
   }
 
   .overviewGrid {
-    grid-template-columns: 1fr;
+    grid-template-columns:
+      1fr;
   }
 
   .financeGrid {
     grid-template-columns:
-      repeat(2, minmax(0, 1fr));
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
+  }
+
+  .relatedWorkHeader {
+    flex-direction: column;
+  }
+
+  .relatedWorkSummary {
+    width: 100%;
   }
 }
 
-@media (max-width: 850px) {
+@media (
+  max-width: 850px
+) {
   .pageHeader {
     align-items: stretch;
     flex-direction: column;
@@ -934,7 +1351,8 @@
   }
 
   .heroMetrics {
-    grid-template-columns: 1fr;
+    grid-template-columns:
+      1fr;
   }
 
   .heroMetric {
@@ -948,16 +1366,29 @@
   }
 
   .recordsGrid {
-    grid-template-columns: 1fr;
+    grid-template-columns:
+      1fr;
   }
 
   .formGrid,
   .financeGrid {
-    grid-template-columns: 1fr;
+    grid-template-columns:
+      1fr;
+  }
+
+  .relatedTaskCard {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .relatedTaskActions {
+    margin-left: 55px;
   }
 }
 
-@media (max-width: 560px) {
+@media (
+  max-width: 560px
+) {
   .headerActions {
     flex-direction: column;
   }
@@ -978,43 +1409,86 @@
 
   .accountGrid {
     grid-template-columns:
-      repeat(2, minmax(0, 1fr));
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
   }
 
   .originalLead {
-    grid-template-columns: 1fr;
+    grid-template-columns:
+      1fr;
     align-items: flex-start;
   }
 
   .detailRow {
-    grid-template-columns: 1fr;
+    grid-template-columns:
+      1fr;
     gap: 6px;
   }
+
+  .relatedWorkSummary {
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
+  }
+
+  .relatedTaskMain {
+    align-items: flex-start;
+  }
+
+  .relatedTaskCopy > p {
+    white-space: normal;
+  }
+
+  .relatedTaskActions {
+    flex-direction: column;
+    align-items: flex-start;
+    margin-left: 55px;
+  }
 }
-/* ==================================================
+
+/* =========================================================
    SaiNal One Typography — Customer Details
-================================================== */
+========================================================= */
 
 .backLink,
 .eyebrow {
-  font-size: var(--font-label);
+  font-size:
+    var(
+      --font-label
+    );
 }
 
 .pageHeader h2 {
-  font-size: var(--font-workspace-title);
+  font-size:
+    var(
+      --font-workspace-title
+    );
   line-height: 1.2;
 }
 
 .pageHeader p {
-  font-size: var(--font-helper);
-  line-height: var(--line-helper);
+  font-size:
+    var(
+      --font-helper
+    );
+  line-height:
+    var(
+      --line-helper
+    );
 }
 
 .primaryButton,
 .secondaryButton,
 .actionButton,
 .recordButton {
-  font-size: var(--font-button);
+  font-size:
+    var(
+      --font-button
+    );
 }
 
 .identityCopy h3 {
@@ -1023,17 +1497,29 @@
 }
 
 .identityCopy p {
-  font-size: var(--font-helper);
-  line-height: var(--line-helper);
+  font-size:
+    var(
+      --font-helper
+    );
+  line-height:
+    var(
+      --line-helper
+    );
 }
 
 .metaBadge,
 .healthBadge {
-  font-size: var(--font-label);
+  font-size:
+    var(
+      --font-label
+    );
 }
 
 .heroMetric span {
-  font-size: var(--font-label);
+  font-size:
+    var(
+      --font-label
+    );
 }
 
 .heroMetric strong {
@@ -1041,91 +1527,147 @@
 }
 
 .tabButton {
-  font-size: var(--font-button);
+  font-size:
+    var(
+      --font-button
+    );
 }
 
 .tabCount {
-  font-size: var(--font-meta);
+  font-size:
+    var(
+      --font-meta
+    );
 }
 
 .panelHeader h3,
-.recordsSectionHeader h3 {
-  font-size: var(--font-panel-title);
+.recordsSectionHeader h3,
+.relatedWorkHeader h3 {
+  font-size:
+    var(
+      --font-panel-title
+    );
 }
 
 .panelHeader p,
-.recordsSectionHeader p {
-  font-size: var(--font-helper);
-  line-height: var(--line-helper);
+.recordsSectionHeader p,
+.relatedWorkHeader p {
+  font-size:
+    var(
+      --font-helper
+    );
+  line-height:
+    var(
+      --line-helper
+    );
 }
 
 .detailRow > span {
-  font-size: var(--font-helper);
+  font-size:
+    var(
+      --font-helper
+    );
 }
 
 .detailRow strong,
 .detailRow a {
-  font-size: var(--font-body);
+  font-size:
+    var(
+      --font-body
+    );
   line-height: 1.5;
 }
 
 .field label {
-  font-size: var(--font-helper);
+  font-size:
+    var(
+      --font-helper
+    );
 }
 
 .field input,
 .field select {
-  font-size: var(--font-input);
+  font-size:
+    var(
+      --font-input
+    );
 }
 
 .aiHeader span,
 .recommendations > span {
-  font-size: var(--font-label);
+  font-size:
+    var(
+      --font-label
+    );
 }
 
 .aiHeader h3 {
-  font-size: var(--font-panel-title);
+  font-size:
+    var(
+      --font-panel-title
+    );
 }
 
 .aiSummary p {
-  font-size: var(--font-body);
+  font-size:
+    var(
+      --font-body
+    );
   line-height: 1.7;
 }
 
 .recommendationItem p,
 .emptyRecommendation {
-  font-size: var(--font-helper);
+  font-size:
+    var(
+      --font-helper
+    );
   line-height: 1.6;
 }
 
 .financeMetric span,
 .accountMetric span {
-  font-size: var(--font-label);
+  font-size:
+    var(
+      --font-label
+    );
 }
 
-.financeMetric strong {
-  font-size: 21px;
-}
-
+.financeMetric strong,
 .accountMetric strong {
   font-size: 21px;
 }
 
 .originalLead strong {
-  font-size: var(--font-body);
+  font-size:
+    var(
+      --font-body
+    );
 }
 
 .originalLead p {
-  font-size: var(--font-helper);
-  line-height: var(--line-helper);
+  font-size:
+    var(
+      --font-helper
+    );
+  line-height:
+    var(
+      --line-helper
+    );
 }
 
 .timelineItem strong {
-  font-size: var(--font-body);
+  font-size:
+    var(
+      --font-body
+    );
 }
 
 .timelineItem p {
-  font-size: var(--font-helper);
+  font-size:
+    var(
+      --font-helper
+    );
   line-height: 1.5;
 }
 
@@ -1134,34 +1676,77 @@
 }
 
 .recordsPanelHeader span {
-  font-size: var(--font-label);
+  font-size:
+    var(
+      --font-label
+    );
 }
 
 .recordsTable th {
-  font-size: var(--font-label);
+  font-size:
+    var(
+      --font-label
+    );
 }
 
 .recordsTable td {
-  font-size: var(--font-table);
+  font-size:
+    var(
+      --font-table
+    );
   line-height: 1.5;
 }
 
 .recordLink {
-  font-size: var(--font-table);
+  font-size:
+    var(
+      --font-table
+    );
+}
+
+.relatedTaskTitleRow > a {
+  font-size:
+    var(
+      --font-body
+    );
+}
+
+.relatedTaskCopy > p {
+  font-size:
+    var(
+      --font-helper
+    );
+}
+
+.relatedTaskOpen,
+.secondaryRecordLink {
+  font-size:
+    var(
+      --font-button
+    );
 }
 
 .emptyState p,
+.relatedWorkEmpty p,
 .errorPanel p,
 .notFound p {
-  font-size: var(--font-helper);
-  line-height: var(--line-helper);
+  font-size:
+    var(
+      --font-helper
+    );
+  line-height:
+    var(
+      --line-helper
+    );
 }
 
 .notFound h2 {
   font-size: 24px;
 }
 
-@media (max-width: 850px) {
+@media (
+  max-width: 850px
+) {
   .pageHeader h2 {
     font-size: 26px;
   }
@@ -1171,7 +1756,9 @@
   }
 }
 
-@media (max-width: 560px) {
+@media (
+  max-width: 560px
+) {
   .field input,
   .field select {
     font-size: 16px;
