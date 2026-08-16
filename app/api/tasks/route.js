@@ -26,6 +26,21 @@ function normaliseRecordType(
     .toLowerCase();
 }
 
+function normaliseText(
+  value
+) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return "";
+  }
+
+  return String(
+    value
+  ).trim();
+}
+
 function getRecordTypeAliases(
   value
 ) {
@@ -80,6 +95,10 @@ function getRecordTypeAliases(
       return [];
   }
 }
+
+// =========================================================
+// EMPLOYEE ENRICHMENT
+// =========================================================
 
 async function enrichTasksWithEmployees({
   supabase,
@@ -184,6 +203,322 @@ async function enrichTasksWithEmployees({
           : null,
     })
   );
+}
+
+// =========================================================
+// ASSIGNMENT VALIDATION
+// =========================================================
+
+async function resolveAssignedEmployeeId({
+  access,
+  requestedEmployeeId,
+  assignmentWasProvided,
+}) {
+  /*
+   * Important difference:
+   *
+   * undefined
+   * → caller did not specify assignment
+   * → default to current employee
+   *
+   * null / ""
+   * → caller deliberately selected Unassigned
+   * → store NULL
+   */
+
+  if (
+    !assignmentWasProvided
+  ) {
+    return access.employee.id;
+  }
+
+  if (
+    requestedEmployeeId ===
+      null ||
+    normaliseText(
+      requestedEmployeeId
+    ) ===
+      ""
+  ) {
+    return null;
+  }
+
+  const employeeId =
+    normaliseText(
+      requestedEmployeeId
+    );
+
+  if (
+    !isUuid(
+      employeeId
+    )
+  ) {
+    throw new TaskValidationError(
+      "A valid employee ID is required for task assignment."
+    );
+  }
+
+  /*
+   * Normal employees may create work for themselves,
+   * but they cannot assign new tasks to another employee.
+   *
+   * Organisation owners can assign work across the team.
+   *
+   * We can extend this later to manager / task.manage
+   * permissions.
+   */
+
+  if (
+    !access.employee
+      .is_organization_owner &&
+    String(
+      employeeId
+    ) !==
+      String(
+        access.employee.id
+      )
+  ) {
+    throw new TaskPermissionError(
+      "You do not have permission to assign tasks to another employee."
+    );
+  }
+
+  const {
+    data:
+      employee,
+    error,
+  } =
+    await access.supabase
+      .from("employees")
+      .select(
+        `
+          id,
+          organization_id,
+          is_active,
+          employment_status
+        `
+      )
+      .eq(
+        "id",
+        employeeId
+      )
+      .eq(
+        "organization_id",
+        access.employee
+          .organization_id
+      )
+      .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      error.message
+    );
+  }
+
+  if (!employee) {
+    throw new TaskValidationError(
+      "The selected employee does not belong to this organisation."
+    );
+  }
+
+  if (
+    employee.is_active ===
+    false
+  ) {
+    throw new TaskValidationError(
+      "Tasks cannot be assigned to an inactive employee."
+    );
+  }
+
+  if (
+    normaliseText(
+      employee.employment_status
+    )
+      .toLowerCase() ===
+    "inactive"
+  ) {
+    throw new TaskValidationError(
+      "Tasks cannot be assigned to an inactive employee."
+    );
+  }
+
+  return employee.id;
+}
+
+// =========================================================
+// PROJECT VALIDATION
+// =========================================================
+
+async function validateProject({
+  access,
+  projectId,
+}) {
+  if (!projectId) {
+    return null;
+  }
+
+  if (
+    !isUuid(
+      projectId
+    )
+  ) {
+    throw new TaskValidationError(
+      "A valid project ID is required."
+    );
+  }
+
+  const {
+    data:
+      project,
+    error,
+  } =
+    await access.supabase
+      .from("projects")
+      .select(
+        `
+          id,
+          organization_id
+        `
+      )
+      .eq(
+        "id",
+        projectId
+      )
+      .eq(
+        "organization_id",
+        access.employee
+          .organization_id
+      )
+      .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      error.message
+    );
+  }
+
+  if (!project) {
+    throw new TaskValidationError(
+      "The selected project could not be found in this organisation."
+    );
+  }
+
+  return project.id;
+}
+
+// =========================================================
+// RECORD VALIDATION
+// =========================================================
+
+function validateRecordLink({
+  recordType,
+  recordId,
+}) {
+  const cleanRecordType =
+    normaliseRecordType(
+      recordType
+    );
+
+  const cleanRecordId =
+    normaliseText(
+      recordId
+    );
+
+  /*
+   * Neither supplied is fine.
+   */
+
+  if (
+    !cleanRecordType &&
+    !cleanRecordId
+  ) {
+    return {
+      recordType: null,
+      recordId: null,
+    };
+  }
+
+  /*
+   * If one is supplied, both must be supplied.
+   */
+
+  if (
+    !cleanRecordType ||
+    !cleanRecordId
+  ) {
+    throw new TaskValidationError(
+      "Both record_type and record_id are required when linking a task to a business record."
+    );
+  }
+
+  if (
+    getRecordTypeAliases(
+      cleanRecordType
+    ).length ===
+    0
+  ) {
+    throw new TaskValidationError(
+      `Unsupported task record type "${recordType}".`
+    );
+  }
+
+  if (
+    !isUuid(
+      cleanRecordId
+    )
+  ) {
+    throw new TaskValidationError(
+      "A valid record ID is required."
+    );
+  }
+
+  /*
+   * Store singular lower-case form so new data
+   * becomes consistent.
+   *
+   * Existing GET logic still supports plural legacy values.
+   */
+
+  const aliases =
+    getRecordTypeAliases(
+      cleanRecordType
+    );
+
+  return {
+    recordType:
+      aliases[0],
+
+    recordId:
+      cleanRecordId,
+  };
+}
+
+// =========================================================
+// CUSTOM ERRORS
+// =========================================================
+
+class TaskValidationError extends Error {
+  constructor(message) {
+    super(message);
+
+    this.name =
+      "TaskValidationError";
+
+    this.status =
+      400;
+  }
+}
+
+class TaskPermissionError extends Error {
+  constructor(message) {
+    super(message);
+
+    this.name =
+      "TaskPermissionError";
+
+    this.status =
+      403;
+  }
 }
 
 // =========================================================
@@ -470,7 +805,9 @@ export async function GET(
           "Unable to load tasks.",
       },
       {
-        status: 500,
+        status:
+          error.status ||
+          500,
       }
     );
   }
@@ -503,22 +840,19 @@ export async function POST(
     const body =
       await request.json();
 
+    // =====================================================
+    // TASK NAME
+    // =====================================================
+
     const taskName =
-      String(
+      normaliseText(
         body.task_name ||
-          body.title ||
-          ""
-      ).trim();
+          body.title
+      );
 
     if (!taskName) {
-      return NextResponse.json(
-        {
-          error:
-            "Task name is required.",
-        },
-        {
-          status: 400,
-        }
+      throw new TaskValidationError(
+        "Task name is required."
       );
     }
 
@@ -526,28 +860,102 @@ export async function POST(
       access.employee
         .organization_id;
 
+    // =====================================================
+    // PROJECT
+    // =====================================================
+
+    const projectId =
+      body.project_id
+        ? await validateProject({
+            access,
+
+            projectId:
+              body.project_id,
+          })
+        : null;
+
+    // =====================================================
+    // ASSIGNMENT
+    // =====================================================
+
+    const assignmentWasProvided =
+      Object.prototype.hasOwnProperty.call(
+        body,
+        "assigned_employee_id"
+      );
+
     const assignedEmployeeId =
-      body.assigned_employee_id ||
-      access.employee.id;
+      await resolveAssignedEmployeeId({
+        access,
+
+        requestedEmployeeId:
+          body.assigned_employee_id,
+
+        assignmentWasProvided,
+      });
+
+    // =====================================================
+    // BUSINESS RECORD
+    // =====================================================
+
+    const recordLink =
+      validateRecordLink({
+        recordType:
+          body.record_type,
+
+        recordId:
+          body.record_id,
+      });
+
+    // =====================================================
+    // WORKFLOW RUN
+    // =====================================================
+
+    let workflowRunId =
+      null;
+
+    if (
+      body.workflow_run_id
+    ) {
+      if (
+        !isUuid(
+          body.workflow_run_id
+        )
+      ) {
+        throw new TaskValidationError(
+          "A valid workflow run ID is required."
+        );
+      }
+
+      workflowRunId =
+        body.workflow_run_id;
+    }
+
+    // =====================================================
+    // TASK VALUES
+    // =====================================================
 
     const now =
       new Date().toISOString();
 
     const taskValues = {
       project_id:
-        body.project_id ||
-        null,
+        projectId,
 
       task_name:
         taskName,
 
       description:
-        body.description ||
+        normaliseText(
+          body.description
+        ) ||
         null,
 
       status:
-        body.status ||
-        "Open",
+        normaliseText(
+          body.status
+        ) ||
+        "To Do",
 
       due_date:
         body.due_date ||
@@ -556,23 +964,28 @@ export async function POST(
       organization_id:
         organizationId,
 
+      /*
+       * This can now genuinely be null.
+       *
+       * Selecting "Unassigned" no longer silently
+       * assigns the task back to the creator.
+       */
       assigned_employee_id:
         assignedEmployeeId,
 
       record_type:
-        body.record_type ||
-        null,
+        recordLink.recordType,
 
       record_id:
-        body.record_id ||
-        null,
+        recordLink.recordId,
 
       workflow_run_id:
-        body.workflow_run_id ||
-        null,
+        workflowRunId,
 
       priority:
-        body.priority ||
+        normaliseText(
+          body.priority
+        ) ||
         "Medium",
 
       created_at:
@@ -581,6 +994,10 @@ export async function POST(
       updated_at:
         now,
     };
+
+    // =====================================================
+    // INSERT
+    // =====================================================
 
     const {
       data,
@@ -600,13 +1017,34 @@ export async function POST(
       );
     }
 
+    // =====================================================
+    // ENRICH RESPONSE
+    // =====================================================
+
+    const [
+      enrichedTask,
+    ] =
+      await enrichTasksWithEmployees({
+        supabase:
+          access.supabase,
+
+        organizationId,
+
+        tasks: [
+          data,
+        ],
+      });
+
     return NextResponse.json(
       {
         task:
+          enrichedTask ||
           data,
 
         message:
-          "Task created successfully.",
+          assignedEmployeeId
+            ? "Task created and assigned successfully."
+            : "Unassigned task created successfully.",
       },
       {
         status: 201,
@@ -625,7 +1063,9 @@ export async function POST(
           "Unable to create task.",
       },
       {
-        status: 500,
+        status:
+          error.status ||
+          500,
       }
     );
   }
