@@ -1,200 +1,472 @@
-import { NextResponse } from "next/server";
-import { supabase } from "../../../../lib/supabase";
+import {
+  NextResponse,
+} from "next/server";
 
-const ORGANIZATION_ID =
-  "9d5bbb05-866b-4c38-b2ac-3019e7cf88e5";
+import {
+  getServerAccess,
+} from "../../../../lib/serverAccess";
 
-function normaliseText(value) {
-  return String(value || "").trim().toLowerCase();
+// =========================================================
+// HELPERS
+// =========================================================
+
+function isUuid(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    String(value || "")
+  );
 }
 
-function parseMoney(value) {
-  if (value === null || value === undefined) {
+function normalise(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase();
+}
+
+function sameId(
+  first,
+  second
+) {
+  if (!first || !second) {
+    return false;
+  }
+
+  return (
+    String(first) ===
+    String(second)
+  );
+}
+
+function sameEmail(
+  first,
+  second
+) {
+  if (!first || !second) {
+    return false;
+  }
+
+  return (
+    normalise(first) ===
+    normalise(second)
+  );
+}
+
+function uniqueRecords(
+  records = []
+) {
+  const map =
+    new Map();
+
+  records.forEach(
+    (record) => {
+      if (!record?.id) {
+        return;
+      }
+
+      map.set(
+        String(
+          record.id
+        ),
+        record
+      );
+    }
+  );
+
+  return [
+    ...map.values(),
+  ];
+}
+
+function getMoneyValue(
+  value
+) {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
     return 0;
   }
 
-  const cleanedValue = String(value)
-    .replace(/,/g, "")
-    .replace(/[^\d.-]/g, "");
-
-  const parsedValue = Number.parseFloat(cleanedValue);
-
-  return Number.isFinite(parsedValue)
-    ? parsedValue
-    : 0;
+  return (
+    Number(
+      String(
+        value
+      ).replace(
+        /[^0-9.-]/g,
+        ""
+      )
+    ) || 0
+  );
 }
 
-function formatCurrency(value) {
-  return new Intl.NumberFormat("en-GB", {
-    style: "currency",
-    currency: "GBP",
-  }).format(value || 0);
+function formatCurrency(
+  value
+) {
+  return Number(
+    value || 0
+  ).toLocaleString(
+    "en-GB",
+    {
+      style:
+        "currency",
+
+      currency:
+        "GBP",
+
+      minimumFractionDigits:
+        0,
+
+      maximumFractionDigits:
+        0,
+    }
+  );
 }
 
-function recordMatchesCustomer(record, customer) {
-  const customerId = String(customer.id || "");
-  const leadId = String(customer.lead_id || "");
-
-  const customerEmail = normaliseText(customer.email);
-  const customerCompany = normaliseText(customer.company);
-  const customerName = normaliseText(customer.customer_name);
-
-  const recordCustomerId = String(
-    record.customer_id || ""
+function isPaidStatus(
+  status
+) {
+  return [
+    "paid",
+    "settled",
+  ].includes(
+    normalise(
+      status
+    )
   );
+}
 
-  const recordLeadId = String(record.lead_id || "");
-
-  const recordEmail = normaliseText(record.email);
-
-  const recordClient = normaliseText(
-    record.client ||
-      record.company ||
-      record.customer_name
+function isCompletedStatus(
+  status
+) {
+  return [
+    "completed",
+    "complete",
+    "done",
+    "closed",
+  ].includes(
+    normalise(
+      status
+    )
   );
+}
 
-  const recordContact = normaliseText(
-    record.contact ||
-      record.name
+function isOverdueStatus(
+  status
+) {
+  return [
+    "overdue",
+    "late",
+  ].includes(
+    normalise(
+      status
+    )
   );
+}
+
+function recordTypeMatches(
+  value,
+  aliases = []
+) {
+  const recordType =
+    normalise(
+      value
+    );
+
+  return aliases
+    .map(
+      normalise
+    )
+    .includes(
+      recordType
+    );
+}
+
+// =========================================================
+// TASK EMPLOYEE ENRICHMENT
+// =========================================================
+
+async function enrichTasksWithEmployees({
+  supabase,
+  organizationId,
+  tasks,
+}) {
+  const employeeIds = [
+    ...new Set(
+      (tasks || [])
+        .map(
+          (task) =>
+            task.assigned_employee_id
+        )
+        .filter(Boolean)
+    ),
+  ];
+
+  if (
+    employeeIds.length ===
+    0
+  ) {
+    return (
+      tasks || []
+    ).map(
+      (task) => ({
+        ...task,
+
+        assigned_employee:
+          null,
+      })
+    );
+  }
+
+  const {
+    data:
+      employeeRows,
+    error,
+  } =
+    await supabase
+      .from("employees")
+      .select(
+        `
+          id,
+          full_name,
+          email,
+          job_title
+        `
+      )
+      .eq(
+        "organization_id",
+        organizationId
+      )
+      .in(
+        "id",
+        employeeIds
+      );
+
+  if (error) {
+    console.error(
+      "Customer task employee lookup error:",
+      error
+    );
+
+    return (
+      tasks || []
+    ).map(
+      (task) => ({
+        ...task,
+
+        assigned_employee:
+          null,
+      })
+    );
+  }
+
+  const employeeMap =
+    new Map(
+      (
+        employeeRows ||
+        []
+      ).map(
+        (
+          employee
+        ) => [
+          String(
+            employee.id
+          ),
+          employee,
+        ]
+      )
+    );
 
   return (
-    (customerId &&
-      recordCustomerId === customerId) ||
-    (leadId &&
-      recordLeadId === leadId) ||
-    (customerEmail &&
-      recordEmail === customerEmail) ||
-    (customerCompany &&
-      recordClient === customerCompany) ||
-    (customerName &&
-      recordContact === customerName)
+    tasks || []
+  ).map(
+    (task) => ({
+      ...task,
+
+      assigned_employee:
+        task.assigned_employee_id
+          ? employeeMap.get(
+              String(
+                task.assigned_employee_id
+              )
+            ) ||
+            null
+          : null,
+    })
   );
 }
 
-function createCustomerSummary({
+// =========================================================
+// CUSTOMER SUMMARY
+// =========================================================
+
+function buildCustomerSummary({
   customer,
   quotes,
-  proposals,
   projects,
   tasks,
   invoices,
   followUps,
-  totalInvoiced,
-  totalPaid,
-  outstanding,
 }) {
-  const companyName =
-    customer.company ||
-    customer.customer_name ||
-    "This customer";
+  const pendingTasks =
+    tasks.filter(
+      (task) =>
+        !isCompletedStatus(
+          task.status
+        )
+    );
 
-  const activeProjects = projects.filter((project) => {
-    const status = normaliseText(project.status);
+  const activeProjects =
+    projects.filter(
+      (project) =>
+        !isCompletedStatus(
+          project.status
+        )
+    );
 
-    return ![
-      "completed",
-      "cancelled",
-      "canceled",
-    ].includes(status);
-  });
+  const overdueInvoices =
+    invoices.filter(
+      (invoice) =>
+        isOverdueStatus(
+          invoice.status
+        )
+    );
 
-  const pendingTasks = tasks.filter((task) => {
-    const status = normaliseText(task.status);
+  const outstandingInvoices =
+    invoices.filter(
+      (invoice) =>
+        !isPaidStatus(
+          invoice.status
+        )
+    );
 
-    return ![
-      "completed",
-      "complete",
-      "done",
-    ].includes(status);
-  });
+  const recommendations =
+    [];
 
-  const pendingProposals = proposals.filter((proposal) =>
-    ["draft", "sent"].includes(
-      normaliseText(proposal.status)
-    )
-  );
-
-  const pendingQuotes = quotes.filter((quote) =>
-    ["draft", "sent", "pending"].some((status) =>
-      normaliseText(quote.status).includes(status)
-    )
-  );
-
-  const recommendations = [];
-
-  if (outstanding > 0) {
+  if (
+    overdueInvoices.length >
+    0
+  ) {
     recommendations.push(
-      `Follow up on ${formatCurrency(
-        outstanding
-      )} in outstanding invoices.`
+      `${overdueInvoices.length} overdue invoice${
+        overdueInvoices.length ===
+        1
+          ? " requires"
+          : "s require"
+      } attention.`
     );
   }
 
-  if (pendingProposals.length > 0) {
+  if (
+    pendingTasks.length >
+    0
+  ) {
     recommendations.push(
-      `Review ${pendingProposals.length} proposal${
-        pendingProposals.length === 1 ? "" : "s"
-      } awaiting progress.`
+      `${pendingTasks.length} open task${
+        pendingTasks.length ===
+        1
+          ? " is"
+          : "s are"
+      } currently associated with this customer.`
     );
   }
 
-  if (pendingQuotes.length > 0) {
+  if (
+    activeProjects.length >
+    0
+  ) {
     recommendations.push(
-      `Follow up on ${pendingQuotes.length} open quote${
-        pendingQuotes.length === 1 ? "" : "s"
+      `Review progress across ${activeProjects.length} active project${
+        activeProjects.length ===
+        1
+          ? ""
+          : "s"
       }.`
     );
   }
 
   if (
-    activeProjects.length > 0 &&
-    pendingTasks.length === 0
+    followUps.length ===
+      0 &&
+    pendingTasks.length ===
+      0
   ) {
     recommendations.push(
-      "The customer has an active project but no outstanding tasks. Confirm the next delivery action."
+      "Consider scheduling the next customer follow-up."
     );
   }
 
-  if (followUps.length === 0) {
+  if (
+    outstandingInvoices.length >
+      0 &&
+    overdueInvoices.length ===
+      0
+  ) {
     recommendations.push(
-      "No follow-up is currently recorded. Consider scheduling the next customer contact."
+      "Monitor outstanding invoices and upcoming payment dates."
     );
   }
 
-  if (recommendations.length === 0) {
+  if (
+    recommendations.length ===
+    0
+  ) {
     recommendations.push(
-      "The account appears up to date. Maintain regular communication and monitor current project delivery."
+      "No immediate customer actions require attention."
     );
   }
+
+  const customerName =
+    customer.customer_name ||
+    customer.company ||
+    "This customer";
 
   return {
-    overview: `${companyName} has ${quotes.length} quote${
-      quotes.length === 1 ? "" : "s"
-    }, ${proposals.length} proposal${
-      proposals.length === 1 ? "" : "s"
-    }, ${projects.length} project${
-      projects.length === 1 ? "" : "s"
-    } and ${invoices.length} invoice${
-      invoices.length === 1 ? "" : "s"
-    }. Total invoiced is ${formatCurrency(
-      totalInvoiced
-    )}, of which ${formatCurrency(
-      totalPaid
-    )} has been paid.`,
+    overview:
+      `${customerName} currently has ${quotes.length} quote${
+        quotes.length ===
+        1
+          ? ""
+          : "s"
+      }, ${activeProjects.length} active project${
+        activeProjects.length ===
+        1
+          ? ""
+          : "s"
+      }, ${pendingTasks.length} open task${
+        pendingTasks.length ===
+        1
+          ? ""
+          : "s"
+      } and ${outstandingInvoices.length} outstanding invoice${
+        outstandingInvoices.length ===
+        1
+          ? ""
+          : "s"
+      }.`,
 
     recommendations,
   };
 }
 
-export async function GET(request, context) {
-  try {
-    const { id } = await context.params;
+// =========================================================
+// GET CUSTOMER WORKSPACE
+// =========================================================
 
-    if (!id) {
+export async function GET(
+  request,
+  context
+) {
+  try {
+    const { id } =
+      await context.params;
+
+    if (
+      !isUuid(id)
+    ) {
       return NextResponse.json(
         {
-          error: "Customer ID is required.",
+          error:
+            "A valid customer ID is required.",
         },
         {
           status: 400,
@@ -202,21 +474,72 @@ export async function GET(request, context) {
       );
     }
 
-    const customerResult = await supabase
-      .from("customers")
-      .select("*")
-      .eq("id", id)
-      .eq("organization_id", ORGANIZATION_ID)
-      .single();
+    // =====================================================
+    // AUTHENTICATED ACCESS
+    // =====================================================
+
+    const access =
+      await getServerAccess();
 
     if (
-      customerResult.error ||
-      !customerResult.data
+      !access.employee
     ) {
       return NextResponse.json(
         {
           error:
-            customerResult.error?.message ||
+            access.error,
+        },
+        {
+          status:
+            access.status,
+        }
+      );
+    }
+
+    const supabase =
+      access.supabase;
+
+    const organizationId =
+      access.employee
+        .organization_id;
+
+    // =====================================================
+    // CUSTOMER
+    // =====================================================
+
+    const {
+      data:
+        customer,
+      error:
+        customerError,
+    } =
+      await supabase
+        .from(
+          "customers"
+        )
+        .select("*")
+        .eq(
+          "id",
+          id
+        )
+        .eq(
+          "organization_id",
+          organizationId
+        )
+        .maybeSingle();
+
+    if (
+      customerError
+    ) {
+      throw new Error(
+        customerError.message
+      );
+    }
+
+    if (!customer) {
+      return NextResponse.json(
+        {
+          error:
             "Customer not found.",
         },
         {
@@ -225,259 +548,736 @@ export async function GET(request, context) {
       );
     }
 
-    const customer = customerResult.data;
+    // =====================================================
+    // LOAD ORGANISATION DATA
+    // =====================================================
+    //
+    // We intentionally load each organisation-scoped
+    // business area and build the relationship in this
+    // endpoint.
+    //
+    // This supports both the older records and the newer
+    // explicit record_id / customer_id relationships.
+    //
+    // =====================================================
 
     const [
+      leadsResult,
       quotesResult,
       proposalsResult,
       projectsResult,
       tasksResult,
       invoicesResult,
       followUpsResult,
-      leadsResult,
-    ] = await Promise.all([
-      supabase
-        .from("quotes")
-        .select("*")
-        .eq(
-          "organization_id",
-          ORGANIZATION_ID
-        ),
+    ] =
+      await Promise.all([
+        supabase
+          .from("leads")
+          .select("*")
+          .eq(
+            "organization_id",
+            organizationId
+          ),
 
-      supabase
-        .from("proposals")
-        .select("*")
-        .eq(
-          "organization_id",
-          ORGANIZATION_ID
-        ),
+        supabase
+          .from("quotes")
+          .select("*")
+          .eq(
+            "organization_id",
+            organizationId
+          ),
 
-      supabase
-        .from("projects")
-        .select("*")
-        .eq(
-          "organization_id",
-          ORGANIZATION_ID
-        ),
+        supabase
+          .from(
+            "proposals"
+          )
+          .select("*")
+          .eq(
+            "organization_id",
+            organizationId
+          ),
 
-      supabase
-        .from("tasks")
-        .select("*")
-        .eq(
-          "organization_id",
-          ORGANIZATION_ID
-        ),
+        supabase
+          .from(
+            "projects"
+          )
+          .select("*")
+          .eq(
+            "organization_id",
+            organizationId
+          ),
 
-      supabase
-        .from("invoices")
-        .select("*")
-        .eq(
-          "organization_id",
-          ORGANIZATION_ID
-        ),
+        supabase
+          .from("tasks")
+          .select("*")
+          .eq(
+            "organization_id",
+            organizationId
+          ),
 
-      supabase
-        .from("follow_ups")
-        .select("*")
-        .eq(
-          "organization_id",
-          ORGANIZATION_ID
-        ),
+        supabase
+          .from(
+            "invoices"
+          )
+          .select("*")
+          .eq(
+            "organization_id",
+            organizationId
+          ),
 
-      supabase
-        .from("leads")
-        .select("*")
-        .eq(
-          "organization_id",
-          ORGANIZATION_ID
-        ),
-    ]);
+        supabase
+          .from(
+            "follow_ups"
+          )
+          .select("*")
+          .eq(
+            "organization_id",
+            organizationId
+          ),
+      ]);
 
-    const databaseError =
+    const businessDataError =
+      leadsResult.error ||
       quotesResult.error ||
       proposalsResult.error ||
       projectsResult.error ||
       tasksResult.error ||
       invoicesResult.error ||
-      followUpsResult.error ||
-      leadsResult.error;
+      followUpsResult.error;
 
-    if (databaseError) {
-      return NextResponse.json(
-        {
-          error: databaseError.message,
-        },
-        {
-          status: 500,
-        }
+    if (
+      businessDataError
+    ) {
+      throw new Error(
+        businessDataError.message
       );
     }
 
-    const allQuotes = quotesResult.data || [];
+    const allLeads =
+      leadsResult.data ||
+      [];
+
+    const allQuotes =
+      quotesResult.data ||
+      [];
+
     const allProposals =
-      proposalsResult.data || [];
+      proposalsResult.data ||
+      [];
+
     const allProjects =
-      projectsResult.data || [];
-    const allTasks = tasksResult.data || [];
+      projectsResult.data ||
+      [];
+
+    const allTasks =
+      tasksResult.data ||
+      [];
+
     const allInvoices =
-      invoicesResult.data || [];
+      invoicesResult.data ||
+      [];
+
     const allFollowUps =
-      followUpsResult.data || [];
-    const allLeads = leadsResult.data || [];
+      followUpsResult.data ||
+      [];
 
-    const quotes = allQuotes.filter((record) =>
-      recordMatchesCustomer(record, customer)
-    );
+    // =====================================================
+    // ORIGINAL LEAD
+    // =====================================================
 
-    const proposals = allProposals.filter(
-      (record) =>
-        recordMatchesCustomer(record, customer)
-    );
+    let lead =
+      null;
 
-    const projects = allProjects.filter(
-      (record) =>
-        recordMatchesCustomer(record, customer)
-    );
+    if (
+      customer.lead_id
+    ) {
+      lead =
+        allLeads.find(
+          (item) =>
+            sameId(
+              item.id,
+              customer.lead_id
+            )
+        ) ||
+        null;
+    }
 
-    const projectIds = new Set(
-      projects.map((project) =>
-        String(project.id)
-      )
-    );
+    if (
+      !lead &&
+      customer.email
+    ) {
+      lead =
+        allLeads.find(
+          (item) =>
+            sameEmail(
+              item.email,
+              customer.email
+            )
+        ) ||
+        null;
+    }
 
-    const tasks = allTasks.filter((task) =>
-      projectIds.has(String(task.project_id))
-    );
+    // =====================================================
+    // QUOTES
+    // =====================================================
+    //
+    // Preferred:
+    // quote.customer_id === customer.id
+    //
+    // Older converted records can also be resolved from
+    // lead_id or email.
+    //
+    // =====================================================
 
-    const invoices = allInvoices.filter(
-      (record) =>
-        recordMatchesCustomer(record, customer) ||
-        projectIds.has(
-          String(record.project_id || "")
+    const quotes =
+      uniqueRecords(
+        allQuotes.filter(
+          (quote) => {
+            if (
+              sameId(
+                quote.customer_id,
+                customer.id
+              )
+            ) {
+              return true;
+            }
+
+            if (
+              lead?.id &&
+              sameId(
+                quote.lead_id,
+                lead.id
+              )
+            ) {
+              return true;
+            }
+
+            if (
+              customer.email &&
+              sameEmail(
+                quote.email,
+                customer.email
+              )
+            ) {
+              return true;
+            }
+
+            return false;
+          }
         )
-    );
+      );
 
-    const followUps = allFollowUps.filter(
-      (followUp) => {
-        const relatedId = String(
-          followUp.related_id || ""
-        );
-
-        const relatedType = normaliseText(
-          followUp.related_type
-        );
-
-        return (
-          relatedId === String(customer.id) ||
-          relatedId === String(customer.lead_id) ||
-          (relatedType === "customer" &&
-            relatedId === String(customer.id)) ||
-          (relatedType === "lead" &&
-            relatedId ===
-              String(customer.lead_id))
-        );
-      }
-    );
-
-    const lead =
-      allLeads.find(
-        (item) =>
-          String(item.id) ===
-          String(customer.lead_id)
-      ) || null;
-
-    const totalInvoiced = invoices.reduce(
-      (total, invoice) =>
-        total +
-        parseMoney(
-          invoice.total_amount ||
-            invoice.amount
-        ),
-      0
-    );
-
-    const totalPaid = invoices.reduce(
-      (total, invoice) => {
-        const status = normaliseText(
-          invoice.status
-        );
-
-        if (status !== "paid") {
-          return total;
-        }
-
-        return (
-          total +
-          parseMoney(
-            invoice.total_amount ||
-              invoice.amount
+    const quoteIds =
+      new Set(
+        quotes
+          .map(
+            (quote) =>
+              quote.id
           )
+          .filter(Boolean)
+          .map(String)
+      );
+
+    // =====================================================
+    // PROPOSALS
+    // =====================================================
+
+    const proposals =
+      uniqueRecords(
+        allProposals.filter(
+          (proposal) => {
+            if (
+              sameId(
+                proposal.customer_id,
+                customer.id
+              )
+            ) {
+              return true;
+            }
+
+            if (
+              proposal.quote_id &&
+              quoteIds.has(
+                String(
+                  proposal.quote_id
+                )
+              )
+            ) {
+              return true;
+            }
+
+            if (
+              lead?.id &&
+              sameId(
+                proposal.lead_id,
+                lead.id
+              )
+            ) {
+              return true;
+            }
+
+            if (
+              customer.email &&
+              sameEmail(
+                proposal.email,
+                customer.email
+              )
+            ) {
+              return true;
+            }
+
+            return false;
+          }
+        )
+      );
+
+    // =====================================================
+    // PROJECTS
+    // =====================================================
+
+    const projects =
+      uniqueRecords(
+        allProjects.filter(
+          (project) => {
+            if (
+              sameId(
+                project.customer_id,
+                customer.id
+              )
+            ) {
+              return true;
+            }
+
+            if (
+              project.quote_id &&
+              quoteIds.has(
+                String(
+                  project.quote_id
+                )
+              )
+            ) {
+              return true;
+            }
+
+            return false;
+          }
+        )
+      );
+
+    const projectIds =
+      new Set(
+        projects
+          .map(
+            (project) =>
+              project.id
+          )
+          .filter(Boolean)
+          .map(String)
+      );
+
+    // =====================================================
+    // TASKS
+    // =====================================================
+    //
+    // IMPORTANT:
+    //
+    // A customer now receives tasks through ALL of these:
+    //
+    // 1. Customer → direct Task
+    // 2. Customer → Quote → Workflow Task
+    // 3. Customer → Project → Task
+    // 4. Customer → Project record-linked Task
+    //
+    // This is the relationship that was missing previously.
+    //
+    // =====================================================
+
+    const customerTasks =
+      uniqueRecords(
+        allTasks.filter(
+          (task) => {
+            // ---------------------------------------------
+            // DIRECT CUSTOMER TASK
+            // ---------------------------------------------
+
+            if (
+              recordTypeMatches(
+                task.record_type,
+                [
+                  "customer",
+                  "customers",
+                ]
+              ) &&
+              sameId(
+                task.record_id,
+                customer.id
+              )
+            ) {
+              return true;
+            }
+
+            // ---------------------------------------------
+            // QUOTE / WORKFLOW TASK
+            // ---------------------------------------------
+
+            if (
+              recordTypeMatches(
+                task.record_type,
+                [
+                  "quote",
+                  "quotes",
+                ]
+              ) &&
+              task.record_id &&
+              quoteIds.has(
+                String(
+                  task.record_id
+                )
+              )
+            ) {
+              return true;
+            }
+
+            // ---------------------------------------------
+            // PROJECT TASK
+            // ---------------------------------------------
+
+            if (
+              task.project_id &&
+              projectIds.has(
+                String(
+                  task.project_id
+                )
+              )
+            ) {
+              return true;
+            }
+
+            // ---------------------------------------------
+            // PROJECT RECORD TASK
+            // ---------------------------------------------
+
+            if (
+              recordTypeMatches(
+                task.record_type,
+                [
+                  "project",
+                  "projects",
+                ]
+              ) &&
+              task.record_id &&
+              projectIds.has(
+                String(
+                  task.record_id
+                )
+              )
+            ) {
+              return true;
+            }
+
+            return false;
+          }
+        )
+      );
+
+    const tasks =
+      await enrichTasksWithEmployees({
+        supabase,
+
+        organizationId,
+
+        tasks:
+          customerTasks,
+      });
+
+    // =====================================================
+    // INVOICES
+    // =====================================================
+
+    const invoices =
+      uniqueRecords(
+        allInvoices.filter(
+          (invoice) => {
+            if (
+              sameId(
+                invoice.customer_id,
+                customer.id
+              )
+            ) {
+              return true;
+            }
+
+            if (
+              invoice.project_id &&
+              projectIds.has(
+                String(
+                  invoice.project_id
+                )
+              )
+            ) {
+              return true;
+            }
+
+            if (
+              invoice.quote_id &&
+              quoteIds.has(
+                String(
+                  invoice.quote_id
+                )
+              )
+            ) {
+              return true;
+            }
+
+            if (
+              customer.email &&
+              sameEmail(
+                invoice.email,
+                customer.email
+              )
+            ) {
+              return true;
+            }
+
+            return false;
+          }
+        )
+      );
+
+    // =====================================================
+    // FOLLOW UPS
+    // =====================================================
+
+    const followUps =
+      uniqueRecords(
+        allFollowUps.filter(
+          (followUp) => {
+            const relatedType =
+              normalise(
+                followUp.related_type
+              );
+
+            const relatedId =
+              followUp.related_id;
+
+            if (
+              [
+                "customer",
+                "customers",
+              ].includes(
+                relatedType
+              ) &&
+              sameId(
+                relatedId,
+                customer.id
+              )
+            ) {
+              return true;
+            }
+
+            if (
+              [
+                "quote",
+                "quotes",
+              ].includes(
+                relatedType
+              ) &&
+              relatedId &&
+              quoteIds.has(
+                String(
+                  relatedId
+                )
+              )
+            ) {
+              return true;
+            }
+
+            if (
+              [
+                "project",
+                "projects",
+              ].includes(
+                relatedType
+              ) &&
+              relatedId &&
+              projectIds.has(
+                String(
+                  relatedId
+                )
+              )
+            ) {
+              return true;
+            }
+
+            return false;
+          }
+        )
+      );
+
+    // =====================================================
+    // FINANCIAL SUMMARY
+    // =====================================================
+
+    const totalInvoiced =
+      invoices.reduce(
+        (
+          total,
+          invoice
+        ) =>
+          total +
+          getMoneyValue(
+            invoice.total_amount ??
+              invoice.amount
+          ),
+        0
+      );
+
+    const totalPaid =
+      invoices
+        .filter(
+          (invoice) =>
+            isPaidStatus(
+              invoice.status
+            )
+        )
+        .reduce(
+          (
+            total,
+            invoice
+          ) =>
+            total +
+            getMoneyValue(
+              invoice.total_amount ??
+                invoice.amount
+            ),
+          0
         );
-      },
-      0
-    );
 
-    const outstanding = Math.max(
-      totalInvoiced - totalPaid,
-      0
-    );
+    const outstanding =
+      invoices
+        .filter(
+          (invoice) =>
+            !isPaidStatus(
+              invoice.status
+            )
+        )
+        .reduce(
+          (
+            total,
+            invoice
+          ) =>
+            total +
+            getMoneyValue(
+              invoice.total_amount ??
+                invoice.amount
+            ),
+          0
+        );
 
-    const summary = createCustomerSummary({
-      customer,
-      quotes,
-      proposals,
-      projects,
-      tasks,
-      invoices,
-      followUps,
+    const financialSummary = {
       totalInvoiced,
+
       totalPaid,
+
       outstanding,
-    });
+
+      totalInvoicedFormatted:
+        formatCurrency(
+          totalInvoiced
+        ),
+
+      totalPaidFormatted:
+        formatCurrency(
+          totalPaid
+        ),
+
+      outstandingFormatted:
+        formatCurrency(
+          outstanding
+        ),
+    };
+
+    // =====================================================
+    // COUNTS
+    // =====================================================
+
+    const recordCounts = {
+      quotes:
+        quotes.length,
+
+      proposals:
+        proposals.length,
+
+      projects:
+        projects.length,
+
+      tasks:
+        tasks.length,
+
+      invoices:
+        invoices.length,
+
+      followUps:
+        followUps.length,
+    };
+
+    // =====================================================
+    // CUSTOMER INTELLIGENCE SUMMARY
+    // =====================================================
+
+    const summary =
+      buildCustomerSummary({
+        customer,
+
+        quotes,
+
+        projects,
+
+        tasks,
+
+        invoices,
+
+        followUps,
+      });
+
+    // =====================================================
+    // RESPONSE
+    // =====================================================
 
     return NextResponse.json({
       customer,
+
       lead,
+
       quotes,
+
       proposals,
+
       projects,
+
       tasks,
+
       invoices,
+
       followUps,
 
-      financialSummary: {
-        totalInvoiced,
-        totalPaid,
-        outstanding,
-        totalInvoicedFormatted:
-          formatCurrency(totalInvoiced),
-        totalPaidFormatted:
-          formatCurrency(totalPaid),
-        outstandingFormatted:
-          formatCurrency(outstanding),
-      },
+      financialSummary,
 
-      recordCounts: {
-        quotes: quotes.length,
-        proposals: proposals.length,
-        projects: projects.length,
-        tasks: tasks.length,
-        invoices: invoices.length,
-        followUps: followUps.length,
-      },
+      recordCounts,
 
       summary,
     });
   } catch (error) {
     console.error(
-      "Customer detail GET error:",
+      "Customer GET error:",
       error
     );
 
     return NextResponse.json(
       {
         error:
-          "Failed to load customer details.",
+          error.message ||
+          "Unable to load customer.",
       },
       {
         status: 500,
@@ -486,91 +1286,25 @@ export async function GET(request, context) {
   }
 }
 
-export async function PATCH(request, context) {
+// =========================================================
+// UPDATE CUSTOMER
+// =========================================================
+
+export async function PATCH(
+  request,
+  context
+) {
   try {
-    const { id } = await context.params;
-    const body = await request.json();
-
-    if (!id) {
-      return NextResponse.json(
-        {
-          error: "Customer ID is required.",
-        },
-        {
-          status: 400,
-        }
-      );
-    }
-
-    const allowedStatuses = [
-      "Active",
-      "Inactive",
-      "Prospect",
-      "On Hold",
-    ];
-
-    const updates = {};
+    const { id } =
+      await context.params;
 
     if (
-      typeof body.customer_name === "string"
+      !isUuid(id)
     ) {
-      updates.customer_name =
-        body.customer_name.trim();
-    }
-
-    if (typeof body.company === "string") {
-      updates.company = body.company.trim();
-    }
-
-    if (typeof body.email === "string") {
-      const email = body.email.trim();
-
-      if (
-        email &&
-        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-          email
-        )
-      ) {
-        return NextResponse.json(
-          {
-            error:
-              "Please enter a valid email address.",
-          },
-          {
-            status: 400,
-          }
-        );
-      }
-
-      updates.email = email;
-    }
-
-    if (typeof body.phone === "string") {
-      updates.phone = body.phone.trim();
-    }
-
-    if (typeof body.status === "string") {
-      if (
-        !allowedStatuses.includes(body.status)
-      ) {
-        return NextResponse.json(
-          {
-            error: "Invalid customer status.",
-          },
-          {
-            status: 400,
-          }
-        );
-      }
-
-      updates.status = body.status;
-    }
-
-    if (Object.keys(updates).length === 0) {
       return NextResponse.json(
         {
           error:
-            "No valid customer fields were provided.",
+            "A valid customer ID is required.",
         },
         {
           status: 400,
@@ -578,39 +1312,199 @@ export async function PATCH(request, context) {
       );
     }
 
-    const { data, error } = await supabase
-      .from("customers")
-      .update(updates)
-      .eq("id", id)
-      .eq(
-        "organization_id",
-        ORGANIZATION_ID
-      )
-      .select()
-      .single();
+    const access =
+      await getServerAccess();
 
-    if (error) {
+    if (
+      !access.employee
+    ) {
       return NextResponse.json(
         {
-          error: error.message,
+          error:
+            access.error,
         },
         {
-          status: 500,
+          status:
+            access.status,
         }
       );
     }
 
-    return NextResponse.json(data);
+    const body =
+      await request.json();
+
+    const customerName =
+      body.customer_name !==
+      undefined
+        ? String(
+            body.customer_name ||
+              ""
+          ).trim()
+        : undefined;
+
+    if (
+      customerName !==
+        undefined &&
+      !customerName
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Customer name is required.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
+    // =====================================================
+    // WHITELIST EDITABLE CUSTOMER FIELDS
+    // =====================================================
+
+    const updateValues = {};
+
+    if (
+      body.customer_name !==
+      undefined
+    ) {
+      updateValues.customer_name =
+        customerName;
+    }
+
+    if (
+      body.company !==
+      undefined
+    ) {
+      updateValues.company =
+        String(
+          body.company ||
+            ""
+        ).trim();
+    }
+
+    if (
+      body.email !==
+      undefined
+    ) {
+      updateValues.email =
+        String(
+          body.email ||
+            ""
+        ).trim();
+    }
+
+    if (
+      body.phone !==
+      undefined
+    ) {
+      updateValues.phone =
+        String(
+          body.phone ||
+            ""
+        ).trim();
+    }
+
+    if (
+      body.status !==
+      undefined
+    ) {
+      updateValues.status =
+        String(
+          body.status ||
+            "Active"
+        ).trim();
+    }
+
+    if (
+      Object.keys(
+        updateValues
+      ).length ===
+      0
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "No editable customer fields were provided.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
+    // =====================================================
+    // UPDATE WITH ORGANISATION SCOPE
+    // =====================================================
+
+    const {
+      data:
+        updatedCustomer,
+      error,
+    } =
+      await access.supabase
+        .from(
+          "customers"
+        )
+        .update(
+          updateValues
+        )
+        .eq(
+          "id",
+          id
+        )
+        .eq(
+          "organization_id",
+          access.employee
+            .organization_id
+        )
+        .select()
+        .maybeSingle();
+
+    if (error) {
+      throw new Error(
+        error.message
+      );
+    }
+
+    if (
+      !updatedCustomer
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Customer not found.",
+        },
+        {
+          status: 404,
+        }
+      );
+    }
+
+    /*
+     * Important:
+     *
+     * Your current customer page expects the PATCH response
+     * itself to be the customer object, so we deliberately
+     * return updatedCustomer directly rather than:
+     *
+     * { customer: updatedCustomer }
+     */
+
+    return NextResponse.json(
+      updatedCustomer
+    );
   } catch (error) {
     console.error(
-      "Customer detail PATCH error:",
+      "Customer PATCH error:",
       error
     );
 
     return NextResponse.json(
       {
         error:
-          "Failed to update customer.",
+          error.message ||
+          "Unable to update customer.",
       },
       {
         status: 500,
