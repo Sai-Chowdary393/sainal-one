@@ -1,12 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useState,
+} from "react";
+
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+
+import {
+  useParams,
+  useRouter,
+} from "next/navigation";
 
 import AppLayout from "../../../components/layout/AppLayout";
 import StatusBadge from "../../../components/StatusBadge";
 import ProtectedRoute from "../../../components/ProtectedRoute";
+
 import styles from "./customer-details.module.css";
 
 const CUSTOMER_STATUS_OPTIONS = [
@@ -22,7 +31,9 @@ const COMPLETED_STATUSES = [
   "done",
 ];
 
-const PAID_STATUSES = ["paid"];
+const PAID_STATUSES = [
+  "paid",
+];
 
 const OVERDUE_STATUSES = [
   "overdue",
@@ -48,7 +59,7 @@ const TABS = [
   },
   {
     id: "tasks",
-    label: "Tasks",
+    label: "Related Work",
   },
   {
     id: "follow-ups",
@@ -57,50 +68,81 @@ const TABS = [
 ];
 
 export default function CustomerDetailsPage() {
-  const params = useParams();
-  const router = useRouter();
+  const params =
+    useParams();
 
-  const customerId = params?.id;
+  const router =
+    useRouter();
 
-  const [data, setData] = useState(null);
-  const [draftCustomer, setDraftCustomer] =
-    useState(null);
+  const customerId =
+    params?.id;
 
-  const [activeTab, setActiveTab] =
-    useState("overview");
+  const [
+    data,
+    setData,
+  ] = useState(null);
 
-  const [loading, setLoading] =
-    useState(true);
+  const [
+    draftCustomer,
+    setDraftCustomer,
+  ] = useState(null);
 
-  const [saving, setSaving] =
-    useState(false);
+  const [
+    activeTab,
+    setActiveTab,
+  ] = useState("overview");
 
-  const [editing, setEditing] =
-    useState(false);
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
 
-  const [startingProject, setStartingProject] =
-    useState(false);
+  const [
+    saving,
+    setSaving,
+  ] = useState(false);
 
-  const [errorMessage, setErrorMessage] =
-    useState("");
+  const [
+    editing,
+    setEditing,
+  ] = useState(false);
+
+  const [
+    startingProject,
+    setStartingProject,
+  ] = useState(false);
+
+  const [
+    errorMessage,
+    setErrorMessage,
+  ] = useState("");
 
   useEffect(() => {
     if (customerId) {
       fetchCustomerDetails();
     }
-  }, [customerId]);
+  }, [
+    customerId,
+  ]);
+
+  // =======================================================
+  // LOAD CUSTOMER WORKSPACE
+  // =======================================================
 
   async function fetchCustomerDetails() {
     try {
       setLoading(true);
+
       setErrorMessage("");
 
-      const response = await fetch(
-        `/api/customers/${customerId}`,
-        {
-          cache: "no-store",
-        }
-      );
+      const response =
+        await fetch(
+          `/api/customers/${customerId}`,
+          {
+            cache:
+              "no-store",
+          }
+        );
 
       const responseData =
         await response.json();
@@ -112,7 +154,10 @@ export default function CustomerDetailsPage() {
         );
       }
 
-      setData(responseData);
+      setData(
+        responseData
+      );
+
       setDraftCustomer(
         responseData.customer
       );
@@ -131,13 +176,20 @@ export default function CustomerDetailsPage() {
     }
   }
 
+  // =======================================================
+  // EDIT CUSTOMER
+  // =======================================================
+
   function startEditing() {
     setDraftCustomer({
       ...data.customer,
     });
 
     setEditing(true);
-    setActiveTab("overview");
+
+    setActiveTab(
+      "overview"
+    );
   }
 
   function cancelEditing() {
@@ -148,60 +200,85 @@ export default function CustomerDetailsPage() {
     setEditing(false);
   }
 
-  function handleCustomerChange(event) {
-    const { name, value } = event.target;
+  function handleCustomerChange(
+    event
+  ) {
+    const {
+      name,
+      value,
+    } = event.target;
 
     setDraftCustomer(
-      (currentCustomer) => ({
+      (
+        currentCustomer
+      ) => ({
         ...currentCustomer,
-        [name]: value,
+
+        [name]:
+          value,
       })
     );
   }
 
   async function saveCustomer() {
     if (
-      !draftCustomer?.customer_name?.trim()
+      !draftCustomer
+        ?.customer_name
+        ?.trim()
     ) {
-      alert("Customer name is required.");
+      alert(
+        "Customer name is required."
+      );
+
       return;
     }
 
     try {
       setSaving(true);
 
-      const response = await fetch(
-        `/api/customers/${customerId}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          body: JSON.stringify({
-            customer_name:
-              draftCustomer.customer_name.trim(),
+      const response =
+        await fetch(
+          `/api/customers/${customerId}`,
+          {
+            method:
+              "PATCH",
 
-            company:
-              String(
-                draftCustomer.company || ""
-              ).trim(),
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
 
-            email:
-              String(
-                draftCustomer.email || ""
-              ).trim(),
+            body:
+              JSON.stringify({
+                customer_name:
+                  draftCustomer
+                    .customer_name
+                    .trim(),
 
-            phone:
-              String(
-                draftCustomer.phone || ""
-              ).trim(),
+                company:
+                  String(
+                    draftCustomer.company ||
+                      ""
+                  ).trim(),
 
-            status:
-              draftCustomer.status || "Active",
-          }),
-        }
-      );
+                email:
+                  String(
+                    draftCustomer.email ||
+                      ""
+                  ).trim(),
+
+                phone:
+                  String(
+                    draftCustomer.phone ||
+                      ""
+                  ).trim(),
+
+                status:
+                  draftCustomer.status ||
+                  "Active",
+              }),
+          }
+        );
 
       const responseData =
         await response.json();
@@ -214,16 +291,23 @@ export default function CustomerDetailsPage() {
       }
 
       const updatedCustomer =
-        Array.isArray(responseData)
+        Array.isArray(
+          responseData
+        )
           ? responseData[0]
           : responseData;
 
-      setData((currentData) => ({
-        ...currentData,
-        customer:
-          updatedCustomer ||
-          draftCustomer,
-      }));
+      setData(
+        (
+          currentData
+        ) => ({
+          ...currentData,
+
+          customer:
+            updatedCustomer ||
+            draftCustomer,
+        })
+      );
 
       setDraftCustomer(
         updatedCustomer ||
@@ -250,45 +334,73 @@ export default function CustomerDetailsPage() {
     }
   }
 
+  // =======================================================
+  // START PROJECT
+  // =======================================================
+
   async function startProject() {
-    if (!data?.customer) {
+    if (
+      !data?.customer
+    ) {
       return;
     }
 
-    const customer = data.customer;
-    const quotes = data.quotes || [];
+    const customer =
+      data.customer;
 
-    if (quotes.length === 0) {
+    const quotes =
+      data.quotes ||
+      [];
+
+    if (
+      quotes.length ===
+      0
+    ) {
       alert(
         "No quote was found for this customer. Create a quote first."
       );
+
       return;
     }
 
     const acceptedQuote =
-      quotes.find((quote) =>
-        normaliseStatus(
-          quote.status
-        ).includes("accepted")
-      ) || quotes[0];
+      quotes.find(
+        (quote) =>
+          normaliseStatus(
+            quote.status
+          ).includes(
+            "accepted"
+          )
+      ) ||
+      quotes[0];
 
     try {
-      setStartingProject(true);
-
-      const response = await fetch(
-        "/api/projects/from-customer",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          body: JSON.stringify({
-            customer_id: customer.id,
-            quote_id: acceptedQuote.id,
-          }),
-        }
+      setStartingProject(
+        true
       );
+
+      const response =
+        await fetch(
+          "/api/projects/from-customer",
+          {
+            method:
+              "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify({
+                customer_id:
+                  customer.id,
+
+                quote_id:
+                  acceptedQuote.id,
+              }),
+          }
+        );
 
       const responseData =
         await response.json();
@@ -300,7 +412,10 @@ export default function CustomerDetailsPage() {
         );
       }
 
-      if (!responseData.project?.id) {
+      if (
+        !responseData
+          .project?.id
+      ) {
         throw new Error(
           "Project was processed, but no project ID was returned."
         );
@@ -325,9 +440,15 @@ export default function CustomerDetailsPage() {
           "Error starting project."
       );
     } finally {
-      setStartingProject(false);
+      setStartingProject(
+        false
+      );
     }
   }
+
+  // =======================================================
+  // LOADING
+  // =======================================================
 
   if (loading) {
     return (
@@ -342,6 +463,10 @@ export default function CustomerDetailsPage() {
     );
   }
 
+  // =======================================================
+  // ERROR
+  // =======================================================
+
   if (errorMessage) {
     return (
       <ProtectedRoute>
@@ -350,14 +475,18 @@ export default function CustomerDetailsPage() {
           description="Manage an individual customer account."
         >
           <section
-            className={styles.errorPanel}
+            className={
+              styles.errorPanel
+            }
           >
             <div>
               <strong>
                 Unable to load customer
               </strong>
 
-              <p>{errorMessage}</p>
+              <p>
+                {errorMessage}
+              </p>
             </div>
 
             <button
@@ -377,7 +506,13 @@ export default function CustomerDetailsPage() {
     );
   }
 
-  if (!data?.customer) {
+  // =======================================================
+  // NOT FOUND
+  // =======================================================
+
+  if (
+    !data?.customer
+  ) {
     return (
       <ProtectedRoute>
         <AppLayout
@@ -385,7 +520,9 @@ export default function CustomerDetailsPage() {
           description="Manage an individual customer account."
         >
           <section
-            className={styles.notFound}
+            className={
+              styles.notFound
+            }
           >
             <span
               className={
@@ -395,7 +532,9 @@ export default function CustomerDetailsPage() {
               ▣
             </span>
 
-            <h2>Customer not found</h2>
+            <h2>
+              Customer not found
+            </h2>
 
             <p>
               This customer may have been
@@ -417,6 +556,10 @@ export default function CustomerDetailsPage() {
     );
   }
 
+  // =======================================================
+  // DATA
+  // =======================================================
+
   const {
     customer,
     lead,
@@ -437,21 +580,23 @@ export default function CustomerDetailsPage() {
       : customer;
 
   const paidInvoices =
-    invoices.filter((invoice) =>
-      PAID_STATUSES.includes(
-        normaliseStatus(
-          invoice.status
+    invoices.filter(
+      (invoice) =>
+        PAID_STATUSES.includes(
+          normaliseStatus(
+            invoice.status
+          )
         )
-      )
     );
 
   const overdueInvoices =
-    invoices.filter((invoice) =>
-      OVERDUE_STATUSES.includes(
-        normaliseStatus(
-          invoice.status
+    invoices.filter(
+      (invoice) =>
+        OVERDUE_STATUSES.includes(
+          normaliseStatus(
+            invoice.status
+          )
         )
-      )
     );
 
   const activeProjects =
@@ -474,13 +619,39 @@ export default function CustomerDetailsPage() {
         )
     );
 
+  const completedTasks =
+    tasks.filter(
+      (task) =>
+        COMPLETED_STATUSES.includes(
+          normaliseStatus(
+            task.status
+          )
+        )
+    );
+
+  const workflowTasks =
+    tasks.filter(
+      (task) =>
+        Boolean(
+          task.workflow_run_id
+        )
+    );
+
+  const overdueTasks =
+    tasks.filter(
+      isTaskOverdue
+    );
+
   const customerHealth =
     getCustomerHealth({
       customer,
+
       overdueInvoices:
         overdueInvoices.length,
+
       pendingTasks:
         pendingTasks.length,
+
       activeProjects:
         activeProjects.length,
     });
@@ -490,7 +661,10 @@ export default function CustomerDetailsPage() {
       ?.totalInvoicedFormatted ||
     formatCurrency(
       invoices.reduce(
-        (total, invoice) =>
+        (
+          total,
+          invoice
+        ) =>
           total +
           getMoneyValue(
             invoice.total_amount ||
@@ -505,7 +679,10 @@ export default function CustomerDetailsPage() {
       ?.totalPaidFormatted ||
     formatCurrency(
       paidInvoices.reduce(
-        (total, invoice) =>
+        (
+          total,
+          invoice
+        ) =>
           total +
           getMoneyValue(
             invoice.total_amount ||
@@ -529,7 +706,10 @@ export default function CustomerDetailsPage() {
             )
         )
         .reduce(
-          (total, invoice) =>
+          (
+            total,
+            invoice
+          ) =>
             total +
             getMoneyValue(
               invoice.total_amount ||
@@ -538,6 +718,10 @@ export default function CustomerDetailsPage() {
           0
         )
     );
+
+  // =======================================================
+  // PAGE
+  // =======================================================
 
   return (
     <ProtectedRoute>
@@ -548,28 +732,43 @@ export default function CustomerDetailsPage() {
         }
         description="Customer relationship, projects, finance and activity in one secure workspace."
       >
-        <div className={styles.page}>
+        <div
+          className={
+            styles.page
+          }
+        >
+          {/* HEADER */}
+
           <section
-            className={styles.pageHeader}
+            className={
+              styles.pageHeader
+            }
           >
             <div
-              className={styles.headerCopy}
+              className={
+                styles.headerCopy
+              }
             >
               <Link
                 href="/customers"
-                className={styles.backLink}
+                className={
+                  styles.backLink
+                }
               >
                 ← Back to customers
               </Link>
 
               <span
-                className={styles.eyebrow}
+                className={
+                  styles.eyebrow
+                }
               >
                 Customer workspace
               </span>
 
               <h2>
-                {visibleCustomer.customer_name ||
+                {visibleCustomer
+                  .customer_name ||
                   "Unnamed customer"}
               </h2>
 
@@ -590,7 +789,9 @@ export default function CustomerDetailsPage() {
                   className={
                     styles.secondaryButton
                   }
-                  onClick={startEditing}
+                  onClick={
+                    startEditing
+                  }
                 >
                   Edit customer
                 </button>
@@ -601,7 +802,9 @@ export default function CustomerDetailsPage() {
                     className={
                       styles.secondaryButton
                     }
-                    disabled={saving}
+                    disabled={
+                      saving
+                    }
                     onClick={
                       cancelEditing
                     }
@@ -614,7 +817,9 @@ export default function CustomerDetailsPage() {
                     className={
                       styles.primaryButton
                     }
-                    disabled={saving}
+                    disabled={
+                      saving
+                    }
                     onClick={
                       saveCustomer
                     }
@@ -643,7 +848,9 @@ export default function CustomerDetailsPage() {
                 disabled={
                   startingProject
                 }
-                onClick={startProject}
+                onClick={
+                  startProject
+                }
               >
                 {startingProject
                   ? "Starting..."
@@ -652,18 +859,28 @@ export default function CustomerDetailsPage() {
             </div>
           </section>
 
+          {/* HERO */}
+
           <section
-            className={styles.heroCard}
+            className={
+              styles.heroCard
+            }
           >
             <div
-              className={styles.identity}
+              className={
+                styles.identity
+              }
             >
               <span
-                className={styles.avatar}
+                className={
+                  styles.avatar
+                }
               >
                 {getInitials(
-                  visibleCustomer.customer_name ||
-                    visibleCustomer.company
+                  visibleCustomer
+                    .customer_name ||
+                    visibleCustomer
+                      .company
                 )}
               </span>
 
@@ -673,7 +890,8 @@ export default function CustomerDetailsPage() {
                 }
               >
                 <h3>
-                  {visibleCustomer.customer_name ||
+                  {visibleCustomer
+                    .customer_name ||
                     "Unnamed customer"}
                 </h3>
 
@@ -721,12 +939,16 @@ export default function CustomerDetailsPage() {
             >
               <HeroMetric
                 label="Total invoiced"
-                value={totalInvoiced}
+                value={
+                  totalInvoiced
+                }
               />
 
               <HeroMetric
                 label="Outstanding"
-                value={outstanding}
+                value={
+                  outstanding
+                }
                 warning={
                   overdueInvoices.length >
                   0
@@ -742,61 +964,99 @@ export default function CustomerDetailsPage() {
             </div>
           </section>
 
+          {/* TABS */}
+
           <nav
-            className={styles.tabs}
+            className={
+              styles.tabs
+            }
             aria-label="Customer sections"
           >
-            {TABS.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                className={`${styles.tabButton} ${
-                  activeTab === tab.id
-                    ? styles.tabButtonActive
-                    : ""
-                }`}
-                onClick={() =>
-                  setActiveTab(tab.id)
-                }
-              >
-                {tab.label}
+            {TABS.map(
+              (tab) => (
+                <button
+                  key={
+                    tab.id
+                  }
+                  type="button"
+                  className={`${styles.tabButton} ${
+                    activeTab ===
+                    tab.id
+                      ? styles.tabButtonActive
+                      : ""
+                  }`}
+                  onClick={() =>
+                    setActiveTab(
+                      tab.id
+                    )
+                  }
+                >
+                  {tab.label}
 
-                <TabCount
-                  tabId={tab.id}
-                  counts={{
-                    quotes: quotes.length,
-                    projects:
-                      projects.length,
-                    invoices:
-                      invoices.length,
-                    tasks: tasks.length,
-                    "follow-ups":
-                      followUps.length,
-                  }}
-                />
-              </button>
-            ))}
+                  <TabCount
+                    tabId={
+                      tab.id
+                    }
+                    counts={{
+                      quotes:
+                        quotes.length,
+
+                      projects:
+                        projects.length,
+
+                      invoices:
+                        invoices.length,
+
+                      tasks:
+                        tasks.length,
+
+                      "follow-ups":
+                        followUps.length,
+                    }}
+                  />
+                </button>
+              )
+            )}
           </nav>
 
-          {activeTab === "overview" && (
+          {/* OVERVIEW */}
+
+          {activeTab ===
+            "overview" && (
             <OverviewTab
               visibleCustomer={
                 visibleCustomer
               }
-              customer={customer}
-              editing={editing}
-              saving={saving}
+              customer={
+                customer
+              }
+              editing={
+                editing
+              }
+              saving={
+                saving
+              }
               onChange={
                 handleCustomerChange
               }
-              summary={summary}
-              lead={lead}
-              recordCounts={recordCounts}
+              summary={
+                summary
+              }
+              lead={
+                lead
+              }
+              recordCounts={
+                recordCounts
+              }
               totalInvoiced={
                 totalInvoiced
               }
-              totalPaid={totalPaid}
-              outstanding={outstanding}
+              totalPaid={
+                totalPaid
+              }
+              outstanding={
+                outstanding
+              }
               paidInvoices={
                 paidInvoices.length
               }
@@ -812,11 +1072,13 @@ export default function CustomerDetailsPage() {
             />
           )}
 
-          {activeTab === "quotes" && (
+          {/* QUOTES */}
+
+          {activeTab ===
+            "quotes" && (
             <RecordsTab
               title="Quotes and proposals"
               description="Commercial documents linked to this customer."
-              emptyMessage="No quotes or proposals have been created for this customer."
             >
               <div
                 className={
@@ -825,9 +1087,12 @@ export default function CustomerDetailsPage() {
               >
                 <RecordsPanel
                   title="Quotes"
-                  count={quotes.length}
+                  count={
+                    quotes.length
+                  }
                 >
-                  {quotes.length === 0 ? (
+                  {quotes.length ===
+                  0 ? (
                     <EmptyMessage>
                       No quotes found.
                     </EmptyMessage>
@@ -842,8 +1107,14 @@ export default function CustomerDetailsPage() {
                       ]}
                     >
                       {quotes.map(
-                        (quote) => (
-                          <tr key={quote.id}>
+                        (
+                          quote
+                        ) => (
+                          <tr
+                            key={
+                              quote.id
+                            }
+                          >
                             <td>
                               <Link
                                 href={`/quotes/${quote.id}`}
@@ -909,7 +1180,9 @@ export default function CustomerDetailsPage() {
                       ]}
                     >
                       {proposals.map(
-                        (proposal) => (
+                        (
+                          proposal
+                        ) => (
                           <tr
                             key={
                               proposal.id
@@ -961,13 +1234,16 @@ export default function CustomerDetailsPage() {
             </RecordsTab>
           )}
 
-          {activeTab === "projects" && (
+          {/* PROJECTS */}
+
+          {activeTab ===
+            "projects" && (
             <RecordsTab
               title="Projects"
               description="Delivery work linked to this customer."
-              emptyMessage="No projects found for this customer."
             >
-              {projects.length === 0 ? (
+              {projects.length ===
+              0 ? (
                 <EmptyMessage>
                   No projects found.
                 </EmptyMessage>
@@ -982,8 +1258,14 @@ export default function CustomerDetailsPage() {
                   ]}
                 >
                   {projects.map(
-                    (project) => (
-                      <tr key={project.id}>
+                    (
+                      project
+                    ) => (
+                      <tr
+                        key={
+                          project.id
+                        }
+                      >
                         <td>
                           <Link
                             href={`/projects/${project.id}`}
@@ -1029,13 +1311,16 @@ export default function CustomerDetailsPage() {
             </RecordsTab>
           )}
 
-          {activeTab === "invoices" && (
+          {/* INVOICES */}
+
+          {activeTab ===
+            "invoices" && (
             <RecordsTab
               title="Invoices"
               description="Billing and payment records for this customer."
-              emptyMessage="No invoices found for this customer."
             >
-              {invoices.length === 0 ? (
+              {invoices.length ===
+              0 ? (
                 <EmptyMessage>
                   No invoices found.
                 </EmptyMessage>
@@ -1050,8 +1335,14 @@ export default function CustomerDetailsPage() {
                   ]}
                 >
                   {invoices.map(
-                    (invoice) => (
-                      <tr key={invoice.id}>
+                    (
+                      invoice
+                    ) => (
+                      <tr
+                        key={
+                          invoice.id
+                        }
+                      >
                         <td>
                           <Link
                             href={`/invoices/${invoice.id}`}
@@ -1097,66 +1388,147 @@ export default function CustomerDetailsPage() {
             </RecordsTab>
           )}
 
-          {activeTab === "tasks" && (
-            <RecordsTab
-              title="Tasks"
-              description="Project tasks associated with this customer."
-              emptyMessage="No tasks found for this customer."
+          {/* RELATED WORK */}
+
+          {activeTab ===
+            "tasks" && (
+            <section
+              className={
+                styles.relatedWorkSection
+              }
             >
-              {tasks.length === 0 ? (
-                <EmptyMessage>
-                  No tasks found.
-                </EmptyMessage>
-              ) : (
-                <RecordsTable
-                  headings={[
-                    "Task",
-                    "Status",
-                    "Due date",
-                    "Created",
-                  ]}
+              <div
+                className={
+                  styles.relatedWorkHeader
+                }
+              >
+                <div>
+                  <span
+                    className={
+                      styles.eyebrow
+                    }
+                  >
+                    Customer actions
+                  </span>
+
+                  <h3>
+                    Related work
+                  </h3>
+
+                  <p>
+                    Tasks linked directly
+                    to this customer,
+                    generated by quote
+                    workflows, or created
+                    through customer
+                    projects.
+                  </p>
+                </div>
+
+                <div
+                  className={
+                    styles.relatedWorkSummary
+                  }
                 >
-                  {tasks.map((task) => (
-                    <tr key={task.id}>
-                      <td>
-                        {task.task_name ||
-                          "Unnamed task"}
-                      </td>
+                  <WorkMetric
+                    label="Open"
+                    value={
+                      pendingTasks.length
+                    }
+                  />
 
-                      <td>
-                        <StatusBadge
-                          status={
-                            task.status ||
-                            "Not Started"
-                          }
-                        />
-                      </td>
+                  <WorkMetric
+                    label="Completed"
+                    value={
+                      completedTasks.length
+                    }
+                    success
+                  />
 
-                      <td>
-                        {formatDate(
-                          task.due_date
-                        )}
-                      </td>
+                  <WorkMetric
+                    label="Workflow"
+                    value={
+                      workflowTasks.length
+                    }
+                  />
 
-                      <td>
-                        {formatDate(
-                          task.created_at
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </RecordsTable>
+                  <WorkMetric
+                    label="Overdue"
+                    value={
+                      overdueTasks.length
+                    }
+                    danger={
+                      overdueTasks.length >
+                      0
+                    }
+                  />
+                </div>
+              </div>
+
+              {tasks.length ===
+              0 ? (
+                <div
+                  className={
+                    styles.relatedWorkEmpty
+                  }
+                >
+                  <span>
+                    ☑
+                  </span>
+
+                  <h4>
+                    No related work yet
+                  </h4>
+
+                  <p>
+                    Customer tasks,
+                    project tasks and
+                    workflow-generated
+                    actions will appear
+                    here.
+                  </p>
+                </div>
+              ) : (
+                <div
+                  className={
+                    styles.relatedWorkList
+                  }
+                >
+                  {tasks.map(
+                    (
+                      task
+                    ) => (
+                      <CustomerTaskCard
+                        key={
+                          task.id
+                        }
+                        task={
+                          task
+                        }
+                        quotes={
+                          quotes
+                        }
+                        projects={
+                          projects
+                        }
+                      />
+                    )
+                  )}
+                </div>
               )}
-            </RecordsTab>
+            </section>
           )}
 
-          {activeTab === "follow-ups" && (
+          {/* FOLLOW UPS */}
+
+          {activeTab ===
+            "follow-ups" && (
             <RecordsTab
               title="Follow-ups"
               description="Planned communication and customer actions."
-              emptyMessage="No follow-ups found for this customer."
             >
-              {followUps.length === 0 ? (
+              {followUps.length ===
+              0 ? (
                 <EmptyMessage>
                   No follow-ups found.
                 </EmptyMessage>
@@ -1170,9 +1542,13 @@ export default function CustomerDetailsPage() {
                   ]}
                 >
                   {followUps.map(
-                    (followUp) => (
+                    (
+                      followUp
+                    ) => (
                       <tr
-                        key={followUp.id}
+                        key={
+                          followUp.id
+                        }
                       >
                         <td>
                           {followUp.title ||
@@ -1211,6 +1587,182 @@ export default function CustomerDetailsPage() {
   );
 }
 
+// =========================================================
+// CUSTOMER TASK CARD
+// =======================================================
+
+function CustomerTaskCard({
+  task,
+  quotes,
+  projects,
+}) {
+  const completed =
+    COMPLETED_STATUSES.includes(
+      normaliseStatus(
+        task.status
+      )
+    );
+
+  const overdue =
+    isTaskOverdue(
+      task
+    );
+
+  const workflowGenerated =
+    Boolean(
+      task.workflow_run_id
+    );
+
+  const assignee =
+    task.assigned_employee
+      ?.full_name ||
+    task.assigned_employee
+      ?.email ||
+    "Unassigned";
+
+  const relationship =
+    getTaskRelationship({
+      task,
+      quotes,
+      projects,
+    });
+
+  return (
+    <article
+      className={
+        styles.relatedTaskCard
+      }
+    >
+      <div
+        className={
+          styles.relatedTaskMain
+        }
+      >
+        <span
+          className={`${styles.relatedTaskIcon} ${
+            completed
+              ? styles.relatedTaskIconCompleted
+              : ""
+          }`}
+        >
+          {completed
+            ? "✓"
+            : "☑"}
+        </span>
+
+        <div
+          className={
+            styles.relatedTaskCopy
+          }
+        >
+          <div
+            className={
+              styles.relatedTaskTitleRow
+            }
+          >
+            <Link
+              href={`/tasks/${task.id}`}
+            >
+              {task.task_name ||
+                "Unnamed task"}
+            </Link>
+
+            <StatusBadge
+              status={
+                task.status ||
+                "Open"
+              }
+            />
+          </div>
+
+          <p>
+            {task.description ||
+              "No task description has been added."}
+          </p>
+
+          <div
+            className={
+              styles.relatedTaskMeta
+            }
+          >
+            <span
+              className={
+                workflowGenerated
+                  ? styles.workflowSourceBadge
+                  : ""
+              }
+            >
+              {workflowGenerated
+                ? "Workflow generated"
+                : "Manual task"}
+            </span>
+
+            <span>
+              {task.priority ||
+                "Medium"}{" "}
+              priority
+            </span>
+
+            <span>
+              Assigned to{" "}
+              {assignee}
+            </span>
+
+            <span>
+              {relationship.label}
+            </span>
+
+            <span
+              className={
+                overdue
+                  ? styles.relatedTaskOverdue
+                  : ""
+              }
+            >
+              Due{" "}
+              {formatDate(
+                task.due_date
+              )}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div
+        className={
+          styles.relatedTaskActions
+        }
+      >
+        {relationship.href && (
+          <Link
+            href={
+              relationship.href
+            }
+            className={
+              styles.secondaryRecordLink
+            }
+          >
+            Open source
+          </Link>
+        )}
+
+        <Link
+          href={`/tasks/${task.id}`}
+          className={
+            styles.relatedTaskOpen
+          }
+        >
+          Open task →
+        </Link>
+      </div>
+    </article>
+  );
+}
+
+// =========================================================
+// OVERVIEW TAB
+// =======================================================
+
 function OverviewTab({
   visibleCustomer,
   customer,
@@ -1236,12 +1788,20 @@ function OverviewTab({
       : [];
 
   return (
-    <div className={styles.overviewGrid}>
+    <div
+      className={
+        styles.overviewGrid
+      }
+    >
       <section
-        className={styles.panel}
+        className={
+          styles.panel
+        }
       >
         <div
-          className={styles.panelHeader}
+          className={
+            styles.panelHeader
+          }
         >
           <div>
             <h3>
@@ -1256,16 +1816,23 @@ function OverviewTab({
 
         {editing ? (
           <div
-            className={styles.formGrid}
+            className={
+              styles.formGrid
+            }
           >
             <CustomerField
               label="Customer name"
               name="customer_name"
               value={
-                visibleCustomer.customer_name
+                visibleCustomer
+                  .customer_name
               }
-              disabled={saving}
-              onChange={onChange}
+              disabled={
+                saving
+              }
+              onChange={
+                onChange
+              }
             />
 
             <CustomerField
@@ -1274,8 +1841,12 @@ function OverviewTab({
               value={
                 visibleCustomer.company
               }
-              disabled={saving}
-              onChange={onChange}
+              disabled={
+                saving
+              }
+              onChange={
+                onChange
+              }
             />
 
             <CustomerField
@@ -1285,8 +1856,12 @@ function OverviewTab({
               value={
                 visibleCustomer.email
               }
-              disabled={saving}
-              onChange={onChange}
+              disabled={
+                saving
+              }
+              onChange={
+                onChange
+              }
             />
 
             <CustomerField
@@ -1296,12 +1871,18 @@ function OverviewTab({
               value={
                 visibleCustomer.phone
               }
-              disabled={saving}
-              onChange={onChange}
+              disabled={
+                saving
+              }
+              onChange={
+                onChange
+              }
             />
 
             <div
-              className={styles.field}
+              className={
+                styles.field
+              }
             >
               <label
                 htmlFor="customer-status"
@@ -1316,14 +1897,24 @@ function OverviewTab({
                   visibleCustomer.status ||
                   "Active"
                 }
-                disabled={saving}
-                onChange={onChange}
+                disabled={
+                  saving
+                }
+                onChange={
+                  onChange
+                }
               >
                 {CUSTOMER_STATUS_OPTIONS.map(
-                  (status) => (
+                  (
+                    status
+                  ) => (
                     <option
-                      key={status}
-                      value={status}
+                      key={
+                        status
+                      }
+                      value={
+                        status
+                      }
                     >
                       {status}
                     </option>
@@ -1334,12 +1925,15 @@ function OverviewTab({
           </div>
         ) : (
           <div
-            className={styles.detailList}
+            className={
+              styles.detailList
+            }
           >
             <DetailRow
               label="Customer name"
               value={
-                visibleCustomer.customer_name
+                visibleCustomer
+                  .customer_name
               }
             />
 
@@ -1388,22 +1982,30 @@ function OverviewTab({
 
             <DetailRow
               label="Created"
-              value={formatDate(
-                customer.created_at
-              )}
+              value={
+                formatDate(
+                  customer.created_at
+                )
+              }
             />
           </div>
         )}
       </section>
 
       <section
-        className={styles.aiPanel}
+        className={
+          styles.aiPanel
+        }
       >
         <div
-          className={styles.aiHeader}
+          className={
+            styles.aiHeader
+          }
         >
           <span
-            className={styles.aiIcon}
+            className={
+              styles.aiIcon
+            }
           >
             ✦
           </span>
@@ -1420,7 +2022,9 @@ function OverviewTab({
         </div>
 
         <div
-          className={styles.aiSummary}
+          className={
+            styles.aiSummary
+          }
         >
           <p>
             {summary?.overview ||
@@ -1459,7 +2063,10 @@ function OverviewTab({
                     styles.recommendationItem
                   }
                 >
-                  <span>→</span>
+                  <span>
+                    →
+                  </span>
+
                   <p>
                     {recommendation}
                   </p>
@@ -1471,10 +2078,14 @@ function OverviewTab({
       </section>
 
       <section
-        className={styles.financePanel}
+        className={
+          styles.financePanel
+        }
       >
         <div
-          className={styles.panelHeader}
+          className={
+            styles.panelHeader
+          }
         >
           <div>
             <h3>
@@ -1488,39 +2099,54 @@ function OverviewTab({
         </div>
 
         <div
-          className={styles.financeGrid}
+          className={
+            styles.financeGrid
+          }
         >
           <FinanceMetric
             label="Total invoiced"
-            value={totalInvoiced}
+            value={
+              totalInvoiced
+            }
           />
 
           <FinanceMetric
             label="Paid"
-            value={totalPaid}
+            value={
+              totalPaid
+            }
             positive
           />
 
           <FinanceMetric
             label="Outstanding"
-            value={outstanding}
+            value={
+              outstanding
+            }
             warning={
-              overdueInvoices > 0
+              overdueInvoices >
+              0
             }
           />
 
           <FinanceMetric
             label="Paid invoices"
-            value={paidInvoices}
+            value={
+              paidInvoices
+            }
           />
         </div>
       </section>
 
       <section
-        className={styles.panel}
+        className={
+          styles.panel
+        }
       >
         <div
-          className={styles.panelHeader}
+          className={
+            styles.panelHeader
+          }
         >
           <div>
             <h3>
@@ -1534,12 +2160,15 @@ function OverviewTab({
         </div>
 
         <div
-          className={styles.accountGrid}
+          className={
+            styles.accountGrid
+          }
         >
           <AccountMetric
             label="Quotes"
             value={
-              recordCounts?.quotes || 0
+              recordCounts?.quotes ||
+              0
             }
           />
 
@@ -1589,7 +2218,9 @@ function OverviewTab({
 
       {lead && (
         <section
-          className={styles.panel}
+          className={
+            styles.panel
+          }
         >
           <div
             className={
@@ -1597,7 +2228,9 @@ function OverviewTab({
             }
           >
             <div>
-              <h3>Original lead</h3>
+              <h3>
+                Original lead
+              </h3>
 
               <p>
                 Source CRM opportunity
@@ -1624,7 +2257,8 @@ function OverviewTab({
 
             <StatusBadge
               status={
-                lead.status || "New"
+                lead.status ||
+                "New"
               }
             />
 
@@ -1635,17 +2269,23 @@ function OverviewTab({
               }
             >
               Open lead
-              <span>→</span>
+              <span>
+                →
+              </span>
             </Link>
           </div>
         </section>
       )}
 
       <section
-        className={styles.panel}
+        className={
+          styles.panel
+        }
       >
         <div
-          className={styles.panelHeader}
+          className={
+            styles.panelHeader
+          }
         >
           <div>
             <h3>
@@ -1658,12 +2298,18 @@ function OverviewTab({
           </div>
         </div>
 
-        <div className={styles.timeline}>
+        <div
+          className={
+            styles.timeline
+          }
+        >
           <TimelineItem
             title="Customer created"
-            description={formatDateTime(
-              customer.created_at
-            )}
+            description={
+              formatDateTime(
+                customer.created_at
+              )
+            }
           />
 
           <TimelineItem
@@ -1677,7 +2323,8 @@ function OverviewTab({
           <TimelineItem
             title="Active delivery"
             description={`${activeProjects} active project${
-              activeProjects === 1
+              activeProjects ===
+              1
                 ? ""
                 : "s"
             }`}
@@ -1686,7 +2333,8 @@ function OverviewTab({
           <TimelineItem
             title="Pending actions"
             description={`${pendingTasks} incomplete task${
-              pendingTasks === 1
+              pendingTasks ===
+              1
                 ? ""
                 : "s"
             }`}
@@ -1697,6 +2345,10 @@ function OverviewTab({
   );
 }
 
+// =========================================================
+// COMMON COMPONENTS
+// =======================================================
+
 function RecordsTab({
   title,
   description,
@@ -1704,7 +2356,9 @@ function RecordsTab({
 }) {
   return (
     <section
-      className={styles.recordsSection}
+      className={
+        styles.recordsSection
+      }
     >
       <div
         className={
@@ -1712,8 +2366,13 @@ function RecordsTab({
         }
       >
         <div>
-          <h3>{title}</h3>
-          <p>{description}</p>
+          <h3>
+            {title}
+          </h3>
+
+          <p>
+            {description}
+          </p>
         </div>
       </div>
 
@@ -1729,15 +2388,22 @@ function RecordsPanel({
 }) {
   return (
     <section
-      className={styles.recordsPanel}
+      className={
+        styles.recordsPanel
+      }
     >
       <div
         className={
           styles.recordsPanelHeader
         }
       >
-        <h3>{title}</h3>
-        <span>{count}</span>
+        <h3>
+          {title}
+        </h3>
+
+        <span>
+          {count}
+        </span>
       </div>
 
       {children}
@@ -1751,16 +2417,26 @@ function RecordsTable({
 }) {
   return (
     <div
-      className={styles.tableWrapper}
+      className={
+        styles.tableWrapper
+      }
     >
       <table
-        className={styles.recordsTable}
+        className={
+          styles.recordsTable
+        }
       >
         <thead>
           <tr>
             {headings.map(
-              (heading) => (
-                <th key={heading}>
+              (
+                heading
+              ) => (
+                <th
+                  key={
+                    heading
+                  }
+                >
                   {heading}
                 </th>
               )
@@ -1768,7 +2444,9 @@ function RecordsTable({
           </tr>
         </thead>
 
-        <tbody>{children}</tbody>
+        <tbody>
+          {children}
+        </tbody>
       </table>
     </div>
   );
@@ -1783,7 +2461,11 @@ function CustomerField({
   type = "text",
 }) {
   return (
-    <div className={styles.field}>
+    <div
+      className={
+        styles.field
+      }
+    >
       <label
         htmlFor={`customer-${name}`}
       >
@@ -1792,11 +2474,22 @@ function CustomerField({
 
       <input
         id={`customer-${name}`}
-        name={name}
-        type={type}
-        value={value || ""}
-        disabled={disabled}
-        onChange={onChange}
+        name={
+          name
+        }
+        type={
+          type
+        }
+        value={
+          value ||
+          ""
+        }
+        disabled={
+          disabled
+        }
+        onChange={
+          onChange
+        }
       />
     </div>
   );
@@ -1809,13 +2502,25 @@ function DetailRow({
   customValue,
 }) {
   return (
-    <div className={styles.detailRow}>
-      <span>{label}</span>
+    <div
+      className={
+        styles.detailRow
+      }
+    >
+      <span>
+        {label}
+      </span>
 
       {customValue ? (
         customValue
       ) : href && value ? (
-        <a href={href}>{value}</a>
+        <a
+          href={
+            href
+          }
+        >
+          {value}
+        </a>
       ) : (
         <strong
           className={
@@ -1824,7 +2529,8 @@ function DetailRow({
               : styles.emptyValue
           }
         >
-          {value || "Not available"}
+          {value ||
+            "Not available"}
         </strong>
       )}
     </div>
@@ -1844,8 +2550,13 @@ function HeroMetric({
           : ""
       }`}
     >
-      <span>{label}</span>
-      <strong>{value}</strong>
+      <span>
+        {label}
+      </span>
+
+      <strong>
+        {value}
+      </strong>
     </div>
   );
 }
@@ -1868,8 +2579,13 @@ function FinanceMetric({
           : ""
       }`}
     >
-      <span>{label}</span>
-      <strong>{value}</strong>
+      <span>
+        {label}
+      </span>
+
+      <strong>
+        {value}
+      </strong>
     </div>
   );
 }
@@ -1880,19 +2596,59 @@ function AccountMetric({
 }) {
   return (
     <div
-      className={styles.accountMetric}
+      className={
+        styles.accountMetric
+      }
     >
-      <strong>{value}</strong>
-      <span>{label}</span>
+      <strong>
+        {value}
+      </strong>
+
+      <span>
+        {label}
+      </span>
     </div>
   );
 }
 
-function HealthBadge({ health }) {
+function WorkMetric({
+  label,
+  value,
+  success = false,
+  danger = false,
+}) {
+  return (
+    <div
+      className={`${styles.workMetric} ${
+        success
+          ? styles.workMetricSuccess
+          : ""
+      } ${
+        danger
+          ? styles.workMetricDanger
+          : ""
+      }`}
+    >
+      <strong>
+        {value}
+      </strong>
+
+      <span>
+        {label}
+      </span>
+    </div>
+  );
+}
+
+function HealthBadge({
+  health,
+}) {
   const className =
-    health.tone === "excellent"
+    health.tone ===
+    "excellent"
       ? styles.healthExcellent
-      : health.tone === "attention"
+      : health.tone ===
+          "attention"
         ? styles.healthAttention
         : styles.healthRisk;
 
@@ -1901,7 +2657,9 @@ function HealthBadge({ health }) {
       className={`${styles.healthBadge} ${className}`}
     >
       <span
-        className={styles.healthDot}
+        className={
+          styles.healthDot
+        }
       />
 
       {health.label}
@@ -1915,25 +2673,45 @@ function TimelineItem({
 }) {
   return (
     <div
-      className={styles.timelineItem}
+      className={
+        styles.timelineItem
+      }
     >
       <span
-        className={styles.timelineDot}
+        className={
+          styles.timelineDot
+        }
       />
 
       <div>
-        <strong>{title}</strong>
-        <p>{description}</p>
+        <strong>
+          {title}
+        </strong>
+
+        <p>
+          {description}
+        </p>
       </div>
     </div>
   );
 }
 
-function EmptyMessage({ children }) {
+function EmptyMessage({
+  children,
+}) {
   return (
-    <div className={styles.emptyState}>
-      <span>—</span>
-      <p>{children}</p>
+    <div
+      className={
+        styles.emptyState
+      }
+    >
+      <span>
+        —
+      </span>
+
+      <p>
+        {children}
+      </p>
     </div>
   );
 }
@@ -1942,18 +2720,25 @@ function TabCount({
   tabId,
   counts,
 }) {
-  const count = counts[tabId];
+  const count =
+    counts[
+      tabId
+    ];
 
   if (
-    count === undefined ||
-    tabId === "overview"
+    count ===
+      undefined ||
+    tabId ===
+      "overview"
   ) {
     return null;
   }
 
   return (
     <span
-      className={styles.tabCount}
+      className={
+        styles.tabCount
+      }
     >
       {count}
     </span>
@@ -1963,19 +2748,161 @@ function TabCount({
 function LoadingState() {
   return (
     <section
-      className={styles.loadingPanel}
+      className={
+        styles.loadingPanel
+      }
     >
       {Array.from({
         length: 6,
-      }).map((_, index) => (
-        <div
-          key={index}
-          className={styles.loadingRow}
-        />
-      ))}
+      }).map(
+        (
+          _,
+          index
+        ) => (
+          <div
+            key={
+              index
+            }
+            className={
+              styles.loadingRow
+            }
+          />
+        )
+      )}
     </section>
   );
 }
+
+// =========================================================
+// TASK RELATIONSHIP
+// =======================================================
+
+function getTaskRelationship({
+  task,
+  quotes,
+  projects,
+}) {
+  const recordType =
+    normaliseStatus(
+      task.record_type
+    );
+
+  if (
+    [
+      "quote",
+      "quotes",
+    ].includes(
+      recordType
+    ) &&
+    task.record_id
+  ) {
+    const quote =
+      quotes.find(
+        (item) =>
+          String(
+            item.id
+          ) ===
+          String(
+            task.record_id
+          )
+      );
+
+    return {
+      label:
+        quote?.quote_number
+          ? `Quote ${quote.quote_number}`
+          : "Quote",
+
+      href:
+        `/quotes/${task.record_id}`,
+    };
+  }
+
+  if (
+    task.project_id
+  ) {
+    const project =
+      projects.find(
+        (item) =>
+          String(
+            item.id
+          ) ===
+          String(
+            task.project_id
+          )
+      );
+
+    return {
+      label:
+        project?.project_name
+          ? `Project: ${project.project_name}`
+          : "Project",
+
+      href:
+        `/projects/${task.project_id}`,
+    };
+  }
+
+  if (
+    [
+      "project",
+      "projects",
+    ].includes(
+      recordType
+    ) &&
+    task.record_id
+  ) {
+    const project =
+      projects.find(
+        (item) =>
+          String(
+            item.id
+          ) ===
+          String(
+            task.record_id
+          )
+      );
+
+    return {
+      label:
+        project?.project_name
+          ? `Project: ${project.project_name}`
+          : "Project",
+
+      href:
+        `/projects/${task.record_id}`,
+    };
+  }
+
+  if (
+    [
+      "customer",
+      "customers",
+    ].includes(
+      recordType
+    )
+  ) {
+    return {
+      label:
+        "Direct customer task",
+
+      href:
+        null,
+    };
+  }
+
+  return {
+    label:
+      "Customer work",
+
+    href:
+      null,
+  };
+}
+
+// =========================================================
+// HEALTH
+// =======================================================
 
 function getCustomerHealth({
   customer,
@@ -1983,142 +2910,290 @@ function getCustomerHealth({
   pendingTasks,
   activeProjects,
 }) {
-  const status = normaliseStatus(
-    customer.status
-  );
+  const status =
+    normaliseStatus(
+      customer.status
+    );
 
   if (
-    status === "inactive" ||
-    overdueInvoices > 1
+    status ===
+      "inactive" ||
+    overdueInvoices >
+      1
   ) {
     return {
-      label: "At Risk",
-      tone: "risk",
+      label:
+        "At Risk",
+
+      tone:
+        "risk",
     };
   }
 
   if (
-    status === "on hold" ||
-    overdueInvoices === 1 ||
-    pendingTasks > 5
+    status ===
+      "on hold" ||
+    overdueInvoices ===
+      1 ||
+    pendingTasks >
+      5
   ) {
     return {
-      label: "Attention",
-      tone: "attention",
+      label:
+        "Attention",
+
+      tone:
+        "attention",
     };
   }
 
   if (
-    status === "active" ||
-    activeProjects > 0
+    status ===
+      "active" ||
+    activeProjects >
+      0
   ) {
     return {
-      label: "Excellent",
-      tone: "excellent",
+      label:
+        "Excellent",
+
+      tone:
+        "excellent",
     };
   }
 
   return {
-    label: "Attention",
-    tone: "attention",
+    label:
+      "Attention",
+
+    tone:
+      "attention",
   };
 }
 
-function normaliseStatus(value) {
-  return String(value || "")
+// =========================================================
+// HELPERS
+// =======================================================
+
+function normaliseStatus(
+  value
+) {
+  return String(
+    value ||
+      ""
+  )
     .trim()
     .toLowerCase();
 }
 
-function getMoneyValue(value) {
+function isTaskOverdue(
+  task
+) {
   if (
-    value === null ||
-    value === undefined ||
-    value === ""
+    !task?.due_date ||
+    COMPLETED_STATUSES.includes(
+      normaliseStatus(
+        task.status
+      )
+    )
+  ) {
+    return false;
+  }
+
+  const dueDate =
+    new Date(
+      `${String(
+        task.due_date
+      ).split("T")[0]}T23:59:59`
+    );
+
+  if (
+    Number.isNaN(
+      dueDate.getTime()
+    )
+  ) {
+    return false;
+  }
+
+  return (
+    dueDate <
+    new Date()
+  );
+}
+
+function getMoneyValue(
+  value
+) {
+  if (
+    value ===
+      null ||
+    value ===
+      undefined ||
+    value ===
+      ""
   ) {
     return 0;
   }
 
   return (
     Number(
-      String(value).replace(
+      String(
+        value
+      ).replace(
         /[^0-9.-]/g,
         ""
       )
-    ) || 0
+    ) ||
+    0
   );
 }
 
-function formatCurrency(value) {
-  return Number(value || 0).toLocaleString(
+function formatCurrency(
+  value
+) {
+  return Number(
+    value ||
+      0
+  ).toLocaleString(
     "en-GB",
     {
-      style: "currency",
-      currency: "GBP",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
+      style:
+        "currency",
+
+      currency:
+        "GBP",
+
+      minimumFractionDigits:
+        0,
+
+      maximumFractionDigits:
+        0,
     }
   );
 }
 
-function getInitials(value = "") {
-  const words = String(value)
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
-
-  if (words.length === 0) {
-    return "CU";
-  }
-
-  if (words.length === 1) {
-    return words[0]
-      .slice(0, 2)
-      .toUpperCase();
-  }
-
-  return `${words[0][0]}${
-    words[words.length - 1][0]
-  }`.toUpperCase();
-}
-
-function formatDate(value) {
+function formatDate(
+  value
+) {
   if (!value) {
-    return "Not available";
+    return "Not scheduled";
   }
 
-  const date = new Date(value);
+  const date =
+    String(
+      value
+    ).includes(
+      "T"
+    )
+      ? new Date(
+          value
+        )
+      : new Date(
+          `${value}T12:00:00`
+        );
 
-  if (Number.isNaN(date.getTime())) {
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
     return "Not available";
   }
 
   return date.toLocaleDateString(
     "en-GB",
     {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
+      day:
+        "2-digit",
+
+      month:
+        "short",
+
+      year:
+        "numeric",
     }
   );
 }
 
-function formatDateTime(value) {
+function formatDateTime(
+  value
+) {
   if (!value) {
-    return "Date not available";
+    return "Not available";
   }
 
-  const date = new Date(value);
+  const date =
+    new Date(
+      value
+    );
 
-  if (Number.isNaN(date.getTime())) {
-    return "Date not available";
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return "Not available";
   }
 
   return date.toLocaleString(
     "en-GB",
     {
-      dateStyle: "medium",
-      timeStyle: "short",
+      day:
+        "2-digit",
+
+      month:
+        "short",
+
+      year:
+        "numeric",
+
+      hour:
+        "2-digit",
+
+      minute:
+        "2-digit",
     }
   );
+}
+
+function getInitials(
+  value
+) {
+  const cleanValue =
+    String(
+      value ||
+        ""
+    ).trim();
+
+  if (!cleanValue) {
+    return "CU";
+  }
+
+  const parts =
+    cleanValue
+      .split(
+        /\s+/
+      )
+      .filter(
+        Boolean
+      );
+
+  if (
+    parts.length ===
+    1
+  ) {
+    return parts[0]
+      .slice(
+        0,
+        2
+      )
+      .toUpperCase();
+  }
+
+  return `${parts[0][0]}${
+    parts[
+      parts.length -
+        1
+    ][0]
+  }`.toUpperCase();
 }
