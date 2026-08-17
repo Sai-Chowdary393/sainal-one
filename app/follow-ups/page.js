@@ -14,6 +14,10 @@ import StatusBadge from "../../components/StatusBadge";
 
 import styles from "./follow-ups.module.css";
 
+// =========================================================
+// FORM
+// =========================================================
+
 const EMPTY_FORM = {
   related_type: "General",
   title: "",
@@ -21,6 +25,10 @@ const EMPTY_FORM = {
   due_date: "",
   status: "Pending",
 };
+
+// =========================================================
+// OPTIONS
+// =========================================================
 
 const RELATED_TYPE_OPTIONS = [
   "General",
@@ -37,7 +45,7 @@ const FOLLOW_UP_STATUS_OPTIONS = [
 ];
 
 const TASK_STATUS_OPTIONS = [
-  "Open",
+  "To Do",
   "In Progress",
   "Blocked",
   "Completed",
@@ -48,6 +56,18 @@ const WORK_FILTERS = [
   "Tasks",
   "Follow-ups",
 ];
+
+const PRIORITY_FILTERS = [
+  "All",
+  "Low",
+  "Medium",
+  "High",
+  "Urgent",
+];
+
+// =========================================================
+// PAGE
+// =========================================================
 
 export default function FollowUpsPage() {
   const [
@@ -74,6 +94,16 @@ export default function FollowUpsPage() {
     saving,
     setSaving,
   ] = useState(false);
+
+  const [
+    updatingWorkId,
+    setUpdatingWorkId,
+  ] = useState(null);
+
+  const [
+    deletingWorkId,
+    setDeletingWorkId,
+  ] = useState(null);
 
   const [
     errorMessage,
@@ -106,6 +136,11 @@ export default function FollowUpsPage() {
   ] = useState("All");
 
   const [
+    priorityFilter,
+    setPriorityFilter,
+  ] = useState("All");
+
+  const [
     formData,
     setFormData,
   ] = useState(
@@ -132,7 +167,9 @@ export default function FollowUpsPage() {
           "create"
         ) === "true"
       ) {
-        setShowForm(true);
+        setShowForm(
+          true
+        );
 
         window.history.replaceState(
           {},
@@ -149,42 +186,49 @@ export default function FollowUpsPage() {
   }, []);
 
   // =======================================================
-  // LOAD TASKS + FOLLOW UPS
+  // LOAD MY WORK
   // =======================================================
 
   async function fetchWork() {
     try {
-      setLoading(true);
-      setErrorMessage("");
+      setLoading(
+        true
+      );
+
+      setErrorMessage(
+        ""
+      );
 
       const [
         followUpResponse,
         taskResponse,
-      ] = await Promise.all([
-        fetch(
-          "/api/follow-ups",
-          {
-            cache:
-              "no-store",
-          }
-        ),
+      ] =
+        await Promise.all([
+          fetch(
+            "/api/follow-ups",
+            {
+              cache:
+                "no-store",
+            }
+          ),
 
-        fetch(
-          "/api/tasks",
-          {
-            cache:
-              "no-store",
-          }
-        ),
-      ]);
+          fetch(
+            "/api/tasks",
+            {
+              cache:
+                "no-store",
+            }
+          ),
+        ]);
 
       const [
         followUpData,
         taskData,
-      ] = await Promise.all([
-        followUpResponse.json(),
-        taskResponse.json(),
-      ]);
+      ] =
+        await Promise.all([
+          followUpResponse.json(),
+          taskResponse.json(),
+        ]);
 
       if (
         !followUpResponse.ok
@@ -237,12 +281,14 @@ export default function FollowUpsPage() {
           "We could not load your work."
       );
     } finally {
-      setLoading(false);
+      setLoading(
+        false
+      );
     }
   }
 
   // =======================================================
-  // CREATE FOLLOW UP
+  // FOLLOW-UP FORM
   // =======================================================
 
   function handleChange(
@@ -251,7 +297,8 @@ export default function FollowUpsPage() {
     const {
       name,
       value,
-    } = event.target;
+    } =
+      event.target;
 
     setFormData(
       (
@@ -270,7 +317,9 @@ export default function FollowUpsPage() {
       EMPTY_FORM
     );
 
-    setShowForm(true);
+    setShowForm(
+      true
+    );
   }
 
   function closeCreateForm() {
@@ -278,8 +327,14 @@ export default function FollowUpsPage() {
       EMPTY_FORM
     );
 
-    setShowForm(false);
+    setShowForm(
+      false
+    );
   }
+
+  // =======================================================
+  // CREATE FOLLOW-UP
+  // =======================================================
 
   async function createFollowUp(
     event
@@ -289,7 +344,9 @@ export default function FollowUpsPage() {
     const cleanTitle =
       formData.title.trim();
 
-    if (!cleanTitle) {
+    if (
+      !cleanTitle
+    ) {
       alert(
         "Please enter a follow-up title."
       );
@@ -298,7 +355,9 @@ export default function FollowUpsPage() {
     }
 
     try {
-      setSaving(true);
+      setSaving(
+        true
+      );
 
       const response =
         await fetch(
@@ -338,7 +397,9 @@ export default function FollowUpsPage() {
       const data =
         await response.json();
 
-      if (!response.ok) {
+      if (
+        !response.ok
+      ) {
         throw new Error(
           data.error ||
             "Failed to create follow-up."
@@ -352,7 +413,9 @@ export default function FollowUpsPage() {
           ? data[0]
           : data;
 
-      if (created) {
+      if (
+        created
+      ) {
         setFollowUps(
           (
             current
@@ -381,12 +444,14 @@ export default function FollowUpsPage() {
           "Error creating follow-up."
       );
     } finally {
-      setSaving(false);
+      setSaving(
+        false
+      );
     }
   }
 
   // =======================================================
-  // FOLLOW-UP STATUS
+  // UPDATE FOLLOW-UP STATUS
   // =======================================================
 
   async function updateFollowUpStatus(
@@ -394,6 +459,10 @@ export default function FollowUpsPage() {
     status
   ) {
     try {
+      setUpdatingWorkId(
+        `Follow-up-${id}`
+      );
+
       const response =
         await fetch(
           `/api/follow-ups/${id}`,
@@ -416,7 +485,9 @@ export default function FollowUpsPage() {
       const data =
         await response.json();
 
-      if (!response.ok) {
+      if (
+        !response.ok
+      ) {
         throw new Error(
           data.error ||
             "Failed to update follow-up."
@@ -424,7 +495,9 @@ export default function FollowUpsPage() {
       }
 
       const updated =
-        Array.isArray(data)
+        Array.isArray(
+          data
+        )
           ? data[0]
           : data;
 
@@ -439,7 +512,9 @@ export default function FollowUpsPage() {
               String(
                 followUp.id
               ) ===
-              String(id)
+              String(
+                id
+              )
                 ? {
                     ...followUp,
                     ...updated,
@@ -460,11 +535,15 @@ export default function FollowUpsPage() {
       );
 
       await fetchWork();
+    } finally {
+      setUpdatingWorkId(
+        null
+      );
     }
   }
 
   // =======================================================
-  // TASK STATUS
+  // UPDATE TASK STATUS
   // =======================================================
 
   async function updateTaskStatus(
@@ -472,6 +551,10 @@ export default function FollowUpsPage() {
     status
   ) {
     try {
+      setUpdatingWorkId(
+        `Task-${id}`
+      );
+
       const response =
         await fetch(
           `/api/tasks/${id}`,
@@ -494,7 +577,9 @@ export default function FollowUpsPage() {
       const data =
         await response.json();
 
-      if (!response.ok) {
+      if (
+        !response.ok
+      ) {
         throw new Error(
           data.error ||
             "Failed to update task."
@@ -506,7 +591,9 @@ export default function FollowUpsPage() {
           data
         );
 
-      if (!updatedTask) {
+      if (
+        !updatedTask
+      ) {
         await fetchWork();
 
         return;
@@ -517,11 +604,15 @@ export default function FollowUpsPage() {
           current
         ) =>
           current.map(
-            (task) =>
+            (
+              task
+            ) =>
               String(
                 task.id
               ) ===
-              String(id)
+              String(
+                id
+              )
                 ? {
                     ...task,
                     ...updatedTask,
@@ -541,11 +632,15 @@ export default function FollowUpsPage() {
       );
 
       await fetchWork();
+    } finally {
+      setUpdatingWorkId(
+        null
+      );
     }
   }
 
   // =======================================================
-  // DELETE FOLLOW UP
+  // DELETE FOLLOW-UP
   // =======================================================
 
   async function deleteFollowUp(
@@ -556,11 +651,17 @@ export default function FollowUpsPage() {
         "Are you sure you want to delete this follow-up?"
       );
 
-    if (!confirmed) {
+    if (
+      !confirmed
+    ) {
       return;
     }
 
     try {
+      setDeletingWorkId(
+        `Follow-up-${id}`
+      );
+
       const response =
         await fetch(
           `/api/follow-ups/${id}`,
@@ -573,7 +674,9 @@ export default function FollowUpsPage() {
       const data =
         await response.json();
 
-      if (!response.ok) {
+      if (
+        !response.ok
+      ) {
         throw new Error(
           data.error ||
             "Failed to delete follow-up."
@@ -591,7 +694,9 @@ export default function FollowUpsPage() {
               String(
                 followUp.id
               ) !==
-              String(id)
+              String(
+                id
+              )
           )
       );
     } catch (error) {
@@ -603,6 +708,10 @@ export default function FollowUpsPage() {
       alert(
         error.message ||
           "Error deleting follow-up."
+      );
+    } finally {
+      setDeletingWorkId(
+        null
       );
     }
   }
@@ -619,11 +728,17 @@ export default function FollowUpsPage() {
         "Are you sure you want to delete this task?"
       );
 
-    if (!confirmed) {
+    if (
+      !confirmed
+    ) {
       return;
     }
 
     try {
+      setDeletingWorkId(
+        `Task-${id}`
+      );
+
       const response =
         await fetch(
           `/api/tasks/${id}`,
@@ -636,7 +751,9 @@ export default function FollowUpsPage() {
       const data =
         await response.json();
 
-      if (!response.ok) {
+      if (
+        !response.ok
+      ) {
         throw new Error(
           data.error ||
             "Failed to delete task."
@@ -648,11 +765,15 @@ export default function FollowUpsPage() {
           current
         ) =>
           current.filter(
-            (task) =>
+            (
+              task
+            ) =>
               String(
                 task.id
               ) !==
-              String(id)
+              String(
+                id
+              )
           )
       );
     } catch (error) {
@@ -667,80 +788,108 @@ export default function FollowUpsPage() {
       );
 
       await fetchWork();
+    } finally {
+      setDeletingWorkId(
+        null
+      );
     }
   }
 
   // =======================================================
-  // NORMALISE INTO ONE WORK LIST
+  // BUILD UNIFIED WORK LIST
   // =======================================================
 
   const workItems =
     useMemo(() => {
       const taskItems =
         tasks.map(
-          (task) => ({
-            id:
-              task.id,
+          (
+            task
+          ) => {
+            const assignee =
+              getTaskAssignee(
+                task
+              );
 
-            itemType:
-              "Task",
+            return {
+              id:
+                task.id,
 
-            title:
-              task.task_name ||
-              "Untitled task",
+              itemType:
+                "Task",
 
-            description:
-              task.description ||
-              "",
+              title:
+                task.task_name ||
+                "Untitled task",
 
-            relatedType:
-              task.record_type
-                ? formatRecordType(
-                    task.record_type
-                  )
-                : task.project_id
-                  ? "Project"
-                  : "General",
+              description:
+                task.description ||
+                "",
 
-            status:
-              task.status ||
-              "Open",
+              relatedType:
+                task.record_type
+                  ? formatRecordType(
+                      task.record_type
+                    )
+                  : task.project_id
+                    ? "Project"
+                    : "General",
 
-            dueDate:
-              task.due_date,
+              status:
+                getTaskDisplayStatus(
+                  task.status
+                ),
 
-            createdAt:
-              task.created_at,
+              rawStatus:
+                task.status,
 
-            priority:
-              task.priority ||
-              "Medium",
+              dueDate:
+                task.due_date,
 
-            recordType:
-              task.record_type,
+              createdAt:
+                task.created_at,
 
-            recordId:
-              task.record_id,
+              priority:
+                task.priority ||
+                "Medium",
 
-            workflowRunId:
-              task.workflow_run_id,
+              assignedEmployeeId:
+                task.assigned_employee_id,
 
-            assignedEmployeeId:
-              task.assigned_employee_id,
+              assigneeName:
+                assignee.name,
 
-            automatic:
-              Boolean(
-                task.workflow_run_id
-              ),
+              assigneeRole:
+                assignee.role,
 
-            source:
-              task,
-          })
+              recordType:
+                task.record_type,
+
+              recordId:
+                task.record_id,
+
+              projectId:
+                task.project_id,
+
+              workflowRunId:
+                task.workflow_run_id,
+
+              automatic:
+                Boolean(
+                  task.workflow_run_id
+                ),
+
+              source:
+                task,
+            };
+          }
         );
 
       const followUpItems =
         followUps.map(
-          (followUp) => ({
+          (
+            followUp
+          ) => ({
             id:
               followUp.id,
 
@@ -763,6 +912,9 @@ export default function FollowUpsPage() {
               followUp.status ||
               "Pending",
 
+            rawStatus:
+              followUp.status,
+
             dueDate:
               followUp.due_date,
 
@@ -772,16 +924,25 @@ export default function FollowUpsPage() {
             priority:
               null,
 
+            assignedEmployeeId:
+              null,
+
+            assigneeName:
+              "Personal follow-up",
+
+            assigneeRole:
+              null,
+
             recordType:
               null,
 
             recordId:
               null,
 
-            workflowRunId:
+            projectId:
               null,
 
-            assignedEmployeeId:
+            workflowRunId:
               null,
 
             automatic:
@@ -814,7 +975,9 @@ export default function FollowUpsPage() {
 
       return workItems
         .filter(
-          (item) => {
+          (
+            item
+          ) => {
             const matchesSearch =
               !search ||
               [
@@ -824,6 +987,7 @@ export default function FollowUpsPage() {
                 item.status,
                 item.priority,
                 item.itemType,
+                item.assigneeName,
               ].some(
                 (
                   value
@@ -874,11 +1038,26 @@ export default function FollowUpsPage() {
                   typeFilter
                 );
 
+            const matchesPriority =
+              priorityFilter ===
+                "All" ||
+              (
+                item.itemType ===
+                  "Task" &&
+                normaliseStatus(
+                  item.priority
+                ) ===
+                  normaliseStatus(
+                    priorityFilter
+                  )
+              );
+
             return (
               matchesSearch &&
               matchesWorkType &&
               matchesStatus &&
-              matchesType
+              matchesType &&
+              matchesPriority
             );
           }
         )
@@ -891,6 +1070,7 @@ export default function FollowUpsPage() {
       workFilter,
       statusFilter,
       typeFilter,
+      priorityFilter,
     ]);
 
   // =======================================================
@@ -899,7 +1079,9 @@ export default function FollowUpsPage() {
 
   const openCount =
     workItems.filter(
-      (item) =>
+      (
+        item
+      ) =>
         !isCompleted(
           item.status
         )
@@ -907,7 +1089,9 @@ export default function FollowUpsPage() {
 
   const completedCount =
     workItems.filter(
-      (item) =>
+      (
+        item
+      ) =>
         isCompleted(
           item.status
         )
@@ -920,7 +1104,9 @@ export default function FollowUpsPage() {
 
   const todayCount =
     workItems.filter(
-      (item) =>
+      (
+        item
+      ) =>
         !isCompleted(
           item.status
         ) &&
@@ -931,10 +1117,28 @@ export default function FollowUpsPage() {
 
   const workflowTaskCount =
     workItems.filter(
-      (item) =>
+      (
+        item
+      ) =>
         item.itemType ===
           "Task" &&
         item.automatic
+    ).length;
+
+  const urgentCount =
+    workItems.filter(
+      (
+        item
+      ) =>
+        item.itemType ===
+          "Task" &&
+        !isCompleted(
+          item.status
+        ) &&
+        normaliseStatus(
+          item.priority
+        ) ===
+          "urgent"
     ).length;
 
   const filtersActive =
@@ -946,10 +1150,14 @@ export default function FollowUpsPage() {
     typeFilter !==
       "All" ||
     workFilter !==
+      "All" ||
+    priorityFilter !==
       "All";
 
   function clearFilters() {
-    setSearchValue("");
+    setSearchValue(
+      ""
+    );
 
     setStatusFilter(
       "All"
@@ -960,6 +1168,10 @@ export default function FollowUpsPage() {
     );
 
     setWorkFilter(
+      "All"
+    );
+
+    setPriorityFilter(
       "All"
     );
   }
@@ -979,6 +1191,10 @@ export default function FollowUpsPage() {
             styles.page
           }
         >
+          {/* =================================================
+              HEADER
+          ================================================= */}
+
           <section
             className={
               styles.pageHeader
@@ -1002,15 +1218,19 @@ export default function FollowUpsPage() {
               </h2>
 
               <p>
-                Review tasks,
-                customer follow-ups
-                and actions created
-                automatically by
-                SaiNal One workflows.
+                Review your assigned
+                tasks, customer
+                follow-ups and actions
+                generated automatically
+                by SaiNal One workflows.
               </p>
 
               {currentEmployee && (
-                <small>
+                <small
+                  className={
+                    styles.employeeContext
+                  }
+                >
                   Showing tasks assigned
                   to{" "}
                   <strong>
@@ -1045,6 +1265,10 @@ export default function FollowUpsPage() {
             </button>
           </section>
 
+          {/* =================================================
+              FOLLOW-UP FORM
+          ================================================= */}
+
           {showForm && (
             <section
               className={
@@ -1062,9 +1286,9 @@ export default function FollowUpsPage() {
                 </h3>
 
                 <p>
-                  Add an action,
-                  reminder, note and
-                  due date.
+                  Add a customer
+                  action, reminder,
+                  note and due date.
                 </p>
               </div>
 
@@ -1086,7 +1310,9 @@ export default function FollowUpsPage() {
                       styles.field
                     }
                   >
-                    <label htmlFor="follow-up-type">
+                    <label
+                      htmlFor="follow-up-type"
+                    >
                       Related area
                     </label>
 
@@ -1129,7 +1355,9 @@ export default function FollowUpsPage() {
                       styles.field
                     }
                   >
-                    <label htmlFor="follow-up-status">
+                    <label
+                      htmlFor="follow-up-status"
+                    >
                       Status
                     </label>
 
@@ -1170,7 +1398,9 @@ export default function FollowUpsPage() {
                   <div
                     className={`${styles.field} ${styles.fieldFull}`}
                   >
-                    <label htmlFor="follow-up-title">
+                    <label
+                      htmlFor="follow-up-title"
+                    >
                       Follow-up title *
                     </label>
 
@@ -1195,7 +1425,9 @@ export default function FollowUpsPage() {
                   <div
                     className={`${styles.field} ${styles.fieldFull}`}
                   >
-                    <label htmlFor="follow-up-note">
+                    <label
+                      htmlFor="follow-up-note"
+                    >
                       Notes
                     </label>
 
@@ -1209,7 +1441,9 @@ export default function FollowUpsPage() {
                         handleChange
                       }
                       placeholder="Add context or the expected next action."
-                      rows={5}
+                      rows={
+                        5
+                      }
                       disabled={
                         saving
                       }
@@ -1221,7 +1455,9 @@ export default function FollowUpsPage() {
                       styles.field
                     }
                   >
-                    <label htmlFor="follow-up-due-date">
+                    <label
+                      htmlFor="follow-up-due-date"
+                    >
                       Due date
                     </label>
 
@@ -1280,6 +1516,10 @@ export default function FollowUpsPage() {
             </section>
           )}
 
+          {/* =================================================
+              SUMMARY
+          ================================================= */}
+
           <section
             className={
               styles.summaryGrid
@@ -1311,7 +1551,17 @@ export default function FollowUpsPage() {
               value={
                 todayCount
               }
-              detail="Today's commitments"
+              detail={
+                urgentCount >
+                0
+                  ? `${urgentCount} urgent task${
+                      urgentCount ===
+                      1
+                        ? ""
+                        : "s"
+                    }`
+                  : "Today's commitments"
+              }
               tone="Blue"
             />
 
@@ -1331,6 +1581,10 @@ export default function FollowUpsPage() {
             />
           </section>
 
+          {/* =================================================
+              FILTERS
+          ================================================= */}
+
           <section
             className={
               styles.toolbarPanel
@@ -1349,7 +1603,7 @@ export default function FollowUpsPage() {
 
               <input
                 type="search"
-                placeholder="Search tasks, follow-ups, records or status..."
+                placeholder="Search work, assignee, priority, records or status..."
                 value={
                   searchValue
                 }
@@ -1357,9 +1611,7 @@ export default function FollowUpsPage() {
                   event
                 ) =>
                   setSearchValue(
-                    event
-                      .target
-                      .value
+                    event.target.value
                   )
                 }
               />
@@ -1381,9 +1633,7 @@ export default function FollowUpsPage() {
                   event
                 ) =>
                   setWorkFilter(
-                    event
-                      .target
-                      .value
+                    event.target.value
                   )
                 }
               >
@@ -1418,9 +1668,7 @@ export default function FollowUpsPage() {
                   event
                 ) =>
                   setStatusFilter(
-                    event
-                      .target
-                      .value
+                    event.target.value
                   )
                 }
               >
@@ -1428,8 +1676,8 @@ export default function FollowUpsPage() {
                   All statuses
                 </option>
 
-                <option value="Open">
-                  Open
+                <option value="To Do">
+                  To Do
                 </option>
 
                 <option value="Pending">
@@ -1454,15 +1702,49 @@ export default function FollowUpsPage() {
                   styles.filterSelect
                 }
                 value={
+                  priorityFilter
+                }
+                onChange={(
+                  event
+                ) =>
+                  setPriorityFilter(
+                    event.target.value
+                  )
+                }
+              >
+                {PRIORITY_FILTERS.map(
+                  (
+                    option
+                  ) => (
+                    <option
+                      key={
+                        option
+                      }
+                      value={
+                        option
+                      }
+                    >
+                      {option ===
+                      "All"
+                        ? "All priorities"
+                        : option}
+                    </option>
+                  )
+                )}
+              </select>
+
+              <select
+                className={
+                  styles.filterSelect
+                }
+                value={
                   typeFilter
                 }
                 onChange={(
                   event
                 ) =>
                   setTypeFilter(
-                    event
-                      .target
-                      .value
+                    event.target.value
                   )
                 }
               >
@@ -1505,6 +1787,10 @@ export default function FollowUpsPage() {
               )}
             </div>
           </section>
+
+          {/* =================================================
+              CONTENT
+          ================================================= */}
 
           {loading ? (
             <LoadingState />
@@ -1556,10 +1842,11 @@ export default function FollowUpsPage() {
                   </h3>
 
                   <p>
-                    Manual follow-ups
-                    and tasks created
-                    by people or
-                    workflow automation.
+                    Assigned tasks,
+                    manual follow-ups
+                    and workflow
+                    actions in one
+                    operational view.
                   </p>
                 </div>
 
@@ -1614,6 +1901,14 @@ export default function FollowUpsPage() {
                         </th>
 
                         <th>
+                          Assigned to
+                        </th>
+
+                        <th>
+                          Priority
+                        </th>
+
+                        <th>
                           Due date
                         </th>
 
@@ -1641,16 +1936,38 @@ export default function FollowUpsPage() {
                               item
                             );
 
-                          const recordHref =
-                            getRecordHref(
-                              item.recordType,
-                              item.recordId
+                          const dueToday =
+                            !isCompleted(
+                              item.status
+                            ) &&
+                            isToday(
+                              item.dueDate
                             );
+
+                          const recordHref =
+                            getWorkRecordHref(
+                              item
+                            );
+
+                          const workKey =
+                            `${item.itemType}-${item.id}`;
+
+                          const updating =
+                            updatingWorkId ===
+                            workKey;
+
+                          const deleting =
+                            deletingWorkId ===
+                            workKey;
 
                           return (
                             <tr
-                              key={`${item.itemType}-${item.id}`}
+                              key={
+                                workKey
+                              }
                             >
+                              {/* WORK ITEM */}
+
                               <td>
                                 <div
                                   className={
@@ -1658,9 +1975,12 @@ export default function FollowUpsPage() {
                                   }
                                 >
                                   <span
-                                    className={
-                                      styles.followUpIcon
-                                    }
+                                    className={`${styles.followUpIcon} ${
+                                      item.itemType ===
+                                      "Task"
+                                        ? styles.taskWorkIcon
+                                        : styles.followUpWorkIcon
+                                    }`}
                                   >
                                     {item.itemType ===
                                     "Task"
@@ -1673,41 +1993,40 @@ export default function FollowUpsPage() {
                                       styles.followUpIdentityCopy
                                     }
                                   >
-                                    {item.itemType ===
-                                    "Follow-up" ? (
-                                      <Link
-                                        href={`/follow-ups/${item.id}`}
-                                        className={
-                                          styles.followUpLink
-                                        }
-                                      >
-                                        {item.title}
-                                      </Link>
-                                    ) : (
-                                      <Link
-                                        href={`/tasks/${item.id}`}
-                                        className={
-                                          styles.followUpLink
-                                        }
-                                      >
-                                        {item.title}
-                                      </Link>
-                                    )}
+                                    <Link
+                                      href={
+                                        item.itemType ===
+                                        "Task"
+                                          ? `/tasks/${item.id}`
+                                          : `/follow-ups/${item.id}`
+                                      }
+                                      className={
+                                        styles.followUpLink
+                                      }
+                                    >
+                                      {
+                                        item.title
+                                      }
+                                    </Link>
 
                                     <small>
-                                      {item.itemType}
+                                      {
+                                        item.itemType
+                                      }
 
                                       {item.automatic
                                         ? " · Workflow generated"
-                                        : ""}
-
-                                      {item.priority
-                                        ? ` · ${item.priority} priority`
-                                        : ""}
+                                        : item.itemType ===
+                                            "Task" &&
+                                          item.projectId
+                                          ? " · Project task"
+                                          : ""}
                                     </small>
                                   </div>
                                 </div>
                               </td>
+
+                              {/* RELATED */}
 
                               <td>
                                 <span
@@ -1721,29 +2040,95 @@ export default function FollowUpsPage() {
                                 </span>
                               </td>
 
-                              <td>
-                                <span
-                                  className={`${styles.dateText} ${
-                                    overdue
-                                      ? styles.dateTextOverdue
-                                      : ""
-                                  }`}
-                                >
-                                  {formatDate(
-                                    item.dueDate
-                                  )}
-                                </span>
+                              {/* ASSIGNEE */}
 
-                                {overdue && (
+                              <td>
+                                <div
+                                  className={
+                                    styles.assigneeCell
+                                  }
+                                >
+                                  <strong>
+                                    {
+                                      item.assigneeName
+                                    }
+                                  </strong>
+
+                                  {item.assigneeRole && (
+                                    <small>
+                                      {
+                                        item.assigneeRole
+                                      }
+                                    </small>
+                                  )}
+                                </div>
+                              </td>
+
+                              {/* PRIORITY */}
+
+                              <td>
+                                {item.itemType ===
+                                "Task" ? (
+                                  <PriorityBadge
+                                    priority={
+                                      item.priority
+                                    }
+                                  />
+                                ) : (
                                   <span
                                     className={
-                                      styles.overdueLabel
+                                      styles.notApplicable
                                     }
                                   >
-                                    Overdue
+                                    —
                                   </span>
                                 )}
                               </td>
+
+                              {/* DUE DATE */}
+
+                              <td>
+                                <div
+                                  className={
+                                    styles.dueDateCell
+                                  }
+                                >
+                                  <span
+                                    className={`${styles.dateText} ${
+                                      overdue
+                                        ? styles.dateTextOverdue
+                                        : ""
+                                    }`}
+                                  >
+                                    {formatDate(
+                                      item.dueDate
+                                    )}
+                                  </span>
+
+                                  {overdue && (
+                                    <span
+                                      className={
+                                        styles.overdueLabel
+                                      }
+                                    >
+                                      Overdue
+                                    </span>
+                                  )}
+
+                                  {!overdue &&
+                                    dueToday && (
+                                      <span
+                                        className={
+                                          styles.todayLabel
+                                        }
+                                      >
+                                        Today
+                                      </span>
+                                    )}
+                                </div>
+                              </td>
+
+                              {/* STATUS */}
 
                               <td>
                                 <StatusBadge
@@ -1753,138 +2138,162 @@ export default function FollowUpsPage() {
                                 />
                               </td>
 
-                              <td>
-                                {item.itemType ===
-                                "Task" ? (
-                                  <select
-                                    className={
-                                      styles.statusSelect
-                                    }
-                                    value={
-                                      item.status
-                                    }
-                                    onChange={(
-                                      event
-                                    ) =>
-                                      updateTaskStatus(
-                                        item.id,
-                                        event
-                                          .target
-                                          .value
-                                      )
-                                    }
-                                  >
-                                    {TASK_STATUS_OPTIONS.map(
-                                      (
-                                        status
-                                      ) => (
-                                        <option
-                                          key={
-                                            status
-                                          }
-                                          value={
-                                            status
-                                          }
-                                        >
-                                          {
-                                            status
-                                          }
-                                        </option>
-                                      )
-                                    )}
-                                  </select>
-                                ) : (
-                                  <select
-                                    className={
-                                      styles.statusSelect
-                                    }
-                                    value={
-                                      item.status
-                                    }
-                                    onChange={(
-                                      event
-                                    ) =>
-                                      updateFollowUpStatus(
-                                        item.id,
-                                        event
-                                          .target
-                                          .value
-                                      )
-                                    }
-                                  >
-                                    {FOLLOW_UP_STATUS_OPTIONS.map(
-                                      (
-                                        status
-                                      ) => (
-                                        <option
-                                          key={
-                                            status
-                                          }
-                                          value={
-                                            status
-                                          }
-                                        >
-                                          {
-                                            status
-                                          }
-                                        </option>
-                                      )
-                                    )}
-                                  </select>
-                                )}
+                              {/* ACTION */}
 
-                                <button
-                                  type="button"
+                              <td>
+                                <div
                                   className={
-                                    styles.deleteButton
-                                  }
-                                  onClick={() =>
-                                    item.itemType ===
-                                    "Task"
-                                      ? deleteTask(
-                                          item.id
-                                        )
-                                      : deleteFollowUp(
-                                          item.id
-                                        )
+                                    styles.actionCell
                                   }
                                 >
-                                  Delete
-                                </button>
+                                  {item.itemType ===
+                                  "Task" ? (
+                                    <select
+                                      className={
+                                        styles.statusSelect
+                                      }
+                                      value={
+                                        item.status
+                                      }
+                                      disabled={
+                                        updating ||
+                                        deleting
+                                      }
+                                      onChange={(
+                                        event
+                                      ) =>
+                                        updateTaskStatus(
+                                          item.id,
+                                          event.target.value
+                                        )
+                                      }
+                                    >
+                                      {TASK_STATUS_OPTIONS.map(
+                                        (
+                                          status
+                                        ) => (
+                                          <option
+                                            key={
+                                              status
+                                            }
+                                            value={
+                                              status
+                                            }
+                                          >
+                                            {
+                                              status
+                                            }
+                                          </option>
+                                        )
+                                      )}
+                                    </select>
+                                  ) : (
+                                    <select
+                                      className={
+                                        styles.statusSelect
+                                      }
+                                      value={
+                                        item.status
+                                      }
+                                      disabled={
+                                        updating ||
+                                        deleting
+                                      }
+                                      onChange={(
+                                        event
+                                      ) =>
+                                        updateFollowUpStatus(
+                                          item.id,
+                                          event.target.value
+                                        )
+                                      }
+                                    >
+                                      {FOLLOW_UP_STATUS_OPTIONS.map(
+                                        (
+                                          status
+                                        ) => (
+                                          <option
+                                            key={
+                                              status
+                                            }
+                                            value={
+                                              status
+                                            }
+                                          >
+                                            {
+                                              status
+                                            }
+                                          </option>
+                                        )
+                                      )}
+                                    </select>
+                                  )}
+
+                                  <button
+                                    type="button"
+                                    className={
+                                      styles.deleteButton
+                                    }
+                                    disabled={
+                                      updating ||
+                                      deleting
+                                    }
+                                    onClick={() =>
+                                      item.itemType ===
+                                      "Task"
+                                        ? deleteTask(
+                                            item.id
+                                          )
+                                        : deleteFollowUp(
+                                            item.id
+                                          )
+                                    }
+                                  >
+                                    {deleting
+                                      ? "Deleting..."
+                                      : "Delete"}
+                                  </button>
+                                </div>
                               </td>
 
+                              {/* OPEN */}
+
                               <td>
-                                {recordHref ? (
+                                <div
+                                  className={
+                                    styles.openCell
+                                  }
+                                >
                                   <Link
                                     href={
-                                      recordHref
+                                      item.itemType ===
+                                      "Task"
+                                        ? `/tasks/${item.id}`
+                                        : `/follow-ups/${item.id}`
                                     }
                                     className={
                                       styles.openButton
                                     }
                                   >
-                                    Open record →
+                                    {item.itemType ===
+                                    "Task"
+                                      ? "Open task →"
+                                      : "Open →"}
                                   </Link>
-                                ) : item.itemType ===
-                                  "Follow-up" ? (
-                                  <Link
-                                    href={`/follow-ups/${item.id}`}
-                                    className={
-                                      styles.openButton
-                                    }
-                                  >
-                                    Open →
-                                  </Link>
-                                ) : (
-                                  <Link
-                                    href={`/tasks/${item.id}`}
-                                    className={
-                                      styles.openButton
-                                    }
-                                  >
-                                    Open task →
-                                  </Link>
-                                )}
+
+                                  {recordHref && (
+                                    <Link
+                                      href={
+                                        recordHref
+                                      }
+                                      className={
+                                        styles.sourceLink
+                                      }
+                                    >
+                                      Open source
+                                    </Link>
+                                  )}
+                                </div>
                               </td>
                             </tr>
                           );
@@ -1902,6 +2311,10 @@ export default function FollowUpsPage() {
   );
 }
 
+// =========================================================
+// SUMMARY CARD
+// =========================================================
+
 function SummaryCard({
   icon,
   label,
@@ -1914,7 +2327,8 @@ function SummaryCard({
       className={`${styles.summaryCard} ${
         styles[
           `summary${tone}`
-        ] || ""
+        ] ||
+        ""
       }`}
     >
       <span
@@ -1944,6 +2358,44 @@ function SummaryCard({
   );
 }
 
+// =========================================================
+// PRIORITY BADGE
+// =========================================================
+
+function PriorityBadge({
+  priority,
+}) {
+  const clean =
+    normaliseStatus(
+      priority
+    );
+
+  const className =
+    clean ===
+    "urgent"
+      ? styles.priorityUrgent
+      : clean ===
+          "high"
+        ? styles.priorityHigh
+        : clean ===
+            "low"
+          ? styles.priorityLow
+          : styles.priorityMedium;
+
+  return (
+    <span
+      className={`${styles.priorityBadge} ${className}`}
+    >
+      {priority ||
+        "Medium"}
+    </span>
+  );
+}
+
+// =========================================================
+// EMPTY STATE
+// =========================================================
+
 function EmptyState({
   hasFilters,
   onClearFilters,
@@ -1972,7 +2424,7 @@ function EmptyState({
       <p>
         {hasFilters
           ? "Try changing or clearing the current filters."
-          : "Tasks created by workflows and manual follow-ups will appear here."}
+          : "Assigned tasks, workflow actions and manual follow-ups will appear here."}
       </p>
 
       <button
@@ -1994,6 +2446,10 @@ function EmptyState({
   );
 }
 
+// =========================================================
+// LOADING
+// =========================================================
+
 function LoadingState() {
   return (
     <section
@@ -2009,7 +2465,9 @@ function LoadingState() {
           index
         ) => (
           <div
-            key={index}
+            key={
+              index
+            }
             className={
               styles.loadingRow
             }
@@ -2019,6 +2477,10 @@ function LoadingState() {
     </section>
   );
 }
+
+// =========================================================
+// API RESPONSE HELPERS
+// =========================================================
 
 function extractTasksFromResponse(
   data
@@ -2045,7 +2507,9 @@ function extractTasksFromResponse(
 function extractTaskFromResponse(
   data
 ) {
-  if (!data) {
+  if (
+    !data
+  ) {
     return null;
   }
 
@@ -2079,6 +2543,116 @@ function extractTaskFromResponse(
   return null;
 }
 
+// =========================================================
+// ASSIGNEE
+// =========================================================
+
+function getTaskAssignee(
+  task
+) {
+  if (
+    task?.assigned_employee
+  ) {
+    return {
+      name:
+        task.assigned_employee
+          .full_name ||
+        task.assigned_employee
+          .email ||
+        "Assigned employee",
+
+      role:
+        task.assigned_employee
+          .job_title ||
+        null,
+    };
+  }
+
+  if (
+    task?.assigned_employee_id
+  ) {
+    return {
+      name:
+        "Assigned employee",
+
+      role:
+        null,
+    };
+  }
+
+  return {
+    name:
+      "Unassigned",
+
+    role:
+      null,
+  };
+}
+
+// =========================================================
+// TASK STATUS COMPATIBILITY
+// =========================================================
+
+function getTaskDisplayStatus(
+  value
+) {
+  const clean =
+    normaliseStatus(
+      value
+    );
+
+  /*
+   * Older task records may still contain "Open".
+   * We display them as To Do so My Work stays
+   * consistent with Project and Task Workspace.
+   */
+
+  if (
+    clean ===
+    "open"
+  ) {
+    return "To Do";
+  }
+
+  if (
+    clean ===
+    "to do"
+  ) {
+    return "To Do";
+  }
+
+  if (
+    clean ===
+    "in progress"
+  ) {
+    return "In Progress";
+  }
+
+  if (
+    clean ===
+    "blocked"
+  ) {
+    return "Blocked";
+  }
+
+  if (
+    clean ===
+      "completed" ||
+    clean ===
+      "complete" ||
+    clean ===
+      "done"
+  ) {
+    return "Completed";
+  }
+
+  return "To Do";
+}
+
+// =========================================================
+// SORTING
+// =========================================================
+
 function sortWorkItems(
   first,
   second
@@ -2102,6 +2676,40 @@ function sortWorkItems(
       : -1;
   }
 
+  const firstOverdue =
+    isWorkItemOverdue(
+      first
+    );
+
+  const secondOverdue =
+    isWorkItemOverdue(
+      second
+    );
+
+  if (
+    firstOverdue !==
+    secondOverdue
+  ) {
+    return firstOverdue
+      ? -1
+      : 1;
+  }
+
+  const priorityDifference =
+    getPriorityRank(
+      second.priority
+    ) -
+    getPriorityRank(
+      first.priority
+    );
+
+  if (
+    priorityDifference !==
+    0
+  ) {
+    return priorityDifference;
+  }
+
   const firstDate =
     first.dueDate ||
     "9999-12-31";
@@ -2115,11 +2723,41 @@ function sortWorkItems(
   );
 }
 
+function getPriorityRank(
+  priority
+) {
+  switch (
+    normaliseStatus(
+      priority
+    )
+  ) {
+    case "urgent":
+      return 4;
+
+    case "high":
+      return 3;
+
+    case "medium":
+      return 2;
+
+    case "low":
+      return 1;
+
+    default:
+      return 0;
+  }
+}
+
+// =========================================================
+// STATUS HELPERS
+// =========================================================
+
 function normaliseStatus(
   value
 ) {
   return String(
-    value || ""
+    value ||
+      ""
   )
     .trim()
     .toLowerCase();
@@ -2128,13 +2766,20 @@ function normaliseStatus(
 function isCompleted(
   value
 ) {
-  return (
+  return [
+    "completed",
+    "complete",
+    "done",
+  ].includes(
     normaliseStatus(
       value
-    ) ===
-    "completed"
+    )
   );
 }
+
+// =========================================================
+// DATES
+// =========================================================
 
 function isWorkItemOverdue(
   item
@@ -2167,7 +2812,9 @@ function isWorkItemOverdue(
 function isToday(
   value
 ) {
-  if (!value) {
+  if (
+    !value
+  ) {
     return false;
   }
 
@@ -2177,6 +2824,14 @@ function isToday(
         value
       ).split("T")[0]}T12:00:00`
     );
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return false;
+  }
 
   const today =
     new Date();
@@ -2194,7 +2849,9 @@ function isToday(
 function formatDate(
   value
 ) {
-  if (!value) {
+  if (
+    !value
+  ) {
     return "Not scheduled";
   }
 
@@ -2228,17 +2885,24 @@ function formatDate(
   );
 }
 
+// =========================================================
+// RECORD TYPE
+// =========================================================
+
 function formatRecordType(
   value
 ) {
   const clean =
     String(
-      value || ""
+      value ||
+        ""
     )
       .trim()
       .toLowerCase();
 
-  if (!clean) {
+  if (
+    !clean
+  ) {
     return "General";
   }
 
@@ -2248,6 +2912,34 @@ function formatRecordType(
       .toUpperCase() +
     clean.slice(1)
   );
+}
+
+// =========================================================
+// RECORD LINKS
+// =========================================================
+
+function getWorkRecordHref(
+  item
+) {
+  const directHref =
+    getRecordHref(
+      item.recordType,
+      item.recordId
+    );
+
+  if (
+    directHref
+  ) {
+    return directHref;
+  }
+
+  if (
+    item.projectId
+  ) {
+    return `/projects/${item.projectId}`;
+  }
+
+  return null;
 }
 
 function getRecordHref(
