@@ -150,6 +150,7 @@ export default function TaskTable({
       );
 
       setEmployees([]);
+
       setCurrentEmployee(
         null
       );
@@ -290,12 +291,6 @@ export default function TaskTable({
             editForm.due_date ||
             null,
 
-          /*
-           * Empty string deliberately becomes NULL.
-           *
-           * This allows an organisation owner
-           * to make an existing task Unassigned.
-           */
           assigned_employee_id:
             editForm.assigned_employee_id ||
             null,
@@ -550,8 +545,6 @@ function TaskRows({
   return (
     <>
       <tr>
-        {/* TASK */}
-
         <td>
           <div
             className={
@@ -602,8 +595,6 @@ function TaskRows({
           </div>
         </td>
 
-        {/* DESCRIPTION */}
-
         <td>
           <span
             className={
@@ -614,8 +605,6 @@ function TaskRows({
               "No description"}
           </span>
         </td>
-
-        {/* ASSIGNEE */}
 
         <td>
           <div>
@@ -634,8 +623,6 @@ function TaskRows({
             )}
           </div>
         </td>
-
-        {/* STATUS */}
 
         <td>
           <select
@@ -681,8 +668,6 @@ function TaskRows({
           </select>
         </td>
 
-        {/* DUE DATE */}
-
         <td>
           <span
             className={`${styles.taskDate} ${
@@ -697,8 +682,6 @@ function TaskRows({
           </span>
         </td>
 
-        {/* CREATED */}
-
         <td>
           <span
             className={
@@ -710,8 +693,6 @@ function TaskRows({
             )}
           </span>
         </td>
-
-        {/* ACTIONS */}
 
         <td>
           <div
@@ -735,7 +716,7 @@ function TaskRows({
             />
 
             <Link
-              href={`/follow-ups/${task.id}`}
+              href={`/tasks/${task.id}`}
               className={
                 styles.smallButton
               }
@@ -778,8 +759,6 @@ function TaskRows({
         </td>
       </tr>
 
-      {/* INLINE EDITOR */}
-
       {isEditing && (
         <tr
           className={
@@ -805,8 +784,6 @@ function TaskRows({
                   styles.inlineEditorGrid
                 }
               >
-                {/* NAME */}
-
                 <div
                   className={
                     styles.field
@@ -835,8 +812,6 @@ function TaskRows({
                     required
                   />
                 </div>
-
-                {/* ASSIGNED TO */}
 
                 <div
                   className={
@@ -914,8 +889,6 @@ function TaskRows({
                   </select>
                 </div>
 
-                {/* STATUS */}
-
                 <div
                   className={
                     styles.field
@@ -959,8 +932,6 @@ function TaskRows({
                   </select>
                 </div>
 
-                {/* DUE DATE */}
-
                 <div
                   className={
                     styles.field
@@ -988,8 +959,6 @@ function TaskRows({
                     }
                   />
                 </div>
-
-                {/* DESCRIPTION */}
 
                 <div
                   className={`${styles.field} ${styles.fieldFull}`}
@@ -1214,11 +1183,6 @@ function getAssignee({
   task,
   employees,
 }) {
-  /*
-   * The newer /api/tasks response already
-   * enriches tasks with assigned_employee.
-   */
-
   if (
     task.assigned_employee
   ) {
@@ -1236,10 +1200,6 @@ function getAssignee({
         null,
     };
   }
-
-  /*
-   * Fallback to the employee directory.
-   */
 
   if (
     task.assigned_employee_id
