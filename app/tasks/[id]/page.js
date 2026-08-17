@@ -196,9 +196,7 @@ export default function TaskDetailsPage() {
       ] =
         await Promise.all([
           taskResponse.json(),
-
           activityResponse.json(),
-
           employeesResponse.json(),
         ]);
 
@@ -415,10 +413,6 @@ export default function TaskDetailsPage() {
         selectedTask.assigned_employee_id ||
         "",
 
-      /*
-       * Older SaiNal One tasks may still contain "Open".
-       * The editor now standardises them to "To Do".
-       */
       status:
         getEditableStatus(
           selectedTask.status
@@ -515,15 +509,6 @@ export default function TaskDetailsPage() {
           formData.due_date ||
           null,
       };
-
-      /*
-       * Only organisation owners currently have
-       * reassignment rights in the backend.
-       *
-       * Normal employees can still edit their own
-       * task fields without accidentally sending an
-       * assignment field and receiving a 403.
-       */
 
       if (
         currentEmployee
@@ -699,11 +684,6 @@ export default function TaskDetailsPage() {
         data.message ||
           "Task deleted successfully."
       );
-
-      /*
-       * Project work should return to the project.
-       * Other work returns to My Work.
-       */
 
       if (
         task?.project_id
@@ -903,197 +883,6 @@ export default function TaskDetailsPage() {
           }
         >
           {/* =================================================
-              HEADER
-          ================================================= */}
-
-          <section
-            className={
-              styles.pageHeader
-            }
-          >
-            <div>
-              <Link
-                href={
-                  backHref
-                }
-                className={
-                  styles.backLink
-                }
-              >
-                ← {backLabel}
-              </Link>
-
-              <span
-                className={
-                  styles.eyebrow
-                }
-              >
-                Task workspace
-              </span>
-
-              <h2>
-                {task.task_name}
-              </h2>
-
-              <p>
-                Review ownership,
-                progress and the
-                business context for
-                this task.
-              </p>
-            </div>
-
-            <div
-              className={
-                styles.headerActions
-              }
-            >
-              {!editMode && (
-                <button
-                  type="button"
-                  className={
-                    styles.secondaryButton
-                  }
-                  onClick={() =>
-                    setEditMode(
-                      true
-                    )
-                  }
-                >
-                  Edit task
-                </button>
-              )}
-
-              {relatedHref && (
-                <Link
-                  href={
-                    relatedHref
-                  }
-                  className={
-                    styles.secondaryButton
-                  }
-                >
-                  Open related record
-                </Link>
-              )}
-
-              {normaliseStatus(
-                task.status
-              ) ===
-                "open" ||
-              normaliseStatus(
-                task.status
-              ) ===
-                "to do" ? (
-                <button
-                  type="button"
-                  className={
-                    styles.secondaryButton
-                  }
-                  disabled={
-                    saving
-                  }
-                  onClick={() =>
-                    changeStatus(
-                      "In Progress"
-                    )
-                  }
-                >
-                  Start work
-                </button>
-              ) : null}
-
-              {normaliseStatus(
-                task.status
-              ) ===
-                "blocked" && (
-                <button
-                  type="button"
-                  className={
-                    styles.secondaryButton
-                  }
-                  disabled={
-                    saving
-                  }
-                  onClick={() =>
-                    changeStatus(
-                      "In Progress"
-                    )
-                  }
-                >
-                  Resume work
-                </button>
-              )}
-
-              {normaliseStatus(
-                task.status
-              ) ===
-                "in progress" && (
-                <button
-                  type="button"
-                  className={
-                    styles.secondaryButton
-                  }
-                  disabled={
-                    saving
-                  }
-                  onClick={() =>
-                    changeStatus(
-                      "Blocked"
-                    )
-                  }
-                >
-                  Block
-                </button>
-              )}
-
-              {normaliseStatus(
-                task.status
-              ) !==
-                "completed" && (
-                <button
-                  type="button"
-                  className={
-                    styles.primaryButton
-                  }
-                  disabled={
-                    saving
-                  }
-                  onClick={() =>
-                    changeStatus(
-                      "Completed"
-                    )
-                  }
-                >
-                  Mark completed
-                </button>
-              )}
-
-              {normaliseStatus(
-                task.status
-              ) ===
-                "completed" && (
-                <button
-                  type="button"
-                  className={
-                    styles.secondaryButton
-                  }
-                  disabled={
-                    saving
-                  }
-                  onClick={() =>
-                    changeStatus(
-                      "To Do"
-                    )
-                  }
-                >
-                  Reopen
-                </button>
-              )}
-            </div>
-          </section>
-
-          {/* =================================================
               HERO
           ================================================= */}
 
@@ -1121,6 +910,17 @@ export default function TaskDetailsPage() {
               </span>
 
               <div>
+                <Link
+                  href={
+                    backHref
+                  }
+                  className={
+                    styles.backLink
+                  }
+                >
+                  ← {backLabel}
+                </Link>
+
                 <span
                   className={
                     styles.heroLabel
@@ -1180,6 +980,155 @@ export default function TaskDetailsPage() {
                     >
                       Workflow generated
                     </span>
+                  )}
+                </div>
+
+                <div
+                  className={
+                    styles.headerActions
+                  }
+                >
+                  {!editMode && (
+                    <button
+                      type="button"
+                      className={
+                        styles.secondaryButton
+                      }
+                      onClick={() =>
+                        setEditMode(
+                          true
+                        )
+                      }
+                    >
+                      Edit task
+                    </button>
+                  )}
+
+                  {relatedHref && (
+                    <Link
+                      href={
+                        relatedHref
+                      }
+                      className={
+                        styles.secondaryButton
+                      }
+                    >
+                      Open related record
+                    </Link>
+                  )}
+
+                  {(normaliseStatus(
+                    task.status
+                  ) ===
+                    "open" ||
+                    normaliseStatus(
+                      task.status
+                    ) ===
+                      "to do") && (
+                    <button
+                      type="button"
+                      className={
+                        styles.secondaryButton
+                      }
+                      disabled={
+                        saving
+                      }
+                      onClick={() =>
+                        changeStatus(
+                          "In Progress"
+                        )
+                      }
+                    >
+                      Start work
+                    </button>
+                  )}
+
+                  {normaliseStatus(
+                    task.status
+                  ) ===
+                    "blocked" && (
+                    <button
+                      type="button"
+                      className={
+                        styles.secondaryButton
+                      }
+                      disabled={
+                        saving
+                      }
+                      onClick={() =>
+                        changeStatus(
+                          "In Progress"
+                        )
+                      }
+                    >
+                      Resume work
+                    </button>
+                  )}
+
+                  {normaliseStatus(
+                    task.status
+                  ) ===
+                    "in progress" && (
+                    <button
+                      type="button"
+                      className={
+                        styles.secondaryButton
+                      }
+                      disabled={
+                        saving
+                      }
+                      onClick={() =>
+                        changeStatus(
+                          "Blocked"
+                        )
+                      }
+                    >
+                      Block
+                    </button>
+                  )}
+
+                  {normaliseStatus(
+                    task.status
+                  ) !==
+                    "completed" && (
+                    <button
+                      type="button"
+                      className={
+                        styles.primaryButton
+                      }
+                      disabled={
+                        saving
+                      }
+                      onClick={() =>
+                        changeStatus(
+                          "Completed"
+                        )
+                      }
+                    >
+                      Mark completed
+                    </button>
+                  )}
+
+                  {normaliseStatus(
+                    task.status
+                  ) ===
+                    "completed" && (
+                    <button
+                      type="button"
+                      className={
+                        styles.secondaryButton
+                      }
+                      disabled={
+                        saving
+                      }
+                      onClick={() =>
+                        changeStatus(
+                          "To Do"
+                        )
+                      }
+                    >
+                      Reopen
+                    </button>
                   )}
                 </div>
               </div>
@@ -1245,8 +1194,6 @@ export default function TaskDetailsPage() {
                   saveTask
                 }
               >
-                {/* TASK NAME */}
-
                 <label>
                   <span>
                     Task name
@@ -1267,8 +1214,6 @@ export default function TaskDetailsPage() {
                     required
                   />
                 </label>
-
-                {/* ASSIGNED TO */}
 
                 <label>
                   <span>
@@ -1325,8 +1270,6 @@ export default function TaskDetailsPage() {
                   )}
                 </label>
 
-                {/* STATUS */}
-
                 <label>
                   <span>
                     Status
@@ -1362,8 +1305,6 @@ export default function TaskDetailsPage() {
                     )}
                   </select>
                 </label>
-
-                {/* PRIORITY */}
 
                 <label>
                   <span>
@@ -1401,8 +1342,6 @@ export default function TaskDetailsPage() {
                   </select>
                 </label>
 
-                {/* DUE DATE */}
-
                 <label>
                   <span>
                     Due date
@@ -1422,8 +1361,6 @@ export default function TaskDetailsPage() {
                     }
                   />
                 </label>
-
-                {/* DESCRIPTION */}
 
                 <label
                   className={
@@ -1493,10 +1430,6 @@ export default function TaskDetailsPage() {
                 styles.detailsGrid
               }
             >
-              {/* =================================================
-                  INFORMATION
-              ================================================= */}
-
               <section
                 className={
                   styles.panel
@@ -1582,10 +1515,6 @@ export default function TaskDetailsPage() {
                   />
                 </div>
               </section>
-
-              {/* =================================================
-                  LINKAGE
-              ================================================= */}
 
               <section
                 className={
@@ -1794,8 +1723,6 @@ export default function TaskDetailsPage() {
                 styles.timeline
               }
             >
-              {/* SYNTHETIC CREATION EVENT */}
-
               <ActivityItem
                 icon="+"
                 title={
@@ -2102,11 +2029,6 @@ function getAssignee({
     };
   }
 
-  /*
-   * Some task endpoints may later return employee
-   * enrichment directly. Support that as well.
-   */
-
   if (
     task.assigned_employee
   ) {
@@ -2242,9 +2164,6 @@ function getEmployeeNameFromId(
     );
 
   if (!employee) {
-    /*
-     * Do not expose a long UUID in the UI.
-     */
     return "another employee";
   }
 
@@ -2276,10 +2195,6 @@ function getEditableStatus(
     normaliseStatus(
       value
     );
-
-  /*
-   * Legacy status migration at UI level.
-   */
 
   if (
     status ===
