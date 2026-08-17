@@ -8,8 +8,8 @@ import {
 
 import Link from "next/link";
 
-import AppLayout from "../components/layout/AppLayout";
-import ProtectedRoute from "../components/ProtectedRoute";
+import AppLayout from "../../components/layout/AppLayout";
+import ProtectedRoute from "../../components/ProtectedRoute";
 
 import styles from "./employees.module.css";
 
