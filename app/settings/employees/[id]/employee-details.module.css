@@ -1,0 +1,535 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding-bottom: 40px;
+}
+
+/* =========================================================
+   HERO
+========================================================= */
+
+.hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 26px;
+  border: 1px solid #e2ded4;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 8px 28px rgba(38, 33, 21, 0.05);
+}
+
+.identityBlock {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.avatar {
+  display: grid;
+  width: 66px;
+  height: 66px;
+  place-items: center;
+  flex: 0 0 66px;
+  border-radius: 18px;
+  background: #25231d;
+  color: #dcb53a;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.backLink {
+  display: inline-block;
+  margin-bottom: 6px;
+  color: #936f06;
+  font-size: 11px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.eyebrow {
+  display: block;
+  margin-bottom: 4px;
+  color: #9a7406;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.identityBlock h2 {
+  margin: 0;
+  color: #26231d;
+  font-size: 28px;
+}
+
+.identityBlock p {
+  margin: 5px 0 0;
+  color: #88837a;
+  font-size: 12px;
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 11px;
+}
+
+.heroActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 9px;
+}
+
+/* =========================================================
+   BUTTONS
+========================================================= */
+
+.primaryButton,
+.secondaryButton,
+.dangerButton {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 15px;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.primaryButton {
+  border: 1px solid #bb8b0a;
+  background: #d7a71f;
+  color: #211e17;
+}
+
+.secondaryButton {
+  border: 1px solid #ddd9cf;
+  background: #ffffff;
+  color: #4c4942;
+}
+
+.dangerButton {
+  border: 1px solid #e7bcbc;
+  background: #fff5f5;
+  color: #a33f3f;
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled,
+.dangerButton:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+/* =========================================================
+   BADGES
+========================================================= */
+
+.statusBadge,
+.ownerBadge,
+.youBadge {
+  display: inline-flex;
+  min-height: 26px;
+  align-items: center;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 850;
+}
+
+.statusGreen {
+  background: #e5f3e9;
+  color: #347151;
+}
+
+.statusAmber {
+  background: #f8efd4;
+  color: #947000;
+}
+
+.statusRed {
+  background: #f8e5e5;
+  color: #a24646;
+}
+
+.statusNeutral {
+  background: #efede7;
+  color: #6e6960;
+}
+
+.ownerBadge {
+  background: #f6edcb;
+  color: #8f6900;
+}
+
+.youBadge {
+  background: #e8edf6;
+  color: #45668e;
+}
+
+/* =========================================================
+   SUMMARY
+========================================================= */
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.summaryCard {
+  display: grid;
+  gap: 7px;
+  padding: 18px;
+  border: 1px solid #e2ded4;
+  border-radius: 15px;
+  background: #ffffff;
+}
+
+.summaryCard span {
+  color: #89847b;
+  font-size: 9px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.summaryCard strong {
+  color: #29251f;
+  font-size: 19px;
+}
+
+.summaryCard small {
+  color: #aaa59b;
+  font-size: 9px;
+}
+
+/* =========================================================
+   GRID
+========================================================= */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.panel {
+  border: 1px solid #e2ded4;
+  border-radius: 16px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.panelHeader {
+  padding: 19px 20px;
+  border-bottom: 1px solid #ebe8e0;
+}
+
+.panelHeader h3 {
+  margin: 0;
+  color: #2a2721;
+  font-size: 16px;
+}
+
+.panelHeader p {
+  margin: 4px 0 0;
+  color: #99948a;
+  font-size: 10px;
+}
+
+/* =========================================================
+   DETAIL LIST
+========================================================= */
+
+.detailList {
+  padding: 0 20px;
+}
+
+.detailRow {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 18px;
+  padding: 14px 0;
+  border-bottom: 1px solid #efede7;
+}
+
+.detailRow:last-child {
+  border-bottom: 0;
+}
+
+.detailRow span {
+  color: #89847b;
+  font-size: 10px;
+}
+
+.detailRow strong {
+  color: #35312b;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+/* =========================================================
+   ROLE CARDS
+========================================================= */
+
+.roleCards {
+  display: grid;
+  gap: 10px;
+  padding: 18px 20px;
+}
+
+.roleCard {
+  padding: 13px;
+  border: 1px solid #e8e4da;
+  border-radius: 11px;
+  background: #faf8f2;
+}
+
+.roleCard strong {
+  display: block;
+  color: #302c26;
+  font-size: 11px;
+}
+
+.roleCard span {
+  display: block;
+  margin-top: 3px;
+  color: #927000;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.roleCard p {
+  margin: 6px 0 0;
+  color: #908a80;
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.emptyRoles {
+  padding: 20px;
+  color: #99948a;
+  font-size: 11px;
+}
+
+/* =========================================================
+   EDIT FORM
+========================================================= */
+
+.editForm {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  padding: 20px;
+}
+
+.formField {
+  display: grid;
+  gap: 6px;
+}
+
+.fieldLabel {
+  color: #4b4740;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.formField input,
+.formField select {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid #dcd8cf;
+  border-radius: 9px;
+  outline: none;
+  background: #ffffff;
+  color: #302d27;
+  font: inherit;
+  font-size: 11px;
+}
+
+.formField input:focus,
+.formField select:focus {
+  border-color: #c49a21;
+  box-shadow: 0 0 0 3px rgba(196, 154, 33, 0.1);
+}
+
+.rolesField {
+  grid-column: 1 / -1;
+}
+
+.roleOptions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 7px;
+}
+
+.roleOption {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 11px;
+  border: 1px solid #e5e1d7;
+  border-radius: 10px;
+  background: #faf9f5;
+}
+
+.roleOption strong {
+  display: block;
+  color: #403c35;
+  font-size: 10px;
+}
+
+.roleOption small {
+  display: block;
+  margin-top: 2px;
+  color: #9c978d;
+  font-size: 8px;
+}
+
+.activeToggle {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 13px;
+  border: 1px solid #e5e1d7;
+  border-radius: 10px;
+  background: #faf9f5;
+}
+
+.activeToggle strong {
+  display: block;
+  color: #3c3932;
+  font-size: 10px;
+}
+
+.activeToggle small {
+  display: block;
+  margin-top: 3px;
+  color: #969187;
+  font-size: 9px;
+}
+
+.formActions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  padding-top: 5px;
+}
+
+/* =========================================================
+   LOADING / ERROR / EMPTY
+========================================================= */
+
+.loadingPanel {
+  display: grid;
+  gap: 13px;
+}
+
+.loadingRow {
+  height: 72px;
+  border-radius: 12px;
+  background:
+    linear-gradient(
+      90deg,
+      #ece9e1 25%,
+      #f7f5f0 50%,
+      #ece9e1 75%
+    );
+  background-size: 200% 100%;
+  animation: loading 1.4s infinite;
+}
+
+@keyframes loading {
+  from {
+    background-position: 200% 0;
+  }
+
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.errorPanel,
+.emptyState {
+  padding: 24px;
+  border: 1px solid #e2ded4;
+  border-radius: 15px;
+  background: #ffffff;
+}
+
+.errorPanel strong {
+  color: #a13f3f;
+}
+
+.errorPanel p,
+.emptyState p {
+  color: #918c83;
+  font-size: 11px;
+}
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 1100px) {
+  .summaryGrid,
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .hero {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .identityBlock {
+    align-items: flex-start;
+  }
+
+  .heroActions {
+    justify-content: flex-start;
+  }
+
+  .summaryGrid,
+  .grid,
+  .editForm {
+    grid-template-columns: 1fr;
+  }
+
+  .rolesField,
+  .activeToggle,
+  .formActions {
+    grid-column: auto;
+  }
+
+  .roleOptions {
+    grid-template-columns: 1fr;
+  }
+
+  .detailRow {
+    grid-template-columns: 1fr;
+    gap: 5px;
+  }
+
+  .formActions {
+    flex-direction: column-reverse;
+  }
+
+  .formActions button {
+    width: 100%;
+  }
+}
