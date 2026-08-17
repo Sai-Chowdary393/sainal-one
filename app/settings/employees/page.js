@@ -6,6 +6,8 @@ import {
   useState,
 } from "react";
 
+import Link from "next/link";
+
 import AppLayout from "../../../components/layout/AppLayout";
 import ProtectedRoute from "../../../components/ProtectedRoute";
 import styles from "./employees.module.css";
@@ -57,52 +59,85 @@ const AVAILABILITY_STATUSES = [
 ];
 
 export default function EmployeesPage() {
-  const [employees, setEmployees] =
+  const [
+    employees,
+    setEmployees,
+  ] =
     useState([]);
 
   const [
     departments,
     setDepartments,
-  ] = useState([]);
+  ] =
+    useState([]);
 
-  const [roles, setRoles] =
+  const [
+    roles,
+    setRoles,
+  ] =
     useState([]);
 
   const [
     currentEmployee,
     setCurrentEmployee,
-  ] = useState(null);
+  ] =
+    useState(null);
 
-  const [loading, setLoading] =
+  const [
+    loading,
+    setLoading,
+  ] =
     useState(true);
 
-  const [saving, setSaving] =
+  const [
+    saving,
+    setSaving,
+  ] =
     useState(false);
 
-  const [errorMessage, setErrorMessage] =
+  const [
+    errorMessage,
+    setErrorMessage,
+  ] =
     useState("");
 
-  const [showForm, setShowForm] =
+  const [
+    showForm,
+    setShowForm,
+  ] =
     useState(false);
 
   const [
     editingEmployeeId,
     setEditingEmployeeId,
-  ] = useState(null);
+  ] =
+    useState(null);
 
-  const [formData, setFormData] =
-    useState(INITIAL_FORM_DATA);
+  const [
+    formData,
+    setFormData,
+  ] =
+    useState(
+      INITIAL_FORM_DATA
+    );
 
-  const [searchValue, setSearchValue] =
+  const [
+    searchValue,
+    setSearchValue,
+  ] =
     useState("");
 
-  const [statusFilter, setStatusFilter] =
+  const [
+    statusFilter,
+    setStatusFilter,
+  ] =
     useState("All");
 
   const [
     departmentFilter,
     setDepartmentFilter,
-  ] = useState("All");
+  ] =
+    useState("All");
 
   useEffect(() => {
     fetchWorkspace();
@@ -113,12 +148,14 @@ export default function EmployeesPage() {
       setLoading(true);
       setErrorMessage("");
 
-      const response = await fetch(
-        "/api/employees",
-        {
-          cache: "no-store",
-        }
-      );
+      const response =
+        await fetch(
+          "/api/employees",
+          {
+            cache:
+              "no-store",
+          }
+        );
 
       const data =
         await response.json();
@@ -147,7 +184,9 @@ export default function EmployeesPage() {
       );
 
       setRoles(
-        Array.isArray(data.roles)
+        Array.isArray(
+          data.roles
+        )
           ? data.roles
           : []
       );
@@ -171,84 +210,113 @@ export default function EmployeesPage() {
     }
   }
 
-  function handleChange(event) {
-    const { name, value } =
+  function handleChange(
+    event
+  ) {
+    const {
+      name,
+      value,
+    } =
       event.target;
 
-    setFormData((current) => ({
-      ...current,
-      [name]: value,
-    }));
-  }
-
-  function handleRoleChange(roleId) {
-    setFormData((current) => {
-      const alreadySelected =
-        current.role_ids.includes(
-          roleId
-        );
-
-      return {
+    setFormData(
+      (current) => ({
         ...current,
 
-        role_ids:
-          alreadySelected
-            ? current.role_ids.filter(
-                (id) =>
-                  id !== roleId
-              )
-            : [
-                ...current.role_ids,
-                roleId,
-              ],
-      };
-    });
+        [name]:
+          value,
+      })
+    );
+  }
+
+  function handleRoleChange(
+    roleId
+  ) {
+    setFormData(
+      (current) => {
+        const alreadySelected =
+          current.role_ids.includes(
+            roleId
+          );
+
+        return {
+          ...current,
+
+          role_ids:
+            alreadySelected
+              ? current.role_ids.filter(
+                  (id) =>
+                    id !==
+                    roleId
+                )
+              : [
+                  ...current.role_ids,
+                  roleId,
+                ],
+        };
+      }
+    );
   }
 
   function openCreateForm() {
-    setEditingEmployeeId(null);
+    setEditingEmployeeId(
+      null
+    );
+
     setFormData(
       INITIAL_FORM_DATA
     );
-    setShowForm(true);
+
+    setShowForm(
+      true
+    );
 
     window.scrollTo({
       top: 0,
-      behavior: "smooth",
+      behavior:
+        "smooth",
     });
   }
 
-  function openEditForm(employee) {
+  function openEditForm(
+    employee
+  ) {
     setEditingEmployeeId(
       employee.id
     );
 
     setFormData({
       user_id:
-        employee.user_id || "",
+        employee.user_id ||
+        "",
 
       employee_number:
         employee.employee_number ||
         "",
 
       full_name:
-        employee.full_name || "",
+        employee.full_name ||
+        "",
 
       email:
-        employee.email || "",
+        employee.email ||
+        "",
 
       phone:
-        employee.phone || "",
+        employee.phone ||
+        "",
 
       job_title:
-        employee.job_title || "",
+        employee.job_title ||
+        "",
 
       department_id:
         employee.department_id ||
         "",
 
       manager_id:
-        employee.manager_id || "",
+        employee.manager_id ||
+        "",
 
       backup_employee_id:
         employee.backup_employee_id ||
@@ -267,10 +335,12 @@ export default function EmployeesPage() {
         "Available",
 
       start_date:
-        employee.start_date || "",
+        employee.start_date ||
+        "",
 
       end_date:
-        employee.end_date || "",
+        employee.end_date ||
+        "",
 
       timezone:
         employee.timezone ||
@@ -280,29 +350,44 @@ export default function EmployeesPage() {
         employee.locale ||
         "en-GB",
 
-      role_ids: Array.isArray(
-        employee.user_roles
-      )
-        ? employee.user_roles
-            .map(
-              (assignment) =>
-                assignment.role?.id
-            )
-            .filter(Boolean)
-        : [],
+      role_ids:
+        Array.isArray(
+          employee.user_roles
+        )
+          ? employee.user_roles
+              .map(
+                (
+                  assignment
+                ) =>
+                  assignment.role
+                    ?.id
+              )
+              .filter(
+                Boolean
+              )
+          : [],
     });
 
-    setShowForm(true);
+    setShowForm(
+      true
+    );
 
     window.scrollTo({
       top: 0,
-      behavior: "smooth",
+      behavior:
+        "smooth",
     });
   }
 
   function closeForm() {
-    setShowForm(false);
-    setEditingEmployeeId(null);
+    setShowForm(
+      false
+    );
+
+    setEditingEmployeeId(
+      null
+    );
+
     setFormData(
       INITIAL_FORM_DATA
     );
@@ -319,6 +404,7 @@ export default function EmployeesPage() {
       alert(
         "Please enter the employee name."
       );
+
       return;
     }
 
@@ -328,6 +414,7 @@ export default function EmployeesPage() {
       alert(
         "Please enter the employee email."
       );
+
       return;
     }
 
@@ -337,11 +424,14 @@ export default function EmployeesPage() {
       alert(
         "Please enter the employee number."
       );
+
       return;
     }
 
     try {
-      setSaving(true);
+      setSaving(
+        true
+      );
 
       const endpoint =
         editingEmployeeId
@@ -353,21 +443,23 @@ export default function EmployeesPage() {
           ? "PATCH"
           : "POST";
 
-      const response = await fetch(
-        endpoint,
-        {
-          method,
+      const response =
+        await fetch(
+          endpoint,
+          {
+            method,
 
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
 
-          body: JSON.stringify(
-            formData
-          ),
-        }
-      );
+            body:
+              JSON.stringify(
+                formData
+              ),
+          }
+        );
 
       const data =
         await response.json();
@@ -379,11 +471,17 @@ export default function EmployeesPage() {
         );
       }
 
+      const wasEditing =
+        Boolean(
+          editingEmployeeId
+        );
+
       closeForm();
+
       await fetchWorkspace();
 
       alert(
-        editingEmployeeId
+        wasEditing
           ? "Employee updated successfully."
           : "Employee created successfully."
       );
@@ -398,28 +496,35 @@ export default function EmployeesPage() {
           "Unable to save employee."
       );
     } finally {
-      setSaving(false);
+      setSaving(
+        false
+      );
     }
   }
 
   async function deactivateEmployee(
     employee
   ) {
-    const confirmed = window.confirm(
-      `Deactivate ${employee.full_name}?`
-    );
+    const confirmed =
+      window.confirm(
+        `Deactivate ${employee.full_name}?`
+      );
 
-    if (!confirmed) {
+    if (
+      !confirmed
+    ) {
       return;
     }
 
     try {
-      const response = await fetch(
-        `/api/employees/${employee.id}`,
-        {
-          method: "DELETE",
-        }
-      );
+      const response =
+        await fetch(
+          `/api/employees/${employee.id}`,
+          {
+            method:
+              "DELETE",
+          }
+        );
 
       const data =
         await response.json();
@@ -468,10 +573,18 @@ export default function EmployeesPage() {
               employee.job_title,
               employee.department
                 ?.name,
-            ].some((value) =>
-              String(value || "")
-                .toLowerCase()
-                .includes(search)
+            ].some(
+              (
+                value
+              ) =>
+                String(
+                  value ||
+                    ""
+                )
+                  .toLowerCase()
+                  .includes(
+                    search
+                  )
             );
 
           const matchesStatus =
@@ -536,8 +649,14 @@ export default function EmployeesPage() {
         description="Manage people, reporting lines, departments, availability and business access."
       >
         <div
-          className={styles.page}
+          className={
+            styles.page
+          }
         >
+          {/* =================================================
+              HEADER
+          ================================================= */}
+
           <section
             className={
               styles.pageHeader
@@ -593,6 +712,10 @@ export default function EmployeesPage() {
             )}
           </section>
 
+          {/* =================================================
+              READ ONLY NOTICE
+          ================================================= */}
+
           {!canManage &&
             !loading && (
               <section
@@ -612,6 +735,10 @@ export default function EmployeesPage() {
                 </p>
               </section>
             )}
+
+          {/* =================================================
+              CREATE / EDIT FORM
+          ================================================= */}
 
           {showForm &&
             canManage && (
@@ -634,12 +761,12 @@ export default function EmployeesPage() {
 
                     <p>
                       Link an existing
-                      Supabase Auth user by
-                      entering their user
-                      UUID, or leave it
-                      blank until the
-                      employee receives an
-                      account.
+                      Supabase Auth user
+                      by entering their
+                      user UUID, or leave
+                      it blank until the
+                      employee receives
+                      an account.
                     </p>
                   </div>
                 </div>
@@ -883,12 +1010,20 @@ export default function EmployeesPage() {
                       }
                     >
                       {EMPLOYMENT_TYPES.map(
-                        (value) => (
+                        (
+                          value
+                        ) => (
                           <option
-                            key={value}
-                            value={value}
+                            key={
+                              value
+                            }
+                            value={
+                              value
+                            }
                           >
-                            {value}
+                            {
+                              value
+                            }
                           </option>
                         )
                       )}
@@ -905,12 +1040,20 @@ export default function EmployeesPage() {
                       }
                     >
                       {EMPLOYMENT_STATUSES.map(
-                        (value) => (
+                        (
+                          value
+                        ) => (
                           <option
-                            key={value}
-                            value={value}
+                            key={
+                              value
+                            }
+                            value={
+                              value
+                            }
                           >
-                            {value}
+                            {
+                              value
+                            }
                           </option>
                         )
                       )}
@@ -927,12 +1070,20 @@ export default function EmployeesPage() {
                       }
                     >
                       {AVAILABILITY_STATUSES.map(
-                        (value) => (
+                        (
+                          value
+                        ) => (
                           <option
-                            key={value}
-                            value={value}
+                            key={
+                              value
+                            }
+                            value={
+                              value
+                            }
                           >
-                            {value}
+                            {
+                              value
+                            }
                           </option>
                         )
                       )}
@@ -1000,11 +1151,15 @@ export default function EmployeesPage() {
                       >
                         {roles
                           .filter(
-                            (role) =>
+                            (
+                              role
+                            ) =>
                               role.is_active
                           )
                           .map(
-                            (role) => (
+                            (
+                              role
+                            ) => (
                               <label
                                 key={
                                   role.id
@@ -1085,6 +1240,10 @@ export default function EmployeesPage() {
               </section>
             )}
 
+          {/* =================================================
+              SUMMARY
+          ================================================= */}
+
           <section
             className={
               styles.summaryGrid
@@ -1131,6 +1290,10 @@ export default function EmployeesPage() {
             />
           </section>
 
+          {/* =================================================
+              FILTERS
+          ================================================= */}
+
           <section
             className={
               styles.toolbarPanel
@@ -1149,8 +1312,12 @@ export default function EmployeesPage() {
 
               <input
                 type="search"
-                value={searchValue}
-                onChange={(event) =>
+                value={
+                  searchValue
+                }
+                onChange={(
+                  event
+                ) =>
                   setSearchValue(
                     event.target.value
                   )
@@ -1171,7 +1338,9 @@ export default function EmployeesPage() {
                 value={
                   statusFilter
                 }
-                onChange={(event) =>
+                onChange={(
+                  event
+                ) =>
                   setStatusFilter(
                     event.target.value
                   )
@@ -1182,12 +1351,20 @@ export default function EmployeesPage() {
                 </option>
 
                 {EMPLOYMENT_STATUSES.map(
-                  (value) => (
+                  (
+                    value
+                  ) => (
                     <option
-                      key={value}
-                      value={value}
+                      key={
+                        value
+                      }
+                      value={
+                        value
+                      }
                     >
-                      {value}
+                      {
+                        value
+                      }
                     </option>
                   )
                 )}
@@ -1200,7 +1377,9 @@ export default function EmployeesPage() {
                 value={
                   departmentFilter
                 }
-                onChange={(event) =>
+                onChange={(
+                  event
+                ) =>
                   setDepartmentFilter(
                     event.target.value
                   )
@@ -1211,7 +1390,9 @@ export default function EmployeesPage() {
                 </option>
 
                 {departments.map(
-                  (department) => (
+                  (
+                    department
+                  ) => (
                     <option
                       key={
                         department.id
@@ -1230,6 +1411,10 @@ export default function EmployeesPage() {
             </div>
           </section>
 
+          {/* =================================================
+              CONTENT
+          ================================================= */}
+
           {loading ? (
             <LoadingState />
           ) : errorMessage ? (
@@ -1244,7 +1429,9 @@ export default function EmployeesPage() {
                 </strong>
 
                 <p>
-                  {errorMessage}
+                  {
+                    errorMessage
+                  }
                 </p>
               </div>
 
@@ -1277,10 +1464,10 @@ export default function EmployeesPage() {
                   </h3>
 
                   <p>
-                    Review reporting lines,
-                    departments,
-                    availability and assigned
-                    roles.
+                    Review reporting
+                    lines, departments,
+                    availability and
+                    assigned roles.
                   </p>
                 </div>
 
@@ -1321,8 +1508,8 @@ export default function EmployeesPage() {
 
                   <p>
                     No employee records
-                    match the current search
-                    and filters.
+                    match the current
+                    search and filters.
                   </p>
                 </div>
               ) : (
@@ -1338,15 +1525,34 @@ export default function EmployeesPage() {
                   >
                     <thead>
                       <tr>
-                        <th>Employee</th>
-                        <th>Department</th>
-                        <th>Job title</th>
-                        <th>Manager</th>
-                        <th>Roles</th>
-                        <th>Status</th>
+                        <th>
+                          Employee
+                        </th>
+
+                        <th>
+                          Department
+                        </th>
+
+                        <th>
+                          Job title
+                        </th>
+
+                        <th>
+                          Manager
+                        </th>
+
+                        <th>
+                          Roles
+                        </th>
+
+                        <th>
+                          Status
+                        </th>
+
                         <th>
                           Availability
                         </th>
+
                         <th
                           aria-label="Actions"
                         />
@@ -1355,12 +1561,16 @@ export default function EmployeesPage() {
 
                     <tbody>
                       {filteredEmployees.map(
-                        (employee) => (
+                        (
+                          employee
+                        ) => (
                           <tr
                             key={
                               employee.id
                             }
                           >
+                            {/* EMPLOYEE */}
+
                             <td>
                               <div
                                 className={
@@ -1382,21 +1592,33 @@ export default function EmployeesPage() {
                                     styles.employeeIdentityCopy
                                   }
                                 >
-                                  <strong>
+                                  <Link
+                                    href={`/settings/employees/${employee.id}`}
+                                    className={
+                                      styles.employeeNameLink ||
+                                      styles.openButton
+                                    }
+                                  >
                                     {
                                       employee.full_name
                                     }
-                                  </strong>
+                                  </Link>
 
                                   <small>
                                     {employee.employee_number ||
                                       "No employee number"}
+
                                     {" · "}
-                                    {employee.email}
+
+                                    {
+                                      employee.email
+                                    }
                                   </small>
                                 </div>
                               </div>
                             </td>
+
+                            {/* DEPARTMENT */}
 
                             <td>
                               {employee.department
@@ -1404,16 +1626,22 @@ export default function EmployeesPage() {
                                 "Not assigned"}
                             </td>
 
+                            {/* JOB */}
+
                             <td>
                               {employee.job_title ||
                                 "Not provided"}
                             </td>
+
+                            {/* MANAGER */}
 
                             <td>
                               {employee.manager
                                 ?.full_name ||
                                 "No manager"}
                             </td>
+
+                            {/* ROLES */}
 
                             <td>
                               <div
@@ -1458,6 +1686,8 @@ export default function EmployeesPage() {
                               </div>
                             </td>
 
+                            {/* STATUS */}
+
                             <td>
                               <StatusBadge
                                 value={
@@ -1465,6 +1695,8 @@ export default function EmployeesPage() {
                                 }
                               />
                             </td>
+
+                            {/* AVAILABILITY */}
 
                             <td>
                               <StatusBadge
@@ -1474,45 +1706,58 @@ export default function EmployeesPage() {
                               />
                             </td>
 
+                            {/* ACTIONS */}
+
                             <td>
-                              {canManage && (
-                                <div
+                              <div
+                                className={
+                                  styles.actionGroup
+                                }
+                              >
+                                <Link
+                                  href={`/settings/employees/${employee.id}`}
                                   className={
-                                    styles.actionGroup
+                                    styles.openButton
                                   }
                                 >
-                                  <button
-                                    type="button"
-                                    className={
-                                      styles.openButton
-                                    }
-                                    onClick={() =>
-                                      openEditForm(
-                                        employee
-                                      )
-                                    }
-                                  >
-                                    Edit
-                                  </button>
+                                  View employee →
+                                </Link>
 
-                                  {!employee.is_organization_owner &&
-                                    employee.is_active && (
-                                      <button
-                                        type="button"
-                                        className={
-                                          styles.deleteButton
-                                        }
-                                        onClick={() =>
-                                          deactivateEmployee(
-                                            employee
-                                          )
-                                        }
-                                      >
-                                        Deactivate
-                                      </button>
-                                    )}
-                                </div>
-                              )}
+                                {canManage && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      className={
+                                        styles.openButton
+                                      }
+                                      onClick={() =>
+                                        openEditForm(
+                                          employee
+                                        )
+                                      }
+                                    >
+                                      Edit
+                                    </button>
+
+                                    {!employee.is_organization_owner &&
+                                      employee.is_active && (
+                                        <button
+                                          type="button"
+                                          className={
+                                            styles.deleteButton
+                                          }
+                                          onClick={() =>
+                                            deactivateEmployee(
+                                              employee
+                                            )
+                                          }
+                                        >
+                                          Deactivate
+                                        </button>
+                                      )}
+                                  </>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         )
@@ -1529,6 +1774,10 @@ export default function EmployeesPage() {
   );
 }
 
+// =========================================================
+// FORM FIELD
+// =========================================================
+
 function FormField({
   label,
   name,
@@ -1541,28 +1790,51 @@ function FormField({
 }) {
   return (
     <div
-      className={styles.field}
+      className={
+        styles.field
+      }
     >
       <label
         htmlFor={`employee-${name}`}
       >
         {label}
-        {required ? " *" : ""}
+
+        {required
+          ? " *"
+          : ""}
       </label>
 
       <input
         id={`employee-${name}`}
-        name={name}
-        type={type}
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        required={required}
-        disabled={disabled}
+        name={
+          name
+        }
+        type={
+          type
+        }
+        value={
+          value
+        }
+        onChange={
+          onChange
+        }
+        placeholder={
+          placeholder
+        }
+        required={
+          required
+        }
+        disabled={
+          disabled
+        }
       />
     </div>
   );
 }
+
+// =========================================================
+// SELECT FIELD
+// =========================================================
 
 function SelectField({
   label,
@@ -1573,7 +1845,9 @@ function SelectField({
 }) {
   return (
     <div
-      className={styles.field}
+      className={
+        styles.field
+      }
     >
       <label
         htmlFor={`employee-${name}`}
@@ -1583,15 +1857,25 @@ function SelectField({
 
       <select
         id={`employee-${name}`}
-        name={name}
-        value={value}
-        onChange={onChange}
+        name={
+          name
+        }
+        value={
+          value
+        }
+        onChange={
+          onChange
+        }
       >
         {children}
       </select>
     </div>
   );
 }
+
+// =========================================================
+// SUMMARY CARD
+// =========================================================
 
 function SummaryCard({
   icon,
@@ -1626,15 +1910,29 @@ function SummaryCard({
         {label}
       </span>
 
-      <strong>{value}</strong>
-      <small>{detail}</small>
+      <strong>
+        {value}
+      </strong>
+
+      <small>
+        {detail}
+      </small>
     </div>
   );
 }
 
-function StatusBadge({ value }) {
+// =========================================================
+// STATUS
+// =========================================================
+
+function StatusBadge({
+  value,
+}) {
   const normalized =
-    String(value || "")
+    String(
+      value ||
+        ""
+    )
       .toLowerCase();
 
   let toneClass =
@@ -1685,10 +1983,15 @@ function StatusBadge({ value }) {
     <span
       className={`${styles.statusBadge} ${toneClass}`}
     >
-      {value || "Not set"}
+      {value ||
+        "Not set"}
     </span>
   );
 }
+
+// =========================================================
+// LOADING
+// =========================================================
 
 function LoadingState() {
   return (
@@ -1699,47 +2002,88 @@ function LoadingState() {
     >
       {Array.from({
         length: 5,
-      }).map((_, index) => (
-        <div
-          key={index}
-          className={
-            styles.loadingRow
-          }
-        />
-      ))}
+      }).map(
+        (
+          _,
+          index
+        ) => (
+          <div
+            key={
+              index
+            }
+            className={
+              styles.loadingRow
+            }
+          />
+        )
+      )}
     </section>
   );
 }
 
-function getInitials(value = "") {
-  const words = String(value)
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
+// =========================================================
+// HELPERS
+// =========================================================
 
-  if (words.length === 0) {
+function getInitials(
+  value = ""
+) {
+  const words =
+    String(
+      value
+    )
+      .trim()
+      .split(
+        /\s+/
+      )
+      .filter(
+        Boolean
+      );
+
+  if (
+    words.length ===
+    0
+  ) {
     return "EM";
   }
 
-  if (words.length === 1) {
+  if (
+    words.length ===
+    1
+  ) {
     return words[0]
-      .slice(0, 2)
+      .slice(
+        0,
+        2
+      )
       .toUpperCase();
   }
 
   return `${words[0][0]}${
     words[
-      words.length - 1
+      words.length -
+        1
     ][0]
   }`.toUpperCase();
 }
 
-function capitalise(value) {
+function capitalise(
+  value
+) {
   const text =
-    String(value || "");
+    String(
+      value ||
+        ""
+    );
 
   return (
-    text.charAt(0).toUpperCase() +
-    text.slice(1)
+    text
+      .charAt(
+        0
+      )
+      .toUpperCase() +
+    text.slice(
+      1
+    )
   );
 }
