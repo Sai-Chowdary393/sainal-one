@@ -3,6 +3,10 @@
   gap: 20px;
 }
 
+/* =========================================================
+   HEADER
+========================================================= */
+
 .pageHeader {
   display: flex;
   align-items: flex-start;
@@ -38,6 +42,20 @@
   line-height: 1.55;
 }
 
+.employeeContext {
+  margin-top: 4px;
+  color: #918d84;
+  font-size: 10px;
+}
+
+.employeeContext strong {
+  color: #514d45;
+}
+
+/* =========================================================
+   BUTTONS
+========================================================= */
+
 .primaryButton,
 .secondaryButton,
 .clearButton,
@@ -63,16 +81,18 @@
 .primaryButton {
   padding: 0 17px;
   border: 1px solid #bd8b06;
-  background: linear-gradient(
-    145deg,
-    #dfb83e,
-    #c7930a
-  );
+  background:
+    linear-gradient(
+      145deg,
+      #dfb83e,
+      #c7930a
+    );
   color: #1b1a16;
 }
 
 .primaryButton:hover:not(:disabled) {
-  transform: translateY(-1px);
+  transform:
+    translateY(-1px);
 }
 
 .secondaryButton {
@@ -89,10 +109,15 @@
 }
 
 .primaryButton:disabled,
-.secondaryButton:disabled {
+.secondaryButton:disabled,
+.deleteButton:disabled {
   cursor: wait;
   opacity: 0.65;
 }
+
+/* =========================================================
+   COMMON PANELS
+========================================================= */
 
 .formPanel,
 .toolbarPanel,
@@ -102,8 +127,14 @@
   border: 1px solid #dfdcd3;
   border-radius: 18px;
   background: #ffffff;
-  box-shadow: 0 10px 30px rgba(43, 36, 17, 0.05);
+  box-shadow:
+    0 10px 30px
+    rgba(43, 36, 17, 0.05);
 }
+
+/* =========================================================
+   FOLLOW-UP FORM
+========================================================= */
 
 .formPanel {
   padding: 23px;
@@ -132,7 +163,11 @@
 
 .formGrid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns:
+    repeat(
+      2,
+      minmax(0, 1fr)
+    );
   gap: 15px;
 }
 
@@ -142,7 +177,8 @@
 }
 
 .fieldFull {
-  grid-column: 1 / -1;
+  grid-column:
+    1 / -1;
 }
 
 .field label {
@@ -167,7 +203,8 @@
 .field input,
 .field select {
   height: 44px;
-  padding: 0 13px;
+  padding:
+    0 13px;
 }
 
 .field textarea {
@@ -180,7 +217,9 @@
 .field select:focus,
 .field textarea:focus {
   border-color: #c69a1d;
-  box-shadow: 0 0 0 4px rgba(198, 154, 29, 0.11);
+  box-shadow:
+    0 0 0 4px
+    rgba(198, 154, 29, 0.11);
 }
 
 .formActions {
@@ -189,9 +228,17 @@
   gap: 10px;
 }
 
+/* =========================================================
+   SUMMARY
+========================================================= */
+
 .summaryGrid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns:
+    repeat(
+      4,
+      minmax(0, 1fr)
+    );
   gap: 14px;
 }
 
@@ -217,7 +264,10 @@
   width: 82px;
   height: 82px;
   border-radius: 50%;
-  background: var(--summary-soft);
+  background:
+    var(
+      --summary-soft
+    );
   content: "";
 }
 
@@ -229,8 +279,14 @@
   height: 37px;
   place-items: center;
   border-radius: 11px;
-  background: var(--summary-soft);
-  color: var(--summary-colour);
+  background:
+    var(
+      --summary-soft
+    );
+  color:
+    var(
+      --summary-colour
+    );
   font-size: 15px;
   font-weight: 900;
 }
@@ -280,6 +336,10 @@
   --summary-soft: #e3f0e8;
 }
 
+/* =========================================================
+   TOOLBAR
+========================================================= */
+
 .toolbarPanel {
   display: flex;
   align-items: center;
@@ -290,13 +350,22 @@
 
 .searchBox {
   display: flex;
-  width: min(520px, 100%);
+  width:
+    min(
+      470px,
+      100%
+    );
   height: 43px;
   align-items: center;
   gap: 9px;
-  padding: 0 12px;
+  padding:
+    0 12px;
   border: 1px solid #dedbd2;
   border-radius: 11px;
+}
+
+.searchBox span {
+  color: #99958c;
 }
 
 .searchBox input {
@@ -309,14 +378,17 @@
 
 .filters {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  justify-content: flex-end;
+  gap: 9px;
 }
 
 .filterSelect {
   height: 43px;
-  min-width: 150px;
-  padding: 0 12px;
+  min-width: 140px;
+  padding:
+    0 12px;
   border: 1px solid #dedbd2;
   border-radius: 11px;
   background: #ffffff;
@@ -324,11 +396,16 @@
 
 .clearButton {
   min-height: 40px;
-  padding: 0 12px;
+  padding:
+    0 12px;
   border: 0;
   background: transparent;
   color: #9a7100;
 }
+
+/* =========================================================
+   TABLE PANEL
+========================================================= */
 
 .tablePanel {
   overflow: hidden;
@@ -338,8 +415,11 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 19px 21px;
-  border-bottom: 1px solid #ebe8e1;
+  gap: 18px;
+  padding:
+    19px 21px;
+  border-bottom:
+    1px solid #ebe8e1;
 }
 
 .tableHeading h3 {
@@ -349,13 +429,15 @@
 }
 
 .tableHeading p {
-  margin: 4px 0 0;
+  margin:
+    4px 0 0;
   color: #969289;
   font-size: 9px;
 }
 
 .resultCount {
-  padding: 6px 9px;
+  padding:
+    6px 9px;
   border-radius: 999px;
   background: #f5edcf;
   color: #8d6900;
@@ -367,33 +449,60 @@
   overflow-x: auto;
 }
 
+/* =========================================================
+   MY WORK TABLE
+========================================================= */
+
 .followUpTable {
   width: 100%;
-  min-width: 1000px;
+  min-width: 1420px;
   border-collapse: collapse;
 }
 
 .followUpTable th {
-  padding: 13px 18px;
-  border-bottom: 1px solid #e9e6df;
+  padding:
+    13px 16px;
+  border-bottom:
+    1px solid #e9e6df;
   background: #faf9f6;
   color: #8c887f;
   font-size: 9px;
+  font-weight: 800;
   text-align: left;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .followUpTable td {
-  padding: 17px 18px;
-  border-bottom: 1px solid #efede7;
+  padding:
+    16px;
+  border-bottom:
+    1px solid #efede7;
   color: #4f4b44;
   font-size: 11px;
   vertical-align: middle;
 }
 
+.followUpTable
+tbody
+tr:last-child
+td {
+  border-bottom: 0;
+}
+
+.followUpTable
+tbody
+tr:hover {
+  background: #fcfaf5;
+}
+
+/* =========================================================
+   WORK IDENTITY
+========================================================= */
+
 .followUpIdentity {
   display: flex;
-  min-width: 230px;
+  min-width: 245px;
   align-items: center;
   gap: 11px;
 }
@@ -403,19 +512,39 @@
   width: 40px;
   height: 40px;
   place-items: center;
+  flex: 0 0 40px;
   border-radius: 12px;
+  background: #292720;
+  color: #deb840;
+  font-weight: 850;
+}
+
+.taskWorkIcon {
   background: #292720;
   color: #deb840;
 }
 
+.followUpWorkIcon {
+  background: #f5edcf;
+  color: #927000;
+}
+
 .followUpIdentityCopy {
   display: grid;
+  min-width: 0;
   gap: 3px;
 }
 
 .followUpLink {
+  overflow: hidden;
   color: #28251f;
   font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.followUpLink:hover {
+  color: #947000;
 }
 
 .followUpIdentityCopy small {
@@ -423,16 +552,103 @@
   font-size: 9px;
 }
 
+/* =========================================================
+   RELATED TYPE
+========================================================= */
+
 .typeBadge {
   display: inline-flex;
   min-height: 27px;
   align-items: center;
-  padding: 0 9px;
+  padding:
+    0 9px;
   border-radius: 999px;
   background: #f2f0ea;
   color: #6f6a61;
   font-size: 9px;
   font-weight: 750;
+  white-space: nowrap;
+}
+
+/* =========================================================
+   ASSIGNEE
+========================================================= */
+
+.assigneeCell {
+  display: grid;
+  min-width: 125px;
+  gap: 3px;
+}
+
+.assigneeCell strong {
+  overflow: hidden;
+  max-width: 170px;
+  color: #39362f;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assigneeCell small {
+  overflow: hidden;
+  max-width: 170px;
+  color: #99958c;
+  font-size: 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* =========================================================
+   PRIORITY
+========================================================= */
+
+.priorityBadge {
+  display: inline-flex;
+  min-height: 27px;
+  align-items: center;
+  justify-content: center;
+  padding:
+    0 9px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.priorityLow {
+  background: #eef2ee;
+  color: #617064;
+}
+
+.priorityMedium {
+  background: #f2f0ea;
+  color: #69655d;
+}
+
+.priorityHigh {
+  background: #faefd1;
+  color: #906900;
+}
+
+.priorityUrgent {
+  background: #f9e3e3;
+  color: #a14545;
+}
+
+.notApplicable {
+  color: #aaa69d;
+}
+
+/* =========================================================
+   DUE DATE
+========================================================= */
+
+.dueDateCell {
+  display: flex;
+  min-width: 125px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
 }
 
 .dateText {
@@ -447,8 +663,8 @@
 
 .overdueLabel {
   display: inline-flex;
-  margin-left: 7px;
-  padding: 5px 8px;
+  padding:
+    5px 8px;
   border-radius: 999px;
   background: #f9e3e3;
   color: #a14545;
@@ -456,30 +672,97 @@
   font-weight: 850;
 }
 
+.todayLabel {
+  display: inline-flex;
+  padding:
+    5px 8px;
+  border-radius: 999px;
+  background: #e5eef7;
+  color: #3d6f9e;
+  font-size: 8px;
+  font-weight: 850;
+}
+
+/* =========================================================
+   ACTIONS
+========================================================= */
+
+.actionCell {
+  display: flex;
+  min-width: 215px;
+  align-items: center;
+  gap: 7px;
+}
+
 .statusSelect {
   height: 35px;
-  padding: 0 9px;
+  min-width: 115px;
+  padding:
+    0 9px;
   border: 1px solid #ddd9cf;
   border-radius: 9px;
+  outline: none;
   background: #ffffff;
+}
+
+.statusSelect:focus {
+  border-color: #c69a1d;
 }
 
 .deleteButton {
   min-height: 35px;
-  margin-left: 8px;
-  padding: 0 11px;
+  margin-left: 0;
+  padding:
+    0 11px;
   border: 1px solid #e4bcbc;
   background: #fff4f4;
   color: #a14545;
 }
 
+.deleteButton:hover:not(:disabled) {
+  background: #fceaea;
+}
+
+/* =========================================================
+   OPEN LINKS
+========================================================= */
+
+.openCell {
+  display: grid;
+  min-width: 120px;
+  gap: 5px;
+}
+
 .openButton {
   min-height: 34px;
-  padding: 0 12px;
+  padding:
+    0 12px;
   border: 1px solid #ded9ca;
   background: #fbf8ef;
   color: #8c6800;
+  white-space: nowrap;
+  text-decoration: none;
 }
+
+.openButton:hover {
+  border-color: #caa63b;
+  background: #f7efd5;
+}
+
+.sourceLink {
+  color: #8f8a80;
+  font-size: 8px;
+  font-weight: 750;
+  text-align: center;
+}
+
+.sourceLink:hover {
+  color: #947000;
+}
+
+/* =========================================================
+   EMPTY
+========================================================= */
 
 .emptyState {
   display: grid;
@@ -513,6 +796,10 @@
   font-size: 10px;
 }
 
+/* =========================================================
+   LOADING / ERROR
+========================================================= */
+
 .loadingPanel {
   display: grid;
   gap: 14px;
@@ -522,7 +809,31 @@
 .loadingRow {
   height: 66px;
   border-radius: 11px;
-  background: #efede7;
+  background:
+    linear-gradient(
+      90deg,
+      #ece9e2 25%,
+      #f6f4ef 50%,
+      #ece9e2 75%
+    );
+  background-size:
+    200% 100%;
+  animation:
+    loadingPulse
+    1.4s
+    infinite;
+}
+
+@keyframes loadingPulse {
+  from {
+    background-position:
+      200% 0;
+  }
+
+  to {
+    background-position:
+      -200% 0;
+  }
 }
 
 .errorPanel {
@@ -538,23 +849,48 @@
 }
 
 .errorPanel p {
-  margin: 5px 0 0;
+  margin:
+    5px 0 0;
   color: #a16262;
   font-size: 10px;
 }
 
-@media (max-width: 1100px) {
-  .summaryGrid {
-    grid-template-columns: repeat(2, 1fr);
-  }
+/* =========================================================
+   RESPONSIVE
+========================================================= */
 
+@media (
+  max-width: 1250px
+) {
   .toolbarPanel {
     align-items: stretch;
     flex-direction: column;
   }
+
+  .searchBox {
+    width: 100%;
+  }
+
+  .filters {
+    justify-content: flex-start;
+  }
 }
 
-@media (max-width: 720px) {
+@media (
+  max-width: 1100px
+) {
+  .summaryGrid {
+    grid-template-columns:
+      repeat(
+        2,
+        1fr
+      );
+  }
+}
+
+@media (
+  max-width: 720px
+) {
   .pageHeader,
   .filters {
     align-items: stretch;
@@ -563,7 +899,8 @@
 
   .summaryGrid,
   .formGrid {
-    grid-template-columns: 1fr;
+    grid-template-columns:
+      1fr;
   }
 
   .fieldFull {
@@ -571,7 +908,8 @@
   }
 
   .formActions {
-    flex-direction: column-reverse;
+    flex-direction:
+      column-reverse;
   }
 
   .formActions button,
@@ -580,22 +918,38 @@
   .clearButton {
     width: 100%;
   }
+
+  .tableHeading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }
-/* ==================================================
-   SaiNal One Typography — Follow-ups List
-================================================== */
+
+/* =========================================================
+   SaiNal One Typography — My Work
+========================================================= */
 
 .eyebrow {
-  font-size: var(--font-label);
+  font-size:
+    var(
+      --font-label
+    );
 }
 
 .pageHeader h2 {
-  font-size: var(--font-workspace-title);
+  font-size:
+    var(
+      --font-workspace-title
+    );
   line-height: 1.2;
 }
 
-.pageHeader p {
-  font-size: var(--font-helper);
+.pageHeader p,
+.employeeContext {
+  font-size:
+    var(
+      --font-helper
+    );
 }
 
 .primaryButton,
@@ -603,19 +957,31 @@
 .clearButton,
 .openButton,
 .deleteButton {
-  font-size: var(--font-button);
+  font-size:
+    var(
+      --font-button
+    );
 }
 
 .formHeading h3 {
-  font-size: var(--font-section-title);
+  font-size:
+    var(
+      --font-section-title
+    );
 }
 
 .formHeading p {
-  font-size: var(--font-helper);
+  font-size:
+    var(
+      --font-helper
+    );
 }
 
 .field label {
-  font-size: var(--font-helper);
+  font-size:
+    var(
+      --font-helper
+    );
 }
 
 .field input,
@@ -624,11 +990,17 @@
 .searchBox input,
 .filterSelect,
 .statusSelect {
-  font-size: var(--font-input);
+  font-size:
+    var(
+      --font-input
+    );
 }
 
 .summaryLabel {
-  font-size: var(--font-label);
+  font-size:
+    var(
+      --font-label
+    );
 }
 
 .summaryCard strong {
@@ -636,55 +1008,97 @@
 }
 
 .summaryCard small {
-  font-size: var(--font-helper);
+  font-size:
+    var(
+      --font-helper
+    );
 }
 
 .tableHeading h3 {
-  font-size: var(--font-panel-title);
+  font-size:
+    var(
+      --font-panel-title
+    );
 }
 
 .tableHeading p {
-  font-size: var(--font-helper);
+  font-size:
+    var(
+      --font-helper
+    );
 }
 
 .resultCount {
-  font-size: var(--font-label);
+  font-size:
+    var(
+      --font-label
+    );
 }
 
 .followUpTable th {
-  font-size: var(--font-label);
+  font-size:
+    var(
+      --font-label
+    );
 }
 
 .followUpTable td {
-  font-size: var(--font-table);
+  font-size:
+    var(
+      --font-table
+    );
   line-height: 1.5;
 }
 
 .followUpLink {
-  font-size: var(--font-table);
+  font-size:
+    var(
+      --font-table
+    );
 }
 
-.followUpIdentityCopy small {
-  font-size: var(--font-meta);
+.followUpIdentityCopy small,
+.assigneeCell small {
+  font-size:
+    var(
+      --font-meta
+    );
 }
 
-.typeBadge {
-  font-size: var(--font-label);
+.typeBadge,
+.priorityBadge {
+  font-size:
+    var(
+      --font-label
+    );
 }
 
 .dateText {
-  font-size: var(--font-helper);
+  font-size:
+    var(
+      --font-helper
+    );
 }
 
-.overdueLabel {
-  font-size: var(--font-meta);
+.overdueLabel,
+.todayLabel {
+  font-size:
+    var(
+      --font-meta
+    );
 }
 
 .emptyState h3 {
-  font-size: var(--font-panel-title);
+  font-size:
+    var(
+      --font-panel-title
+    );
 }
 
 .emptyState p,
 .errorPanel p {
-  font-size: var(--font-helper);
+  font-size:
+    var(
+      --font-helper
+    );
 }
