@@ -19,8 +19,12 @@ import StatusBadge from "../../../components/StatusBadge";
 
 import styles from "./task-details.module.css";
 
+// =========================================================
+// OPTIONS
+// =========================================================
+
 const TASK_STATUS_OPTIONS = [
-  "Open",
+  "To Do",
   "In Progress",
   "Blocked",
   "Completed",
@@ -33,6 +37,10 @@ const PRIORITY_OPTIONS = [
   "Urgent",
 ];
 
+// =========================================================
+// PAGE
+// =========================================================
+
 export default function TaskDetailsPage() {
   const params =
     useParams();
@@ -43,6 +51,10 @@ export default function TaskDetailsPage() {
   const taskId =
     params?.id;
 
+  // =======================================================
+  // TASK
+  // =======================================================
+
   const [
     task,
     setTask,
@@ -52,6 +64,24 @@ export default function TaskDetailsPage() {
     activity,
     setActivity,
   ] = useState([]);
+
+  // =======================================================
+  // EMPLOYEES
+  // =======================================================
+
+  const [
+    employees,
+    setEmployees,
+  ] = useState([]);
+
+  const [
+    currentEmployee,
+    setCurrentEmployee,
+  ] = useState(null);
+
+  // =======================================================
+  // STATES
+  // =======================================================
 
   const [
     loading,
@@ -88,16 +118,25 @@ export default function TaskDetailsPage() {
     setEditMode,
   ] = useState(false);
 
+  // =======================================================
+  // FORM
+  // =======================================================
+
   const [
     formData,
     setFormData,
   ] = useState({
     task_name: "",
     description: "",
-    status: "Open",
+    assigned_employee_id: "",
+    status: "To Do",
     priority: "Medium",
     due_date: "",
   });
+
+  // =======================================================
+  // LOAD
+  // =======================================================
 
   useEffect(() => {
     if (!taskId) {
@@ -110,43 +149,62 @@ export default function TaskDetailsPage() {
   ]);
 
   // =======================================================
-  // LOAD WORKSPACE
+  // LOAD COMPLETE WORKSPACE
   // =======================================================
 
   async function loadWorkspace() {
     try {
       setLoading(true);
+
       setErrorMessage("");
 
       const [
         taskResponse,
         activityResponse,
-      ] = await Promise.all([
-        fetch(
-          `/api/tasks/${taskId}`,
-          {
-            cache:
-              "no-store",
-          }
-        ),
+        employeesResponse,
+      ] =
+        await Promise.all([
+          fetch(
+            `/api/tasks/${taskId}`,
+            {
+              cache:
+                "no-store",
+            }
+          ),
 
-        fetch(
-          `/api/tasks/${taskId}/activity`,
-          {
-            cache:
-              "no-store",
-          }
-        ),
-      ]);
+          fetch(
+            `/api/tasks/${taskId}/activity`,
+            {
+              cache:
+                "no-store",
+            }
+          ),
+
+          fetch(
+            "/api/employees",
+            {
+              cache:
+                "no-store",
+            }
+          ),
+        ]);
 
       const [
         taskData,
         activityData,
+        employeesData,
       ] =
         await Promise.all([
           taskResponse.json(),
+
           activityResponse.json(),
+
+          employeesResponse.json(),
         ]);
+
+      // ===================================================
+      // TASK
+      // ===================================================
 
       if (
         !taskResponse.ok
@@ -173,13 +231,16 @@ export default function TaskDetailsPage() {
         );
       }
 
+      // ===================================================
+      // ACTIVITY
+      // ===================================================
+
       if (
         activityResponse.ok
       ) {
         setActivity(
           Array.isArray(
-            activityData
-              ?.activity
+            activityData?.activity
           )
             ? activityData.activity
             : []
@@ -196,6 +257,72 @@ export default function TaskDetailsPage() {
             "Unable to load task activity."
         );
       }
+
+      // ===================================================
+      // EMPLOYEES
+      // ===================================================
+
+      if (
+        employeesResponse.ok
+      ) {
+        const employeeRows =
+          Array.isArray(
+            employeesData?.employees
+          )
+            ? employeesData.employees
+            : [];
+
+        const activeEmployees =
+          employeeRows
+            .filter(
+              (employee) =>
+                employee?.id &&
+                employee?.is_active !==
+                  false &&
+                normaliseStatus(
+                  employee
+                    ?.employment_status
+                ) !==
+                  "inactive"
+            )
+            .sort(
+              (
+                first,
+                second
+              ) =>
+                String(
+                  first.full_name ||
+                    first.email ||
+                    ""
+                ).localeCompare(
+                  String(
+                    second.full_name ||
+                      second.email ||
+                      ""
+                  )
+                )
+            );
+
+        setEmployees(
+          activeEmployees
+        );
+
+        setCurrentEmployee(
+          employeesData?.currentEmployee ||
+            null
+        );
+      } else {
+        console.error(
+          "Employee loading error:",
+          employeesData?.error
+        );
+
+        setEmployees([]);
+
+        setCurrentEmployee(
+          null
+        );
+      }
     } catch (error) {
       console.error(
         "Task workspace loading error:",
@@ -210,6 +337,10 @@ export default function TaskDetailsPage() {
       setLoading(false);
     }
   }
+
+  // =======================================================
+  // REFRESH ACTIVITY
+  // =======================================================
 
   async function fetchActivity() {
     try {
@@ -264,6 +395,10 @@ export default function TaskDetailsPage() {
     }
   }
 
+  // =======================================================
+  // FORM SYNC
+  // =======================================================
+
   function syncFormWithTask(
     selectedTask
   ) {
@@ -276,9 +411,18 @@ export default function TaskDetailsPage() {
         selectedTask.description ||
         "",
 
+      assigned_employee_id:
+        selectedTask.assigned_employee_id ||
+        "",
+
+      /*
+       * Older SaiNal One tasks may still contain "Open".
+       * The editor now standardises them to "To Do".
+       */
       status:
-        selectedTask.status ||
-        "Open",
+        getEditableStatus(
+          selectedTask.status
+        ),
 
       priority:
         selectedTask.priority ||
@@ -312,8 +456,22 @@ export default function TaskDetailsPage() {
     );
   }
 
+  function cancelEdit() {
+    if (
+      task
+    ) {
+      syncFormWithTask(
+        task
+      );
+    }
+
+    setEditMode(
+      false
+    );
+  }
+
   // =======================================================
-  // SAVE
+  // SAVE TASK
   // =======================================================
 
   async function saveTask(
@@ -336,6 +494,46 @@ export default function TaskDetailsPage() {
     try {
       setSaving(true);
 
+      const updatePayload = {
+        task_name:
+          formData
+            .task_name
+            .trim(),
+
+        description:
+          formData
+            .description
+            .trim(),
+
+        status:
+          formData.status,
+
+        priority:
+          formData.priority,
+
+        due_date:
+          formData.due_date ||
+          null,
+      };
+
+      /*
+       * Only organisation owners currently have
+       * reassignment rights in the backend.
+       *
+       * Normal employees can still edit their own
+       * task fields without accidentally sending an
+       * assignment field and receiving a 403.
+       */
+
+      if (
+        currentEmployee
+          ?.is_organization_owner
+      ) {
+        updatePayload.assigned_employee_id =
+          formData.assigned_employee_id ||
+          null;
+      }
+
       const response =
         await fetch(
           `/api/tasks/${taskId}`,
@@ -349,27 +547,9 @@ export default function TaskDetailsPage() {
             },
 
             body:
-              JSON.stringify({
-                task_name:
-                  formData
-                    .task_name
-                    .trim(),
-
-                description:
-                  formData
-                    .description
-                    .trim(),
-
-                status:
-                  formData.status,
-
-                priority:
-                  formData.priority,
-
-                due_date:
-                  formData.due_date ||
-                  null,
-              }),
+              JSON.stringify(
+                updatePayload
+              ),
           }
         );
 
@@ -480,7 +660,7 @@ export default function TaskDetailsPage() {
   }
 
   // =======================================================
-  // DELETE
+  // DELETE TASK
   // =======================================================
 
   async function deleteTask() {
@@ -520,9 +700,22 @@ export default function TaskDetailsPage() {
           "Task deleted successfully."
       );
 
-      router.push(
-        "/follow-ups"
-      );
+      /*
+       * Project work should return to the project.
+       * Other work returns to My Work.
+       */
+
+      if (
+        task?.project_id
+      ) {
+        router.push(
+          `/projects/${task.project_id}`
+        );
+      } else {
+        router.push(
+          "/follow-ups"
+        );
+      }
     } catch (error) {
       console.error(
         "Task deletion error:",
@@ -557,6 +750,33 @@ export default function TaskDetailsPage() {
   const workflowGenerated =
     Boolean(
       task?.workflow_run_id
+    );
+
+  const assignee =
+    getAssignee({
+      task,
+      employees,
+    });
+
+  const displayStatus =
+    getDisplayStatus(
+      task?.status
+    );
+
+  const backHref =
+    task?.project_id
+      ? `/projects/${task.project_id}`
+      : "/follow-ups";
+
+  const backLabel =
+    task?.project_id
+      ? "Back to project"
+      : "Back to My Work";
+
+  const canReassign =
+    Boolean(
+      currentEmployee
+        ?.is_organization_owner
     );
 
   // =======================================================
@@ -645,7 +865,9 @@ export default function TaskDetailsPage() {
             </h2>
 
             <p>
-              This task may have been deleted or you may not have access to it.
+              This task may have been
+              deleted or you may not
+              have access to it.
             </p>
 
             <Link
@@ -673,14 +895,16 @@ export default function TaskDetailsPage() {
           task.task_name ||
           "Task Workspace"
         }
-        description="Manage task progress, priority and related business records."
+        description="Manage task ownership, progress, priority and related business records."
       >
         <div
           className={
             styles.page
           }
         >
-          {/* HEADER */}
+          {/* =================================================
+              HEADER
+          ================================================= */}
 
           <section
             className={
@@ -689,12 +913,14 @@ export default function TaskDetailsPage() {
           >
             <div>
               <Link
-                href="/follow-ups"
+                href={
+                  backHref
+                }
                 className={
                   styles.backLink
                 }
               >
-                ← Back to My Work
+                ← {backLabel}
               </Link>
 
               <span
@@ -710,7 +936,10 @@ export default function TaskDetailsPage() {
               </h2>
 
               <p>
-                Review the assigned action, update progress and open the related business record.
+                Review ownership,
+                progress and the
+                business context for
+                this task.
               </p>
             </div>
 
@@ -751,7 +980,11 @@ export default function TaskDetailsPage() {
               {normaliseStatus(
                 task.status
               ) ===
-              "open" && (
+                "open" ||
+              normaliseStatus(
+                task.status
+              ) ===
+                "to do" ? (
                 <button
                   type="button"
                   className={
@@ -767,6 +1000,50 @@ export default function TaskDetailsPage() {
                   }
                 >
                   Start work
+                </button>
+              ) : null}
+
+              {normaliseStatus(
+                task.status
+              ) ===
+                "blocked" && (
+                <button
+                  type="button"
+                  className={
+                    styles.secondaryButton
+                  }
+                  disabled={
+                    saving
+                  }
+                  onClick={() =>
+                    changeStatus(
+                      "In Progress"
+                    )
+                  }
+                >
+                  Resume work
+                </button>
+              )}
+
+              {normaliseStatus(
+                task.status
+              ) ===
+                "in progress" && (
+                <button
+                  type="button"
+                  className={
+                    styles.secondaryButton
+                  }
+                  disabled={
+                    saving
+                  }
+                  onClick={() =>
+                    changeStatus(
+                      "Blocked"
+                    )
+                  }
+                >
+                  Block
                 </button>
               )}
 
@@ -791,10 +1068,34 @@ export default function TaskDetailsPage() {
                   Mark completed
                 </button>
               )}
+
+              {normaliseStatus(
+                task.status
+              ) ===
+                "completed" && (
+                <button
+                  type="button"
+                  className={
+                    styles.secondaryButton
+                  }
+                  disabled={
+                    saving
+                  }
+                  onClick={() =>
+                    changeStatus(
+                      "To Do"
+                    )
+                  }
+                >
+                  Reopen
+                </button>
+              )}
             </div>
           </section>
 
-          {/* HERO */}
+          {/* =================================================
+              HERO
+          ================================================= */}
 
           <section
             className={
@@ -811,7 +1112,12 @@ export default function TaskDetailsPage() {
                   styles.taskIcon
                 }
               >
-                ☑
+                {normaliseStatus(
+                  task.status
+                ) ===
+                "completed"
+                  ? "✓"
+                  : "☑"}
               </span>
 
               <div>
@@ -822,7 +1128,9 @@ export default function TaskDetailsPage() {
                 >
                   {workflowGenerated
                     ? "Workflow generated"
-                    : "Manual task"}
+                    : task.project_id
+                      ? "Project task"
+                      : "Manual task"}
                 </span>
 
                 <h3>
@@ -841,8 +1149,7 @@ export default function TaskDetailsPage() {
                 >
                   <StatusBadge
                     status={
-                      task.status ||
-                      "Open"
+                      displayStatus
                     }
                   />
 
@@ -854,6 +1161,15 @@ export default function TaskDetailsPage() {
                     {task.priority ||
                       "Medium"}{" "}
                     priority
+                  </span>
+
+                  <span
+                    className={
+                      styles.priorityBadge
+                    }
+                  >
+                    Assigned to{" "}
+                    {assignee.name}
                   </span>
 
                   {workflowGenerated && (
@@ -892,7 +1208,9 @@ export default function TaskDetailsPage() {
             </div>
           </section>
 
-          {/* EDIT */}
+          {/* =================================================
+              EDIT
+          ================================================= */}
 
           {editMode ? (
             <section
@@ -911,7 +1229,10 @@ export default function TaskDetailsPage() {
                   </h3>
 
                   <p>
-                    Update the task details and save your changes.
+                    Update ownership,
+                    delivery status,
+                    priority and task
+                    details.
                   </p>
                 </div>
               </div>
@@ -924,6 +1245,8 @@ export default function TaskDetailsPage() {
                   saveTask
                 }
               >
+                {/* TASK NAME */}
+
                 <label>
                   <span>
                     Task name
@@ -938,30 +1261,71 @@ export default function TaskDetailsPage() {
                     onChange={
                       handleChange
                     }
+                    disabled={
+                      saving
+                    }
                     required
                   />
                 </label>
 
-                <label
-                  className={
-                    styles.fullField
-                  }
-                >
+                {/* ASSIGNED TO */}
+
+                <label>
                   <span>
-                    Description
+                    Assigned to
                   </span>
 
-                  <textarea
-                    name="description"
-                    value={
-                      formData.description
-                    }
-                    onChange={
-                      handleChange
-                    }
-                    rows={5}
-                  />
+                  {canReassign ? (
+                    <select
+                      name="assigned_employee_id"
+                      value={
+                        formData.assigned_employee_id ||
+                        ""
+                      }
+                      onChange={
+                        handleChange
+                      }
+                      disabled={
+                        saving
+                      }
+                    >
+                      <option value="">
+                        Unassigned
+                      </option>
+
+                      {employees.map(
+                        (
+                          employee
+                        ) => (
+                          <option
+                            key={
+                              employee.id
+                            }
+                            value={
+                              employee.id
+                            }
+                          >
+                            {formatEmployeeOption(
+                              employee,
+                              currentEmployee
+                            )}
+                          </option>
+                        )
+                      )}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      value={
+                        assignee.name
+                      }
+                      disabled
+                      readOnly
+                    />
+                  )}
                 </label>
+
+                {/* STATUS */}
 
                 <label>
                   <span>
@@ -975,6 +1339,9 @@ export default function TaskDetailsPage() {
                     }
                     onChange={
                       handleChange
+                    }
+                    disabled={
+                      saving
                     }
                   >
                     {TASK_STATUS_OPTIONS.map(
@@ -996,6 +1363,8 @@ export default function TaskDetailsPage() {
                   </select>
                 </label>
 
+                {/* PRIORITY */}
+
                 <label>
                   <span>
                     Priority
@@ -1008,6 +1377,9 @@ export default function TaskDetailsPage() {
                     }
                     onChange={
                       handleChange
+                    }
+                    disabled={
+                      saving
                     }
                   >
                     {PRIORITY_OPTIONS.map(
@@ -1029,6 +1401,8 @@ export default function TaskDetailsPage() {
                   </select>
                 </label>
 
+                {/* DUE DATE */}
+
                 <label>
                   <span>
                     Due date
@@ -1042,6 +1416,37 @@ export default function TaskDetailsPage() {
                     }
                     onChange={
                       handleChange
+                    }
+                    disabled={
+                      saving
+                    }
+                  />
+                </label>
+
+                {/* DESCRIPTION */}
+
+                <label
+                  className={
+                    styles.fullField
+                  }
+                >
+                  <span>
+                    Description
+                  </span>
+
+                  <textarea
+                    name="description"
+                    value={
+                      formData.description
+                    }
+                    onChange={
+                      handleChange
+                    }
+                    rows={
+                      5
+                    }
+                    disabled={
+                      saving
                     }
                   />
                 </label>
@@ -1059,10 +1464,8 @@ export default function TaskDetailsPage() {
                     disabled={
                       saving
                     }
-                    onClick={() =>
-                      setEditMode(
-                        false
-                      )
+                    onClick={
+                      cancelEdit
                     }
                   >
                     Cancel
@@ -1090,7 +1493,9 @@ export default function TaskDetailsPage() {
                 styles.detailsGrid
               }
             >
-              {/* INFORMATION */}
+              {/* =================================================
+                  INFORMATION
+              ================================================= */}
 
               <section
                 className={
@@ -1108,7 +1513,9 @@ export default function TaskDetailsPage() {
                     </h3>
 
                     <p>
-                      Status, priority and schedule.
+                      Ownership, status,
+                      priority and
+                      schedule.
                     </p>
                   </div>
                 </div>
@@ -1123,12 +1530,27 @@ export default function TaskDetailsPage() {
                     customValue={
                       <StatusBadge
                         status={
-                          task.status ||
-                          "Open"
+                          displayStatus
                         }
                       />
                     }
                   />
+
+                  <DetailRow
+                    label="Assigned to"
+                    value={
+                      assignee.name
+                    }
+                  />
+
+                  {assignee.subtitle && (
+                    <DetailRow
+                      label="Role"
+                      value={
+                        assignee.subtitle
+                      }
+                    />
+                  )}
 
                   <DetailRow
                     label="Priority"
@@ -1161,7 +1583,9 @@ export default function TaskDetailsPage() {
                 </div>
               </section>
 
-              {/* LINKAGE */}
+              {/* =================================================
+                  LINKAGE
+              ================================================= */}
 
               <section
                 className={
@@ -1179,7 +1603,9 @@ export default function TaskDetailsPage() {
                     </h3>
 
                     <p>
-                      Where this task came from and what it relates to.
+                      Where this task came
+                      from and what it
+                      relates to.
                     </p>
                   </div>
                 </div>
@@ -1194,7 +1620,9 @@ export default function TaskDetailsPage() {
                     value={
                       workflowGenerated
                         ? "Workflow automation"
-                        : "Manual task"
+                        : task.project_id
+                          ? "Project task"
+                          : "Manual task"
                     }
                   />
 
@@ -1219,7 +1647,8 @@ export default function TaskDetailsPage() {
                             styles.recordLink
                           }
                         >
-                          Open related record →
+                          Open related
+                          record →
                         </Link>
                       ) : (
                         <strong
@@ -1270,7 +1699,9 @@ export default function TaskDetailsPage() {
             </section>
           )}
 
-          {/* DESCRIPTION */}
+          {/* =================================================
+              DESCRIPTION
+          ================================================= */}
 
           <section
             className={
@@ -1295,7 +1726,9 @@ export default function TaskDetailsPage() {
             </p>
           </section>
 
-          {/* ACTIVITY */}
+          {/* =================================================
+              ACTIVITY
+          ================================================= */}
 
           <section
             className={
@@ -1321,7 +1754,10 @@ export default function TaskDetailsPage() {
                 </h3>
 
                 <p>
-                  Track status, priority, schedule and other changes to this task.
+                  Track ownership,
+                  status, priority,
+                  schedule and other
+                  changes.
                 </p>
               </div>
 
@@ -1365,12 +1801,16 @@ export default function TaskDetailsPage() {
                 title={
                   workflowGenerated
                     ? "Task created by workflow"
-                    : "Task created"
+                    : task.project_id
+                      ? "Project task created"
+                      : "Task created"
                 }
                 message={
                   workflowGenerated
                     ? "SaiNal One workflow automation created this task."
-                    : "This task was created in SaiNal One."
+                    : task.project_id
+                      ? "This task was created as part of project delivery."
+                      : "This task was created in SaiNal One."
                 }
                 actor={
                   workflowGenerated
@@ -1405,10 +1845,10 @@ export default function TaskDetailsPage() {
                       title={getActivityTitle(
                         item
                       )}
-                      message={
-                        item.message ||
-                        "Task updated."
-                      }
+                      message={getReadableActivityMessage({
+                        item,
+                        employees,
+                      })}
                       actor={
                         item.employee
                           ?.full_name ||
@@ -1430,7 +1870,9 @@ export default function TaskDetailsPage() {
             </div>
           </section>
 
-          {/* DELETE */}
+          {/* =================================================
+              DELETE
+          ================================================= */}
 
           <section
             className={
@@ -1443,7 +1885,9 @@ export default function TaskDetailsPage() {
               </h3>
 
               <p>
-                Permanently remove this task from SaiNal One.
+                Permanently remove
+                this task from SaiNal
+                One.
               </p>
             </div>
 
@@ -1613,7 +2057,206 @@ function LoadingState() {
 }
 
 // =========================================================
-// HELPERS
+// ASSIGNEE
+// =========================================================
+
+function getAssignee({
+  task,
+  employees,
+}) {
+  if (
+    !task?.assigned_employee_id
+  ) {
+    return {
+      name:
+        "Unassigned",
+
+      subtitle:
+        null,
+    };
+  }
+
+  const employee =
+    employees.find(
+      (
+        item
+      ) =>
+        String(
+          item.id
+        ) ===
+        String(
+          task.assigned_employee_id
+        )
+    );
+
+  if (employee) {
+    return {
+      name:
+        employee.full_name ||
+        employee.email ||
+        "Assigned employee",
+
+      subtitle:
+        employee.job_title ||
+        null,
+    };
+  }
+
+  /*
+   * Some task endpoints may later return employee
+   * enrichment directly. Support that as well.
+   */
+
+  if (
+    task.assigned_employee
+  ) {
+    return {
+      name:
+        task.assigned_employee
+          .full_name ||
+        task.assigned_employee
+          .email ||
+        "Assigned employee",
+
+      subtitle:
+        task.assigned_employee
+          .job_title ||
+        null,
+    };
+  }
+
+  return {
+    name:
+      "Assigned employee",
+
+    subtitle:
+      null,
+  };
+}
+
+function formatEmployeeOption(
+  employee,
+  currentEmployee
+) {
+  const name =
+    employee.full_name ||
+    employee.email ||
+    employee.employee_number ||
+    "Employee";
+
+  const role =
+    employee.job_title
+      ? ` — ${employee.job_title}`
+      : "";
+
+  const you =
+    currentEmployee?.id &&
+    String(
+      employee.id
+    ) ===
+      String(
+        currentEmployee.id
+      )
+      ? " (You)"
+      : "";
+
+  return `${name}${role}${you}`;
+}
+
+// =========================================================
+// ACTIVITY
+// =========================================================
+
+function getReadableActivityMessage({
+  item,
+  employees,
+}) {
+  if (
+    item?.field_name !==
+    "assigned_employee_id"
+  ) {
+    return (
+      item?.message ||
+      "Task updated."
+    );
+  }
+
+  const oldEmployeeName =
+    getEmployeeNameFromId(
+      item.old_value,
+      employees
+    );
+
+  const newEmployeeName =
+    getEmployeeNameFromId(
+      item.new_value,
+      employees
+    );
+
+  if (
+    !item.old_value &&
+    item.new_value
+  ) {
+    return `Task assigned to ${newEmployeeName}.`;
+  }
+
+  if (
+    item.old_value &&
+    !item.new_value
+  ) {
+    return `Task unassigned from ${oldEmployeeName}.`;
+  }
+
+  if (
+    item.old_value &&
+    item.new_value
+  ) {
+    return `Task reassigned from ${oldEmployeeName} to ${newEmployeeName}.`;
+  }
+
+  return (
+    item.message ||
+    "Task assignment changed."
+  );
+}
+
+function getEmployeeNameFromId(
+  employeeId,
+  employees
+) {
+  if (!employeeId) {
+    return "Unassigned";
+  }
+
+  const employee =
+    employees.find(
+      (
+        item
+      ) =>
+        String(
+          item.id
+        ) ===
+        String(
+          employeeId
+        )
+    );
+
+  if (!employee) {
+    /*
+     * Do not expose a long UUID in the UI.
+     */
+    return "another employee";
+  }
+
+  return (
+    employee.full_name ||
+    employee.email ||
+    "employee"
+  );
+}
+
+// =========================================================
+// STATUS
 // =========================================================
 
 function normaliseStatus(
@@ -1625,6 +2268,65 @@ function normaliseStatus(
     .trim()
     .toLowerCase();
 }
+
+function getEditableStatus(
+  value
+) {
+  const status =
+    normaliseStatus(
+      value
+    );
+
+  /*
+   * Legacy status migration at UI level.
+   */
+
+  if (
+    status ===
+    "open"
+  ) {
+    return "To Do";
+  }
+
+  if (
+    status ===
+    "in progress"
+  ) {
+    return "In Progress";
+  }
+
+  if (
+    status ===
+    "blocked"
+  ) {
+    return "Blocked";
+  }
+
+  if (
+    status ===
+    "completed" ||
+    status ===
+    "complete" ||
+    status ===
+    "done"
+  ) {
+    return "Completed";
+  }
+
+  return "To Do";
+}
+
+function getDisplayStatus(
+  value
+) {
+  return getEditableStatus(
+    value
+  );
+}
+
+// =========================================================
+// DATE
+// =========================================================
 
 function normaliseDateInput(
   value
@@ -1718,6 +2420,10 @@ function formatDateTime(
   );
 }
 
+// =========================================================
+// RELATED RECORD
+// =========================================================
+
 function formatRecordType(
   value
 ) {
@@ -1785,6 +2491,10 @@ function getRecordHref(
   }
 }
 
+// =========================================================
+// DUE STATE
+// =========================================================
+
 function getDueState(
   task
 ) {
@@ -1845,6 +2555,10 @@ function getDueState(
   return "Upcoming";
 }
 
+// =========================================================
+// ACTIVITY ICON
+// =========================================================
+
 function getActivityIcon(
   type
 ) {
@@ -1869,6 +2583,10 @@ function getActivityIcon(
       return "•";
   }
 }
+
+// =========================================================
+// ACTIVITY TITLE
+// =========================================================
 
 function getActivityTitle(
   activity
