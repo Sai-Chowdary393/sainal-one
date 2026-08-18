@@ -955,7 +955,7 @@ export async function POST(
           email,
           {
             redirectTo:
-              "https://sainal-one.vercel.app",
+              "https://sainal-one.vercel.app/accept-invite",
 
             data: {
               full_name:
