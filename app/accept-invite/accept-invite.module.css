@@ -1,0 +1,302 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  background:
+    radial-gradient(
+      circle at top left,
+      rgba(212, 169, 35, 0.12),
+      transparent 32%
+    ),
+    #f7f5ef;
+}
+
+.card {
+  width: 100%;
+  max-width: 520px;
+  background: #ffffff;
+  border: 1px solid #e3ded2;
+  border-radius: 24px;
+  padding: 40px;
+  box-shadow:
+    0 22px 60px
+      rgba(30, 28, 22, 0.08);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 32px;
+}
+
+.brand > div:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.brand strong {
+  font-size: 18px;
+  color: #24221c;
+}
+
+.brand span {
+  font-size: 12px;
+  color: #857f72;
+}
+
+.logo {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: #26231c;
+  color: #d8ac28;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.eyebrow {
+  display: block;
+  margin-bottom: 8px;
+  color: #9b7100;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.card h1 {
+  margin: 0;
+  color: #211f1a;
+  font-size: 32px;
+  line-height: 1.15;
+}
+
+.subtitle {
+  margin: 12px 0 28px;
+  color: #716b60;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.emailPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 24px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: #f8f6f0;
+  border: 1px solid #e7e2d7;
+}
+
+.emailPanel span {
+  color: #8c8577;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.emailPanel strong {
+  color: #29261f;
+  font-size: 14px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field label {
+  color: #302d26;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.field input {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  border: 1px solid #dcd6ca;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #25221d;
+  font-size: 14px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.field input:focus {
+  border-color: #c89612;
+  box-shadow:
+    0 0 0 3px
+      rgba(200, 150, 18, 0.11);
+}
+
+.field small {
+  color: #8a8477;
+  font-size: 11px;
+}
+
+.passwordWrapper {
+  position: relative;
+}
+
+.passwordWrapper input {
+  padding-right: 70px;
+}
+
+.passwordToggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  color: #967000;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.primaryButton,
+.secondaryButton {
+  min-height: 48px;
+  border-radius: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.primaryButton {
+  border: 1px solid #bd8c0d;
+  background: #d3a526;
+  color: #211d12;
+}
+
+.primaryButton:hover {
+  filter: brightness(0.97);
+}
+
+.primaryButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.secondaryButton {
+  padding: 0 18px;
+  border: 1px solid #dcd5c7;
+  background: #ffffff;
+  color: #312e27;
+}
+
+.errorMessage {
+  margin-bottom: 20px;
+  padding: 13px 14px;
+  border: 1px solid #efb7b7;
+  border-radius: 10px;
+  background: #fff3f3;
+  color: #9e3434;
+  font-size: 13px;
+}
+
+.successMessage {
+  margin-bottom: 20px;
+  padding: 13px 14px;
+  border: 1px solid #b8dfc7;
+  border-radius: 10px;
+  background: #effaf3;
+  color: #237443;
+  font-size: 13px;
+}
+
+.invalidInvite {
+  padding: 20px;
+  border: 1px solid #e3ded2;
+  border-radius: 14px;
+  background: #faf8f3;
+}
+
+.invalidInvite h2 {
+  margin: 0 0 8px;
+  color: #28251f;
+  font-size: 18px;
+}
+
+.invalidInvite p {
+  margin: 0 0 18px;
+  color: #777064;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.securityMessage {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid #ece7dc;
+  color: #8b8477;
+  font-size: 11px;
+  text-align: center;
+}
+
+.loadingBar {
+  width: 100%;
+  height: 5px;
+  margin-top: 24px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #eee9de;
+}
+
+.loadingBar::after {
+  content: "";
+  display: block;
+  width: 45%;
+  height: 100%;
+  border-radius: inherit;
+  background: #cca021;
+  animation:
+    loading 1.2s ease-in-out
+    infinite alternate;
+}
+
+@keyframes loading {
+  from {
+    transform:
+      translateX(-20%);
+  }
+
+  to {
+    transform:
+      translateX(150%);
+  }
+}
+
+@media (
+  max-width: 600px
+) {
+  .page {
+    padding: 16px;
+  }
+
+  .card {
+    padding: 28px 22px;
+    border-radius: 18px;
+  }
+
+  .card h1 {
+    font-size: 27px;
+  }
+}
