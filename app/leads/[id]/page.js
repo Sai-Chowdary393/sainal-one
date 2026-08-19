@@ -1,12 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useState,
+} from "react";
+
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+
+import {
+  useParams,
+  useRouter,
+} from "next/navigation";
+
 import AppLayout from "../../../components/layout/AppLayout";
 import StatusBadge from "../../../components/StatusBadge";
 import ProtectedRoute from "../../../components/ProtectedRoute";
+
 import styles from "./lead-details.module.css";
+
+// =========================================================
+// OPTIONS
+// =========================================================
 
 const STATUS_OPTIONS = [
   "New",
@@ -17,221 +31,620 @@ const STATUS_OPTIONS = [
   "Lost",
 ];
 
+// =========================================================
+// PAGE
+// =========================================================
+
 export default function LeadDetails() {
-  const params = useParams();
-  const router = useRouter();
-  const leadId = params?.id;
+  const params =
+    useParams();
 
-  const [lead, setLead] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState("");
+  const router =
+    useRouter();
 
-  const [emailDraft, setEmailDraft] = useState("");
-  const [quoteDraft, setQuoteDraft] = useState("");
-  const [quoteSaved, setQuoteSaved] = useState(false);
+  const leadId =
+    params?.id;
 
-  const [editMode, setEditMode] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [generatingEmail, setGeneratingEmail] =
-    useState(false);
-  const [generatingQuote, setGeneratingQuote] =
-    useState(false);
-  const [creatingFollowUp, setCreatingFollowUp] =
-    useState(false);
+  const [
+    lead,
+    setLead,
+  ] = useState(null);
+
+  const [
+    employees,
+    setEmployees,
+  ] = useState([]);
+
+  const [
+    currentEmployee,
+    setCurrentEmployee,
+  ] = useState(null);
+
+  const [
+    access,
+    setAccess,
+  ] = useState({
+    isOwner: false,
+    permissions: [],
+    roles: [],
+    canViewAll: false,
+    canViewTeam: false,
+    canViewOwn: false,
+    canCreate: false,
+    canEdit: false,
+    canDelete: false,
+    canAssign: false,
+  });
+
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
+
+  const [
+    errorMessage,
+    setErrorMessage,
+  ] = useState("");
+
+  const [
+    emailDraft,
+    setEmailDraft,
+  ] = useState("");
+
+  const [
+    quoteDraft,
+    setQuoteDraft,
+  ] = useState("");
+
+  const [
+    quoteSaved,
+    setQuoteSaved,
+  ] = useState(false);
+
+  const [
+    editMode,
+    setEditMode,
+  ] = useState(false);
+
+  const [
+    saving,
+    setSaving,
+  ] = useState(false);
+
+  const [
+    deleting,
+    setDeleting,
+  ] = useState(false);
+
+  const [
+    generatingEmail,
+    setGeneratingEmail,
+  ] = useState(false);
+
+  const [
+    generatingQuote,
+    setGeneratingQuote,
+  ] = useState(false);
+
+  const [
+    creatingFollowUp,
+    setCreatingFollowUp,
+  ] = useState(false);
+
+  // =======================================================
+  // LOAD
+  // =======================================================
 
   useEffect(() => {
-    if (leadId) {
+    if (
+      leadId
+    ) {
       fetchLead();
     }
-  }, [leadId]);
+  }, [
+    leadId,
+  ]);
 
   async function fetchLead() {
     try {
-      setLoading(true);
-      setErrorMessage("");
-
-      const directResponse = await fetch(
-        `/api/leads/${leadId}`,
-        {
-          cache: "no-store",
-        }
+      setLoading(
+        true
       );
 
-      if (directResponse.ok) {
-        const directData = await directResponse.json();
+      setErrorMessage(
+        ""
+      );
 
-        const selectedLead = Array.isArray(directData)
-          ? directData[0]
-          : directData;
+      const response =
+        await fetch(
+          `/api/leads/${leadId}`,
+          {
+            cache:
+              "no-store",
+          }
+        );
 
-        setLead(selectedLead || null);
-        return;
-      }
+      const data =
+        await response.json();
 
-      const response = await fetch("/api/leads", {
-        cache: "no-store",
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
+      if (
+        !response.ok
+      ) {
         throw new Error(
-          data.error || "Failed to load lead."
+          data.error ||
+            "Failed to load lead."
         );
       }
 
-      const selectedLead = (
-        Array.isArray(data) ? data : []
-      ).find(
-        (item) =>
-          String(item.id) === String(leadId)
+      setLead(
+        data.lead ||
+          null
       );
 
-      setLead(selectedLead || null);
-    } catch (error) {
-      console.error("Lead loading error:", error);
+      setEmployees(
+        Array.isArray(
+          data.employees
+        )
+          ? data.employees
+          : []
+      );
+
+      setCurrentEmployee(
+        data.currentEmployee ||
+          null
+      );
+
+      setAccess({
+        isOwner:
+          Boolean(
+            data.access
+              ?.isOwner
+          ),
+
+        permissions:
+          Array.isArray(
+            data.access
+              ?.permissions
+          )
+            ? data.access
+                .permissions
+            : [],
+
+        roles:
+          Array.isArray(
+            data.access
+              ?.roles
+          )
+            ? data.access
+                .roles
+            : [],
+
+        canViewAll:
+          Boolean(
+            data.access
+              ?.canViewAll
+          ),
+
+        canViewTeam:
+          Boolean(
+            data.access
+              ?.canViewTeam
+          ),
+
+        canViewOwn:
+          Boolean(
+            data.access
+              ?.canViewOwn
+          ),
+
+        canCreate:
+          Boolean(
+            data.access
+              ?.canCreate
+          ),
+
+        canEdit:
+          Boolean(
+            data.access
+              ?.canEdit
+          ),
+
+        canDelete:
+          Boolean(
+            data.access
+              ?.canDelete
+          ),
+
+        canAssign:
+          Boolean(
+            data.access
+              ?.canAssign
+          ),
+      });
+    } catch (
+      error
+    ) {
+      console.error(
+        "Lead loading error:",
+        error
+      );
 
       setErrorMessage(
         error.message ||
           "We could not load this lead."
       );
+
+      setLead(
+        null
+      );
     } finally {
-      setLoading(false);
+      setLoading(
+        false
+      );
     }
   }
 
-  function handleChange(event) {
-    const { name, value } = event.target;
+  // =======================================================
+  // CHANGE
+  // =======================================================
 
-    setLead((currentLead) => ({
-      ...currentLead,
-      [name]: value,
-    }));
+  function handleChange(
+    event
+  ) {
+    if (
+      !canEdit
+    ) {
+      return;
+    }
+
+    const {
+      name,
+      value,
+    } =
+      event.target;
+
+    setLead(
+      (
+        currentLead
+      ) => ({
+        ...currentLead,
+
+        [name]:
+          value,
+      })
+    );
+  }
+
+  // =======================================================
+  // OWNER CHANGE
+  // =======================================================
+
+  function handleOwnerChange(
+    event
+  ) {
+    if (
+      !canAssign
+    ) {
+      return;
+    }
+
+    const value =
+      event.target.value;
+
+    const selectedOwner =
+      employees.find(
+        (
+          employee
+        ) =>
+          String(
+            employee.id
+          ) ===
+          String(
+            value
+          )
+      ) ||
+      null;
+
+    setLead(
+      (
+        currentLead
+      ) => ({
+        ...currentLead,
+
+        owner_employee_id:
+          value,
+
+        owner:
+          selectedOwner,
+      })
+    );
+  }
+
+  // =======================================================
+  // EDIT
+  // =======================================================
+
+  function startEdit() {
+    if (
+      !canEdit &&
+      !canAssign
+    ) {
+      return;
+    }
+
+    setEditMode(
+      true
+    );
   }
 
   function cancelEdit() {
-    setEditMode(false);
+    setEditMode(
+      false
+    );
+
     fetchLead();
   }
 
+  // =======================================================
+  // UPDATE
+  // =======================================================
+
   async function updateLead() {
-    if (!lead) {
+    if (
+      !lead
+    ) {
+      return;
+    }
+
+    if (
+      !canEdit &&
+      !canAssign
+    ) {
+      alert(
+        "You do not have permission to update this lead."
+      );
+
       return;
     }
 
     try {
-      setSaving(true);
-
-      const response = await fetch(
-        `/api/leads/${lead.id}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            name: String(lead.name || "").trim(),
-            company: String(
-              lead.company || ""
-            ).trim(),
-            email: String(lead.email || "").trim(),
-            phone: String(lead.phone || "").trim(),
-            status: lead.status || "New",
-            value: String(lead.value || "").trim(),
-            notes: String(lead.notes || "").trim(),
-          }),
-        }
+      setSaving(
+        true
       );
 
-      const data = await response.json();
+      const payload = {};
 
-      if (!response.ok) {
+      if (
+        canEdit
+      ) {
+        payload.name =
+          String(
+            lead.name ||
+              ""
+          ).trim();
+
+        payload.company =
+          String(
+            lead.company ||
+              ""
+          ).trim();
+
+        payload.email =
+          String(
+            lead.email ||
+              ""
+          ).trim();
+
+        payload.phone =
+          String(
+            lead.phone ||
+              ""
+          ).trim();
+
+        payload.status =
+          lead.status ||
+          "New";
+
+        payload.value =
+          String(
+            lead.value ||
+              ""
+          ).trim();
+
+        payload.notes =
+          String(
+            lead.notes ||
+              ""
+          ).trim();
+      }
+
+      if (
+        canAssign
+      ) {
+        payload.owner_employee_id =
+          lead.owner_employee_id ||
+          "";
+      }
+
+      const response =
+        await fetch(
+          `/api/leads/${lead.id}`,
+          {
+            method:
+              "PATCH",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify(
+                payload
+              ),
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (
+        !response.ok
+      ) {
         throw new Error(
-          data.error || "Failed to update lead."
+          data.error ||
+            "Failed to update lead."
         );
       }
 
-      const updatedLead = Array.isArray(data)
-        ? data[0]
-        : data;
-
-      if (updatedLead) {
-        setLead(updatedLead);
+      if (
+        data.lead
+      ) {
+        setLead(
+          data.lead
+        );
       } else {
         await fetchLead();
       }
 
-      setEditMode(false);
-      alert("Lead updated successfully.");
-    } catch (error) {
-      console.error("Lead update error:", error);
+      setEditMode(
+        false
+      );
 
       alert(
-        error.message || "Error updating lead."
+        data.message ||
+          "Lead updated successfully."
+      );
+    } catch (
+      error
+    ) {
+      console.error(
+        "Lead update error:",
+        error
+      );
+
+      alert(
+        error.message ||
+          "Error updating lead."
       );
     } finally {
-      setSaving(false);
+      setSaving(
+        false
+      );
     }
   }
 
+  // =======================================================
+  // DELETE
+  // =======================================================
+
   async function deleteLead() {
-    if (!lead) {
+    if (
+      !lead ||
+      !canDelete
+    ) {
       return;
     }
 
-    const confirmed = window.confirm(
-      `Delete ${lead.name || "this lead"}? This action cannot be undone.`
-    );
+    const confirmed =
+      window.confirm(
+        `Delete ${
+          lead.name ||
+          "this lead"
+        }? This action cannot be undone.`
+      );
 
-    if (!confirmed) {
+    if (
+      !confirmed
+    ) {
       return;
     }
 
     try {
-      const response = await fetch(
-        `/api/leads/${lead.id}`,
-        {
-          method: "DELETE",
-        }
+      setDeleting(
+        true
       );
 
-      const data = await response.json();
+      const response =
+        await fetch(
+          `/api/leads/${lead.id}`,
+          {
+            method:
+              "DELETE",
+          }
+        );
 
-      if (!response.ok) {
+      const data =
+        await response.json();
+
+      if (
+        !response.ok
+      ) {
         throw new Error(
-          data.error || "Failed to delete lead."
+          data.error ||
+            "Failed to delete lead."
         );
       }
 
-      router.push("/leads");
+      router.push(
+        "/leads"
+      );
+
       router.refresh();
-    } catch (error) {
-      console.error("Lead deletion error:", error);
+    } catch (
+      error
+    ) {
+      console.error(
+        "Lead deletion error:",
+        error
+      );
 
       alert(
-        error.message || "Error deleting lead."
+        error.message ||
+          "Error deleting lead."
+      );
+    } finally {
+      setDeleting(
+        false
       );
     }
   }
 
+  // =======================================================
+  // GENERATE EMAIL
+  // =======================================================
+
   async function generateEmail() {
-    if (!lead) {
+    if (
+      !lead
+    ) {
       return;
     }
 
     try {
-      setGeneratingEmail(true);
-      setEmailDraft("Generating AI email...");
+      setGeneratingEmail(
+        true
+      );
 
-      const response = await fetch(
-        "/api/ai-assistant",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            prompt: `
+      setEmailDraft(
+        "Generating AI email..."
+      );
+
+      const response =
+        await fetch(
+          "/api/ai-assistant",
+          {
+            method:
+              "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify({
+                prompt: `
 Write a professional follow-up email for this lead.
 
 Lead Name: ${lead.name || "Not available"}
@@ -244,8 +657,9 @@ Lead Notes: ${lead.notes || "No notes"}
 AI Score: ${lead.ai_score || "Not available"}
 AI Summary: ${lead.ai_summary || "Not available"}
 AI Recommended Action: ${
-              lead.ai_next_action || "Not available"
-            }
+                  lead.ai_next_action ||
+                  "Not available"
+                }
 
 The email should:
 - Be professional and friendly
@@ -253,14 +667,17 @@ The email should:
 - Suggest a short discovery call
 - Keep it concise
 - Sign off as SaiNal Technologies Ltd
-            `,
-          }),
-        }
-      );
+                `,
+              }),
+          }
+        );
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
-      if (!response.ok) {
+      if (
+        !response.ok
+      ) {
         throw new Error(
           data.error ||
             "Failed to generate email."
@@ -268,61 +685,99 @@ The email should:
       }
 
       setEmailDraft(
-        data.answer || "No email was generated."
+        data.answer ||
+          "No email was generated."
       );
-    } catch (error) {
+    } catch (
+      error
+    ) {
       console.error(
         "AI email generation error:",
         error
       );
 
-      setEmailDraft("");
+      setEmailDraft(
+        ""
+      );
+
       alert(
         error.message ||
           "Error generating AI email."
       );
     } finally {
-      setGeneratingEmail(false);
+      setGeneratingEmail(
+        false
+      );
     }
   }
 
+  // =======================================================
+  // FOLLOW-UP
+  // =======================================================
+
   async function createFollowUpTask() {
-    if (!lead) {
+    if (
+      !lead
+    ) {
       return;
     }
 
     try {
-      setCreatingFollowUp(true);
-
-      const response = await fetch(
-        "/api/follow-ups",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            related_type: "Lead",
-            related_id: lead.id,
-            title: `Follow up with ${
-              lead.name || "lead"
-            }`,
-            note:
-              lead.ai_next_action ||
-              `Follow up with ${
-                lead.name || "the lead"
-              } from ${
-                lead.company || "their company"
-              }.`,
-            due_date: null,
-            status: "Pending",
-          }),
-        }
+      setCreatingFollowUp(
+        true
       );
 
-      const data = await response.json();
+      const response =
+        await fetch(
+          "/api/follow-ups",
+          {
+            method:
+              "POST",
 
-      if (!response.ok) {
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify({
+                related_type:
+                  "Lead",
+
+                related_id:
+                  lead.id,
+
+                title:
+                  `Follow up with ${
+                    lead.name ||
+                    "lead"
+                  }`,
+
+                note:
+                  lead.ai_next_action ||
+                  `Follow up with ${
+                    lead.name ||
+                    "the lead"
+                  } from ${
+                    lead.company ||
+                    "their company"
+                  }.`,
+
+                due_date:
+                  null,
+
+                status:
+                  "Pending",
+              }),
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (
+        !response.ok
+      ) {
         throw new Error(
           data.error ||
             "Failed to create follow-up."
@@ -332,7 +787,9 @@ The email should:
       alert(
         "Follow-up task created successfully."
       );
-    } catch (error) {
+    } catch (
+      error
+    ) {
       console.error(
         "Follow-up creation error:",
         error
@@ -343,21 +800,34 @@ The email should:
           "Error creating follow-up task."
       );
     } finally {
-      setCreatingFollowUp(false);
+      setCreatingFollowUp(
+        false
+      );
     }
   }
 
+  // =======================================================
+  // QUOTE
+  // =======================================================
+
   async function generateQuote() {
-    if (!lead) {
+    if (
+      !lead
+    ) {
       return;
     }
 
     try {
-      setGeneratingQuote(true);
+      setGeneratingQuote(
+        true
+      );
 
-      const quoteNumber = `SNQ-${Date.now()
-        .toString()
-        .slice(-6)}`;
+      const quoteNumber =
+        `SNQ-${Date.now()
+          .toString()
+          .slice(
+            -6
+          )}`;
 
       const quoteText = `SAINAL TECHNOLOGIES LTD
 
@@ -392,54 +862,128 @@ Prepared By:
 SaiNal Technologies Ltd
 www.sainaltechnologies.com`;
 
-      setQuoteDraft(quoteText);
-      setQuoteSaved(false);
+      setQuoteDraft(
+        quoteText
+      );
 
-      const response = await fetch("/api/quotes", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          quote_number: quoteNumber,
-          lead_id: lead.id,
-          customer_id: null,
-          client: lead.company,
-          contact: lead.name,
-          email: lead.email,
-          phone: lead.phone,
-          service:
-            "Website Development & Business Automation",
-          amount: lead.value,
-          status: "Draft Quote",
-          quote_text: quoteText,
-        }),
-      });
+      setQuoteSaved(
+        false
+      );
 
-      const data = await response.json();
+      const response =
+        await fetch(
+          "/api/quotes",
+          {
+            method:
+              "POST",
 
-      if (!response.ok) {
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify({
+                quote_number:
+                  quoteNumber,
+
+                lead_id:
+                  lead.id,
+
+                customer_id:
+                  null,
+
+                client:
+                  lead.company,
+
+                contact:
+                  lead.name,
+
+                email:
+                  lead.email,
+
+                phone:
+                  lead.phone,
+
+                service:
+                  "Website Development & Business Automation",
+
+                amount:
+                  lead.value,
+
+                status:
+                  "Draft Quote",
+
+                quote_text:
+                  quoteText,
+              }),
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (
+        !response.ok
+      ) {
         throw new Error(
-          data.error || "Failed to save quote."
+          data.error ||
+            "Failed to save quote."
         );
       }
 
-      setQuoteSaved(true);
-    } catch (error) {
+      setQuoteSaved(
+        true
+      );
+    } catch (
+      error
+    ) {
       console.error(
         "Quote generation error:",
         error
       );
 
       alert(
-        error.message || "Error saving quote."
+        error.message ||
+          "Error saving quote."
       );
     } finally {
-      setGeneratingQuote(false);
+      setGeneratingQuote(
+        false
+      );
     }
   }
 
-  if (loading) {
+  // =======================================================
+  // RBAC
+  // =======================================================
+
+  const canEdit =
+    Boolean(
+      access.canEdit
+    );
+
+  const canDelete =
+    Boolean(
+      access.canDelete
+    );
+
+  const canAssign =
+    Boolean(
+      access.canAssign
+    );
+
+  const canManageLead =
+    canEdit ||
+    canAssign;
+
+  // =======================================================
+  // LOADING
+  // =======================================================
+
+  if (
+    loading
+  ) {
     return (
       <ProtectedRoute>
         <AppLayout
@@ -452,23 +996,44 @@ www.sainaltechnologies.com`;
     );
   }
 
-  if (errorMessage) {
+  // =======================================================
+  // ERROR
+  // =======================================================
+
+  if (
+    errorMessage
+  ) {
     return (
       <ProtectedRoute>
         <AppLayout
           title="Lead Details"
           description="Review an individual lead record."
         >
-          <section className={styles.errorPanel}>
+          <section
+            className={
+              styles.errorPanel
+            }
+          >
             <div>
-              <strong>Unable to load lead</strong>
-              <p>{errorMessage}</p>
+              <strong>
+                Unable to load lead
+              </strong>
+
+              <p>
+                {
+                  errorMessage
+                }
+              </p>
             </div>
 
             <button
               type="button"
-              className={styles.secondaryButton}
-              onClick={fetchLead}
+              className={
+                styles.secondaryButton
+              }
+              onClick={
+                fetchLead
+              }
             >
               Try again
             </button>
@@ -478,28 +1043,47 @@ www.sainaltechnologies.com`;
     );
   }
 
-  if (!lead) {
+  // =======================================================
+  // NOT FOUND
+  // =======================================================
+
+  if (
+    !lead
+  ) {
     return (
       <ProtectedRoute>
         <AppLayout
           title="Lead Details"
           description="Review an individual lead record."
         >
-          <section className={styles.notFound}>
-            <span className={styles.notFoundIcon}>
+          <section
+            className={
+              styles.notFound
+            }
+          >
+            <span
+              className={
+                styles.notFoundIcon
+              }
+            >
               ◎
             </span>
 
-            <h2>Lead not found</h2>
+            <h2>
+              Lead not found
+            </h2>
 
             <p>
-              This lead may have been deleted or you may
-              not have access to it.
+              This lead may have been
+              deleted or you may not have
+              access to it.
             </p>
 
             <Link
               href="/leads"
-              className={styles.primaryButton}
+              className={
+                styles.primaryButton
+              }
             >
               Return to leads
             </Link>
@@ -509,235 +1093,505 @@ www.sainaltechnologies.com`;
     );
   }
 
+  // =======================================================
+  // PAGE
+  // =======================================================
+
   return (
     <ProtectedRoute>
       <AppLayout
-        title={lead.name || "Lead Details"}
+        title={
+          lead.name ||
+          "Lead Details"
+        }
         description="Secure lead profile, commercial information and AI recommendations."
       >
-        <div className={styles.page}>
-          <section className={styles.pageHeader}>
-            <div className={styles.headerCopy}>
+        <div
+          className={
+            styles.page
+          }
+        >
+          {/* =================================================
+              HEADER
+          ================================================= */}
+
+          <section
+            className={
+              styles.pageHeader
+            }
+          >
+            <div
+              className={
+                styles.headerCopy
+              }
+            >
               <Link
                 href="/leads"
-                className={styles.backLink}
+                className={
+                  styles.backLink
+                }
               >
                 ← Back to leads
               </Link>
 
-              <span className={styles.eyebrow}>
+              <span
+                className={
+                  styles.eyebrow
+                }
+              >
                 Lead record
               </span>
 
               <h2>
                 {editMode
                   ? "Edit lead"
-                  : lead.name || "Unnamed lead"}
+                  : lead.name ||
+                    "Unnamed lead"}
               </h2>
 
               <p>
-                Sensitive contact and commercial
-                information is shown only on this record.
+                Sensitive contact and
+                commercial information is
+                shown only on this record.
               </p>
             </div>
 
-            <div className={styles.headerActions}>
-              {editMode ? (
+            <div
+              className={
+                styles.headerActions
+              }
+            >
+              {editMode &&
+              canManageLead ? (
                 <>
                   <button
                     type="button"
-                    className={styles.secondaryButton}
-                    onClick={cancelEdit}
-                    disabled={saving}
+                    className={
+                      styles.secondaryButton
+                    }
+                    onClick={
+                      cancelEdit
+                    }
+                    disabled={
+                      saving
+                    }
                   >
                     Cancel
                   </button>
 
                   <button
                     type="button"
-                    className={styles.primaryButton}
-                    onClick={updateLead}
-                    disabled={saving}
+                    className={
+                      styles.primaryButton
+                    }
+                    onClick={
+                      updateLead
+                    }
+                    disabled={
+                      saving
+                    }
                   >
                     {saving
                       ? "Saving..."
                       : "Save changes"}
                   </button>
                 </>
-              ) : (
+              ) : canManageLead ? (
                 <button
                   type="button"
-                  className={styles.secondaryButton}
-                  onClick={() => setEditMode(true)}
+                  className={
+                    styles.secondaryButton
+                  }
+                  onClick={
+                    startEdit
+                  }
                 >
                   Edit lead
                 </button>
-              )}
+              ) : null}
 
               <button
                 type="button"
-                className={styles.actionButton}
-                onClick={generateQuote}
-                disabled={generatingQuote}
+                className={
+                  styles.actionButton
+                }
+                onClick={
+                  generateQuote
+                }
+                disabled={
+                  generatingQuote
+                }
               >
                 {generatingQuote
                   ? "Creating quote..."
                   : "Generate quote"}
               </button>
 
-              <button
-                type="button"
-                className={styles.dangerButton}
-                onClick={deleteLead}
-              >
-                Delete
-              </button>
+              {canDelete && (
+                <button
+                  type="button"
+                  className={
+                    styles.dangerButton
+                  }
+                  onClick={
+                    deleteLead
+                  }
+                  disabled={
+                    deleting
+                  }
+                >
+                  {deleting
+                    ? "Deleting..."
+                    : "Delete"}
+                </button>
+              )}
             </div>
           </section>
 
-          <section className={styles.heroCard}>
-            <div className={styles.identity}>
-              <span className={styles.avatar}>
-                {getInitials(lead.name)}
+          {/* =================================================
+              HERO
+          ================================================= */}
+
+          <section
+            className={
+              styles.heroCard
+            }
+          >
+            <div
+              className={
+                styles.identity
+              }
+            >
+              <span
+                className={
+                  styles.avatar
+                }
+              >
+                {getInitials(
+                  lead.name
+                )}
               </span>
 
-              <div className={styles.identityCopy}>
-                <h3>{lead.name || "Unnamed lead"}</h3>
+              <div
+                className={
+                  styles.identityCopy
+                }
+              >
+                <h3>
+                  {lead.name ||
+                    "Unnamed lead"}
+                </h3>
 
                 <p>
-                  {lead.company || "No company"}
+                  {lead.company ||
+                    "No company"}
                 </p>
 
-                <div className={styles.identityMeta}>
+                <div
+                  className={
+                    styles.identityMeta
+                  }
+                >
                   <StatusBadge
-                    status={lead.status || "New"}
+                    status={
+                      lead.status ||
+                      "New"
+                    }
                   />
 
-                  <span className={styles.metaBadge}>
-                    {lead.source || "Manual"}
+                  <span
+                    className={
+                      styles.metaBadge
+                    }
+                  >
+                    {lead.source ||
+                      "Manual"}
                   </span>
 
                   <AiScoreBadge
-                    score={lead.ai_score}
+                    score={
+                      lead.ai_score
+                    }
                   />
                 </div>
               </div>
             </div>
 
-            <div className={styles.heroValue}>
-              <span>Estimated value</span>
+            <div
+              className={
+                styles.heroValue
+              }
+            >
+              <span>
+                Estimated value
+              </span>
+
               <strong>
-                {lead.value || "Not set"}
+                {lead.value ||
+                  "Not set"}
               </strong>
+
               <small>
-                Visible only inside this record
+                Visible only inside this
+                record
               </small>
             </div>
           </section>
 
-          <section className={styles.contentGrid}>
-            <section className={styles.panel}>
-              <div className={styles.panelHeader}>
+          {/* =================================================
+              MAIN DETAILS
+          ================================================= */}
+
+          <section
+            className={
+              styles.contentGrid
+            }
+          >
+            <section
+              className={
+                styles.panel
+              }
+            >
+              <div
+                className={
+                  styles.panelHeader
+                }
+              >
                 <div>
-                  <h3>Lead information</h3>
+                  <h3>
+                    Lead information
+                  </h3>
+
                   <p>
-                    Contact, company and commercial details
+                    Contact, ownership,
+                    company and commercial
+                    details
                   </p>
                 </div>
               </div>
 
-              {editMode ? (
-                <div className={styles.editForm}>
-                  <div className={styles.formGrid}>
-                    <Field
-                      label="Lead name"
-                      name="name"
-                      value={lead.name}
-                      onChange={handleChange}
-                    />
+              {editMode &&
+              canManageLead ? (
+                <div
+                  className={
+                    styles.editForm
+                  }
+                >
+                  <div
+                    className={
+                      styles.formGrid
+                    }
+                  >
+                    {canEdit && (
+                      <>
+                        <Field
+                          label="Lead name"
+                          name="name"
+                          value={
+                            lead.name
+                          }
+                          onChange={
+                            handleChange
+                          }
+                        />
 
-                    <Field
-                      label="Company"
-                      name="company"
-                      value={lead.company}
-                      onChange={handleChange}
-                    />
+                        <Field
+                          label="Company"
+                          name="company"
+                          value={
+                            lead.company
+                          }
+                          onChange={
+                            handleChange
+                          }
+                        />
 
-                    <Field
-                      label="Email"
-                      name="email"
-                      type="email"
-                      value={lead.email}
-                      onChange={handleChange}
-                    />
+                        <Field
+                          label="Email"
+                          name="email"
+                          type="email"
+                          value={
+                            lead.email
+                          }
+                          onChange={
+                            handleChange
+                          }
+                        />
 
-                    <Field
-                      label="Phone"
-                      name="phone"
-                      type="tel"
-                      value={lead.phone}
-                      onChange={handleChange}
-                    />
+                        <Field
+                          label="Phone"
+                          name="phone"
+                          type="tel"
+                          value={
+                            lead.phone
+                          }
+                          onChange={
+                            handleChange
+                          }
+                        />
 
-                    <div className={styles.field}>
-                      <label htmlFor="lead-status">
-                        Status
-                      </label>
+                        <div
+                          className={
+                            styles.field
+                          }
+                        >
+                          <label
+                            htmlFor="lead-status"
+                          >
+                            Status
+                          </label>
 
-                      <select
-                        id="lead-status"
-                        name="status"
-                        value={lead.status || "New"}
-                        onChange={handleChange}
+                          <select
+                            id="lead-status"
+                            name="status"
+                            value={
+                              lead.status ||
+                              "New"
+                            }
+                            onChange={
+                              handleChange
+                            }
+                          >
+                            {STATUS_OPTIONS.map(
+                              (
+                                status
+                              ) => (
+                                <option
+                                  key={
+                                    status
+                                  }
+                                  value={
+                                    status
+                                  }
+                                >
+                                  {
+                                    status
+                                  }
+                                </option>
+                              )
+                            )}
+                          </select>
+                        </div>
+
+                        <Field
+                          label="Estimated value"
+                          name="value"
+                          value={
+                            lead.value
+                          }
+                          onChange={
+                            handleChange
+                          }
+                        />
+
+                        <div
+                          className={`${styles.field} ${styles.fieldFull}`}
+                        >
+                          <label
+                            htmlFor="lead-notes"
+                          >
+                            Notes
+                          </label>
+
+                          <textarea
+                            id="lead-notes"
+                            name="notes"
+                            value={
+                              lead.notes ||
+                              ""
+                            }
+                            onChange={
+                              handleChange
+                            }
+                            rows={
+                              7
+                            }
+                            placeholder="Add private lead notes"
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    {canAssign && (
+                      <div
+                        className={
+                          styles.field
+                        }
                       >
-                        {STATUS_OPTIONS.map(
-                          (status) => (
-                            <option
-                              key={status}
-                              value={status}
-                            >
-                              {status}
-                            </option>
-                          )
-                        )}
-                      </select>
-                    </div>
+                        <label
+                          htmlFor="lead-owner"
+                        >
+                          Lead owner
+                        </label>
 
-                    <Field
-                      label="Estimated value"
-                      name="value"
-                      value={lead.value}
-                      onChange={handleChange}
-                    />
+                        <select
+                          id="lead-owner"
+                          value={
+                            lead.owner_employee_id ||
+                            ""
+                          }
+                          onChange={
+                            handleOwnerChange
+                          }
+                        >
+                          <option value="">
+                            Unassigned
+                          </option>
 
-                    <div
-                      className={`${styles.field} ${styles.fieldFull}`}
-                    >
-                      <label htmlFor="lead-notes">
-                        Notes
-                      </label>
+                          {employees.map(
+                            (
+                              employee
+                            ) => (
+                              <option
+                                key={
+                                  employee.id
+                                }
+                                value={
+                                  employee.id
+                                }
+                              >
+                                {
+                                  employee.full_name
+                                }
 
-                      <textarea
-                        id="lead-notes"
-                        name="notes"
-                        value={lead.notes || ""}
-                        onChange={handleChange}
-                        rows={7}
-                        placeholder="Add private lead notes"
-                      />
-                    </div>
+                                {employee.job_title
+                                  ? ` — ${employee.job_title}`
+                                  : ""}
+                              </option>
+                            )
+                          )}
+                        </select>
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : (
-                <div className={styles.detailList}>
+                <div
+                  className={
+                    styles.detailList
+                  }
+                >
                   <DetailRow
                     label="Company"
-                    value={lead.company}
+                    value={
+                      lead.company
+                    }
+                  />
+
+                  <DetailRow
+                    label="Lead owner"
+                    value={
+                      lead.owner
+                        ?.full_name ||
+                      "Unassigned"
+                    }
                   />
 
                   <DetailRow
                     label="Email"
-                    value={lead.email}
+                    value={
+                      lead.email
+                    }
                     href={
                       lead.email
                         ? `mailto:${lead.email}`
@@ -747,7 +1601,9 @@ www.sainaltechnologies.com`;
 
                   <DetailRow
                     label="Phone"
-                    value={lead.phone}
+                    value={
+                      lead.phone
+                    }
                     href={
                       lead.phone
                         ? `tel:${lead.phone}`
@@ -759,54 +1615,100 @@ www.sainaltechnologies.com`;
                     label="Status"
                     customValue={
                       <StatusBadge
-                        status={lead.status || "New"}
+                        status={
+                          lead.status ||
+                          "New"
+                        }
                       />
                     }
                   />
 
                   <DetailRow
                     label="Estimated value"
-                    value={lead.value}
+                    value={
+                      lead.value
+                    }
                   />
 
                   <DetailRow
                     label="Source"
-                    value={lead.source || "Manual"}
+                    value={
+                      lead.source ||
+                      "Manual"
+                    }
                   />
 
                   <DetailRow
                     label="Created"
-                    value={formatDate(
-                      lead.created_at
-                    )}
+                    value={
+                      formatDate(
+                        lead.created_at
+                      )
+                    }
                   />
                 </div>
               )}
             </section>
 
-            <section className={styles.panel}>
-              <div className={styles.panelHeader}>
-                <div className={styles.aiHeader}>
-                  <span className={styles.aiIcon}>
+            {/* =================================================
+                AI
+            ================================================= */}
+
+            <section
+              className={
+                styles.panel
+              }
+            >
+              <div
+                className={
+                  styles.panelHeader
+                }
+              >
+                <div
+                  className={
+                    styles.aiHeader
+                  }
+                >
+                  <span
+                    className={
+                      styles.aiIcon
+                    }
+                  >
                     ✦
                   </span>
 
                   <div>
-                    <h3>AI lead analysis</h3>
+                    <h3>
+                      AI lead analysis
+                    </h3>
+
                     <p>
-                      Qualification and recommended action
+                      Qualification and
+                      recommended action
                     </p>
                   </div>
                 </div>
 
                 <AiScoreBadge
-                  score={lead.ai_score}
+                  score={
+                    lead.ai_score
+                  }
                 />
               </div>
 
-              <div className={styles.aiSection}>
-                <div className={styles.aiBlock}>
-                  <span>AI summary</span>
+              <div
+                className={
+                  styles.aiSection
+                }
+              >
+                <div
+                  className={
+                    styles.aiBlock
+                  }
+                >
+                  <span>
+                    AI summary
+                  </span>
 
                   <p>
                     {lead.ai_summary ||
@@ -814,8 +1716,14 @@ www.sainaltechnologies.com`;
                   </p>
                 </div>
 
-                <div className={styles.aiBlock}>
-                  <span>Recommended next action</span>
+                <div
+                  className={
+                    styles.aiBlock
+                  }
+                >
+                  <span>
+                    Recommended next action
+                  </span>
 
                   <p>
                     {lead.ai_next_action ||
@@ -824,12 +1732,22 @@ www.sainaltechnologies.com`;
                 </div>
               </div>
 
-              <div className={styles.aiActions}>
+              <div
+                className={
+                  styles.aiActions
+                }
+              >
                 <button
                   type="button"
-                  className={styles.primaryButton}
-                  onClick={generateEmail}
-                  disabled={generatingEmail}
+                  className={
+                    styles.primaryButton
+                  }
+                  onClick={
+                    generateEmail
+                  }
+                  disabled={
+                    generatingEmail
+                  }
                 >
                   {generatingEmail
                     ? "Generating..."
@@ -838,9 +1756,15 @@ www.sainaltechnologies.com`;
 
                 <button
                   type="button"
-                  className={styles.secondaryButton}
-                  onClick={createFollowUpTask}
-                  disabled={creatingFollowUp}
+                  className={
+                    styles.secondaryButton
+                  }
+                  onClick={
+                    createFollowUpTask
+                  }
+                  disabled={
+                    creatingFollowUp
+                  }
                 >
                   {creatingFollowUp
                     ? "Creating..."
@@ -850,39 +1774,90 @@ www.sainaltechnologies.com`;
             </section>
           </section>
 
-          <section className={styles.contentGrid}>
-            <section className={styles.panel}>
-              <div className={styles.panelHeader}>
+          {/* =================================================
+              NOTES + TIMELINE
+          ================================================= */}
+
+          <section
+            className={
+              styles.contentGrid
+            }
+          >
+            <section
+              className={
+                styles.panel
+              }
+            >
+              <div
+                className={
+                  styles.panelHeader
+                }
+              >
                 <div>
-                  <h3>Private notes</h3>
+                  <h3>
+                    Private notes
+                  </h3>
+
                   <p>
-                    Internal information for your team
+                    Internal information
+                    for your team
                   </p>
                 </div>
               </div>
 
-              <p className={styles.notesText}>
+              <p
+                className={
+                  styles.notesText
+                }
+              >
                 {lead.notes ||
                   "No private notes have been added."}
               </p>
             </section>
 
-            <section className={styles.panel}>
-              <div className={styles.panelHeader}>
+            <section
+              className={
+                styles.panel
+              }
+            >
+              <div
+                className={
+                  styles.panelHeader
+                }
+              >
                 <div>
-                  <h3>Activity timeline</h3>
+                  <h3>
+                    Activity timeline
+                  </h3>
+
                   <p>
-                    Current lead journey overview
+                    Current lead journey
+                    overview
                   </p>
                 </div>
               </div>
 
-              <div className={styles.timeline}>
+              <div
+                className={
+                  styles.timeline
+                }
+              >
                 <TimelineItem
                   title="Lead created"
-                  description={formatDateTime(
-                    lead.created_at
-                  )}
+                  description={
+                    formatDateTime(
+                      lead.created_at
+                    )
+                  }
+                />
+
+                <TimelineItem
+                  title="Lead owner"
+                  description={
+                    lead.owner
+                      ?.full_name ||
+                    "Unassigned"
+                  }
                 />
 
                 <TimelineItem
@@ -897,7 +1872,8 @@ www.sainaltechnologies.com`;
                 <TimelineItem
                   title="Current stage"
                   description={
-                    lead.status || "New"
+                    lead.status ||
+                    "New"
                   }
                 />
 
@@ -913,20 +1889,42 @@ www.sainaltechnologies.com`;
             </section>
           </section>
 
+          {/* =================================================
+              EMAIL
+          ================================================= */}
+
           {emailDraft && (
-            <section className={styles.fullPanel}>
-              <div className={styles.draftPanel}>
-                <div className={styles.draftHeader}>
+            <section
+              className={
+                styles.fullPanel
+              }
+            >
+              <div
+                className={
+                  styles.draftPanel
+                }
+              >
+                <div
+                  className={
+                    styles.draftHeader
+                  }
+                >
                   <div>
-                    <h3>AI follow-up email</h3>
+                    <h3>
+                      AI follow-up email
+                    </h3>
+
                     <p>
-                      Review and copy the generated email
+                      Review and copy the
+                      generated email
                     </p>
                   </div>
 
                   <button
                     type="button"
-                    className={styles.secondaryButton}
+                    className={
+                      styles.secondaryButton
+                    }
                     onClick={() =>
                       navigator.clipboard?.writeText(
                         emailDraft
@@ -938,50 +1936,90 @@ www.sainaltechnologies.com`;
                 </div>
 
                 <textarea
-                  value={emailDraft}
-                  onChange={(event) =>
+                  value={
+                    emailDraft
+                  }
+                  onChange={(
+                    event
+                  ) =>
                     setEmailDraft(
                       event.target.value
                     )
                   }
-                  rows={12}
-                  className={styles.draftTextarea}
+                  rows={
+                    12
+                  }
+                  className={
+                    styles.draftTextarea
+                  }
                 />
               </div>
             </section>
           )}
 
+          {/* =================================================
+              QUOTE
+          ================================================= */}
+
           {quoteDraft && (
-            <section className={styles.fullPanel}>
-              <div className={styles.draftPanel}>
-                <div className={styles.draftHeader}>
+            <section
+              className={
+                styles.fullPanel
+              }
+            >
+              <div
+                className={
+                  styles.draftPanel
+                }
+              >
+                <div
+                  className={
+                    styles.draftHeader
+                  }
+                >
                   <div>
-                    <h3>Quote draft</h3>
+                    <h3>
+                      Quote draft
+                    </h3>
+
                     <p>
-                      The quote is stored in the Quotes
-                      module
+                      The quote is stored in
+                      the Quotes module
                     </p>
                   </div>
 
                   <Link
                     href="/quotes"
-                    className={styles.secondaryButton}
+                    className={
+                      styles.secondaryButton
+                    }
                   >
                     Open quotes
                   </Link>
                 </div>
 
                 <textarea
-                  value={quoteDraft}
+                  value={
+                    quoteDraft
+                  }
                   readOnly
-                  rows={18}
-                  className={styles.draftTextarea}
+                  rows={
+                    18
+                  }
+                  className={
+                    styles.draftTextarea
+                  }
                 />
 
                 {quoteSaved && (
-                  <p className={styles.successMessage}>
-                    Quote saved successfully. Open Quotes
-                    to review or convert it.
+                  <p
+                    className={
+                      styles.successMessage
+                    }
+                  >
+                    Quote saved successfully.
+                    Open Quotes to review or
+                    convert it.
                   </p>
                 )}
               </div>
@@ -993,6 +2031,10 @@ www.sainaltechnologies.com`;
   );
 }
 
+// =========================================================
+// FIELD
+// =========================================================
+
 function Field({
   label,
   name,
@@ -1001,21 +2043,40 @@ function Field({
   type = "text",
 }) {
   return (
-    <div className={styles.field}>
-      <label htmlFor={`lead-${name}`}>
+    <div
+      className={
+        styles.field
+      }
+    >
+      <label
+        htmlFor={`lead-${name}`}
+      >
         {label}
       </label>
 
       <input
         id={`lead-${name}`}
-        name={name}
-        type={type}
-        value={value || ""}
-        onChange={onChange}
+        name={
+          name
+        }
+        type={
+          type
+        }
+        value={
+          value ||
+          ""
+        }
+        onChange={
+          onChange
+        }
       />
     </div>
   );
 }
+
+// =========================================================
+// DETAIL ROW
+// =========================================================
 
 function DetailRow({
   label,
@@ -1024,47 +2085,94 @@ function DetailRow({
   customValue,
 }) {
   return (
-    <div className={styles.detailRow}>
-      <span>{label}</span>
+    <div
+      className={
+        styles.detailRow
+      }
+    >
+      <span>
+        {label}
+      </span>
 
       {customValue ? (
         customValue
-      ) : href && value ? (
-        <a href={href}>{value}</a>
+      ) : href &&
+        value ? (
+        <a
+          href={
+            href
+          }
+        >
+          {value}
+        </a>
       ) : (
         <strong
           className={
-            value ? "" : styles.emptyValue
+            value
+              ? ""
+              : styles.emptyValue
           }
         >
-          {value || "Not available"}
+          {value ||
+            "Not available"}
         </strong>
       )}
     </div>
   );
 }
 
-function AiScoreBadge({ score }) {
-  const normalisedScore = String(score || "")
-    .trim()
-    .toLowerCase();
+// =========================================================
+// AI SCORE
+// =========================================================
 
-  let label = score || "Not analysed";
-  let className = styles.aiNeutral;
+function AiScoreBadge({
+  score,
+}) {
+  const normalisedScore =
+    String(
+      score ||
+        ""
+    )
+      .trim()
+      .toLowerCase();
 
-  if (normalisedScore.includes("hot")) {
-    label = "● Hot";
-    className = styles.aiHot;
-  } else if (
-    normalisedScore.includes("warm")
+  let label =
+    score ||
+    "Not analysed";
+
+  let className =
+    styles.aiNeutral;
+
+  if (
+    normalisedScore.includes(
+      "hot"
+    )
   ) {
-    label = "● Warm";
-    className = styles.aiWarm;
+    label =
+      "● Hot";
+
+    className =
+      styles.aiHot;
   } else if (
-    normalisedScore.includes("cold")
+    normalisedScore.includes(
+      "warm"
+    )
   ) {
-    label = "● Cold";
-    className = styles.aiCold;
+    label =
+      "● Warm";
+
+    className =
+      styles.aiWarm;
+  } else if (
+    normalisedScore.includes(
+      "cold"
+    )
+  ) {
+    label =
+      "● Cold";
+
+    className =
+      styles.aiCold;
   }
 
   return (
@@ -1076,30 +2184,64 @@ function AiScoreBadge({ score }) {
   );
 }
 
+// =========================================================
+// TIMELINE
+// =========================================================
+
 function TimelineItem({
   title,
   description,
 }) {
   return (
-    <div className={styles.timelineItem}>
-      <span className={styles.timelineDot} />
+    <div
+      className={
+        styles.timelineItem
+      }
+    >
+      <span
+        className={
+          styles.timelineDot
+        }
+      />
 
       <div>
-        <strong>{title}</strong>
-        <p>{description}</p>
+        <strong>
+          {title}
+        </strong>
+
+        <p>
+          {description}
+        </p>
       </div>
     </div>
   );
 }
 
+// =========================================================
+// LOADING
+// =========================================================
+
 function LoadingState() {
   return (
-    <section className={styles.loadingPanel}>
-      {Array.from({ length: 5 }).map(
-        (_, index) => (
+    <section
+      className={
+        styles.loadingPanel
+      }
+    >
+      {Array.from({
+        length: 5,
+      }).map(
+        (
+          _,
+          index
+        ) => (
           <div
-            key={index}
-            className={styles.loadingRow}
+            key={
+              index
+            }
+            className={
+              styles.loadingRow
+            }
           />
         )
       )}
@@ -1107,58 +2249,119 @@ function LoadingState() {
   );
 }
 
-function getInitials(value = "") {
-  const words = String(value)
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
+// =========================================================
+// INITIALS
+// =========================================================
 
-  if (words.length === 0) {
+function getInitials(
+  value = ""
+) {
+  const words =
+    String(
+      value
+    )
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+
+  if (
+    words.length ===
+    0
+  ) {
     return "LD";
   }
 
-  if (words.length === 1) {
+  if (
+    words.length ===
+    1
+  ) {
     return words[0]
-      .slice(0, 2)
+      .slice(
+        0,
+        2
+      )
       .toUpperCase();
   }
 
   return `${words[0][0]}${
-    words[words.length - 1][0]
+    words[
+      words.length -
+        1
+    ][0]
   }`.toUpperCase();
 }
 
-function formatDate(value) {
-  if (!value) {
+// =========================================================
+// DATE
+// =========================================================
+
+function formatDate(
+  value
+) {
+  if (
+    !value
+  ) {
     return "Not available";
   }
 
-  const date = new Date(value);
+  const date =
+    new Date(
+      value
+    );
 
-  if (Number.isNaN(date.getTime())) {
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
     return "Not available";
   }
 
-  return date.toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  return date.toLocaleDateString(
+    "en-GB",
+    {
+      day:
+        "2-digit",
+
+      month:
+        "short",
+
+      year:
+        "numeric",
+    }
+  );
 }
 
-function formatDateTime(value) {
-  if (!value) {
+function formatDateTime(
+  value
+) {
+  if (
+    !value
+  ) {
     return "Date not available";
   }
 
-  const date = new Date(value);
+  const date =
+    new Date(
+      value
+    );
 
-  if (Number.isNaN(date.getTime())) {
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
     return "Date not available";
   }
 
-  return date.toLocaleString("en-GB", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
+  return date.toLocaleString(
+    "en-GB",
+    {
+      dateStyle:
+        "medium",
+
+      timeStyle:
+        "short",
+    }
+  );
 }
