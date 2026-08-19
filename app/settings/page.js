@@ -1,44 +1,126 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useState,
+} from "react";
 
 import AppLayout from "../../components/layout/AppLayout";
 import ProtectedRoute from "../../components/ProtectedRoute";
 import styles from "./settings.module.css";
 
+// =========================================================
+// INITIAL SETTINGS
+// =========================================================
+
 const INITIAL_SETTINGS = {
-  company_name: "SaiNal Technologies Ltd",
-  company_email: "",
-  company_phone: "",
-  website: "www.sainaltechnologies.com",
-  address: "United Kingdom",
-  company_registration_number: "",
-  vat_number: "",
-  default_currency: "GBP",
-  default_vat_rate: "20",
-  invoice_prefix: "SNI",
-  bank_name: "",
-  bank_account_name: "",
-  bank_sort_code: "",
-  bank_account_number: "",
+  company_name:
+    "SaiNal Technologies Ltd",
+
+  company_email:
+    "",
+
+  company_phone:
+    "",
+
+  website:
+    "www.sainaltechnologies.com",
+
+  address:
+    "United Kingdom",
+
+  company_registration_number:
+    "",
+
+  vat_number:
+    "",
+
+  default_currency:
+    "GBP",
+
+  default_vat_rate:
+    "20",
+
+  invoice_prefix:
+    "SNI",
+
+  bank_name:
+    "",
+
+  bank_account_name:
+    "",
+
+  bank_sort_code:
+    "",
+
+  bank_account_number:
+    "",
+
   payment_terms:
     "Payment due within 14 days of invoice date.",
 
-  industry: "",
-  business_type: "",
-  services: "",
-  target_customers: "",
-  ai_instructions: "",
+  industry:
+    "",
+
+  business_type:
+    "",
+
+  services:
+    "",
+
+  target_customers:
+    "",
+
+  ai_instructions:
+    "",
 };
 
-export default function SettingsPage() {
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [savedMessage, setSavedMessage] = useState("");
+// =========================================================
+// PAGE
+// =========================================================
 
-  const [formData, setFormData] =
-    useState(INITIAL_SETTINGS);
+export default function SettingsPage() {
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
+
+  const [
+    saving,
+    setSaving,
+  ] = useState(false);
+
+  const [
+    errorMessage,
+    setErrorMessage,
+  ] = useState("");
+
+  const [
+    savedMessage,
+    setSavedMessage,
+  ] = useState("");
+
+  const [
+    formData,
+    setFormData,
+  ] = useState(
+    INITIAL_SETTINGS
+  );
+
+  const [
+    access,
+    setAccess,
+  ] = useState({
+    isOwner: false,
+    permissions: [],
+    roles: [],
+    canViewSettings: false,
+    canManageSettings: false,
+  });
+
+  // =======================================================
+  // LOAD
+  // =======================================================
 
   useEffect(() => {
     fetchSettings();
@@ -46,91 +128,157 @@ export default function SettingsPage() {
 
   async function fetchSettings() {
     try {
-      setLoading(true);
-      setErrorMessage("");
-
-      const response = await fetch(
-        "/api/company-settings",
-        {
-          cache: "no-store",
-        }
+      setLoading(
+        true
       );
 
-      const data = await response.json();
+      setErrorMessage(
+        ""
+      );
 
-      if (!response.ok) {
+      const response =
+        await fetch(
+          "/api/company-settings",
+          {
+            cache:
+              "no-store",
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (
+        !response.ok
+      ) {
         throw new Error(
           data.error ||
             "Failed to load company settings."
         );
       }
 
-      if (data) {
-        setFormData({
-          company_name:
-            data.company_name || "",
+      setFormData({
+        company_name:
+          data.company_name ||
+          "",
 
-          company_email:
-            data.company_email || "",
+        company_email:
+          data.company_email ||
+          "",
 
-          company_phone:
-            data.company_phone || "",
+        company_phone:
+          data.company_phone ||
+          "",
 
-          website:
-            data.website || "",
+        website:
+          data.website ||
+          "",
 
-          address:
-            data.address || "",
+        address:
+          data.address ||
+          "",
 
-          company_registration_number:
-            data.company_registration_number ||
-            "",
+        company_registration_number:
+          data.company_registration_number ||
+          "",
 
-          vat_number:
-            data.vat_number || "",
+        vat_number:
+          data.vat_number ||
+          "",
 
-          default_currency:
-            data.default_currency || "GBP",
+        default_currency:
+          data.default_currency ||
+          "GBP",
 
-          default_vat_rate:
-            data.default_vat_rate || "20",
+        default_vat_rate:
+          data.default_vat_rate ||
+          "20",
 
-          invoice_prefix:
-            data.invoice_prefix || "SNI",
+        invoice_prefix:
+          data.invoice_prefix ||
+          "SNI",
 
-          bank_name:
-            data.bank_name || "",
+        bank_name:
+          data.bank_name ||
+          "",
 
-          bank_account_name:
-            data.bank_account_name || "",
+        bank_account_name:
+          data.bank_account_name ||
+          "",
 
-          bank_sort_code:
-            data.bank_sort_code || "",
+        bank_sort_code:
+          data.bank_sort_code ||
+          "",
 
-          bank_account_number:
-            data.bank_account_number || "",
+        bank_account_number:
+          data.bank_account_number ||
+          "",
 
-          payment_terms:
-            data.payment_terms ||
-            "Payment due within 14 days of invoice date.",
+        payment_terms:
+          data.payment_terms ||
+          "Payment due within 14 days of invoice date.",
 
-          industry:
-            data.industry || "",
+        industry:
+          data.industry ||
+          "",
 
-          business_type:
-            data.business_type || "",
+        business_type:
+          data.business_type ||
+          "",
 
-          services:
-            data.services || "",
+        services:
+          data.services ||
+          "",
 
-          target_customers:
-            data.target_customers || "",
+        target_customers:
+          data.target_customers ||
+          "",
 
-          ai_instructions:
-            data.ai_instructions || "",
-        });
-      }
-    } catch (error) {
+        ai_instructions:
+          data.ai_instructions ||
+          "",
+      });
+
+      setAccess({
+        isOwner:
+          Boolean(
+            data.access
+              ?.isOwner
+          ),
+
+        permissions:
+          Array.isArray(
+            data.access
+              ?.permissions
+          )
+            ? data.access
+                .permissions
+            : [],
+
+        roles:
+          Array.isArray(
+            data.access
+              ?.roles
+          )
+            ? data.access
+                .roles
+            : [],
+
+        canViewSettings:
+          Boolean(
+            data.access
+              ?.canViewSettings
+          ),
+
+        canManageSettings:
+          Boolean(
+            data.access
+              ?.canManageSettings
+          ),
+      });
+    } catch (
+      error
+    ) {
       console.error(
         "Company settings loading error:",
         error
@@ -141,53 +289,118 @@ export default function SettingsPage() {
           "Unable to load company settings."
       );
     } finally {
-      setLoading(false);
+      setLoading(
+        false
+      );
     }
   }
 
-  function handleChange(event) {
-    const { name, value } = event.target;
+  // =======================================================
+  // CHANGE
+  // =======================================================
 
-    setSavedMessage("");
+  function handleChange(
+    event
+  ) {
+    if (
+      !canManage
+    ) {
+      return;
+    }
 
-    setFormData((currentData) => ({
-      ...currentData,
-      [name]: value,
-    }));
+    const {
+      name,
+      value,
+    } =
+      event.target;
+
+    setSavedMessage(
+      ""
+    );
+
+    setFormData(
+      (
+        currentData
+      ) => ({
+        ...currentData,
+
+        [name]:
+          value,
+      })
+    );
   }
 
-  async function saveSettings(event) {
-    event.preventDefault();
+  // =======================================================
+  // SAVE
+  // =======================================================
 
-    if (!formData.company_name.trim()) {
-      alert("Please enter the company name.");
+  async function saveSettings(
+    event
+  ) {
+    if (
+      event
+    ) {
+      event.preventDefault();
+    }
+
+    if (
+      !canManage
+    ) {
+      alert(
+        "You do not have permission to update company settings."
+      );
+
+      return;
+    }
+
+    if (
+      !formData.company_name.trim()
+    ) {
+      alert(
+        "Please enter the company name."
+      );
+
       return;
     }
 
     try {
-      setSaving(true);
-      setErrorMessage("");
-      setSavedMessage("");
-
-      const response = await fetch(
-        "/api/company-settings",
-        {
-          method: "POST",
-
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-
-          body: JSON.stringify(
-            formData
-          ),
-        }
+      setSaving(
+        true
       );
 
-      const data = await response.json();
+      setErrorMessage(
+        ""
+      );
 
-      if (!response.ok) {
+      setSavedMessage(
+        ""
+      );
+
+      const response =
+        await fetch(
+          "/api/company-settings",
+          {
+            method:
+              "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify(
+                formData
+              ),
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (
+        !response.ok
+      ) {
         throw new Error(
           data.error ||
             "Failed to save company settings."
@@ -195,13 +408,63 @@ export default function SettingsPage() {
       }
 
       setSavedMessage(
-        "Company settings saved successfully."
+        data.message ||
+          "Company settings saved successfully."
       );
 
-      window.setTimeout(() => {
-        setSavedMessage("");
-      }, 5000);
-    } catch (error) {
+      if (
+        data.access
+      ) {
+        setAccess({
+          isOwner:
+            Boolean(
+              data.access
+                ?.isOwner
+            ),
+
+          permissions:
+            Array.isArray(
+              data.access
+                ?.permissions
+            )
+              ? data.access
+                  .permissions
+              : [],
+
+          roles:
+            Array.isArray(
+              data.access
+                ?.roles
+            )
+              ? data.access
+                  .roles
+              : [],
+
+          canViewSettings:
+            Boolean(
+              data.access
+                ?.canViewSettings
+            ),
+
+          canManageSettings:
+            Boolean(
+              data.access
+                ?.canManageSettings
+            ),
+        });
+      }
+
+      window.setTimeout(
+        () => {
+          setSavedMessage(
+            ""
+          );
+        },
+        5000
+      );
+    } catch (
+      error
+    ) {
       console.error(
         "Company settings save error:",
         error
@@ -212,9 +475,25 @@ export default function SettingsPage() {
           "Unable to save company settings."
       );
     } finally {
-      setSaving(false);
+      setSaving(
+        false
+      );
     }
   }
+
+  // =======================================================
+  // RBAC
+  // =======================================================
+
+  const canManage =
+    Boolean(
+      access
+        .canManageSettings
+    );
+
+  // =======================================================
+  // PAGE
+  // =======================================================
 
   return (
     <ProtectedRoute>
@@ -222,9 +501,19 @@ export default function SettingsPage() {
         title="Company Settings"
         description="Manage company identity, AI context, legal details, invoicing and payment information."
       >
-        <div className={styles.page}>
+        <div
+          className={
+            styles.page
+          }
+        >
+          {/* =================================================
+              HEADER
+          ================================================= */}
+
           <section
-            className={styles.pageHeader}
+            className={
+              styles.pageHeader
+            }
           >
             <div
               className={
@@ -252,19 +541,66 @@ export default function SettingsPage() {
               </p>
             </div>
 
-            <button
-              type="button"
-              className={
-                styles.primaryButton
-              }
-              onClick={saveSettings}
-              disabled={saving || loading}
-            >
-              {saving
-                ? "Saving settings..."
-                : "Save changes"}
-            </button>
+            {canManage && (
+              <button
+                type="button"
+                className={
+                  styles.primaryButton
+                }
+                onClick={
+                  saveSettings
+                }
+                disabled={
+                  saving ||
+                  loading
+                }
+              >
+                {saving
+                  ? "Saving settings..."
+                  : "Save changes"}
+              </button>
+            )}
           </section>
+
+          {/* =================================================
+              READ ONLY NOTICE
+          ================================================= */}
+
+          {!loading &&
+            !errorMessage &&
+            !canManage && (
+              <section
+                className={
+                  styles.successPanel
+                }
+              >
+                <span
+                  className={
+                    styles.successIcon
+                  }
+                >
+                  ◉
+                </span>
+
+                <div>
+                  <strong>
+                    Read-only access
+                  </strong>
+
+                  <p>
+                    You can view company
+                    settings, but your role
+                    does not include the
+                    settings.manage permission
+                    required to make changes.
+                  </p>
+                </div>
+              </section>
+            )}
+
+          {/* =================================================
+              SUCCESS
+          ================================================= */}
 
           {savedMessage && (
             <section
@@ -285,10 +621,18 @@ export default function SettingsPage() {
                   Settings saved
                 </strong>
 
-                <p>{savedMessage}</p>
+                <p>
+                  {
+                    savedMessage
+                  }
+                </p>
               </div>
             </section>
           )}
+
+          {/* =================================================
+              ERROR
+          ================================================= */}
 
           {errorMessage && (
             <section
@@ -302,7 +646,11 @@ export default function SettingsPage() {
                   request
                 </strong>
 
-                <p>{errorMessage}</p>
+                <p>
+                  {
+                    errorMessage
+                  }
+                </p>
               </div>
 
               <button
@@ -310,20 +658,34 @@ export default function SettingsPage() {
                 className={
                   styles.secondaryButton
                 }
-                onClick={fetchSettings}
+                onClick={
+                  fetchSettings
+                }
               >
                 Try again
               </button>
             </section>
           )}
 
+          {/* =================================================
+              CONTENT
+          ================================================= */}
+
           {loading ? (
             <LoadingState />
-          ) : (
+          ) : !errorMessage ? (
             <form
-              className={styles.form}
-              onSubmit={saveSettings}
+              className={
+                styles.form
+              }
+              onSubmit={
+                saveSettings
+              }
             >
+              {/* =============================================
+                  COMPANY PROFILE
+              ============================================= */}
+
               <SettingsSection
                 icon="▣"
                 eyebrow="Organisation"
@@ -341,9 +703,14 @@ export default function SettingsPage() {
                     value={
                       formData.company_name
                     }
-                    onChange={handleChange}
+                    onChange={
+                      handleChange
+                    }
                     placeholder="Example: SaiNal Technologies Ltd"
                     required
+                    disabled={
+                      !canManage
+                    }
                   />
 
                   <FormField
@@ -353,8 +720,13 @@ export default function SettingsPage() {
                     value={
                       formData.company_email
                     }
-                    onChange={handleChange}
+                    onChange={
+                      handleChange
+                    }
                     placeholder="Example: info@company.com"
+                    disabled={
+                      !canManage
+                    }
                   />
 
                   <FormField
@@ -364,30 +736,53 @@ export default function SettingsPage() {
                     value={
                       formData.company_phone
                     }
-                    onChange={handleChange}
+                    onChange={
+                      handleChange
+                    }
                     placeholder="Example: 0191 000 0000"
+                    disabled={
+                      !canManage
+                    }
                   />
 
                   <FormField
                     label="Website"
                     name="website"
-                    value={formData.website}
-                    onChange={handleChange}
+                    value={
+                      formData.website
+                    }
+                    onChange={
+                      handleChange
+                    }
                     placeholder="Example: www.company.com"
+                    disabled={
+                      !canManage
+                    }
                   />
 
                   <FormField
                     label="Registered or trading address"
                     name="address"
-                    value={formData.address}
-                    onChange={handleChange}
+                    value={
+                      formData.address
+                    }
+                    onChange={
+                      handleChange
+                    }
                     placeholder="Enter the company address"
                     textarea
                     rows={5}
                     fullWidth
+                    disabled={
+                      !canManage
+                    }
                   />
                 </div>
               </SettingsSection>
+
+              {/* =============================================
+                  AI BUSINESS PROFILE
+              ============================================= */}
 
               <SettingsSection
                 icon="✦"
@@ -404,10 +799,17 @@ export default function SettingsPage() {
                   <FormField
                     label="Industry"
                     name="industry"
-                    value={formData.industry}
-                    onChange={handleChange}
+                    value={
+                      formData.industry
+                    }
+                    onChange={
+                      handleChange
+                    }
                     placeholder="Example: Technology Services"
                     dark
+                    disabled={
+                      !canManage
+                    }
                   />
 
                   <FormField
@@ -416,21 +818,33 @@ export default function SettingsPage() {
                     value={
                       formData.business_type
                     }
-                    onChange={handleChange}
+                    onChange={
+                      handleChange
+                    }
                     placeholder="Example: IT consultancy and software solutions company"
                     dark
+                    disabled={
+                      !canManage
+                    }
                   />
 
                   <FormField
                     label="Services offered"
                     name="services"
-                    value={formData.services}
-                    onChange={handleChange}
+                    value={
+                      formData.services
+                    }
+                    onChange={
+                      handleChange
+                    }
                     placeholder="Describe your main products and services"
                     textarea
                     rows={5}
                     fullWidth
                     dark
+                    disabled={
+                      !canManage
+                    }
                   />
 
                   <FormField
@@ -439,12 +853,17 @@ export default function SettingsPage() {
                     value={
                       formData.target_customers
                     }
-                    onChange={handleChange}
+                    onChange={
+                      handleChange
+                    }
                     placeholder="Describe the organisations and customers you serve"
                     textarea
                     rows={4}
                     fullWidth
                     dark
+                    disabled={
+                      !canManage
+                    }
                   />
 
                   <FormField
@@ -453,15 +872,24 @@ export default function SettingsPage() {
                     value={
                       formData.ai_instructions
                     }
-                    onChange={handleChange}
+                    onChange={
+                      handleChange
+                    }
                     placeholder="Example: Use professional UK business language and prioritise recurring customer relationships."
                     textarea
                     rows={6}
                     fullWidth
                     dark
+                    disabled={
+                      !canManage
+                    }
                   />
                 </div>
               </SettingsSection>
+
+              {/* =============================================
+                  LEGAL + FINANCE
+              ============================================= */}
 
               <div
                 className={
@@ -485,8 +913,13 @@ export default function SettingsPage() {
                       value={
                         formData.company_registration_number
                       }
-                      onChange={handleChange}
+                      onChange={
+                        handleChange
+                      }
                       placeholder="Example: 12345678"
+                      disabled={
+                        !canManage
+                      }
                     />
 
                     <FormField
@@ -495,8 +928,13 @@ export default function SettingsPage() {
                       value={
                         formData.vat_number
                       }
-                      onChange={handleChange}
+                      onChange={
+                        handleChange
+                      }
                       placeholder="Example: GB123456789"
+                      disabled={
+                        !canManage
+                      }
                     />
 
                     <FormField
@@ -505,8 +943,13 @@ export default function SettingsPage() {
                       value={
                         formData.default_currency
                       }
-                      onChange={handleChange}
+                      onChange={
+                        handleChange
+                      }
                       placeholder="Example: GBP"
+                      disabled={
+                        !canManage
+                      }
                     />
 
                     <FormField
@@ -515,9 +958,14 @@ export default function SettingsPage() {
                       value={
                         formData.default_vat_rate
                       }
-                      onChange={handleChange}
+                      onChange={
+                        handleChange
+                      }
                       placeholder="Example: 20"
                       suffix="%"
+                      disabled={
+                        !canManage
+                      }
                     />
                   </div>
                 </SettingsSection>
@@ -539,8 +987,13 @@ export default function SettingsPage() {
                       value={
                         formData.invoice_prefix
                       }
-                      onChange={handleChange}
+                      onChange={
+                        handleChange
+                      }
                       placeholder="Example: SNI"
+                      disabled={
+                        !canManage
+                      }
                     />
 
                     <FormField
@@ -549,8 +1002,13 @@ export default function SettingsPage() {
                       value={
                         formData.bank_name
                       }
-                      onChange={handleChange}
+                      onChange={
+                        handleChange
+                      }
                       placeholder="Enter bank name"
+                      disabled={
+                        !canManage
+                      }
                     />
 
                     <FormField
@@ -559,8 +1017,13 @@ export default function SettingsPage() {
                       value={
                         formData.bank_account_name
                       }
-                      onChange={handleChange}
+                      onChange={
+                        handleChange
+                      }
                       placeholder="Enter account holder name"
+                      disabled={
+                        !canManage
+                      }
                     />
 
                     <div
@@ -574,8 +1037,13 @@ export default function SettingsPage() {
                         value={
                           formData.bank_sort_code
                         }
-                        onChange={handleChange}
+                        onChange={
+                          handleChange
+                        }
                         placeholder="00-00-00"
+                        disabled={
+                          !canManage
+                        }
                       />
 
                       <FormField
@@ -584,8 +1052,13 @@ export default function SettingsPage() {
                         value={
                           formData.bank_account_number
                         }
-                        onChange={handleChange}
+                        onChange={
+                          handleChange
+                        }
                         placeholder="Account number"
+                        disabled={
+                          !canManage
+                        }
                       />
                     </div>
 
@@ -595,53 +1068,70 @@ export default function SettingsPage() {
                       value={
                         formData.payment_terms
                       }
-                      onChange={handleChange}
+                      onChange={
+                        handleChange
+                      }
                       placeholder="Example: Payment due within 14 days."
                       textarea
                       rows={4}
+                      disabled={
+                        !canManage
+                      }
                     />
                   </div>
                 </SettingsSection>
               </div>
 
-              <section
-                className={
-                  styles.bottomActions
-                }
-              >
-                <div>
-                  <strong>
-                    Save organisation
-                    configuration
-                  </strong>
+              {/* =============================================
+                  BOTTOM ACTIONS
+              ============================================= */}
 
-                  <p>
-                    Changes will be used by
-                    future quotations,
-                    proposals, invoices and AI
-                    recommendations.
-                  </p>
-                </div>
-
-                <button
-                  type="submit"
+              {canManage && (
+                <section
                   className={
-                    styles.primaryButton
+                    styles.bottomActions
                   }
-                  disabled={saving}
                 >
-                  {saving
-                    ? "Saving settings..."
-                    : "Save company settings"}
-                </button>
-              </section>
+                  <div>
+                    <strong>
+                      Save organisation
+                      configuration
+                    </strong>
+
+                    <p>
+                      Changes will be used by
+                      future quotations,
+                      proposals, invoices and AI
+                      recommendations.
+                    </p>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className={
+                      styles.primaryButton
+                    }
+                    disabled={
+                      saving
+                    }
+                  >
+                    {saving
+                      ? "Saving settings..."
+                      : "Save company settings"}
+                  </button>
+                </section>
+              )}
             </form>
-          )}
+          ) : null}
         </div>
       </AppLayout>
     </ProtectedRoute>
   );
 }
+
+// =========================================================
+// SETTINGS SECTION
+// =========================================================
 
 function SettingsSection({
   icon,
@@ -651,7 +1141,9 @@ function SettingsSection({
   tone = "light",
   children,
 }) {
-  const dark = tone === "dark";
+  const dark =
+    tone ===
+    "dark";
 
   return (
     <section
@@ -662,10 +1154,14 @@ function SettingsSection({
       }`}
     >
       <div
-        className={styles.sectionHeader}
+        className={
+          styles.sectionHeader
+        }
       >
         <span
-          className={styles.sectionIcon}
+          className={
+            styles.sectionIcon
+          }
           aria-hidden="true"
         >
           {icon}
@@ -680,9 +1176,13 @@ function SettingsSection({
             {eyebrow}
           </span>
 
-          <h3>{title}</h3>
+          <h3>
+            {title}
+          </h3>
 
-          <p>{description}</p>
+          <p>
+            {description}
+          </p>
         </div>
       </div>
 
@@ -697,6 +1197,10 @@ function SettingsSection({
   );
 }
 
+// =========================================================
+// FORM FIELD
+// =========================================================
+
 function FormField({
   label,
   name,
@@ -710,6 +1214,7 @@ function FormField({
   fullWidth = false,
   dark = false,
   suffix = "",
+  disabled = false,
 }) {
   return (
     <label
@@ -718,12 +1223,17 @@ function FormField({
           ? styles.fieldFull
           : ""
       } ${
-        dark ? styles.fieldDark : ""
+        dark
+          ? styles.fieldDark
+          : ""
       }`}
     >
       <span>
         {label}
-        {required ? " *" : ""}
+
+        {required
+          ? " *"
+          : ""}
       </span>
 
       <div
@@ -735,21 +1245,51 @@ function FormField({
       >
         {textarea ? (
           <textarea
-            name={name}
-            rows={rows}
-            value={value}
-            onChange={onChange}
-            placeholder={placeholder}
-            required={required}
+            name={
+              name
+            }
+            rows={
+              rows
+            }
+            value={
+              value
+            }
+            onChange={
+              onChange
+            }
+            placeholder={
+              placeholder
+            }
+            required={
+              required
+            }
+            disabled={
+              disabled
+            }
           />
         ) : (
           <input
-            name={name}
-            type={type}
-            value={value}
-            onChange={onChange}
-            placeholder={placeholder}
-            required={required}
+            name={
+              name
+            }
+            type={
+              type
+            }
+            value={
+              value
+            }
+            onChange={
+              onChange
+            }
+            placeholder={
+              placeholder
+            }
+            required={
+              required
+            }
+            disabled={
+              disabled
+            }
           />
         )}
 
@@ -767,21 +1307,33 @@ function FormField({
   );
 }
 
+// =========================================================
+// LOADING
+// =========================================================
+
 function LoadingState() {
   return (
     <div
-      className={styles.loadingGrid}
+      className={
+        styles.loadingGrid
+      }
     >
       <div
-        className={styles.loadingPanel}
+        className={
+          styles.loadingPanel
+        }
       />
 
       <div
-        className={styles.loadingPanel}
+        className={
+          styles.loadingPanel
+        }
       />
 
       <div
-        className={styles.loadingPanel}
+        className={
+          styles.loadingPanel
+        }
       />
     </div>
   );
