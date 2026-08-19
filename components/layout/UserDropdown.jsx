@@ -8,79 +8,163 @@ import styles from "./layout.module.css";
 export default function UserDropdown({
   userName,
   userEmail,
+  userRole,
   onNavigate,
 }) {
-  const router = useRouter();
+  const router =
+    useRouter();
 
   async function handleLogout() {
     try {
       await supabase.auth.signOut();
-      router.replace("/login");
+
+      router.replace(
+        "/login"
+      );
+
       router.refresh();
-    } catch (error) {
-      console.error("Logout error:", error);
+    } catch (
+      error
+    ) {
+      console.error(
+        "Logout error:",
+        error
+      );
     }
   }
 
   return (
-    <div className={styles.userDropdown}>
-      <div className={styles.userDropdownHeader}>
-        <div className={styles.largeAvatar}>
-          {getInitials(userName || userEmail)}
+    <div
+      className={
+        styles.userDropdown
+      }
+    >
+      <div
+        className={
+          styles.userDropdownHeader
+        }
+      >
+        <div
+          className={
+            styles.largeAvatar
+          }
+        >
+          {getInitials(
+            userName ||
+              userEmail
+          )}
         </div>
 
-        <div className={styles.userDropdownIdentity}>
-          <strong>{userName || "SaiNal One User"}</strong>
-          <span>{userEmail || "Signed-in account"}</span>
-          <small>Owner</small>
+        <div
+          className={
+            styles.userDropdownIdentity
+          }
+        >
+          <strong>
+            {userName ||
+              "SaiNal One User"}
+          </strong>
+
+          <span>
+            {userEmail ||
+              "Signed-in account"}
+          </span>
+
+          <small>
+            {userRole ||
+              "Employee"}
+          </small>
         </div>
       </div>
 
-      <div className={styles.userMenu}>
+      <div
+        className={
+          styles.userMenu
+        }
+      >
         <Link
           href="/profile"
-          className={styles.userMenuItem}
-          onClick={onNavigate}
+          className={
+            styles.userMenuItem
+          }
+          onClick={
+            onNavigate
+          }
         >
-          <span>◎</span>
+          <span>
+            ◎
+          </span>
+
           My Profile
         </Link>
 
         <Link
           href="/settings?section=notifications"
-          className={styles.userMenuItem}
-          onClick={onNavigate}
+          className={
+            styles.userMenuItem
+          }
+          onClick={
+            onNavigate
+          }
         >
-          <span>◌</span>
+          <span>
+            ◌
+          </span>
+
           Notifications
         </Link>
 
         <Link
           href="/settings?section=appearance"
-          className={styles.userMenuItem}
-          onClick={onNavigate}
+          className={
+            styles.userMenuItem
+          }
+          onClick={
+            onNavigate
+          }
         >
-          <span>◐</span>
+          <span>
+            ◐
+          </span>
+
           Appearance
         </Link>
 
         <Link
           href="/settings?section=help"
-          className={styles.userMenuItem}
-          onClick={onNavigate}
+          className={
+            styles.userMenuItem
+          }
+          onClick={
+            onNavigate
+          }
         >
-          <span>?</span>
+          <span>
+            ?
+          </span>
+
           Help & Support
         </Link>
       </div>
 
-      <div className={styles.userDropdownFooter}>
+      <div
+        className={
+          styles.userDropdownFooter
+        }
+      >
         <button
           type="button"
-          className={styles.logoutButton}
-          onClick={handleLogout}
+          className={
+            styles.logoutButton
+          }
+          onClick={
+            handleLogout
+          }
         >
-          <span>↪</span>
+          <span>
+            ↪
+          </span>
+
           Log out
         </button>
       </div>
@@ -88,18 +172,41 @@ export default function UserDropdown({
   );
 }
 
-function getInitials(value = "") {
-  const cleanedValue = value.trim();
+function getInitials(
+  value = ""
+) {
+  const cleanedValue =
+    String(
+      value ||
+        ""
+    ).trim();
 
-  if (!cleanedValue) {
+  if (
+    !cleanedValue
+  ) {
     return "SN";
   }
 
-  const parts = cleanedValue.split(/\s+/).filter(Boolean);
+  const parts =
+    cleanedValue
+      .split(/\s+/)
+      .filter(Boolean);
 
-  if (parts.length === 1) {
-    return parts[0].slice(0, 2).toUpperCase();
+  if (
+    parts.length ===
+    1
+  ) {
+    return parts[0]
+      .slice(
+        0,
+        2
+      )
+      .toUpperCase();
   }
 
-  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+  return `${parts[0][0]}${
+    parts[
+      parts.length - 1
+    ][0]
+  }`.toUpperCase();
 }
