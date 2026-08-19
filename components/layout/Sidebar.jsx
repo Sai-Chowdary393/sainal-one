@@ -1,121 +1,374 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import {
+  usePathname,
+} from "next/navigation";
+
+import useAccess from "../../hooks/useAccess";
+
 import styles from "./layout.module.css";
+
+// =========================================================
+// NAVIGATION
+// =========================================================
 
 const navigationGroups = [
   {
-    label: "Workspace",
+    label:
+      "Workspace",
+
     items: [
       {
-        label: "Dashboard",
-        href: "/dashboard",
-        icon: "⌂",
+        label:
+          "Dashboard",
+
+        href:
+          "/dashboard",
+
+        icon:
+          "⌂",
+
+        alwaysVisible:
+          true,
       },
     ],
   },
+
   {
-    label: "CRM",
+    label:
+      "CRM",
+
     items: [
       {
-        label: "Leads",
-        href: "/leads",
-        icon: "◎",
+        label:
+          "Leads",
+
+        href:
+          "/leads",
+
+        icon:
+          "◎",
+
+        modules: [
+          "Leads",
+        ],
+
+        prefixes: [
+          "leads.",
+        ],
       },
+
       {
-        label: "Customers",
-        href: "/customers",
-        icon: "▣",
+        label:
+          "Customers",
+
+        href:
+          "/customers",
+
+        icon:
+          "▣",
+
+        modules: [
+          "Customers",
+        ],
+
+        prefixes: [
+          "customers.",
+        ],
       },
     ],
   },
+
   {
-    label: "Sales",
+    label:
+      "Sales",
+
     items: [
       {
-        label: "Quotes",
-        href: "/quotes",
-        icon: "◇",
+        label:
+          "Quotes",
+
+        href:
+          "/quotes",
+
+        icon:
+          "◇",
+
+        modules: [
+          "Quotes",
+        ],
+
+        prefixes: [
+          "quotes.",
+        ],
       },
+
       {
-        label: "Proposals",
-        href: "/proposals",
-        icon: "▤",
+        label:
+          "Proposals",
+
+        href:
+          "/proposals",
+
+        icon:
+          "▤",
+
+        modules: [
+          "Proposals",
+        ],
+
+        prefixes: [
+          "proposals.",
+        ],
       },
+
       {
-        label: "Invoices",
-        href: "/invoices",
-        icon: "£",
+        label:
+          "Invoices",
+
+        href:
+          "/invoices",
+
+        icon:
+          "£",
+
+        modules: [
+          "Invoices",
+        ],
+
+        prefixes: [
+          "invoices.",
+        ],
       },
     ],
   },
+
   {
-    label: "Delivery",
+    label:
+      "Delivery",
+
     items: [
       {
-        label: "Projects",
-        href: "/projects",
-        icon: "▰",
+        label:
+          "Projects",
+
+        href:
+          "/projects",
+
+        icon:
+          "▰",
+
+        modules: [
+          "Projects",
+        ],
+
+        prefixes: [
+          "projects.",
+        ],
       },
+
       {
-        label: "Follow-ups",
-        href: "/follow-ups",
-        icon: "◷",
+        label:
+          "Follow-ups",
+
+        href:
+          "/follow-ups",
+
+        icon:
+          "◷",
+
+        modules: [
+          "Follow-ups",
+          "Follow Ups",
+          "Tasks",
+        ],
+
+        prefixes: [
+          "followups.",
+          "follow-ups.",
+          "tasks.",
+        ],
       },
     ],
   },
+
   {
-    label: "Communication",
+    label:
+      "Communication",
+
     items: [
       {
-        label: "Emails",
-        href: "/emails",
-        icon: "✉",
+        label:
+          "Emails",
+
+        href:
+          "/emails",
+
+        icon:
+          "✉",
+
+        modules: [
+          "Communication",
+          "Emails",
+        ],
+
+        prefixes: [
+          "emails.",
+          "communication.",
+        ],
       },
+
       {
-        label: "AI Assistant",
-        href: "/ai-assistant",
-        icon: "✦",
+        label:
+          "AI Assistant",
+
+        href:
+          "/ai-assistant",
+
+        icon:
+          "✦",
+
+        modules: [
+          "AI",
+        ],
+
+        prefixes: [
+          "ai.",
+        ],
       },
+
       {
-        label: "AI Business Insights",
-        href: "/business-insights",
-        icon: "▥",
+        label:
+          "AI Business Insights",
+
+        href:
+          "/business-insights",
+
+        icon:
+          "▥",
+
+        modules: [
+          "Insights",
+          "AI",
+        ],
+
+        prefixes: [
+          "insights.",
+          "ai.",
+        ],
       },
     ],
   },
+
   {
-    label: "Administration",
+    label:
+      "Administration",
+
     items: [
       {
-        label: "Employees",
-        href: "/settings/employees",
-        icon: "◉",
+        label:
+          "Employees",
+
+        href:
+          "/settings/employees",
+
+        icon:
+          "◉",
+
+        modules: [
+          "Administration",
+        ],
+
+        prefixes: [
+          "employees.",
+        ],
       },
+
       {
-        label: "Departments",
-        href: "/settings/departments",
-        icon: "▦",
+        label:
+          "Departments",
+
+        href:
+          "/settings/departments",
+
+        icon:
+          "▦",
+
+        modules: [
+          "Administration",
+        ],
+
+        prefixes: [
+          "departments.",
+          "employees.",
+        ],
       },
+
       {
-        label: "Roles & Permissions",
-        href: "/settings/roles",
-        icon: "◆",
+        label:
+          "Roles & Permissions",
+
+        href:
+          "/settings/roles",
+
+        icon:
+          "◆",
+
+        modules: [
+          "Administration",
+        ],
+
+        prefixes: [
+          "roles.",
+        ],
       },
+
       {
-        label: "Workflow Builder",
-        href: "/settings/workflows",
-        icon: "⌘",
+        label:
+          "Workflow Builder",
+
+        href:
+          "/settings/workflows",
+
+        icon:
+          "⌘",
+
+        modules: [
+          "Workflows",
+          "Administration",
+        ],
+
+        prefixes: [
+          "workflows.",
+        ],
       },
+
       {
-        label: "Company Settings",
-        href: "/settings",
-        icon: "⚙",
+        label:
+          "Company Settings",
+
+        href:
+          "/settings",
+
+        icon:
+          "⚙",
+
+        modules: [
+          "Administration",
+        ],
+
+        prefixes: [
+          "settings.",
+        ],
       },
     ],
   },
 ];
+
+// =========================================================
+// PAGE
+// =========================================================
 
 export default function Sidebar({
   mobileOpen = false,
@@ -123,23 +376,201 @@ export default function Sidebar({
   onClose,
   onToggleCollapse,
 }) {
-  const pathname = usePathname();
+  const pathname =
+    usePathname();
 
-  function isActive(href) {
-    /*
-     * Company Settings uses the root /settings route.
-     * It should not also appear active while visiting
-     * /settings/employees, /settings/roles or workflows.
-     */
-    if (href === "/settings") {
-      return pathname === "/settings";
+  const {
+    employee,
+    permissions,
+    loading,
+  } =
+    useAccess();
+
+  const isOwner =
+    Boolean(
+      employee
+        ?.is_organization_owner
+    );
+
+  // =======================================================
+  // PERMISSION HELPERS
+  // =======================================================
+
+  function hasPermissionPrefix(
+    prefixes = []
+  ) {
+    if (
+      isOwner
+    ) {
+      return true;
+    }
+
+    const permissionKeys =
+      (
+        Array.isArray(
+          permissions
+        )
+          ? permissions
+          : []
+      )
+        .map(
+          (
+            permission
+          ) =>
+            typeof permission ===
+            "string"
+              ? permission
+              : permission
+                  ?.permission_key
+        )
+        .filter(Boolean);
+
+    return prefixes.some(
+      (
+        prefix
+      ) =>
+        permissionKeys.some(
+          (
+            permissionKey
+          ) =>
+            permissionKey.startsWith(
+              prefix
+            )
+        )
+    );
+  }
+
+  function hasModulePermission(
+    modules = []
+  ) {
+    if (
+      isOwner
+    ) {
+      return true;
+    }
+
+    const normalisedModules =
+      modules.map(
+        (
+          module
+        ) =>
+          String(
+            module
+          )
+            .trim()
+            .toLowerCase()
+      );
+
+    return (
+      Array.isArray(
+        permissions
+      ) &&
+      permissions.some(
+        (
+          permission
+        ) => {
+          if (
+            typeof permission ===
+            "string"
+          ) {
+            return false;
+          }
+
+          const module =
+            String(
+              permission
+                ?.module ||
+                ""
+            )
+              .trim()
+              .toLowerCase();
+
+          return normalisedModules.includes(
+            module
+          );
+        }
+      )
+    );
+  }
+
+  function canSeeItem(
+    item
+  ) {
+    if (
+      item.alwaysVisible
+    ) {
+      return true;
+    }
+
+    if (
+      isOwner
+    ) {
+      return true;
     }
 
     return (
-      pathname === href ||
-      pathname.startsWith(`${href}/`)
+      hasPermissionPrefix(
+        item.prefixes ||
+          []
+      ) ||
+      hasModulePermission(
+        item.modules ||
+          []
+      )
     );
   }
+
+  // =======================================================
+  // ACTIVE
+  // =======================================================
+
+  function isActive(
+    href
+  ) {
+    if (
+      href ===
+      "/settings"
+    ) {
+      return (
+        pathname ===
+        "/settings"
+      );
+    }
+
+    return (
+      pathname ===
+        href ||
+      pathname.startsWith(
+        `${href}/`
+      )
+    );
+  }
+
+  // =======================================================
+  // FILTER GROUPS
+  // =======================================================
+
+  const visibleGroups =
+    navigationGroups
+      .map(
+        (
+          group
+        ) => ({
+          ...group,
+
+          items:
+            group.items.filter(
+              canSeeItem
+            ),
+        })
+      )
+      .filter(
+        (
+          group
+        ) =>
+          group.items.length >
+          0
+      );
 
   return (
     <aside
@@ -153,6 +584,10 @@ export default function Sidebar({
           : ""
       }`}
     >
+      {/* =================================================
+          BRAND
+      ================================================= */}
+
       <div
         className={
           styles.sidebarHeader
@@ -160,8 +595,12 @@ export default function Sidebar({
       >
         <Link
           href="/dashboard"
-          className={styles.brand}
-          onClick={onClose}
+          className={
+            styles.brand
+          }
+          onClick={
+            onClose
+          }
           title={
             collapsed
               ? "SaiNal One"
@@ -204,12 +643,18 @@ export default function Sidebar({
           className={
             styles.mobileCloseButton
           }
-          onClick={onClose}
+          onClick={
+            onClose
+          }
           aria-label="Close navigation"
         >
           ×
         </button>
       </div>
+
+      {/* =================================================
+          COLLAPSE
+      ================================================= */}
 
       <button
         type="button"
@@ -230,8 +675,14 @@ export default function Sidebar({
             : "Collapse sidebar"
         }
       >
-        {collapsed ? "›" : "‹"}
+        {collapsed
+          ? "›"
+          : "‹"}
       </button>
+
+      {/* =================================================
+          NAVIGATION
+      ================================================= */}
 
       <nav
         className={
@@ -239,90 +690,150 @@ export default function Sidebar({
         }
         aria-label="Primary navigation"
       >
-        {navigationGroups.map(
-          (group) => (
-            <div
-              key={group.label}
+        {loading ? (
+          <div
+            className={
+              styles.navigationGroup
+            }
+          >
+            <p
               className={
-                styles.navigationGroup
+                styles.navigationLabel
               }
             >
-              <p
+              Workspace
+            </p>
+
+            <div
+              className={
+                styles.navigationItems
+              }
+            >
+              <Link
+                href="/dashboard"
+                onClick={
+                  onClose
+                }
                 className={
-                  styles.navigationLabel
+                  styles.navigationLink
                 }
               >
-                {group.label}
-              </p>
-
-              <div
-                className={
-                  styles.navigationItems
-                }
-              >
-                {group.items.map(
-                  (item) => {
-                    const active =
-                      isActive(
-                        item.href
-                      );
-
-                    return (
-                      <Link
-                        key={
-                          item.href
-                        }
-                        href={
-                          item.href
-                        }
-                        onClick={
-                          onClose
-                        }
-                        title={
-                          collapsed
-                            ? item.label
-                            : undefined
-                        }
-                        aria-current={
-                          active
-                            ? "page"
-                            : undefined
-                        }
-                        className={`${styles.navigationLink} ${
-                          active
-                            ? styles.navigationLinkActive
-                            : ""
-                        }`}
-                      >
-                        <span
-                          className={
-                            styles.navigationIcon
-                          }
-                          aria-hidden="true"
-                        >
-                          {
-                            item.icon
-                          }
-                        </span>
-
-                        <span
-                          className={
-                            styles.navigationText
-                          }
-                        >
-                          {
-                            item.label
-                          }
-                        </span>
-                      </Link>
-                    );
+                <span
+                  className={
+                    styles.navigationIcon
                   }
-                )}
-              </div>
+                >
+                  ⌂
+                </span>
+
+                <span
+                  className={
+                    styles.navigationText
+                  }
+                >
+                  Dashboard
+                </span>
+              </Link>
             </div>
+          </div>
+        ) : (
+          visibleGroups.map(
+            (
+              group
+            ) => (
+              <div
+                key={
+                  group.label
+                }
+                className={
+                  styles.navigationGroup
+                }
+              >
+                <p
+                  className={
+                    styles.navigationLabel
+                  }
+                >
+                  {
+                    group.label
+                  }
+                </p>
+
+                <div
+                  className={
+                    styles.navigationItems
+                  }
+                >
+                  {group.items.map(
+                    (
+                      item
+                    ) => {
+                      const active =
+                        isActive(
+                          item.href
+                        );
+
+                      return (
+                        <Link
+                          key={
+                            item.href
+                          }
+                          href={
+                            item.href
+                          }
+                          onClick={
+                            onClose
+                          }
+                          title={
+                            collapsed
+                              ? item.label
+                              : undefined
+                          }
+                          aria-current={
+                            active
+                              ? "page"
+                              : undefined
+                          }
+                          className={`${styles.navigationLink} ${
+                            active
+                              ? styles.navigationLinkActive
+                              : ""
+                          }`}
+                        >
+                          <span
+                            className={
+                              styles.navigationIcon
+                            }
+                            aria-hidden="true"
+                          >
+                            {
+                              item.icon
+                            }
+                          </span>
+
+                          <span
+                            className={
+                              styles.navigationText
+                            }
+                          >
+                            {
+                              item.label
+                            }
+                          </span>
+                        </Link>
+                      );
+                    }
+                  )}
+                </div>
+              </div>
+            )
           )
         )}
       </nav>
+
+      {/* =================================================
+          FOOTER
+      ================================================= */}
 
       <div
         className={
