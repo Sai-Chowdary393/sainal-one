@@ -11,10 +11,6 @@ import {
   useRouter,
 } from "next/navigation";
 
-import {
-  supabase,
-} from "../../lib/supabase";
-
 import SettingsDropdown from "./SettingsDropdown";
 import UserDropdown from "./UserDropdown";
 import QuickActionsDropdown from "./QuickActionsDropdown";
@@ -33,7 +29,7 @@ export default function Topbar({
     useRouter();
 
   // =======================================================
-  // EXISTING DROPDOWNS
+  // DROPDOWNS
   // =======================================================
 
   const [
@@ -105,6 +101,13 @@ export default function Topbar({
     setUserEmail,
   ] = useState("");
 
+  const [
+    userRole,
+    setUserRole,
+  ] = useState(
+    "Employee"
+  );
+
   // =======================================================
   // REFS
   // =======================================================
@@ -131,6 +134,63 @@ export default function Topbar({
   useEffect(() => {
     loadCurrentUser();
   }, []);
+
+  async function loadCurrentUser() {
+    try {
+      const response =
+        await fetch(
+          "/api/me",
+          {
+            cache:
+              "no-store",
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (
+        !response.ok
+      ) {
+        throw new Error(
+          data.error ||
+            "Unable to load current user."
+        );
+      }
+
+      setUserName(
+        data.user
+          ?.full_name ||
+          "SaiNal One User"
+      );
+
+      setUserEmail(
+        data.user
+          ?.email ||
+          ""
+      );
+
+      setUserRole(
+        data.displayRole ||
+          "Employee"
+      );
+    } catch (
+      error
+    ) {
+      console.error(
+        "Unable to load current user:",
+        error
+      );
+
+      /*
+       * Safe visual fallback.
+       * This does not affect permissions.
+       */
+      setUserRole(
+        "Employee"
+      );
+    }
+  }
 
   // =======================================================
   // LOAD NOTIFICATIONS
@@ -166,7 +226,9 @@ export default function Topbar({
           const data =
             await response.json();
 
-          if (!response.ok) {
+          if (
+            !response.ok
+          ) {
             throw new Error(
               data.error ||
                 "Unable to load notifications."
@@ -187,7 +249,9 @@ export default function Topbar({
                 0
             )
           );
-        } catch (error) {
+        } catch (
+          error
+        ) {
           console.error(
             "Unable to load notifications:",
             error
@@ -213,12 +277,6 @@ export default function Topbar({
   useEffect(() => {
     loadNotifications();
 
-    /*
-     * Poll every 30 seconds.
-     *
-     * Later we can replace this with
-     * Supabase Realtime.
-     */
     const interval =
       window.setInterval(
         () => {
@@ -232,7 +290,9 @@ export default function Topbar({
         interval
       );
     };
-  }, [loadNotifications]);
+  }, [
+    loadNotifications,
+  ]);
 
   // =======================================================
   // OUTSIDE CLICK + KEYBOARD
@@ -295,7 +355,8 @@ export default function Topbar({
           event.ctrlKey ||
           event.metaKey
         ) &&
-        event.key.toLowerCase() ===
+        event.key
+          .toLowerCase() ===
           "k";
 
       if (
@@ -340,43 +401,6 @@ export default function Topbar({
       );
     };
   }, []);
-
-  // =======================================================
-  // USER
-  // =======================================================
-
-  async function loadCurrentUser() {
-    try {
-      const {
-        data: {
-          user,
-        },
-      } =
-        await supabase.auth.getUser();
-
-      if (!user) {
-        return;
-      }
-
-      setUserEmail(
-        user.email || ""
-      );
-
-      setUserName(
-        user.user_metadata
-          ?.full_name ||
-          user.email?.split(
-            "@"
-          )[0] ||
-          "SaiNal One User"
-      );
-    } catch (error) {
-      console.error(
-        "Unable to load current user:",
-        error
-      );
-    }
-  }
 
   // =======================================================
   // DROPDOWN CONTROLS
@@ -441,9 +465,12 @@ export default function Topbar({
       false
     );
 
-    if (nextValue) {
+    if (
+      nextValue
+    ) {
       await loadNotifications({
-        showLoading: true,
+        showLoading:
+          true,
       });
     }
   }
@@ -525,7 +552,6 @@ export default function Topbar({
                   notification.id
                     ? {
                         ...item,
-
                         is_read:
                           true,
                       }
@@ -539,7 +565,8 @@ export default function Topbar({
             ) =>
               Math.max(
                 0,
-                current - 1
+                current -
+                  1
               )
           );
         }
@@ -554,12 +581,16 @@ export default function Topbar({
           notification
         );
 
-      if (href) {
+      if (
+        href
+      ) {
         router.push(
           href
         );
       }
-    } catch (error) {
+    } catch (
+      error
+    ) {
       console.error(
         "Unable to open notification:",
         error
@@ -592,7 +623,9 @@ export default function Topbar({
       const data =
         await response.json();
 
-      if (!response.ok) {
+      if (
+        !response.ok
+      ) {
         throw new Error(
           data.error ||
             "Unable to mark notifications as read."
@@ -608,7 +641,6 @@ export default function Topbar({
               notification
             ) => ({
               ...notification,
-
               is_read:
                 true,
             })
@@ -618,7 +650,9 @@ export default function Topbar({
       setUnreadCount(
         0
       );
-    } catch (error) {
+    } catch (
+      error
+    ) {
       console.error(
         "Unable to mark notifications as read:",
         error
@@ -666,10 +700,6 @@ export default function Topbar({
       return;
     }
 
-    /*
-     * Global search will be
-     * connected later.
-     */
     console.log(
       "SaiNal One search:",
       cleanSearchValue
@@ -810,9 +840,7 @@ export default function Topbar({
           )}
         </div>
 
-        {/* =============================================== */}
-        {/* NOTIFICATION CENTER                             */}
-        {/* =============================================== */}
+        {/* NOTIFICATIONS */}
 
         <div
           className={
@@ -833,7 +861,8 @@ export default function Topbar({
             }`}
             title="Notifications"
             aria-label={`Notifications${
-              unreadCount > 0
+              unreadCount >
+              0
                 ? `, ${unreadCount} unread`
                 : ""
             }`}
@@ -926,8 +955,7 @@ export default function Topbar({
                     }
                   >
                     <strong>
-                      Unable to load
-                      notifications
+                      Unable to load notifications
                     </strong>
 
                     <span>
@@ -939,12 +967,10 @@ export default function Topbar({
                     <button
                       type="button"
                       onClick={() =>
-                        loadNotifications(
-                          {
-                            showLoading:
-                              true,
-                          }
-                        )
+                        loadNotifications({
+                          showLoading:
+                            true,
+                        })
                       }
                     >
                       Try again
@@ -970,9 +996,7 @@ export default function Topbar({
                     </strong>
 
                     <span>
-                      New workflow
-                      activity will
-                      appear here.
+                      New workflow activity will appear here.
                     </span>
                   </div>
                 ) : (
@@ -1063,6 +1087,7 @@ export default function Topbar({
                   }
                 >
                   View all notifications
+
                   <span>
                     →
                   </span>
@@ -1157,7 +1182,7 @@ export default function Topbar({
               </strong>
 
               <small>
-                Owner
+                {userRole}
               </small>
             </span>
 
@@ -1179,6 +1204,9 @@ export default function Topbar({
               userEmail={
                 userEmail
               }
+              userRole={
+                userRole
+              }
               onNavigate={
                 closeDropdowns
               }
@@ -1198,9 +1226,14 @@ function getInitials(
   value = ""
 ) {
   const cleanedValue =
-    value.trim();
+    String(
+      value ||
+        ""
+    ).trim();
 
-  if (!cleanedValue) {
+  if (
+    !cleanedValue
+  ) {
     return "SN";
   }
 
@@ -1214,13 +1247,17 @@ function getInitials(
     1
   ) {
     return parts[0]
-      .slice(0, 2)
+      .slice(
+        0,
+        2
+      )
       .toUpperCase();
   }
 
   return `${parts[0][0]}${
     parts[
-      parts.length - 1
+      parts.length -
+        1
     ][0]
   }`.toUpperCase();
 }
@@ -1240,7 +1277,9 @@ function getNotificationHref(
         ""
     ).toLowerCase();
 
-  switch (type) {
+  switch (
+    type
+  ) {
     case "quote":
     case "quotes":
       return `/quotes/${notification.record_id}`;
@@ -1275,7 +1314,8 @@ function getNotificationIcon(
 ) {
   switch (
     String(
-      type || ""
+      type ||
+        ""
     ).toLowerCase()
   ) {
     case "success":
@@ -1295,12 +1335,16 @@ function getNotificationIcon(
 function formatNotificationTime(
   value
 ) {
-  if (!value) {
+  if (
+    !value
+  ) {
     return "";
   }
 
   const date =
-    new Date(value);
+    new Date(
+      value
+    );
 
   if (
     Number.isNaN(
