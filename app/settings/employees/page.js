@@ -12,8 +12,11 @@ import AppLayout from "../../../components/layout/AppLayout";
 import ProtectedRoute from "../../../components/ProtectedRoute";
 import styles from "./employees.module.css";
 
+// =========================================================
+// INITIAL FORM
+// =========================================================
+
 const INITIAL_FORM_DATA = {
-  user_id: "",
   employee_number: "",
   full_name: "",
   email: "",
@@ -58,86 +61,96 @@ const AVAILABILITY_STATUSES = [
   "Unavailable",
 ];
 
+// =========================================================
+// PAGE
+// =========================================================
+
 export default function EmployeesPage() {
   const [
     employees,
     setEmployees,
-  ] =
-    useState([]);
+  ] = useState([]);
 
   const [
     departments,
     setDepartments,
-  ] =
-    useState([]);
+  ] = useState([]);
 
   const [
     roles,
     setRoles,
-  ] =
-    useState([]);
+  ] = useState([]);
 
   const [
     currentEmployee,
     setCurrentEmployee,
-  ] =
-    useState(null);
+  ] = useState(null);
+
+  /*
+   * Access information now comes from
+   * /api/employees.
+   */
+  const [
+    access,
+    setAccess,
+  ] = useState({
+    isOwner: false,
+    permissions: [],
+    roles: [],
+    canViewEmployees: false,
+    canManageEmployees: false,
+  });
 
   const [
     loading,
     setLoading,
-  ] =
-    useState(true);
+  ] = useState(true);
 
   const [
     saving,
     setSaving,
-  ] =
-    useState(false);
+  ] = useState(false);
 
   const [
     errorMessage,
     setErrorMessage,
-  ] =
-    useState("");
+  ] = useState("");
 
   const [
     showForm,
     setShowForm,
-  ] =
-    useState(false);
+  ] = useState(false);
 
   const [
     editingEmployeeId,
     setEditingEmployeeId,
-  ] =
-    useState(null);
+  ] = useState(null);
 
   const [
     formData,
     setFormData,
-  ] =
-    useState(
-      INITIAL_FORM_DATA
-    );
+  ] = useState(
+    INITIAL_FORM_DATA
+  );
 
   const [
     searchValue,
     setSearchValue,
-  ] =
-    useState("");
+  ] = useState("");
 
   const [
     statusFilter,
     setStatusFilter,
-  ] =
-    useState("All");
+  ] = useState("All");
 
   const [
     departmentFilter,
     setDepartmentFilter,
-  ] =
-    useState("All");
+  ] = useState("All");
+
+  // =======================================================
+  // LOAD
+  // =======================================================
 
   useEffect(() => {
     fetchWorkspace();
@@ -195,6 +208,44 @@ export default function EmployeesPage() {
         data.currentEmployee ||
           null
       );
+
+      setAccess({
+        isOwner:
+          Boolean(
+            data.access
+              ?.isOwner
+          ),
+
+        permissions:
+          Array.isArray(
+            data.access
+              ?.permissions
+          )
+            ? data.access
+                .permissions
+            : [],
+
+        roles:
+          Array.isArray(
+            data.access
+              ?.roles
+          )
+            ? data.access
+                .roles
+            : [],
+
+        canViewEmployees:
+          Boolean(
+            data.access
+              ?.canViewEmployees
+          ),
+
+        canManageEmployees:
+          Boolean(
+            data.access
+              ?.canManageEmployees
+          ),
+      });
     } catch (error) {
       console.error(
         "Employee workspace loading error:",
@@ -209,6 +260,10 @@ export default function EmployeesPage() {
       setLoading(false);
     }
   }
+
+  // =======================================================
+  // FORM
+  // =======================================================
 
   function handleChange(
     event
@@ -232,6 +287,12 @@ export default function EmployeesPage() {
   function handleRoleChange(
     roleId
   ) {
+    if (
+      !canManageRoles
+    ) {
+      return;
+    }
+
     setFormData(
       (current) => {
         const alreadySelected =
@@ -259,6 +320,12 @@ export default function EmployeesPage() {
   }
 
   function openCreateForm() {
+    if (
+      !canManage
+    ) {
+      return;
+    }
+
     setEditingEmployeeId(
       null
     );
@@ -281,15 +348,17 @@ export default function EmployeesPage() {
   function openEditForm(
     employee
   ) {
+    if (
+      !canManage
+    ) {
+      return;
+    }
+
     setEditingEmployeeId(
       employee.id
     );
 
     setFormData({
-      user_id:
-        employee.user_id ||
-        "",
-
       employee_number:
         employee.employee_number ||
         "",
@@ -393,10 +462,24 @@ export default function EmployeesPage() {
     );
   }
 
+  // =======================================================
+  // SAVE
+  // =======================================================
+
   async function saveEmployee(
     event
   ) {
     event.preventDefault();
+
+    if (
+      !canManage
+    ) {
+      alert(
+        "You do not have permission to manage employees."
+      );
+
+      return;
+    }
 
     if (
       !formData.full_name.trim()
@@ -443,6 +526,67 @@ export default function EmployeesPage() {
           ? "PATCH"
           : "POST";
 
+      /*
+       * A user with employees.manage can manage
+       * employee details.
+       *
+       * Role assignments are included only when
+       * they also have roles.manage.
+       */
+      const payload = {
+        employee_number:
+          formData.employee_number,
+
+        full_name:
+          formData.full_name,
+
+        email:
+          formData.email,
+
+        phone:
+          formData.phone,
+
+        job_title:
+          formData.job_title,
+
+        department_id:
+          formData.department_id,
+
+        manager_id:
+          formData.manager_id,
+
+        backup_employee_id:
+          formData.backup_employee_id,
+
+        employment_type:
+          formData.employment_type,
+
+        employment_status:
+          formData.employment_status,
+
+        availability_status:
+          formData.availability_status,
+
+        start_date:
+          formData.start_date,
+
+        end_date:
+          formData.end_date,
+
+        timezone:
+          formData.timezone,
+
+        locale:
+          formData.locale,
+      };
+
+      if (
+        canManageRoles
+      ) {
+        payload.role_ids =
+          formData.role_ids;
+      }
+
       const response =
         await fetch(
           endpoint,
@@ -456,7 +600,7 @@ export default function EmployeesPage() {
 
             body:
               JSON.stringify(
-                formData
+                payload
               ),
           }
         );
@@ -483,7 +627,8 @@ export default function EmployeesPage() {
       alert(
         wasEditing
           ? "Employee updated successfully."
-          : "Employee created successfully."
+          : data.message ||
+            "Employee created and invitation sent successfully."
       );
     } catch (error) {
       console.error(
@@ -502,9 +647,23 @@ export default function EmployeesPage() {
     }
   }
 
+  // =======================================================
+  // DEACTIVATE
+  // =======================================================
+
   async function deactivateEmployee(
     employee
   ) {
+    if (
+      !canManage
+    ) {
+      alert(
+        "You do not have permission to deactivate employees."
+      );
+
+      return;
+    }
+
     const confirmed =
       window.confirm(
         `Deactivate ${employee.full_name}?`
@@ -554,6 +713,10 @@ export default function EmployeesPage() {
       );
     }
   }
+
+  // =======================================================
+  // FILTERED EMPLOYEES
+  // =======================================================
 
   const filteredEmployees =
     useMemo(() => {
@@ -613,6 +776,10 @@ export default function EmployeesPage() {
       departmentFilter,
     ]);
 
+  // =======================================================
+  // SUMMARY
+  // =======================================================
+
   const activeEmployees =
     employees.filter(
       (employee) =>
@@ -636,11 +803,50 @@ export default function EmployeesPage() {
         !employee.user_id
     ).length;
 
+  // =======================================================
+  // RBAC
+  // =======================================================
+
+  /*
+   * No longer check:
+   *
+   * currentEmployee.is_organization_owner
+   *
+   * The API has already calculated access from:
+   *
+   * Employee
+   * -> User Roles
+   * -> Roles
+   * -> Role Permissions
+   * -> Permissions
+   */
+
   const canManage =
     Boolean(
-      currentEmployee
-        ?.is_organization_owner
+      access
+        .canManageEmployees
     );
+
+  const canManageRoles =
+    Boolean(
+      access.isOwner ||
+      access.permissions.includes(
+        "roles.manage"
+      )
+    );
+
+  const editingEmployee =
+    editingEmployeeId
+      ? employees.find(
+          (employee) =>
+            employee.id ===
+            editingEmployeeId
+        ) || null
+      : null;
+
+  // =======================================================
+  // PAGE
+  // =======================================================
 
   return (
     <ProtectedRoute>
@@ -707,7 +913,7 @@ export default function EmployeesPage() {
 
                 {showForm
                   ? "Close form"
-                  : "Add employee"}
+                  : "Invite employee"}
               </button>
             )}
           </section>
@@ -717,7 +923,8 @@ export default function EmployeesPage() {
           ================================================= */}
 
           {!canManage &&
-            !loading && (
+            !loading &&
+            !errorMessage && (
               <section
                 className={
                   styles.noticePanel
@@ -728,10 +935,13 @@ export default function EmployeesPage() {
                 </strong>
 
                 <p>
-                  Only the organisation
-                  owner can add, edit or
-                  deactivate employees at
-                  this stage.
+                  You can view the employee
+                  directory, but your role
+                  does not include the
+                  employees.manage
+                  permission required to
+                  add, edit or deactivate
+                  employees.
                 </p>
               </section>
             )}
@@ -756,17 +966,13 @@ export default function EmployeesPage() {
                     <h3>
                       {editingEmployeeId
                         ? "Edit employee"
-                        : "Create employee"}
+                        : "Invite employee"}
                     </h3>
 
                     <p>
-                      Link an existing
-                      Supabase Auth user
-                      by entering their
-                      user UUID, or leave
-                      it blank until the
-                      employee receives
-                      an account.
+                      {editingEmployeeId
+                        ? "Update employee profile, reporting information, employment details and access."
+                        : "Create the employee record and send a secure SaiNal One account invitation automatically."}
                     </p>
                   </div>
                 </div>
@@ -847,23 +1053,6 @@ export default function EmployeesPage() {
                         handleChange
                       }
                       placeholder="Example: Sales Manager"
-                    />
-
-                    <FormField
-                      label="Auth User ID"
-                      name="user_id"
-                      value={
-                        formData.user_id
-                      }
-                      onChange={
-                        handleChange
-                      }
-                      placeholder="Supabase Auth user UUID"
-                      disabled={
-                        Boolean(
-                          editingEmployeeId
-                        )
-                      }
                     />
 
                     <SelectField
@@ -1009,24 +1198,34 @@ export default function EmployeesPage() {
                         handleChange
                       }
                     >
-                      {EMPLOYMENT_TYPES.map(
-                        (
-                          value
-                        ) => (
-                          <option
-                            key={
-                              value
-                            }
-                            value={
-                              value
-                            }
-                          >
-                            {
-                              value
-                            }
-                          </option>
+                      {EMPLOYMENT_TYPES
+                        .filter(
+                          (
+                            value
+                          ) =>
+                            value !==
+                              "Owner" ||
+                            editingEmployee
+                              ?.is_organization_owner
                         )
-                      )}
+                        .map(
+                          (
+                            value
+                          ) => (
+                            <option
+                              key={
+                                value
+                              }
+                              value={
+                                value
+                              }
+                            >
+                              {
+                                value
+                              }
+                            </option>
+                          )
+                        )}
                     </SelectField>
 
                     <SelectField
@@ -1137,67 +1336,129 @@ export default function EmployeesPage() {
                       placeholder="en-GB"
                     />
 
-                    <div
-                      className={`${styles.field} ${styles.fieldFull}`}
-                    >
-                      <label>
-                        Assigned roles
-                      </label>
+                    {/* =======================================
+                        ROLE ASSIGNMENTS
+                    ======================================= */}
 
+                    {canManageRoles ? (
                       <div
-                        className={
-                          styles.roleGrid
-                        }
+                        className={`${styles.field} ${styles.fieldFull}`}
                       >
-                        {roles
-                          .filter(
-                            (
-                              role
-                            ) =>
-                              role.is_active
-                          )
-                          .map(
-                            (
-                              role
-                            ) => (
-                              <label
-                                key={
-                                  role.id
-                                }
+                        <label>
+                          Assigned roles
+                        </label>
+
+                        <div
+                          className={
+                            styles.roleGrid
+                          }
+                        >
+                          {roles
+                            .filter(
+                              (
+                                role
+                              ) =>
+                                role.is_active &&
+                                (
+                                  role.code !==
+                                    "ORG_OWNER" ||
+                                  editingEmployee
+                                    ?.is_organization_owner
+                                )
+                            )
+                            .map(
+                              (
+                                role
+                              ) => (
+                                <label
+                                  key={
+                                    role.id
+                                  }
+                                  className={
+                                    styles.roleOption
+                                  }
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={formData.role_ids.includes(
+                                      role.id
+                                    )}
+                                    onChange={() =>
+                                      handleRoleChange(
+                                        role.id
+                                      )
+                                    }
+                                  />
+
+                                  <span>
+                                    <strong>
+                                      {
+                                        role.name
+                                      }
+                                    </strong>
+
+                                    <small>
+                                      {
+                                        role.code
+                                      }
+                                    </small>
+                                  </span>
+                                </label>
+                              )
+                            )}
+                        </div>
+                      </div>
+                    ) : (
+                      editingEmployeeId && (
+                        <div
+                          className={`${styles.field} ${styles.fieldFull}`}
+                        >
+                          <label>
+                            Assigned roles
+                          </label>
+
+                          <div
+                            className={
+                              styles.roleBadges
+                            }
+                          >
+                            {editingEmployee
+                              ?.user_roles
+                              ?.length >
+                            0 ? (
+                              editingEmployee
+                                .user_roles
+                                .map(
+                                  (
+                                    assignment
+                                  ) => (
+                                    <span
+                                      key={
+                                        assignment.id
+                                      }
+                                      className={
+                                        styles.roleBadge
+                                      }
+                                    >
+                                      {assignment.role
+                                        ?.name ||
+                                        "Role"}
+                                    </span>
+                                  )
+                                )
+                            ) : (
+                              <span
                                 className={
-                                  styles.roleOption
+                                  styles.emptyValue
                                 }
                               >
-                                <input
-                                  type="checkbox"
-                                  checked={formData.role_ids.includes(
-                                    role.id
-                                  )}
-                                  onChange={() =>
-                                    handleRoleChange(
-                                      role.id
-                                    )
-                                  }
-                                />
-
-                                <span>
-                                  <strong>
-                                    {
-                                      role.name
-                                    }
-                                  </strong>
-
-                                  <small>
-                                    {
-                                      role.code
-                                    }
-                                  </small>
-                                </span>
-                              </label>
-                            )
-                          )}
-                      </div>
-                    </div>
+                                No role assigned
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    )}
                   </div>
 
                   <div
@@ -1233,7 +1494,7 @@ export default function EmployeesPage() {
                         ? "Saving employee..."
                         : editingEmployeeId
                           ? "Update employee"
-                          : "Create employee"}
+                          : "Invite employee"}
                     </button>
                   </div>
                 </form>
@@ -1569,8 +1830,6 @@ export default function EmployeesPage() {
                               employee.id
                             }
                           >
-                            {/* EMPLOYEE */}
-
                             <td>
                               <div
                                 className={
@@ -1618,30 +1877,22 @@ export default function EmployeesPage() {
                               </div>
                             </td>
 
-                            {/* DEPARTMENT */}
-
                             <td>
                               {employee.department
                                 ?.name ||
                                 "Not assigned"}
                             </td>
 
-                            {/* JOB */}
-
                             <td>
                               {employee.job_title ||
                                 "Not provided"}
                             </td>
-
-                            {/* MANAGER */}
 
                             <td>
                               {employee.manager
                                 ?.full_name ||
                                 "No manager"}
                             </td>
-
-                            {/* ROLES */}
 
                             <td>
                               <div
@@ -1686,8 +1937,6 @@ export default function EmployeesPage() {
                               </div>
                             </td>
 
-                            {/* STATUS */}
-
                             <td>
                               <StatusBadge
                                 value={
@@ -1696,8 +1945,6 @@ export default function EmployeesPage() {
                               />
                             </td>
 
-                            {/* AVAILABILITY */}
-
                             <td>
                               <StatusBadge
                                 value={
@@ -1705,8 +1952,6 @@ export default function EmployeesPage() {
                                 }
                               />
                             </td>
-
-                            {/* ACTIONS */}
 
                             <td>
                               <div
@@ -1740,7 +1985,10 @@ export default function EmployeesPage() {
                                     </button>
 
                                     {!employee.is_organization_owner &&
-                                      employee.is_active && (
+                                      employee.is_active &&
+                                      employee.id !==
+                                        currentEmployee
+                                          ?.id && (
                                         <button
                                           type="button"
                                           className={
