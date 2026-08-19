@@ -1,111 +1,424 @@
 "use client";
 
 import Link from "next/link";
+
+import useAccess from "../../hooks/useAccess";
+
 import styles from "./layout.module.css";
+
+// =========================================================
+// SETTINGS MENU
+// =========================================================
 
 const settingsSections = [
   {
-    title: "Administration",
+    title:
+      "Administration",
+
     items: [
       {
-        label: "Company Profile",
-        description: "Business details and branding",
-        href: "/settings?section=company",
-        icon: "▣",
+        label:
+          "Company Profile",
+
+        description:
+          "Business details and configuration",
+
+        href:
+          "/settings",
+
+        icon:
+          "▣",
+
+        prefixes: [
+          "settings.",
+        ],
       },
+
       {
-        label: "AI Business Profile",
-        description: "AI context and preferences",
-        href: "/settings?section=ai",
-        icon: "✦",
+        label:
+          "Employees",
+
+        description:
+          "Employees and invitations",
+
+        href:
+          "/settings/employees",
+
+        icon:
+          "◎",
+
+        prefixes: [
+          "employees.",
+        ],
       },
+
       {
-        label: "Team Members",
-        description: "Users and invitations",
-        href: "/settings?section=team",
-        icon: "◎",
+        label:
+          "Departments",
+
+        description:
+          "Organisation structure",
+
+        href:
+          "/settings/departments",
+
+        icon:
+          "▦",
+
+        prefixes: [
+          "departments.",
+          "employees.",
+        ],
       },
+
       {
-        label: "Roles & Permissions",
-        description: "Control access levels",
-        href: "/settings?section=roles",
-        icon: "⌘",
+        label:
+          "Roles & Permissions",
+
+        description:
+          "Control access levels",
+
+        href:
+          "/settings/roles",
+
+        icon:
+          "◆",
+
+        prefixes: [
+          "roles.",
+        ],
+      },
+
+      {
+        label:
+          "Workflow Builder",
+
+        description:
+          "Business workflow automation",
+
+        href:
+          "/settings/workflows",
+
+        icon:
+          "⌘",
+
+        prefixes: [
+          "workflows.",
+        ],
       },
     ],
   },
+
   {
-    title: "Business",
+    title:
+      "Account",
+
     items: [
       {
-        label: "Billing & Subscription",
-        description: "Plan and payment settings",
-        href: "/settings?section=billing",
-        icon: "£",
+        label:
+          "My Profile",
+
+        description:
+          "Personal employee profile",
+
+        href:
+          "/profile",
+
+        icon:
+          "◉",
+
+        alwaysVisible:
+          true,
       },
+
       {
-        label: "Integrations",
-        description: "Connect business tools",
-        href: "/settings?section=integrations",
-        icon: "⇄",
+        label:
+          "Notifications",
+
+        description:
+          "Notification preferences",
+
+        href:
+          "/settings?section=notifications",
+
+        icon:
+          "◌",
+
+        alwaysVisible:
+          true,
       },
-    ],
-  },
-  {
-    title: "System",
-    items: [
+
       {
-        label: "Preferences",
-        description: "Language, time and display",
-        href: "/settings?section=preferences",
-        icon: "⚙",
+        label:
+          "Appearance",
+
+        description:
+          "Display preferences",
+
+        href:
+          "/settings?section=appearance",
+
+        icon:
+          "◐",
+
+        alwaysVisible:
+          true,
       },
+
       {
-        label: "Security",
-        description: "Authentication and access",
-        href: "/settings?section=security",
-        icon: "◇",
+        label:
+          "Help & Support",
+
+        description:
+          "Get product assistance",
+
+        href:
+          "/settings?section=help",
+
+        icon:
+          "?",
+
+        alwaysVisible:
+          true,
       },
     ],
   },
 ];
 
-export default function SettingsDropdown({ onNavigate }) {
+// =========================================================
+// COMPONENT
+// =========================================================
+
+export default function SettingsDropdown({
+  onNavigate,
+}) {
+  const {
+    employee,
+    permissions,
+    loading,
+  } =
+    useAccess();
+
+  const isOwner =
+    Boolean(
+      employee
+        ?.is_organization_owner
+    );
+
+  const permissionKeys =
+    (
+      Array.isArray(
+        permissions
+      )
+        ? permissions
+        : []
+    )
+      .map(
+        (
+          permission
+        ) =>
+          typeof permission ===
+          "string"
+            ? permission
+            : permission
+                ?.permission_key
+      )
+      .filter(Boolean);
+
+  function canSeeItem(
+    item
+  ) {
+    if (
+      item.alwaysVisible
+    ) {
+      return true;
+    }
+
+    if (
+      isOwner
+    ) {
+      return true;
+    }
+
+    return (
+      item.prefixes ||
+      []
+    ).some(
+      (
+        prefix
+      ) =>
+        permissionKeys.some(
+          (
+            permissionKey
+          ) =>
+            permissionKey.startsWith(
+              prefix
+            )
+        )
+    );
+  }
+
+  const visibleSections =
+    settingsSections
+      .map(
+        (
+          section
+        ) => ({
+          ...section,
+
+          items:
+            section.items.filter(
+              canSeeItem
+            ),
+        })
+      )
+      .filter(
+        (
+          section
+        ) =>
+          section.items.length >
+          0
+      );
+
   return (
-    <div className={styles.settingsDropdown}>
-      <div className={styles.dropdownHeader}>
+    <div
+      className={
+        styles.settingsDropdown
+      }
+    >
+      <div
+        className={
+          styles.dropdownHeader
+        }
+      >
         <div>
-          <strong>Settings</strong>
-          <p>Manage your organisation and system.</p>
+          <strong>
+            Settings
+          </strong>
+
+          <p>
+            Manage your account and
+            organisation.
+          </p>
         </div>
       </div>
 
-      <div className={styles.settingsDropdownContent}>
-        {settingsSections.map((section) => (
+      <div
+        className={
+          styles.settingsDropdownContent
+        }
+      >
+        {loading ? (
           <section
-            className={styles.settingsMenuSection}
-            key={section.title}
+            className={
+              styles.settingsMenuSection
+            }
           >
-            <p className={styles.settingsMenuTitle}>{section.title}</p>
+            <p
+              className={
+                styles.settingsMenuTitle
+              }
+            >
+              Settings
+            </p>
 
-            {section.items.map((item) => (
-              <Link
-                key={item.label}
-                href={item.href}
-                className={styles.settingsMenuItem}
-                onClick={onNavigate}
+            <div
+              className={
+                styles.settingsMenuItem
+              }
+            >
+              <span
+                className={
+                  styles.settingsMenuIcon
+                }
               >
-                <span className={styles.settingsMenuIcon}>
-                  {item.icon}
-                </span>
+                …
+              </span>
 
-                <span>
-                  <strong>{item.label}</strong>
-                  <small>{item.description}</small>
-                </span>
-              </Link>
-            ))}
+              <span>
+                <strong>
+                  Loading access
+                </strong>
+
+                <small>
+                  Checking available
+                  settings
+                </small>
+              </span>
+            </div>
           </section>
-        ))}
+        ) : (
+          visibleSections.map(
+            (
+              section
+            ) => (
+              <section
+                className={
+                  styles.settingsMenuSection
+                }
+                key={
+                  section.title
+                }
+              >
+                <p
+                  className={
+                    styles.settingsMenuTitle
+                  }
+                >
+                  {
+                    section.title
+                  }
+                </p>
+
+                {section.items.map(
+                  (
+                    item
+                  ) => (
+                    <Link
+                      key={
+                        item.label
+                      }
+                      href={
+                        item.href
+                      }
+                      className={
+                        styles.settingsMenuItem
+                      }
+                      onClick={
+                        onNavigate
+                      }
+                    >
+                      <span
+                        className={
+                          styles.settingsMenuIcon
+                        }
+                        aria-hidden="true"
+                      >
+                        {
+                          item.icon
+                        }
+                      </span>
+
+                      <span>
+                        <strong>
+                          {
+                            item.label
+                          }
+                        </strong>
+
+                        <small>
+                          {
+                            item.description
+                          }
+                        </small>
+                      </span>
+                    </Link>
+                  )
+                )}
+              </section>
+            )
+          )
+        )}
       </div>
     </div>
   );
