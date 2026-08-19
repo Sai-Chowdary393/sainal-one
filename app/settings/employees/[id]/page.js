@@ -87,6 +87,18 @@ export default function EmployeeDetailsPage() {
   ] = useState(null);
 
   const [
+    access,
+    setAccess,
+  ] = useState({
+    isOwner: false,
+    permissions: [],
+    roles: [],
+    canViewEmployees: false,
+    canManageEmployees: false,
+    canManageRoles: false,
+  });
+
+  const [
     loading,
     setLoading,
   ] = useState(true);
@@ -139,7 +151,9 @@ export default function EmployeeDetailsPage() {
   // =======================================================
 
   useEffect(() => {
-    if (!employeeId) {
+    if (
+      !employeeId
+    ) {
       return;
     }
 
@@ -150,9 +164,13 @@ export default function EmployeeDetailsPage() {
 
   async function loadWorkspace() {
     try {
-      setLoading(true);
+      setLoading(
+        true
+      );
 
-      setErrorMessage("");
+      setErrorMessage(
+        ""
+      );
 
       const [
         employeeResponse,
@@ -203,9 +221,17 @@ export default function EmployeeDetailsPage() {
         );
       }
 
+      // ===================================================
+      // EMPLOYEE
+      // ===================================================
+
       setEmployee(
         employeeData
       );
+
+      // ===================================================
+      // DIRECTORY
+      // ===================================================
 
       setEmployees(
         Array.isArray(
@@ -236,10 +262,78 @@ export default function EmployeeDetailsPage() {
           null
       );
 
+      // ===================================================
+      // ACCESS
+      // ===================================================
+
+      /*
+       * Prefer the single employee endpoint because it
+       * explicitly includes canManageRoles.
+       *
+       * Fall back to the directory endpoint if needed.
+       */
+      const employeeAccess =
+        employeeData.access ||
+        {};
+
+      const directoryAccess =
+        directoryData.access ||
+        {};
+
+      setAccess({
+        isOwner:
+          Boolean(
+            employeeAccess.isOwner ??
+              directoryAccess.isOwner
+          ),
+
+        permissions:
+          Array.isArray(
+            employeeAccess.permissions
+          )
+            ? employeeAccess.permissions
+            : Array.isArray(
+                  directoryAccess.permissions
+                )
+              ? directoryAccess.permissions
+              : [],
+
+        roles:
+          Array.isArray(
+            employeeAccess.roles
+          )
+            ? employeeAccess.roles
+            : Array.isArray(
+                  directoryAccess.roles
+                )
+              ? directoryAccess.roles
+              : [],
+
+        canViewEmployees:
+          Boolean(
+            employeeAccess.canViewEmployees ??
+              directoryAccess.canViewEmployees
+          ),
+
+        canManageEmployees:
+          Boolean(
+            employeeAccess.canManageEmployees ??
+              directoryAccess.canManageEmployees
+          ),
+
+        canManageRoles:
+          Boolean(
+            employeeAccess.canManageRoles ??
+              directoryAccess.canManageRoles
+          ),
+      });
+
       syncForm(
         employeeData
       );
-    } catch (error) {
+    } catch (
+      error
+    ) {
       console.error(
         "Employee workspace loading error:",
         error
@@ -250,7 +344,9 @@ export default function EmployeeDetailsPage() {
           "Unable to load employee."
       );
     } finally {
-      setLoading(false);
+      setLoading(
+        false
+      );
     }
   }
 
@@ -331,9 +427,12 @@ export default function EmployeeDetailsPage() {
                 (
                   assignment
                 ) =>
-                  assignment.role?.id
+                  assignment.role
+                    ?.id
               )
-              .filter(Boolean)
+              .filter(
+                Boolean
+              )
           : [],
 
       is_active:
@@ -342,9 +441,19 @@ export default function EmployeeDetailsPage() {
     });
   }
 
+  // =======================================================
+  // FIELD CHANGE
+  // =======================================================
+
   function handleChange(
     event
   ) {
+    if (
+      !canManage
+    ) {
+      return;
+    }
+
     const {
       name,
       value,
@@ -368,9 +477,19 @@ export default function EmployeeDetailsPage() {
     );
   }
 
+  // =======================================================
+  // ROLE CHANGE
+  // =======================================================
+
   function handleRoleChange(
     roleId
   ) {
+    if (
+      !canManageRoles
+    ) {
+      return;
+    }
+
     setFormData(
       (
         current
@@ -401,6 +520,22 @@ export default function EmployeeDetailsPage() {
     );
   }
 
+  // =======================================================
+  // EDIT
+  // =======================================================
+
+  function startEdit() {
+    if (
+      !canManage
+    ) {
+      return;
+    }
+
+    setEditMode(
+      true
+    );
+  }
+
   function cancelEdit() {
     if (
       employee
@@ -423,6 +558,16 @@ export default function EmployeeDetailsPage() {
     event
   ) {
     event.preventDefault();
+
+    if (
+      !canManage
+    ) {
+      alert(
+        "You do not have permission to update employees."
+      );
+
+      return;
+    }
 
     if (
       !formData.full_name.trim()
@@ -455,7 +600,86 @@ export default function EmployeeDetailsPage() {
     }
 
     try {
-      setSaving(true);
+      setSaving(
+        true
+      );
+
+      // ===================================================
+      // BASE EMPLOYEE PAYLOAD
+      // ===================================================
+
+      const payload = {
+        employee_number:
+          formData.employee_number,
+
+        full_name:
+          formData.full_name,
+
+        email:
+          formData.email,
+
+        phone:
+          formData.phone ||
+          null,
+
+        job_title:
+          formData.job_title ||
+          null,
+
+        department_id:
+          formData.department_id ||
+          null,
+
+        manager_id:
+          formData.manager_id ||
+          null,
+
+        backup_employee_id:
+          formData.backup_employee_id ||
+          null,
+
+        employment_type:
+          formData.employment_type,
+
+        employment_status:
+          formData.employment_status,
+
+        availability_status:
+          formData.availability_status,
+
+        start_date:
+          formData.start_date ||
+          null,
+
+        end_date:
+          formData.end_date ||
+          null,
+
+        timezone:
+          formData.timezone,
+
+        locale:
+          formData.locale,
+
+        is_active:
+          formData.is_active,
+      };
+
+      /*
+       * Role assignment is a stronger security operation.
+       *
+       * Only include role_ids when the logged-in user has
+       * roles.manage.
+       *
+       * This prevents employees.manage users from receiving
+       * a 403 and prevents role escalation.
+       */
+      if (
+        canManageRoles
+      ) {
+        payload.role_ids =
+          formData.role_ids;
+      }
 
       const response =
         await fetch(
@@ -470,65 +694,9 @@ export default function EmployeeDetailsPage() {
             },
 
             body:
-              JSON.stringify({
-                employee_number:
-                  formData.employee_number,
-
-                full_name:
-                  formData.full_name,
-
-                email:
-                  formData.email,
-
-                phone:
-                  formData.phone ||
-                  null,
-
-                job_title:
-                  formData.job_title ||
-                  null,
-
-                department_id:
-                  formData.department_id ||
-                  null,
-
-                manager_id:
-                  formData.manager_id ||
-                  null,
-
-                backup_employee_id:
-                  formData.backup_employee_id ||
-                  null,
-
-                employment_type:
-                  formData.employment_type,
-
-                employment_status:
-                  formData.employment_status,
-
-                availability_status:
-                  formData.availability_status,
-
-                start_date:
-                  formData.start_date ||
-                  null,
-
-                end_date:
-                  formData.end_date ||
-                  null,
-
-                timezone:
-                  formData.timezone,
-
-                locale:
-                  formData.locale,
-
-                role_ids:
-                  formData.role_ids,
-
-                is_active:
-                  formData.is_active,
-              }),
+              JSON.stringify(
+                payload
+              ),
           }
         );
 
@@ -554,7 +722,9 @@ export default function EmployeeDetailsPage() {
         data.message ||
           "Employee updated successfully."
       );
-    } catch (error) {
+    } catch (
+      error
+    ) {
       console.error(
         "Employee update error:",
         error
@@ -565,7 +735,9 @@ export default function EmployeeDetailsPage() {
           "Unable to update employee."
       );
     } finally {
-      setSaving(false);
+      setSaving(
+        false
+      );
     }
   }
 
@@ -574,6 +746,26 @@ export default function EmployeeDetailsPage() {
   // =======================================================
 
   async function deactivateEmployee() {
+    if (
+      !canManage
+    ) {
+      alert(
+        "You do not have permission to deactivate employees."
+      );
+
+      return;
+    }
+
+    if (
+      isCurrentEmployee
+    ) {
+      alert(
+        "You cannot deactivate your own employee account."
+      );
+
+      return;
+    }
+
     const confirmed =
       window.confirm(
         `Deactivate ${employee.full_name}?`
@@ -619,7 +811,9 @@ export default function EmployeeDetailsPage() {
       router.push(
         "/settings/employees"
       );
-    } catch (error) {
+    } catch (
+      error
+    ) {
       console.error(
         "Employee deactivation error:",
         error
@@ -637,38 +831,53 @@ export default function EmployeeDetailsPage() {
   }
 
   // =======================================================
-  // DERIVED
+  // RBAC
   // =======================================================
 
   const canManage =
     Boolean(
-      currentEmployee
-        ?.is_organization_owner
+      access
+        .canManageEmployees
     );
 
-  const selectedRoles =
-    useMemo(() => {
-      if (
-        !employee
-      ) {
-        return [];
-      }
+  const canManageRoles =
+    Boolean(
+      access
+        .canManageRoles
+    );
 
-      return Array.isArray(
-        employee.user_roles
-      )
-        ? employee.user_roles
-            .map(
-              (
-                assignment
-              ) =>
-                assignment.role
-            )
-            .filter(Boolean)
-        : [];
-    }, [
-      employee,
-    ]);
+  // =======================================================
+  // DERIVED
+  // =======================================================
+
+  const selectedRoles =
+    useMemo(
+      () => {
+        if (
+          !employee
+        ) {
+          return [];
+        }
+
+        return Array.isArray(
+          employee.user_roles
+        )
+          ? employee.user_roles
+              .map(
+                (
+                  assignment
+                ) =>
+                  assignment.role
+              )
+              .filter(
+                Boolean
+              )
+          : [];
+      },
+      [
+        employee,
+      ]
+    );
 
   const manager =
     employee?.manager ||
@@ -690,6 +899,36 @@ export default function EmployeeDetailsPage() {
     String(
       employee?.id ||
         ""
+    );
+
+  const availableRoles =
+    roles.filter(
+      (
+        role
+      ) => {
+        if (
+          !role.is_active
+        ) {
+          return false;
+        }
+
+        /*
+         * Never offer Organisation Owner as a normal role
+         * assignment.
+         *
+         * It is shown only when editing the actual owner.
+         */
+        if (
+          role.code ===
+            "ORG_OWNER" &&
+          !employee
+            ?.is_organization_owner
+        ) {
+          return false;
+        }
+
+        return true;
+      }
     );
 
   // =======================================================
@@ -735,7 +974,9 @@ export default function EmployeeDetailsPage() {
             </strong>
 
             <p>
-              {errorMessage}
+              {
+                errorMessage
+              }
             </p>
 
             <button
@@ -858,7 +1099,9 @@ export default function EmployeeDetailsPage() {
                 </span>
 
                 <h2>
-                  {employee.full_name}
+                  {
+                    employee.full_name
+                  }
                 </h2>
 
                 <p>
@@ -918,10 +1161,8 @@ export default function EmployeeDetailsPage() {
                     className={
                       styles.secondaryButton
                     }
-                    onClick={() =>
-                      setEditMode(
-                        true
-                      )
+                    onClick={
+                      startEdit
                     }
                   >
                     Edit employee
@@ -930,7 +1171,8 @@ export default function EmployeeDetailsPage() {
 
               {canManage &&
                 !employee.is_organization_owner &&
-                employee.is_active && (
+                employee.is_active &&
+                !isCurrentEmployee && (
                   <button
                     type="button"
                     className={
@@ -952,10 +1194,48 @@ export default function EmployeeDetailsPage() {
           </section>
 
           {/* ===============================================
+              READ ONLY
+          =============================================== */}
+
+          {!canManage &&
+            !editMode && (
+              <section
+                className={
+                  styles.panel
+                }
+              >
+                <div
+                  className={
+                    styles.panelHeader
+                  }
+                >
+                  <div>
+                    <h3>
+                      Read-only access
+                    </h3>
+
+                    <p>
+                      You can review this
+                      employee because your
+                      role includes employee
+                      viewing access, but you
+                      do not have the
+                      employees.manage
+                      permission required to
+                      edit or deactivate
+                      employees.
+                    </p>
+                  </div>
+                </div>
+              </section>
+            )}
+
+          {/* ===============================================
               EDIT MODE
           =============================================== */}
 
-          {editMode ? (
+          {editMode &&
+          canManage ? (
             <section
               className={
                 styles.panel
@@ -975,7 +1255,7 @@ export default function EmployeeDetailsPage() {
                     Update profile,
                     reporting line,
                     availability and
-                    assigned access.
+                    employment information.
                   </p>
                 </div>
               </div>
@@ -988,6 +1268,10 @@ export default function EmployeeDetailsPage() {
                   saveEmployee
                 }
               >
+                {/* =========================================
+                    EMPLOYEE NUMBER
+                ========================================= */}
+
                 <FormField
                   label="Employee number"
                 >
@@ -1006,6 +1290,10 @@ export default function EmployeeDetailsPage() {
                     required
                   />
                 </FormField>
+
+                {/* =========================================
+                    FULL NAME
+                ========================================= */}
 
                 <FormField
                   label="Full name"
@@ -1026,6 +1314,10 @@ export default function EmployeeDetailsPage() {
                   />
                 </FormField>
 
+                {/* =========================================
+                    EMAIL
+                ========================================= */}
+
                 <FormField
                   label="Email"
                 >
@@ -1045,6 +1337,10 @@ export default function EmployeeDetailsPage() {
                   />
                 </FormField>
 
+                {/* =========================================
+                    PHONE
+                ========================================= */}
+
                 <FormField
                   label="Phone"
                 >
@@ -1063,6 +1359,10 @@ export default function EmployeeDetailsPage() {
                   />
                 </FormField>
 
+                {/* =========================================
+                    JOB TITLE
+                ========================================= */}
+
                 <FormField
                   label="Job title"
                 >
@@ -1080,6 +1380,10 @@ export default function EmployeeDetailsPage() {
                     }
                   />
                 </FormField>
+
+                {/* =========================================
+                    DEPARTMENT
+                ========================================= */}
 
                 <FormField
                   label="Department"
@@ -1120,12 +1424,18 @@ export default function EmployeeDetailsPage() {
                               department.id
                             }
                           >
-                            {department.name}
+                            {
+                              department.name
+                            }
                           </option>
                         )
                       )}
                   </select>
                 </FormField>
+
+                {/* =========================================
+                    MANAGER
+                ========================================= */}
 
                 <FormField
                   label="Manager"
@@ -1167,12 +1477,18 @@ export default function EmployeeDetailsPage() {
                               item.id
                             }
                           >
-                            {item.full_name}
+                            {
+                              item.full_name
+                            }
                           </option>
                         )
                       )}
                   </select>
                 </FormField>
+
+                {/* =========================================
+                    BACKUP
+                ========================================= */}
 
                 <FormField
                   label="Backup employee"
@@ -1214,12 +1530,18 @@ export default function EmployeeDetailsPage() {
                               item.id
                             }
                           >
-                            {item.full_name}
+                            {
+                              item.full_name
+                            }
                           </option>
                         )
                       )}
                   </select>
                 </FormField>
+
+                {/* =========================================
+                    EMPLOYMENT TYPE
+                ========================================= */}
 
                 <FormField
                   label="Employment type"
@@ -1236,24 +1558,40 @@ export default function EmployeeDetailsPage() {
                       saving
                     }
                   >
-                    {EMPLOYMENT_TYPES.map(
-                      (
-                        option
-                      ) => (
-                        <option
-                          key={
-                            option
-                          }
-                          value={
-                            option
-                          }
-                        >
-                          {option}
-                        </option>
+                    {EMPLOYMENT_TYPES
+                      .filter(
+                        (
+                          option
+                        ) =>
+                          option !==
+                            "Owner" ||
+                          employee
+                            .is_organization_owner
                       )
-                    )}
+                      .map(
+                        (
+                          option
+                        ) => (
+                          <option
+                            key={
+                              option
+                            }
+                            value={
+                              option
+                            }
+                          >
+                            {
+                              option
+                            }
+                          </option>
+                        )
+                      )}
                   </select>
                 </FormField>
+
+                {/* =========================================
+                    EMPLOYMENT STATUS
+                ========================================= */}
 
                 <FormField
                   label="Employment status"
@@ -1282,12 +1620,18 @@ export default function EmployeeDetailsPage() {
                             option
                           }
                         >
-                          {option}
+                          {
+                            option
+                          }
                         </option>
                       )
                     )}
                   </select>
                 </FormField>
+
+                {/* =========================================
+                    AVAILABILITY
+                ========================================= */}
 
                 <FormField
                   label="Availability"
@@ -1316,12 +1660,18 @@ export default function EmployeeDetailsPage() {
                             option
                           }
                         >
-                          {option}
+                          {
+                            option
+                          }
                         </option>
                       )
                     )}
                   </select>
                 </FormField>
+
+                {/* =========================================
+                    START DATE
+                ========================================= */}
 
                 <FormField
                   label="Start date"
@@ -1341,6 +1691,10 @@ export default function EmployeeDetailsPage() {
                   />
                 </FormField>
 
+                {/* =========================================
+                    END DATE
+                ========================================= */}
+
                 <FormField
                   label="End date"
                 >
@@ -1358,6 +1712,10 @@ export default function EmployeeDetailsPage() {
                     }
                   />
                 </FormField>
+
+                {/* =========================================
+                    TIMEZONE
+                ========================================= */}
 
                 <FormField
                   label="Timezone"
@@ -1377,6 +1735,10 @@ export default function EmployeeDetailsPage() {
                   />
                 </FormField>
 
+                {/* =========================================
+                    LOCALE
+                ========================================= */}
+
                 <FormField
                   label="Locale"
                 >
@@ -1395,32 +1757,30 @@ export default function EmployeeDetailsPage() {
                   />
                 </FormField>
 
-                <div
-                  className={
-                    styles.rolesField
-                  }
-                >
-                  <span
-                    className={
-                      styles.fieldLabel
-                    }
-                  >
-                    Assigned roles
-                  </span>
+                {/* =========================================
+                    ROLE ASSIGNMENTS
+                ========================================= */}
 
+                {canManageRoles ? (
                   <div
                     className={
-                      styles.roleOptions
+                      styles.rolesField
                     }
                   >
-                    {roles
-                      .filter(
-                        (
-                          role
-                        ) =>
-                          role.is_active
-                      )
-                      .map(
+                    <span
+                      className={
+                        styles.fieldLabel
+                      }
+                    >
+                      Assigned roles
+                    </span>
+
+                    <div
+                      className={
+                        styles.roleOptions
+                      }
+                    >
+                      {availableRoles.map(
                         (
                           role
                         ) => (
@@ -1443,59 +1803,156 @@ export default function EmployeeDetailsPage() {
                                 )
                               }
                               disabled={
-                                saving
+                                saving ||
+                                (
+                                  employee
+                                    .is_organization_owner &&
+                                  role.code ===
+                                    "ORG_OWNER"
+                                )
                               }
                             />
 
                             <span>
                               <strong>
-                                {role.name}
+                                {
+                                  role.name
+                                }
                               </strong>
 
                               <small>
-                                {role.code}
+                                {
+                                  role.code
+                                }
                               </small>
                             </span>
                           </label>
                         )
                       )}
-                  </div>
-                </div>
+                    </div>
 
-                {!employee.is_organization_owner && (
-                  <label
+                    {employee
+                      .is_organization_owner && (
+                      <small>
+                        The Organisation
+                        Owner role is protected
+                        and cannot be removed.
+                      </small>
+                    )}
+                  </div>
+                ) : (
+                  <div
                     className={
-                      styles.activeToggle
+                      styles.rolesField
                     }
                   >
-                    <input
-                      type="checkbox"
-                      name="is_active"
-                      checked={
-                        formData.is_active
+                    <span
+                      className={
+                        styles.fieldLabel
                       }
-                      onChange={
-                        handleChange
-                      }
-                      disabled={
-                        saving
-                      }
-                    />
-
-                    <span>
-                      <strong>
-                        Active employee
-                      </strong>
-
-                      <small>
-                        Controls whether
-                        this employee can
-                        remain active in
-                        the organisation.
-                      </small>
+                    >
+                      Assigned roles
                     </span>
-                  </label>
+
+                    {selectedRoles.length ===
+                    0 ? (
+                      <div
+                        className={
+                          styles.emptyRoles
+                        }
+                      >
+                        No roles assigned
+                      </div>
+                    ) : (
+                      <div
+                        className={
+                          styles.roleCards
+                        }
+                      >
+                        {selectedRoles.map(
+                          (
+                            role
+                          ) => (
+                            <div
+                              key={
+                                role.id
+                              }
+                              className={
+                                styles.roleCard
+                              }
+                            >
+                              <strong>
+                                {
+                                  role.name
+                                }
+                              </strong>
+
+                              <span>
+                                {
+                                  role.code
+                                }
+                              </span>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    )}
+
+                    <small>
+                      Your access allows
+                      employee management but
+                      does not include
+                      roles.manage, so role
+                      assignments are
+                      read-only.
+                    </small>
+                  </div>
                 )}
+
+                {/* =========================================
+                    ACTIVE
+                ========================================= */}
+
+                {!employee
+                  .is_organization_owner &&
+                  !isCurrentEmployee && (
+                    <label
+                      className={
+                        styles.activeToggle
+                      }
+                    >
+                      <input
+                        type="checkbox"
+                        name="is_active"
+                        checked={
+                          formData.is_active
+                        }
+                        onChange={
+                          handleChange
+                        }
+                        disabled={
+                          saving
+                        }
+                      />
+
+                      <span>
+                        <strong>
+                          Active employee
+                        </strong>
+
+                        <small>
+                          Controls whether
+                          this employee remains
+                          active in the
+                          organisation.
+                        </small>
+                      </span>
+                    </label>
+                  )}
+
+                {/* =========================================
+                    ACTIONS
+                ========================================= */}
 
                 <div
                   className={
@@ -1568,11 +2025,13 @@ export default function EmployeeDetailsPage() {
                 <SummaryCard
                   label="Department"
                   value={
-                    department?.name ||
+                    department
+                      ?.name ||
                     "Not assigned"
                   }
                   detail={
-                    department?.code ||
+                    department
+                      ?.code ||
                     "No department"
                   }
                 />
@@ -1595,6 +2054,10 @@ export default function EmployeeDetailsPage() {
                   styles.grid
                 }
               >
+                {/* =========================================
+                    EMPLOYEE INFORMATION
+                ========================================= */}
+
                 <section
                   className={
                     styles.panel
@@ -1656,6 +2119,10 @@ export default function EmployeeDetailsPage() {
                   </div>
                 </section>
 
+                {/* =========================================
+                    ORGANISATION
+                ========================================= */}
+
                 <section
                   className={
                     styles.panel
@@ -1674,21 +2141,24 @@ export default function EmployeeDetailsPage() {
                     <DetailRow
                       label="Department"
                       value={
-                        department?.name
+                        department
+                          ?.name
                       }
                     />
 
                     <DetailRow
                       label="Manager"
                       value={
-                        manager?.full_name
+                        manager
+                          ?.full_name
                       }
                     />
 
                     <DetailRow
                       label="Backup employee"
                       value={
-                        backupEmployee?.full_name
+                        backupEmployee
+                          ?.full_name
                       }
                     />
 
@@ -1715,6 +2185,10 @@ export default function EmployeeDetailsPage() {
                   </div>
                 </section>
 
+                {/* =========================================
+                    EMPLOYMENT DATES
+                ========================================= */}
+
                 <section
                   className={
                     styles.panel
@@ -1732,16 +2206,20 @@ export default function EmployeeDetailsPage() {
                   >
                     <DetailRow
                       label="Start date"
-                      value={formatDate(
-                        employee.start_date
-                      )}
+                      value={
+                        formatDate(
+                          employee.start_date
+                        )
+                      }
                     />
 
                     <DetailRow
                       label="End date"
-                      value={formatDate(
-                        employee.end_date
-                      )}
+                      value={
+                        formatDate(
+                          employee.end_date
+                        )
+                      }
                     />
 
                     <DetailRow
@@ -1768,6 +2246,10 @@ export default function EmployeeDetailsPage() {
                     />
                   </div>
                 </section>
+
+                {/* =========================================
+                    ROLES
+                ========================================= */}
 
                 <section
                   className={
@@ -1807,16 +2289,22 @@ export default function EmployeeDetailsPage() {
                             }
                           >
                             <strong>
-                              {role.name}
+                              {
+                                role.name
+                              }
                             </strong>
 
                             <span>
-                              {role.code}
+                              {
+                                role.code
+                              }
                             </span>
 
                             {role.description && (
                               <p>
-                                {role.description}
+                                {
+                                  role.description
+                                }
                               </p>
                             )}
                           </div>
@@ -1835,7 +2323,7 @@ export default function EmployeeDetailsPage() {
 }
 
 // =========================================================
-// COMPONENTS
+// PANEL HEADER
 // =========================================================
 
 function PanelHeader({
@@ -1859,6 +2347,10 @@ function PanelHeader({
   );
 }
 
+// =========================================================
+// DETAIL ROW
+// =========================================================
+
 function DetailRow({
   label,
   value,
@@ -1880,6 +2372,10 @@ function DetailRow({
     </div>
   );
 }
+
+// =========================================================
+// SUMMARY CARD
+// =========================================================
 
 function SummaryCard({
   label,
@@ -1907,6 +2403,10 @@ function SummaryCard({
   );
 }
 
+// =========================================================
+// FORM FIELD
+// =========================================================
+
 function FormField({
   label,
   children,
@@ -1930,12 +2430,17 @@ function FormField({
   );
 }
 
+// =========================================================
+// STATUS BADGE
+// =========================================================
+
 function StatusBadge({
   value,
 }) {
   const normalized =
     String(
-      value || ""
+      value ||
+        ""
     )
       .trim()
       .toLowerCase();
@@ -1994,6 +2499,10 @@ function StatusBadge({
   );
 }
 
+// =========================================================
+// LOADING
+// =========================================================
+
 function LoadingState() {
   return (
     <section
@@ -2023,7 +2532,7 @@ function LoadingState() {
 }
 
 // =========================================================
-// HELPERS
+// INITIALS
 // =========================================================
 
 function getInitials(
@@ -2034,8 +2543,12 @@ function getInitials(
       value
     )
       .trim()
-      .split(/\s+/)
-      .filter(Boolean);
+      .split(
+        /\s+/
+      )
+      .filter(
+        Boolean
+      );
 
   if (
     words.length ===
@@ -2058,10 +2571,15 @@ function getInitials(
 
   return `${words[0][0]}${
     words[
-      words.length - 1
+      words.length -
+        1
     ][0]
   }`.toUpperCase();
 }
+
+// =========================================================
+// DATE
+// =========================================================
 
 function formatDate(
   value
@@ -2076,7 +2594,9 @@ function formatDate(
     new Date(
       `${String(
         value
-      ).split("T")[0]}T12:00:00`
+      ).split(
+        "T"
+      )[0]}T12:00:00`
     );
 
   if (
