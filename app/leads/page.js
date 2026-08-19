@@ -1,11 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import Link from "next/link";
+
 import AppLayout from "../../components/layout/AppLayout";
 import StatusBadge from "../../components/StatusBadge";
 import ProtectedRoute from "../../components/ProtectedRoute";
+
 import styles from "./leads.module.css";
+
+// =========================================================
+// INITIAL FORM
+// =========================================================
 
 const INITIAL_FORM_DATA = {
   name: "",
@@ -14,6 +25,7 @@ const INITIAL_FORM_DATA = {
   phone: "",
   status: "New",
   value: "",
+  owner_employee_id: "",
 };
 
 const STATUS_OPTIONS = [
@@ -25,40 +37,118 @@ const STATUS_OPTIONS = [
   "Lost",
 ];
 
+// =========================================================
+// PAGE
+// =========================================================
+
 export default function Leads() {
-  const [showForm, setShowForm] = useState(false);
-  const [leads, setLeads] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [
+    showForm,
+    setShowForm,
+  ] = useState(false);
 
-  const [searchValue, setSearchValue] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
+  const [
+    leads,
+    setLeads,
+  ] = useState([]);
 
-  const [formData, setFormData] = useState(
+  const [
+    employees,
+    setEmployees,
+  ] = useState([]);
+
+  const [
+    currentEmployee,
+    setCurrentEmployee,
+  ] = useState(null);
+
+  const [
+    access,
+    setAccess,
+  ] = useState({
+    isOwner: false,
+    permissions: [],
+    roles: [],
+    canViewAll: false,
+    canViewTeam: false,
+    canViewOwn: false,
+    canCreate: false,
+    canEdit: false,
+    canDelete: false,
+    canAssign: false,
+  });
+
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
+
+  const [
+    saving,
+    setSaving,
+  ] = useState(false);
+
+  const [
+    errorMessage,
+    setErrorMessage,
+  ] = useState("");
+
+  const [
+    searchValue,
+    setSearchValue,
+  ] = useState("");
+
+  const [
+    statusFilter,
+    setStatusFilter,
+  ] = useState("All");
+
+  const [
+    formData,
+    setFormData,
+  ] = useState(
     INITIAL_FORM_DATA
   );
+
+  // =======================================================
+  // LOAD
+  // =======================================================
 
   useEffect(() => {
     fetchLeads();
   }, []);
 
+  // =======================================================
+  // CREATE PARAMETER
+  // =======================================================
+
   useEffect(() => {
     try {
-      const searchParams = new URLSearchParams(
-        window.location.search
-      );
+      const searchParams =
+        new URLSearchParams(
+          window.location.search
+        );
 
-      if (searchParams.get("create") === "true") {
-        setShowForm(true);
-
+      if (
+        searchParams.get(
+          "create"
+        ) === "true"
+      ) {
+        /*
+         * Do not open immediately.
+         *
+         * We first need to load permissions from
+         * /api/leads.
+         */
         window.history.replaceState(
           {},
           "",
           window.location.pathname
         );
       }
-    } catch (error) {
+    } catch (
+      error
+    ) {
       console.error(
         "Unable to read lead page parameters:",
         error
@@ -68,170 +158,542 @@ export default function Leads() {
 
   async function fetchLeads() {
     try {
-      setLoading(true);
-      setErrorMessage("");
+      setLoading(
+        true
+      );
 
-      const response = await fetch("/api/leads", {
-        cache: "no-store",
-      });
+      setErrorMessage(
+        ""
+      );
 
-      const data = await response.json();
+      const response =
+        await fetch(
+          "/api/leads",
+          {
+            cache:
+              "no-store",
+          }
+        );
 
-      if (!response.ok) {
+      const data =
+        await response.json();
+
+      if (
+        !response.ok
+      ) {
         throw new Error(
-          data.error || "Failed to load leads."
+          data.error ||
+            "Failed to load leads."
         );
       }
 
-      setLeads(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error("Lead loading error:", error);
+      setLeads(
+        Array.isArray(
+          data.leads
+        )
+          ? data.leads
+          : []
+      );
+
+      setEmployees(
+        Array.isArray(
+          data.employees
+        )
+          ? data.employees
+          : []
+      );
+
+      setCurrentEmployee(
+        data.currentEmployee ||
+          null
+      );
+
+      const nextAccess = {
+        isOwner:
+          Boolean(
+            data.access
+              ?.isOwner
+          ),
+
+        permissions:
+          Array.isArray(
+            data.access
+              ?.permissions
+          )
+            ? data.access
+                .permissions
+            : [],
+
+        roles:
+          Array.isArray(
+            data.access
+              ?.roles
+          )
+            ? data.access
+                .roles
+            : [],
+
+        canViewAll:
+          Boolean(
+            data.access
+              ?.canViewAll
+          ),
+
+        canViewTeam:
+          Boolean(
+            data.access
+              ?.canViewTeam
+          ),
+
+        canViewOwn:
+          Boolean(
+            data.access
+              ?.canViewOwn
+          ),
+
+        canCreate:
+          Boolean(
+            data.access
+              ?.canCreate
+          ),
+
+        canEdit:
+          Boolean(
+            data.access
+              ?.canEdit
+          ),
+
+        canDelete:
+          Boolean(
+            data.access
+              ?.canDelete
+          ),
+
+        canAssign:
+          Boolean(
+            data.access
+              ?.canAssign
+          ),
+      };
+
+      setAccess(
+        nextAccess
+      );
+
+      // ===================================================
+      // OPEN CREATE FORM FROM ?create=true
+      // ===================================================
+
+      try {
+        const originalParams =
+          new URLSearchParams(
+            window.location.search
+          );
+
+        if (
+          originalParams.get(
+            "create"
+          ) === "true" &&
+          nextAccess.canCreate
+        ) {
+          setShowForm(
+            true
+          );
+        }
+      } catch (
+        error
+      ) {
+        console.error(
+          "Unable to process lead create parameter:",
+          error
+        );
+      }
+    } catch (
+      error
+    ) {
+      console.error(
+        "Lead loading error:",
+        error
+      );
 
       setErrorMessage(
         error.message ||
           "We could not load the leads."
       );
+
+      setLeads(
+        []
+      );
     } finally {
-      setLoading(false);
+      setLoading(
+        false
+      );
     }
   }
 
-  function handleChange(event) {
-    const { name, value } = event.target;
+  // =======================================================
+  // FORM
+  // =======================================================
 
-    setFormData((currentData) => ({
-      ...currentData,
-      [name]: value,
-    }));
+  function handleChange(
+    event
+  ) {
+    const {
+      name,
+      value,
+    } =
+      event.target;
+
+    setFormData(
+      (
+        currentData
+      ) => ({
+        ...currentData,
+
+        [name]:
+          value,
+      })
+    );
   }
 
   function openCreateForm() {
-    setFormData(INITIAL_FORM_DATA);
-    setShowForm(true);
+    if (
+      !canCreate
+    ) {
+      return;
+    }
+
+    setFormData({
+      ...INITIAL_FORM_DATA,
+
+      owner_employee_id:
+        canAssign
+          ? currentEmployee
+              ?.id ||
+            ""
+          : "",
+    });
+
+    setShowForm(
+      true
+    );
+
+    window.scrollTo({
+      top: 0,
+      behavior:
+        "smooth",
+    });
   }
 
   function closeCreateForm() {
-    setFormData(INITIAL_FORM_DATA);
-    setShowForm(false);
+    setFormData(
+      INITIAL_FORM_DATA
+    );
+
+    setShowForm(
+      false
+    );
   }
 
-  async function handleSubmit(event) {
+  // =======================================================
+  // CREATE LEAD
+  // =======================================================
+
+  async function handleSubmit(
+    event
+  ) {
     event.preventDefault();
 
-    const cleanName = formData.name.trim();
-    const cleanCompany = formData.company.trim();
+    if (
+      !canCreate
+    ) {
+      alert(
+        "You do not have permission to create leads."
+      );
 
-    if (!cleanName || !cleanCompany) {
-      alert("Please enter lead name and company.");
+      return;
+    }
+
+    const cleanName =
+      formData.name.trim();
+
+    const cleanCompany =
+      formData.company.trim();
+
+    if (
+      !cleanName ||
+      !cleanCompany
+    ) {
+      alert(
+        "Please enter lead name and company."
+      );
+
       return;
     }
 
     try {
-      setSaving(true);
+      setSaving(
+        true
+      );
 
-      const response = await fetch("/api/leads", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ...formData,
-          name: cleanName,
-          company: cleanCompany,
-          email: formData.email.trim(),
-          phone: formData.phone.trim(),
-          value: formData.value.trim(),
-        }),
-      });
+      const payload = {
+        name:
+          cleanName,
 
-      const data = await response.json();
+        company:
+          cleanCompany,
 
-      if (!response.ok) {
+        email:
+          formData.email.trim(),
+
+        phone:
+          formData.phone.trim(),
+
+        status:
+          formData.status,
+
+        value:
+          formData.value.trim(),
+      };
+
+      /*
+       * Only submit another owner when the current user
+       * has leads.assign.
+       *
+       * Otherwise the API automatically assigns the
+       * creator as owner.
+       */
+      if (
+        canAssign &&
+        formData.owner_employee_id
+      ) {
+        payload.owner_employee_id =
+          formData.owner_employee_id;
+      }
+
+      const response =
+        await fetch(
+          "/api/leads",
+          {
+            method:
+              "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify(
+                payload
+              ),
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (
+        !response.ok
+      ) {
         throw new Error(
-          data.error || "Failed to save lead."
+          data.error ||
+            "Failed to save lead."
         );
       }
 
-      const createdLead = Array.isArray(data)
-        ? data[0]
-        : data;
+      const createdLead =
+        data.lead ||
+        null;
 
-      if (createdLead) {
-        setLeads((currentLeads) => [
-          createdLead,
-          ...currentLeads,
-        ]);
+      if (
+        createdLead
+      ) {
+        setLeads(
+          (
+            currentLeads
+          ) => [
+            createdLead,
+            ...currentLeads,
+          ]
+        );
       } else {
         await fetchLeads();
       }
 
       closeCreateForm();
-    } catch (error) {
-      console.error("Lead creation error:", error);
 
       alert(
-        error.message || "Error saving lead."
+        data.message ||
+          "Lead created successfully."
+      );
+    } catch (
+      error
+    ) {
+      console.error(
+        "Lead creation error:",
+        error
+      );
+
+      alert(
+        error.message ||
+          "Error saving lead."
       );
     } finally {
-      setSaving(false);
+      setSaving(
+        false
+      );
     }
   }
 
-  const filteredLeads = useMemo(() => {
-    const normalisedSearchValue = searchValue
-      .trim()
-      .toLowerCase();
+  // =======================================================
+  // FILTERS
+  // =======================================================
 
-    return leads.filter((lead) => {
-      const matchesSearch =
-        !normalisedSearchValue ||
-        [
-          lead.name,
-          lead.company,
-          lead.status,
-          lead.source,
-          lead.ai_score,
-        ].some((value) =>
-          String(value || "")
-            .toLowerCase()
-            .includes(normalisedSearchValue)
+  const filteredLeads =
+    useMemo(
+      () => {
+        const normalisedSearchValue =
+          searchValue
+            .trim()
+            .toLowerCase();
+
+        return leads.filter(
+          (
+            lead
+          ) => {
+            const matchesSearch =
+              !normalisedSearchValue ||
+              [
+                lead.name,
+                lead.company,
+                lead.status,
+                lead.source,
+                lead.ai_score,
+                lead.owner
+                  ?.full_name,
+              ].some(
+                (
+                  value
+                ) =>
+                  String(
+                    value ||
+                      ""
+                  )
+                    .toLowerCase()
+                    .includes(
+                      normalisedSearchValue
+                    )
+              );
+
+            const matchesStatus =
+              statusFilter ===
+                "All" ||
+              String(
+                lead.status ||
+                  ""
+              )
+                .trim()
+                .toLowerCase() ===
+                statusFilter.toLowerCase();
+
+            return (
+              matchesSearch &&
+              matchesStatus
+            );
+          }
         );
+      },
+      [
+        leads,
+        searchValue,
+        statusFilter,
+      ]
+    );
 
-      const matchesStatus =
-        statusFilter === "All" ||
-        String(lead.status || "")
+  // =======================================================
+  // SUMMARY
+  // =======================================================
+
+  const hotLeads =
+    leads.filter(
+      (
+        lead
+      ) =>
+        String(
+          lead.ai_score ||
+            ""
+        )
+          .toLowerCase()
+          .includes(
+            "hot"
+          )
+    ).length;
+
+  const wonLeads =
+    leads.filter(
+      (
+        lead
+      ) =>
+        String(
+          lead.status ||
+            ""
+        )
           .trim()
           .toLowerCase() ===
-          statusFilter.toLowerCase();
+        "won"
+    ).length;
 
-      return matchesSearch && matchesStatus;
-    });
-  }, [leads, searchValue, statusFilter]);
-
-  const hotLeads = leads.filter((lead) =>
-    String(lead.ai_score || "")
-      .toLowerCase()
-      .includes("hot")
-  ).length;
-
-  const wonLeads = leads.filter(
-    (lead) =>
-      String(lead.status || "")
-        .trim()
-        .toLowerCase() === "won"
-  ).length;
-
-  const newLeads = leads.filter(
-    (lead) =>
-      String(lead.status || "")
-        .trim()
-        .toLowerCase() === "new"
-  ).length;
+  const newLeads =
+    leads.filter(
+      (
+        lead
+      ) =>
+        String(
+          lead.status ||
+            ""
+        )
+          .trim()
+          .toLowerCase() ===
+        "new"
+    ).length;
 
   function clearFilters() {
-    setSearchValue("");
-    setStatusFilter("All");
+    setSearchValue(
+      ""
+    );
+
+    setStatusFilter(
+      "All"
+    );
   }
+
+  // =======================================================
+  // ACCESS
+  // =======================================================
+
+  const canCreate =
+    Boolean(
+      access.canCreate
+    );
+
+  const canAssign =
+    Boolean(
+      access.canAssign
+    );
+
+  const visibilityLabel =
+    access.canViewAll
+      ? "All organisation leads"
+      : access.canViewTeam
+        ? "Team leads"
+        : access.canViewOwn
+          ? "My leads"
+          : "Lead access";
+
+  // =======================================================
+  // PAGE
+  // =======================================================
 
   return (
     <ProtectedRoute>
@@ -239,243 +701,539 @@ export default function Leads() {
         title="Leads"
         description="Manage enquiries, opportunities and AI-qualified leads."
       >
-        <div className={styles.page}>
-          <section className={styles.pageHeader}>
-            <div className={styles.pageHeaderCopy}>
-              <span className={styles.eyebrow}>
+        <div
+          className={
+            styles.page
+          }
+        >
+          {/* =================================================
+              HEADER
+          ================================================= */}
+
+          <section
+            className={
+              styles.pageHeader
+            }
+          >
+            <div
+              className={
+                styles.pageHeaderCopy
+              }
+            >
+              <span
+                className={
+                  styles.eyebrow
+                }
+              >
                 CRM workspace
               </span>
 
-              <h2>Lead pipeline</h2>
+              <h2>
+                Lead pipeline
+              </h2>
 
               <p>
-                Review lead progress and open an individual
-                record to view contact details, estimated
-                value and AI recommendations.
+                Review lead progress and
+                open an individual record
+                to view contact details,
+                estimated value and AI
+                recommendations.
               </p>
             </div>
 
-            <button
-              type="button"
-              className={styles.primaryButton}
-              onClick={
-                showForm
-                  ? closeCreateForm
-                  : openCreateForm
-              }
-            >
-              <span>{showForm ? "×" : "+"}</span>
+            {canCreate && (
+              <button
+                type="button"
+                className={
+                  styles.primaryButton
+                }
+                onClick={
+                  showForm
+                    ? closeCreateForm
+                    : openCreateForm
+                }
+              >
+                <span>
+                  {showForm
+                    ? "×"
+                    : "+"}
+                </span>
 
-              {showForm ? "Close form" : "Add lead"}
-            </button>
+                {showForm
+                  ? "Close form"
+                  : "Add lead"}
+              </button>
+            )}
           </section>
 
-          {showForm && (
-            <section className={styles.formPanel}>
-              <div className={styles.formHeading}>
+          {/* =================================================
+              CREATE FORM
+          ================================================= */}
+
+          {showForm &&
+            canCreate && (
+              <section
+                className={
+                  styles.formPanel
+                }
+              >
+                <div
+                  className={
+                    styles.formHeading
+                  }
+                >
+                  <div>
+                    <h3>
+                      Create a new lead
+                    </h3>
+
+                    <p>
+                      Contact and commercial
+                      information will only
+                      appear inside the lead
+                      record.
+                    </p>
+                  </div>
+                </div>
+
+                <form
+                  className={
+                    styles.leadForm
+                  }
+                  onSubmit={
+                    handleSubmit
+                  }
+                >
+                  <div
+                    className={
+                      styles.formGrid
+                    }
+                  >
+                    <div
+                      className={
+                        styles.field
+                      }
+                    >
+                      <label
+                        htmlFor="lead-name"
+                      >
+                        Lead name *
+                      </label>
+
+                      <input
+                        id="lead-name"
+                        name="name"
+                        placeholder="Example: James Smith"
+                        value={
+                          formData.name
+                        }
+                        onChange={
+                          handleChange
+                        }
+                        required
+                      />
+                    </div>
+
+                    <div
+                      className={
+                        styles.field
+                      }
+                    >
+                      <label
+                        htmlFor="lead-company"
+                      >
+                        Company *
+                      </label>
+
+                      <input
+                        id="lead-company"
+                        name="company"
+                        placeholder="Example: NorthStar Logistics"
+                        value={
+                          formData.company
+                        }
+                        onChange={
+                          handleChange
+                        }
+                        required
+                      />
+                    </div>
+
+                    <div
+                      className={
+                        styles.field
+                      }
+                    >
+                      <label
+                        htmlFor="lead-email"
+                      >
+                        Email
+                      </label>
+
+                      <input
+                        id="lead-email"
+                        name="email"
+                        type="email"
+                        placeholder="name@company.com"
+                        value={
+                          formData.email
+                        }
+                        onChange={
+                          handleChange
+                        }
+                      />
+                    </div>
+
+                    <div
+                      className={
+                        styles.field
+                      }
+                    >
+                      <label
+                        htmlFor="lead-phone"
+                      >
+                        Phone
+                      </label>
+
+                      <input
+                        id="lead-phone"
+                        name="phone"
+                        type="tel"
+                        placeholder="Telephone number"
+                        value={
+                          formData.phone
+                        }
+                        onChange={
+                          handleChange
+                        }
+                      />
+                    </div>
+
+                    <div
+                      className={
+                        styles.field
+                      }
+                    >
+                      <label
+                        htmlFor="lead-status"
+                      >
+                        Status
+                      </label>
+
+                      <select
+                        id="lead-status"
+                        name="status"
+                        value={
+                          formData.status
+                        }
+                        onChange={
+                          handleChange
+                        }
+                      >
+                        {STATUS_OPTIONS.map(
+                          (
+                            status
+                          ) => (
+                            <option
+                              key={
+                                status
+                              }
+                              value={
+                                status
+                              }
+                            >
+                              {
+                                status
+                              }
+                            </option>
+                          )
+                        )}
+                      </select>
+                    </div>
+
+                    <div
+                      className={
+                        styles.field
+                      }
+                    >
+                      <label
+                        htmlFor="lead-value"
+                      >
+                        Estimated value
+                      </label>
+
+                      <input
+                        id="lead-value"
+                        name="value"
+                        placeholder="Example: £2,500"
+                        value={
+                          formData.value
+                        }
+                        onChange={
+                          handleChange
+                        }
+                      />
+                    </div>
+
+                    {/* =======================================
+                        OWNER
+                    ======================================= */}
+
+                    {canAssign && (
+                      <div
+                        className={
+                          styles.field
+                        }
+                      >
+                        <label
+                          htmlFor="lead-owner"
+                        >
+                          Lead owner
+                        </label>
+
+                        <select
+                          id="lead-owner"
+                          name="owner_employee_id"
+                          value={
+                            formData.owner_employee_id
+                          }
+                          onChange={
+                            handleChange
+                          }
+                        >
+                          <option value="">
+                            Assign to me
+                          </option>
+
+                          {employees.map(
+                            (
+                              employee
+                            ) => (
+                              <option
+                                key={
+                                  employee.id
+                                }
+                                value={
+                                  employee.id
+                                }
+                              >
+                                {
+                                  employee.full_name
+                                }
+
+                                {employee.job_title
+                                  ? ` — ${employee.job_title}`
+                                  : ""}
+                              </option>
+                            )
+                          )}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+
+                  <div
+                    className={
+                      styles.formActions
+                    }
+                  >
+                    <button
+                      type="button"
+                      className={
+                        styles.secondaryButton
+                      }
+                      onClick={
+                        closeCreateForm
+                      }
+                      disabled={
+                        saving
+                      }
+                    >
+                      Cancel
+                    </button>
+
+                    <button
+                      className={
+                        styles.primaryButton
+                      }
+                      type="submit"
+                      disabled={
+                        saving
+                      }
+                    >
+                      {saving
+                        ? "Saving lead..."
+                        : "Save lead"}
+                    </button>
+                  </div>
+                </form>
+              </section>
+            )}
+
+          {/* =================================================
+              ACCESS SUMMARY
+          ================================================= */}
+
+          {!loading &&
+            !errorMessage && (
+              <section
+                className={
+                  styles.toolbarPanel
+                }
+              >
                 <div>
-                  <h3>Create a new lead</h3>
+                  <strong>
+                    {visibilityLabel}
+                  </strong>
+
                   <p>
-                    Contact and commercial information will
-                    only appear inside the lead record.
+                    {access.canViewAll
+                      ? "You can view all lead records in your organisation."
+                      : access.canViewTeam
+                        ? "You can view leads owned by employees in your department."
+                        : "You can view leads assigned to you."}
                   </p>
                 </div>
-              </div>
+              </section>
+            )}
 
-              <form
-                className={styles.leadForm}
-                onSubmit={handleSubmit}
-              >
-                <div className={styles.formGrid}>
-                  <div className={styles.field}>
-                    <label htmlFor="lead-name">
-                      Lead name *
-                    </label>
+          {/* =================================================
+              SUMMARY
+          ================================================= */}
 
-                    <input
-                      id="lead-name"
-                      name="name"
-                      placeholder="Example: James Smith"
-                      value={formData.name}
-                      onChange={handleChange}
-                      required
-                    />
-                  </div>
-
-                  <div className={styles.field}>
-                    <label htmlFor="lead-company">
-                      Company *
-                    </label>
-
-                    <input
-                      id="lead-company"
-                      name="company"
-                      placeholder="Example: NorthStar Logistics"
-                      value={formData.company}
-                      onChange={handleChange}
-                      required
-                    />
-                  </div>
-
-                  <div className={styles.field}>
-                    <label htmlFor="lead-email">
-                      Email
-                    </label>
-
-                    <input
-                      id="lead-email"
-                      name="email"
-                      type="email"
-                      placeholder="name@company.com"
-                      value={formData.email}
-                      onChange={handleChange}
-                    />
-                  </div>
-
-                  <div className={styles.field}>
-                    <label htmlFor="lead-phone">
-                      Phone
-                    </label>
-
-                    <input
-                      id="lead-phone"
-                      name="phone"
-                      type="tel"
-                      placeholder="Telephone number"
-                      value={formData.phone}
-                      onChange={handleChange}
-                    />
-                  </div>
-
-                  <div className={styles.field}>
-                    <label htmlFor="lead-status">
-                      Status
-                    </label>
-
-                    <select
-                      id="lead-status"
-                      name="status"
-                      value={formData.status}
-                      onChange={handleChange}
-                    >
-                      {STATUS_OPTIONS.map((status) => (
-                        <option
-                          key={status}
-                          value={status}
-                        >
-                          {status}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className={styles.field}>
-                    <label htmlFor="lead-value">
-                      Estimated value
-                    </label>
-
-                    <input
-                      id="lead-value"
-                      name="value"
-                      placeholder="Example: £2,500"
-                      value={formData.value}
-                      onChange={handleChange}
-                    />
-                  </div>
-                </div>
-
-                <div className={styles.formActions}>
-                  <button
-                    type="button"
-                    className={styles.secondaryButton}
-                    onClick={closeCreateForm}
-                    disabled={saving}
-                  >
-                    Cancel
-                  </button>
-
-                  <button
-                    className={styles.primaryButton}
-                    type="submit"
-                    disabled={saving}
-                  >
-                    {saving
-                      ? "Saving lead..."
-                      : "Save lead"}
-                  </button>
-                </div>
-              </form>
-            </section>
-          )}
-
-          <section className={styles.summaryRow}>
+          <section
+            className={
+              styles.summaryRow
+            }
+          >
             <SummaryCard
               label="Total leads"
-              value={leads.length}
-              detail="All current lead records"
+              value={
+                leads.length
+              }
+              detail={
+                visibilityLabel
+              }
             />
 
             <SummaryCard
               label="New"
-              value={newLeads}
+              value={
+                newLeads
+              }
               detail="Waiting for initial engagement"
             />
 
             <SummaryCard
               label="AI hot leads"
-              value={hotLeads}
+              value={
+                hotLeads
+              }
               detail="High-priority opportunities"
             />
 
             <SummaryCard
               label="Won"
-              value={wonLeads}
+              value={
+                wonLeads
+              }
               detail="Successfully converted"
             />
           </section>
 
-          <section className={styles.toolbarPanel}>
-            <label className={styles.searchBox}>
-              <span aria-hidden="true">⌕</span>
+          {/* =================================================
+              FILTERS
+          ================================================= */}
+
+          <section
+            className={
+              styles.toolbarPanel
+            }
+          >
+            <label
+              className={
+                styles.searchBox
+              }
+            >
+              <span
+                aria-hidden="true"
+              >
+                ⌕
+              </span>
 
               <input
                 type="search"
-                placeholder="Search by name, company, source or AI score..."
-                value={searchValue}
-                onChange={(event) =>
-                  setSearchValue(event.target.value)
+                placeholder="Search by name, company, owner, source or AI score..."
+                value={
+                  searchValue
+                }
+                onChange={(
+                  event
+                ) =>
+                  setSearchValue(
+                    event.target.value
+                  )
                 }
                 aria-label="Search leads"
               />
             </label>
 
-            <div className={styles.filters}>
+            <div
+              className={
+                styles.filters
+              }
+            >
               <select
-                className={styles.filterSelect}
-                value={statusFilter}
-                onChange={(event) =>
-                  setStatusFilter(event.target.value)
+                className={
+                  styles.filterSelect
+                }
+                value={
+                  statusFilter
+                }
+                onChange={(
+                  event
+                ) =>
+                  setStatusFilter(
+                    event.target.value
+                  )
                 }
                 aria-label="Filter leads by status"
               >
-                <option value="All">All statuses</option>
+                <option value="All">
+                  All statuses
+                </option>
 
-                {STATUS_OPTIONS.map((status) => (
-                  <option
-                    key={status}
-                    value={status}
-                  >
-                    {status}
-                  </option>
-                ))}
+                {STATUS_OPTIONS.map(
+                  (
+                    status
+                  ) => (
+                    <option
+                      key={
+                        status
+                      }
+                      value={
+                        status
+                      }
+                    >
+                      {
+                        status
+                      }
+                    </option>
+                  )
+                )}
               </select>
 
               {(searchValue ||
-                statusFilter !== "All") && (
+                statusFilter !==
+                  "All") && (
                 <button
                   type="button"
-                  className={styles.clearButton}
-                  onClick={clearFilters}
+                  className={
+                    styles.clearButton
+                  }
+                  onClick={
+                    clearFilters
+                  }
                 >
                   Clear filters
                 </button>
@@ -483,171 +1241,281 @@ export default function Leads() {
             </div>
           </section>
 
+          {/* =================================================
+              CONTENT
+          ================================================= */}
+
           {loading ? (
             <LoadingState />
           ) : errorMessage ? (
-            <section className={styles.errorPanel}>
+            <section
+              className={
+                styles.errorPanel
+              }
+            >
               <div>
-                <strong>Unable to load leads</strong>
-                <p>{errorMessage}</p>
+                <strong>
+                  Unable to load leads
+                </strong>
+
+                <p>
+                  {
+                    errorMessage
+                  }
+                </p>
               </div>
 
               <button
                 type="button"
-                className={styles.secondaryButton}
-                onClick={fetchLeads}
+                className={
+                  styles.secondaryButton
+                }
+                onClick={
+                  fetchLeads
+                }
               >
                 Try again
               </button>
             </section>
           ) : (
-            <section className={styles.tablePanel}>
-              <div className={styles.tableHeading}>
+            <section
+              className={
+                styles.tablePanel
+              }
+            >
+              <div
+                className={
+                  styles.tableHeading
+                }
+              >
                 <div>
-                  <h3>Lead records</h3>
+                  <h3>
+                    Lead records
+                  </h3>
 
                   <p>
-                    Sensitive information is available only
-                    inside each lead record.
+                    Sensitive information
+                    is available only inside
+                    each lead record.
                   </p>
                 </div>
 
-                <span className={styles.resultCount}>
-                  {filteredLeads.length} result
-                  {filteredLeads.length === 1 ? "" : "s"}
+                <span
+                  className={
+                    styles.resultCount
+                  }
+                >
+                  {
+                    filteredLeads.length
+                  }{" "}
+                  result
+                  {filteredLeads.length ===
+                  1
+                    ? ""
+                    : "s"}
                 </span>
               </div>
 
-              {filteredLeads.length === 0 ? (
+              {filteredLeads.length ===
+              0 ? (
                 <EmptyState
                   hasFilters={
-                    Boolean(searchValue) ||
-                    statusFilter !== "All"
+                    Boolean(
+                      searchValue
+                    ) ||
+                    statusFilter !==
+                      "All"
                   }
-                  onClearFilters={clearFilters}
-                  onAddLead={openCreateForm}
+                  onClearFilters={
+                    clearFilters
+                  }
+                  onAddLead={
+                    openCreateForm
+                  }
+                  canCreate={
+                    canCreate
+                  }
                 />
               ) : (
-                <div className={styles.tableWrapper}>
-                  <table className={styles.leadTable}>
+                <div
+                  className={
+                    styles.tableWrapper
+                  }
+                >
+                  <table
+                    className={
+                      styles.leadTable
+                    }
+                  >
                     <thead>
                       <tr>
-                        <th>Lead</th>
-                        <th>Company</th>
-                        <th>Status</th>
-                        <th>Source</th>
-                        <th>AI score</th>
-                        <th>Created</th>
-                        <th aria-label="Actions" />
+                        <th>
+                          Lead
+                        </th>
+
+                        <th>
+                          Company
+                        </th>
+
+                        <th>
+                          Owner
+                        </th>
+
+                        <th>
+                          Status
+                        </th>
+
+                        <th>
+                          Source
+                        </th>
+
+                        <th>
+                          AI score
+                        </th>
+
+                        <th>
+                          Created
+                        </th>
+
+                        <th
+                          aria-label="Actions"
+                        />
                       </tr>
                     </thead>
 
                     <tbody>
-                      {filteredLeads.map((lead) => (
-                        <tr key={lead.id}>
-                          <td>
-                            <div
-                              className={
-                                styles.leadIdentity
-                              }
-                            >
-                              <span
-                                className={
-                                  styles.leadAvatar
-                                }
-                              >
-                                {getInitials(
-                                  lead.name
-                                )}
-                              </span>
-
+                      {filteredLeads.map(
+                        (
+                          lead
+                        ) => (
+                          <tr
+                            key={
+                              lead.id
+                            }
+                          >
+                            <td>
                               <div
                                 className={
-                                  styles.leadIdentityCopy
+                                  styles.leadIdentity
                                 }
                               >
-                                <Link
-                                  href={`/leads/${lead.id}`}
+                                <span
                                   className={
-                                    styles.leadLink
+                                    styles.leadAvatar
                                   }
                                 >
-                                  {lead.name ||
-                                    "Unnamed lead"}
-                                </Link>
+                                  {getInitials(
+                                    lead.name
+                                  )}
+                                </span>
 
-                                <small>
-                                  Open to view full
-                                  details
-                                </small>
+                                <div
+                                  className={
+                                    styles.leadIdentityCopy
+                                  }
+                                >
+                                  <Link
+                                    href={`/leads/${lead.id}`}
+                                    className={
+                                      styles.leadLink
+                                    }
+                                  >
+                                    {lead.name ||
+                                      "Unnamed lead"}
+                                  </Link>
+
+                                  <small>
+                                    Open to view
+                                    full details
+                                  </small>
+                                </div>
                               </div>
-                            </div>
-                          </td>
+                            </td>
 
-                          <td>
-                            <span
-                              className={
-                                styles.companyName
-                              }
-                            >
-                              {lead.company ||
-                                "No company"}
-                            </span>
-                          </td>
+                            <td>
+                              <span
+                                className={
+                                  styles.companyName
+                                }
+                              >
+                                {lead.company ||
+                                  "No company"}
+                              </span>
+                            </td>
 
-                          <td>
-                            <StatusBadge
-                              status={
-                                lead.status || "New"
-                              }
-                            />
-                          </td>
+                            <td>
+                              <span
+                                className={
+                                  styles.companyName
+                                }
+                              >
+                                {lead.owner
+                                  ?.full_name ||
+                                  "Unassigned"}
+                              </span>
+                            </td>
 
-                          <td>
-                            <span
-                              className={
-                                styles.sourceBadge
-                              }
-                            >
-                              {lead.source || "Manual"}
-                            </span>
-                          </td>
+                            <td>
+                              <StatusBadge
+                                status={
+                                  lead.status ||
+                                  "New"
+                                }
+                              />
+                            </td>
 
-                          <td>
-                            <AiScoreBadge
-                              score={lead.ai_score}
-                            />
-                          </td>
+                            <td>
+                              <span
+                                className={
+                                  styles.sourceBadge
+                                }
+                              >
+                                {lead.source ||
+                                  "Manual"}
+                              </span>
+                            </td>
 
-                          <td>
-                            <span
-                              className={
-                                styles.createdDate
-                              }
-                            >
-                              {formatDate(
-                                lead.created_at
-                              )}
-                            </span>
-                          </td>
+                            <td>
+                              <AiScoreBadge
+                                score={
+                                  lead.ai_score
+                                }
+                              />
+                            </td>
 
-                          <td>
-                            <Link
-                              href={`/leads/${lead.id}`}
-                              className={
-                                styles.openButton
-                              }
-                              aria-label={`Open ${
-                                lead.name ||
-                                "lead"
-                              }`}
-                            >
-                              Open
-                              <span>→</span>
-                            </Link>
-                          </td>
-                        </tr>
-                      ))}
+                            <td>
+                              <span
+                                className={
+                                  styles.createdDate
+                                }
+                              >
+                                {formatDate(
+                                  lead.created_at
+                                )}
+                              </span>
+                            </td>
+
+                            <td>
+                              <Link
+                                href={`/leads/${lead.id}`}
+                                className={
+                                  styles.openButton
+                                }
+                                aria-label={`Open ${
+                                  lead.name ||
+                                  "lead"
+                                }`}
+                              >
+                                Open
+
+                                <span>
+                                  →
+                                </span>
+                              </Link>
+                            </td>
+                          </tr>
+                        )
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -660,57 +1528,140 @@ export default function Leads() {
   );
 }
 
-function SummaryCard({ label, value, detail }) {
+// =========================================================
+// SUMMARY CARD
+// =========================================================
+
+function SummaryCard({
+  label,
+  value,
+  detail,
+}) {
   return (
-    <div className={styles.summaryCard}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-      <small>{detail}</small>
+    <div
+      className={
+        styles.summaryCard
+      }
+    >
+      <span>
+        {label}
+      </span>
+
+      <strong>
+        {value}
+      </strong>
+
+      <small>
+        {detail}
+      </small>
     </div>
   );
 }
 
-function AiScoreBadge({ score }) {
-  const normalisedScore = String(score || "")
-    .trim()
-    .toLowerCase();
+// =========================================================
+// AI SCORE
+// =========================================================
 
-  let label = score || "Not analysed";
-  let icon = "—";
-  let className = styles.aiNeutral;
+function AiScoreBadge({
+  score,
+}) {
+  const normalisedScore =
+    String(
+      score ||
+        ""
+    )
+      .trim()
+      .toLowerCase();
 
-  if (normalisedScore.includes("hot")) {
-    label = "Hot";
-    icon = "●";
-    className = styles.aiHot;
-  } else if (normalisedScore.includes("warm")) {
-    label = "Warm";
-    icon = "●";
-    className = styles.aiWarm;
-  } else if (normalisedScore.includes("cold")) {
-    label = "Cold";
-    icon = "●";
-    className = styles.aiCold;
+  let label =
+    score ||
+    "Not analysed";
+
+  let icon =
+    "—";
+
+  let className =
+    styles.aiNeutral;
+
+  if (
+    normalisedScore.includes(
+      "hot"
+    )
+  ) {
+    label =
+      "Hot";
+
+    icon =
+      "●";
+
+    className =
+      styles.aiHot;
+  } else if (
+    normalisedScore.includes(
+      "warm"
+    )
+  ) {
+    label =
+      "Warm";
+
+    icon =
+      "●";
+
+    className =
+      styles.aiWarm;
+  } else if (
+    normalisedScore.includes(
+      "cold"
+    )
+  ) {
+    label =
+      "Cold";
+
+    icon =
+      "●";
+
+    className =
+      styles.aiCold;
   }
 
   return (
     <span
       className={`${styles.aiScore} ${className}`}
     >
-      <span aria-hidden="true">{icon}</span>
+      <span
+        aria-hidden="true"
+      >
+        {icon}
+      </span>
+
       {label}
     </span>
   );
 }
 
+// =========================================================
+// EMPTY STATE
+// =========================================================
+
 function EmptyState({
   hasFilters,
   onClearFilters,
   onAddLead,
+  canCreate,
 }) {
   return (
-    <div className={styles.emptyState}>
-      <span className={styles.emptyIcon}>◎</span>
+    <div
+      className={
+        styles.emptyState
+      }
+    >
+      <span
+        className={
+          styles.emptyIcon
+        }
+      >
+        ◎
+      </span>
 
       <h3>
         {hasFilters
@@ -721,32 +1672,65 @@ function EmptyState({
       <p>
         {hasFilters
           ? "Try changing or clearing the current search and status filters."
-          : "Create your first lead to begin managing your sales pipeline."}
+          : canCreate
+            ? "Create your first lead to begin managing your sales pipeline."
+            : "There are no lead records available within your current access."}
       </p>
 
-      <button
-        type="button"
-        className={styles.primaryButton}
-        onClick={
-          hasFilters
-            ? onClearFilters
-            : onAddLead
-        }
-      >
-        {hasFilters ? "Clear filters" : "Add lead"}
-      </button>
+      {hasFilters ? (
+        <button
+          type="button"
+          className={
+            styles.primaryButton
+          }
+          onClick={
+            onClearFilters
+          }
+        >
+          Clear filters
+        </button>
+      ) : canCreate ? (
+        <button
+          type="button"
+          className={
+            styles.primaryButton
+          }
+          onClick={
+            onAddLead
+          }
+        >
+          Add lead
+        </button>
+      ) : null}
     </div>
   );
 }
 
+// =========================================================
+// LOADING
+// =========================================================
+
 function LoadingState() {
   return (
-    <section className={styles.loadingPanel}>
-      {Array.from({ length: 5 }).map(
-        (_, index) => (
+    <section
+      className={
+        styles.loadingPanel
+      }
+    >
+      {Array.from({
+        length: 5,
+      }).map(
+        (
+          _,
+          index
+        ) => (
           <div
-            key={index}
-            className={styles.loadingRow}
+            key={
+              index
+            }
+            className={
+              styles.loadingRow
+            }
           />
         )
       )}
@@ -754,41 +1738,85 @@ function LoadingState() {
   );
 }
 
-function getInitials(value = "") {
-  const words = String(value)
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
+// =========================================================
+// INITIALS
+// =========================================================
 
-  if (words.length === 0) {
+function getInitials(
+  value = ""
+) {
+  const words =
+    String(
+      value
+    )
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+
+  if (
+    words.length ===
+    0
+  ) {
     return "LD";
   }
 
-  if (words.length === 1) {
+  if (
+    words.length ===
+    1
+  ) {
     return words[0]
-      .slice(0, 2)
+      .slice(
+        0,
+        2
+      )
       .toUpperCase();
   }
 
   return `${words[0][0]}${
-    words[words.length - 1][0]
+    words[
+      words.length -
+        1
+    ][0]
   }`.toUpperCase();
 }
 
-function formatDate(value) {
-  if (!value) {
+// =========================================================
+// DATE
+// =========================================================
+
+function formatDate(
+  value
+) {
+  if (
+    !value
+  ) {
     return "Not available";
   }
 
-  const date = new Date(value);
+  const date =
+    new Date(
+      value
+    );
 
-  if (Number.isNaN(date.getTime())) {
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
     return "Not available";
   }
 
-  return date.toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  return date.toLocaleDateString(
+    "en-GB",
+    {
+      day:
+        "2-digit",
+
+      month:
+        "short",
+
+      year:
+        "numeric",
+    }
+  );
 }
