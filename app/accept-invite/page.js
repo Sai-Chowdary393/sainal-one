@@ -22,196 +22,285 @@ export default function AcceptInvitePage() {
   const [
     password,
     setPassword,
-  ] =
-    useState("");
+  ] = useState("");
 
   const [
     confirmPassword,
     setConfirmPassword,
-  ] =
-    useState("");
+  ] = useState("");
 
   const [
     showPassword,
     setShowPassword,
-  ] =
-    useState(false);
+  ] = useState(false);
 
   const [
     loading,
     setLoading,
-  ] =
-    useState(false);
+  ] = useState(false);
 
   const [
-    checkingSession,
-    setCheckingSession,
-  ] =
-    useState(true);
+    checkingInvite,
+    setCheckingInvite,
+  ] = useState(true);
+
+  const [
+    invitationValid,
+    setInvitationValid,
+  ] = useState(false);
 
   const [
     userEmail,
     setUserEmail,
-  ] =
-    useState("");
+  ] = useState("");
+
+  const [
+    employeeName,
+    setEmployeeName,
+  ] = useState("");
 
   const [
     errorMessage,
     setErrorMessage,
-  ] =
-    useState("");
+  ] = useState("");
 
   const [
     successMessage,
     setSuccessMessage,
-  ] =
-    useState("");
+  ] = useState("");
+
+  // =======================================================
+  // PROCESS INVITATION
+  // =======================================================
 
   useEffect(() => {
-    let mounted = true;
+    let cancelled =
+      false;
 
-    async function loadSession() {
+    async function processInvitation() {
       try {
+        setCheckingInvite(
+          true
+        );
+
+        setErrorMessage("");
+
         /*
-         * Supabase automatically processes authentication
-         * information contained in the invitation redirect.
+         * Supabase's default invitation email verifies the
+         * invitation first, then redirects to this page with
+         * authentication details in the URL hash:
+         *
+         * #access_token=...
+         * &refresh_token=...
+         * &type=invite
          */
-        const {
-          data,
-          error,
-        } =
-          await supabase.auth
-            .getSession();
+        const hash =
+          window.location.hash
+            .replace(/^#/, "");
 
-        if (!mounted) {
-          return;
-        }
-
-        if (error) {
-          setErrorMessage(
-            error.message
+        const hashParams =
+          new URLSearchParams(
+            hash
           );
 
-          setCheckingSession(
-            false
+        const accessToken =
+          hashParams.get(
+            "access_token"
           );
 
-          return;
-        }
+        const refreshToken =
+          hashParams.get(
+            "refresh_token"
+          );
 
+        const authType =
+          hashParams.get(
+            "type"
+          );
+
+        /*
+         * Never trust a pre-existing session.
+         *
+         * This page must only work when opened from an
+         * actual Supabase invitation URL.
+         */
         if (
-          data?.session?.user
+          authType !==
+            "invite" ||
+          !accessToken ||
+          !refreshToken
         ) {
-          setUserEmail(
-            data.session.user
-              .email || ""
+          throw new Error(
+            "This page was not opened from a valid employee invitation. Please use the invitation link from your email."
           );
-
-          setCheckingSession(
-            false
-          );
-
-          return;
         }
 
         /*
-         * Authentication state can arrive just after the
-         * page loads, so listen for the Supabase event too.
+         * Explicitly replace any existing browser session
+         * with the session supplied by the invitation.
          */
         const {
           data:
-            listenerData,
+            sessionData,
+          error:
+            sessionError,
         } =
-          supabase.auth
-            .onAuthStateChange(
-              (
-                _event,
-                session
-              ) => {
-                if (
-                  !mounted
-                ) {
-                  return;
-                }
+          await supabase.auth
+            .setSession({
+              access_token:
+                accessToken,
 
-                if (
-                  session?.user
-                ) {
-                  setUserEmail(
-                    session.user
-                      .email || ""
-                  );
+              refresh_token:
+                refreshToken,
+            });
 
-                  setCheckingSession(
-                    false
-                  );
-                }
-              }
-            );
+        if (
+          sessionError
+        ) {
+          throw sessionError;
+        }
+
+        if (
+          !sessionData
+            ?.session
+            ?.user
+        ) {
+          throw new Error(
+            "The invitation session could not be created."
+          );
+        }
 
         /*
-         * Give the invitation session a moment to initialise.
+         * Remove tokens from the visible address bar once
+         * they have been consumed.
          */
-        window.setTimeout(
-          () => {
-            if (
-              mounted
-            ) {
-              setCheckingSession(
-                false
-              );
+        window.history
+          .replaceState(
+            {},
+            document.title,
+            window.location.pathname
+          );
+
+        /*
+         * Now ask the SaiNal One backend to confirm that
+         * this Auth user really belongs to an employee
+         * currently awaiting invitation acceptance.
+         */
+        const response =
+          await fetch(
+            "/api/auth/invite-status",
+            {
+              method:
+                "GET",
+
+              cache:
+                "no-store",
             }
-          },
-          2500
+          );
+
+        const data =
+          await response.json();
+
+        if (
+          !response.ok
+        ) {
+          throw new Error(
+            data.error ||
+              "This invitation could not be verified."
+          );
+        }
+
+        if (
+          !data.valid
+        ) {
+          throw new Error(
+            "This invitation is not valid for an employee awaiting onboarding."
+          );
+        }
+
+        if (
+          cancelled
+        ) {
+          return;
+        }
+
+        setUserEmail(
+          data.employee
+            ?.email ||
+            sessionData
+              .session
+              .user
+              .email ||
+            ""
         );
 
-        return () => {
-          listenerData
-            .subscription
-            .unsubscribe();
-        };
+        setEmployeeName(
+          data.employee
+            ?.full_name ||
+            ""
+        );
+
+        setInvitationValid(
+          true
+        );
       } catch (error) {
         console.error(
-          "Invite session error:",
+          "Invitation verification error:",
           error
         );
 
         if (
-          mounted
+          cancelled
         ) {
-          setErrorMessage(
-            "Unable to verify the invitation."
-          );
+          return;
+        }
 
-          setCheckingSession(
+        /*
+         * Do not leave an unexpected account authenticated
+         * after a failed invitation check.
+         */
+        try {
+          await supabase.auth
+            .signOut();
+        } catch (
+          signOutError
+        ) {
+          console.error(
+            "Invite cleanup sign-out error:",
+            signOutError
+          );
+        }
+
+        setInvitationValid(
+          false
+        );
+
+        setErrorMessage(
+          error.message ||
+            "Unable to verify this employee invitation."
+        );
+      } finally {
+        if (
+          !cancelled
+        ) {
+          setCheckingInvite(
             false
           );
         }
       }
     }
 
-    const cleanup =
-      loadSession();
+    processInvitation();
 
     return () => {
-      mounted = false;
-
-      Promise.resolve(
-        cleanup
-      ).then(
-        (
-          cleanupFunction
-        ) => {
-          if (
-            typeof cleanupFunction ===
-            "function"
-          ) {
-            cleanupFunction();
-          }
-        }
-      );
+      cancelled =
+        true;
     };
   }, []);
+
+  // =======================================================
+  // COMPLETE SETUP
+  // =======================================================
 
   async function handleSubmit(
     event
@@ -220,6 +309,16 @@ export default function AcceptInvitePage() {
 
     setErrorMessage("");
     setSuccessMessage("");
+
+    if (
+      !invitationValid
+    ) {
+      setErrorMessage(
+        "Your employee invitation has not been verified."
+      );
+
+      return;
+    }
 
     if (
       password.length <
@@ -249,35 +348,58 @@ export default function AcceptInvitePage() {
       );
 
       /*
-       * Confirm that the invitation has created
-       * an authenticated Supabase session.
+       * Verify the currently authenticated user again
+       * immediately before changing their password.
        */
       const {
         data:
-          sessionData,
+          userData,
         error:
-          sessionError,
+          userError,
       } =
         await supabase.auth
-          .getSession();
+          .getUser();
 
       if (
-        sessionError
-      ) {
-        throw sessionError;
-      }
-
-      if (
-        !sessionData?.session
-          ?.user
+        userError ||
+        !userData?.user
       ) {
         throw new Error(
-          "Your invitation session is no longer available. Please open the invitation link again."
+          "Your invitation session has expired. Please use a new invitation link."
         );
       }
 
       /*
-       * Set the employee's password.
+       * Verify employee invitation state again.
+       */
+      const verificationResponse =
+        await fetch(
+          "/api/auth/invite-status",
+          {
+            method:
+              "GET",
+
+            cache:
+              "no-store",
+          }
+        );
+
+      const verificationData =
+        await verificationResponse
+          .json();
+
+      if (
+        !verificationResponse.ok ||
+        !verificationData.valid
+      ) {
+        throw new Error(
+          verificationData.error ||
+            "This employee invitation is no longer valid."
+        );
+      }
+
+      /*
+       * Set the invited employee's password.
        */
       const {
         error:
@@ -295,7 +417,9 @@ export default function AcceptInvitePage() {
       }
 
       /*
-       * Tell SaiNal One that onboarding is complete.
+       * Change employment status:
+       *
+       * Invited -> Active
        */
       const response =
         await fetch(
@@ -327,9 +451,6 @@ export default function AcceptInvitePage() {
         "Your SaiNal One account is ready."
       );
 
-      /*
-       * Small delay so the success state is visible.
-       */
       window.setTimeout(
         () => {
           router.replace(
@@ -342,7 +463,7 @@ export default function AcceptInvitePage() {
       );
     } catch (error) {
       console.error(
-        "Invitation completion error:",
+        "Account setup error:",
         error
       );
 
@@ -357,8 +478,12 @@ export default function AcceptInvitePage() {
     }
   }
 
+  // =======================================================
+  // LOADING
+  // =======================================================
+
   if (
-    checkingSession
+    checkingInvite
   ) {
     return (
       <main
@@ -380,7 +505,7 @@ export default function AcceptInvitePage() {
           </div>
 
           <h1>
-            Preparing your account
+            Verifying your invitation
           </h1>
 
           <p
@@ -388,7 +513,7 @@ export default function AcceptInvitePage() {
               styles.subtitle
             }
           >
-            We&apos;re verifying your SaiNal One invitation.
+            We&apos;re securely preparing your SaiNal One account.
           </p>
 
           <div
@@ -400,6 +525,10 @@ export default function AcceptInvitePage() {
       </main>
     );
   }
+
+  // =======================================================
+  // PAGE
+  // =======================================================
 
   return (
     <main
@@ -436,222 +565,261 @@ export default function AcceptInvitePage() {
           </div>
         </div>
 
-        <span
-          className={
-            styles.eyebrow
-          }
-        >
-          Invitation accepted
-        </span>
-
-        <h1>
-          Set up your account
-        </h1>
-
-        <p
-          className={
-            styles.subtitle
-          }
-        >
-          Create your password to finish joining your organisation.
-        </p>
-
-        {userEmail && (
-          <div
-            className={
-              styles.emailPanel
-            }
-          >
-            <span>
-              Account
+        {invitationValid ? (
+          <>
+            <span
+              className={
+                styles.eyebrow
+              }
+            >
+              Invitation verified
             </span>
 
-            <strong>
-              {userEmail}
-            </strong>
-          </div>
-        )}
+            <h1>
+              Set up your account
+            </h1>
 
-        {errorMessage && (
-          <div
-            className={
-              styles.errorMessage
-            }
-            role="alert"
-          >
-            {errorMessage}
-          </div>
-        )}
-
-        {successMessage && (
-          <div
-            className={
-              styles.successMessage
-            }
-          >
-            {successMessage}
-          </div>
-        )}
-
-        {!userEmail &&
-        !successMessage ? (
-          <div
-            className={
-              styles.invalidInvite
-            }
-          >
-            <h2>
-              Invitation could not be verified
-            </h2>
-
-            <p>
-              The invitation may have expired or already been used.
+            <p
+              className={
+                styles.subtitle
+              }
+            >
+              {employeeName
+                ? `Welcome ${employeeName}. Create your password to finish joining your organisation.`
+                : "Create your password to finish joining your organisation."}
             </p>
 
-            <button
-              type="button"
+            <div
               className={
-                styles.secondaryButton
-              }
-              onClick={() =>
-                router.replace(
-                  "/login"
-                )
+                styles.emailPanel
               }
             >
-              Go to login
-            </button>
-          </div>
-        ) : (
-          !successMessage && (
-            <form
-              className={
-                styles.form
-              }
-              onSubmit={
-                handleSubmit
-              }
-            >
+              <span>
+                Employee account
+              </span>
+
+              <strong>
+                {userEmail}
+              </strong>
+            </div>
+
+            {errorMessage && (
               <div
                 className={
-                  styles.field
+                  styles.errorMessage
+                }
+                role="alert"
+              >
+                {errorMessage}
+              </div>
+            )}
+
+            {successMessage && (
+              <div
+                className={
+                  styles.successMessage
                 }
               >
-                <label
-                  htmlFor="password"
+                {successMessage}
+              </div>
+            )}
+
+            {!successMessage && (
+              <form
+                className={
+                  styles.form
+                }
+                onSubmit={
+                  handleSubmit
+                }
+              >
+                <div
+                  className={
+                    styles.field
+                  }
                 >
-                  Password
-                </label>
+                  <label
+                    htmlFor="password"
+                  >
+                    Password
+                  </label>
+
+                  <div
+                    className={
+                      styles.passwordWrapper
+                    }
+                  >
+                    <input
+                      id="password"
+                      type={
+                        showPassword
+                          ? "text"
+                          : "password"
+                      }
+                      value={
+                        password
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setPassword(
+                          event
+                            .target
+                            .value
+                        )
+                      }
+                      autoComplete="new-password"
+                      placeholder="Create a password"
+                      disabled={
+                        loading
+                      }
+                      required
+                    />
+
+                    <button
+                      type="button"
+                      className={
+                        styles.passwordToggle
+                      }
+                      onClick={() =>
+                        setShowPassword(
+                          (
+                            current
+                          ) =>
+                            !current
+                        )
+                      }
+                      disabled={
+                        loading
+                      }
+                    >
+                      {showPassword
+                        ? "Hide"
+                        : "Show"}
+                    </button>
+                  </div>
+
+                  <small>
+                    Minimum 8 characters.
+                  </small>
+                </div>
 
                 <div
                   className={
-                    styles.passwordWrapper
+                    styles.field
                   }
                 >
+                  <label
+                    htmlFor="confirm-password"
+                  >
+                    Confirm password
+                  </label>
+
                   <input
-                    id="password"
+                    id="confirm-password"
                     type={
                       showPassword
                         ? "text"
                         : "password"
                     }
                     value={
-                      password
+                      confirmPassword
                     }
                     onChange={(
                       event
                     ) =>
-                      setPassword(
-                        event.target
+                      setConfirmPassword(
+                        event
+                          .target
                           .value
                       )
                     }
-                    placeholder="Create a password"
                     autoComplete="new-password"
+                    placeholder="Enter your password again"
                     disabled={
                       loading
                     }
                     required
                   />
-
-                  <button
-                    type="button"
-                    className={
-                      styles.passwordToggle
-                    }
-                    onClick={() =>
-                      setShowPassword(
-                        (
-                          current
-                        ) =>
-                          !current
-                      )
-                    }
-                  >
-                    {showPassword
-                      ? "Hide"
-                      : "Show"}
-                  </button>
                 </div>
 
-                <small>
-                  Minimum 8 characters.
-                </small>
-              </div>
-
-              <div
-                className={
-                  styles.field
-                }
-              >
-                <label
-                  htmlFor="confirm-password"
-                >
-                  Confirm password
-                </label>
-
-                <input
-                  id="confirm-password"
-                  type={
-                    showPassword
-                      ? "text"
-                      : "password"
+                <button
+                  type="submit"
+                  className={
+                    styles.primaryButton
                   }
-                  value={
-                    confirmPassword
-                  }
-                  onChange={(
-                    event
-                  ) =>
-                    setConfirmPassword(
-                      event.target
-                        .value
-                    )
-                  }
-                  placeholder="Enter your password again"
-                  autoComplete="new-password"
                   disabled={
                     loading
                   }
-                  required
-                />
+                >
+                  {loading
+                    ? "Setting up account..."
+                    : "Complete account setup"}
+                </button>
+              </form>
+            )}
+          </>
+        ) : (
+          <>
+            <span
+              className={
+                styles.eyebrow
+              }
+            >
+              Invitation problem
+            </span>
+
+            <h1>
+              Invitation could not be verified
+            </h1>
+
+            <p
+              className={
+                styles.subtitle
+              }
+            >
+              We couldn&apos;t verify this employee invitation.
+            </p>
+
+            {errorMessage && (
+              <div
+                className={
+                  styles.errorMessage
+                }
+                role="alert"
+              >
+                {errorMessage}
               </div>
+            )}
+
+            <div
+              className={
+                styles.invalidInvite
+              }
+            >
+              <h2>
+                Need another invitation?
+              </h2>
+
+              <p>
+                Ask your organisation owner to send you a new employee invitation.
+              </p>
 
               <button
-                type="submit"
+                type="button"
                 className={
-                  styles.primaryButton
+                  styles.secondaryButton
                 }
-                disabled={
-                  loading
+                onClick={() =>
+                  router.replace(
+                    "/login"
+                  )
                 }
               >
-                {loading
-                  ? "Setting up account..."
-                  : "Complete account setup"}
+                Go to login
               </button>
-            </form>
-          )
+            </div>
+          </>
         )}
 
         <div
@@ -659,7 +827,7 @@ export default function AcceptInvitePage() {
             styles.securityMessage
           }
         >
-          🔒 Your account is protected by Supabase authentication.
+          🔒 Your account is protected by secure authentication.
         </div>
       </section>
     </main>
