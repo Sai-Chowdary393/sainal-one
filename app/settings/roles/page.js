@@ -10,6 +10,10 @@ import AppLayout from "../../../components/layout/AppLayout";
 import ProtectedRoute from "../../../components/ProtectedRoute";
 import styles from "./roles.module.css";
 
+// =========================================================
+// INITIAL FORM
+// =========================================================
+
 const INITIAL_FORM_DATA = {
   name: "",
   code: "",
@@ -18,51 +22,92 @@ const INITIAL_FORM_DATA = {
   permission_ids: [],
 };
 
-export default function RolesPage() {
-  const [roles, setRoles] =
-    useState([]);
+// =========================================================
+// PAGE
+// =========================================================
 
-  const [permissions, setPermissions] =
-    useState([]);
+export default function RolesPage() {
+  const [
+    roles,
+    setRoles,
+  ] = useState([]);
+
+  const [
+    permissions,
+    setPermissions,
+  ] = useState([]);
 
   const [
     currentEmployee,
     setCurrentEmployee,
   ] = useState(null);
 
-  const [loading, setLoading] =
-    useState(true);
+  const [
+    access,
+    setAccess,
+  ] = useState({
+    isOwner: false,
+    permissions: [],
+    roles: [],
+    canViewRoles: false,
+    canManageRoles: false,
+  });
 
-  const [saving, setSaving] =
-    useState(false);
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
 
-  const [errorMessage, setErrorMessage] =
-    useState("");
+  const [
+    saving,
+    setSaving,
+  ] = useState(false);
 
-  const [showForm, setShowForm] =
-    useState(false);
+  const [
+    errorMessage,
+    setErrorMessage,
+  ] = useState("");
+
+  const [
+    showForm,
+    setShowForm,
+  ] = useState(false);
 
   const [
     editingRoleId,
     setEditingRoleId,
   ] = useState(null);
 
-  const [formData, setFormData] =
-    useState(INITIAL_FORM_DATA);
+  const [
+    formData,
+    setFormData,
+  ] = useState(
+    INITIAL_FORM_DATA
+  );
 
-  const [searchValue, setSearchValue] =
-    useState("");
+  const [
+    searchValue,
+    setSearchValue,
+  ] = useState("");
 
-  const [statusFilter, setStatusFilter] =
-    useState("All");
+  const [
+    statusFilter,
+    setStatusFilter,
+  ] = useState("All");
 
-  const [typeFilter, setTypeFilter] =
-    useState("All");
+  const [
+    typeFilter,
+    setTypeFilter,
+  ] = useState("All");
 
   const [
     expandedModules,
     setExpandedModules,
   ] = useState({});
+
+  // =======================================================
+  // LOAD
+  // =======================================================
 
   useEffect(() => {
     fetchWorkspace();
@@ -73,12 +118,14 @@ export default function RolesPage() {
       setLoading(true);
       setErrorMessage("");
 
-      const response = await fetch(
-        "/api/roles",
-        {
-          cache: "no-store",
-        }
-      );
+      const response =
+        await fetch(
+          "/api/roles",
+          {
+            cache:
+              "no-store",
+          }
+        );
 
       const data =
         await response.json();
@@ -91,7 +138,9 @@ export default function RolesPage() {
       }
 
       setRoles(
-        Array.isArray(data.roles)
+        Array.isArray(
+          data.roles
+        )
           ? data.roles
           : []
       );
@@ -109,6 +158,44 @@ export default function RolesPage() {
           null
       );
 
+      setAccess({
+        isOwner:
+          Boolean(
+            data.access
+              ?.isOwner
+          ),
+
+        permissions:
+          Array.isArray(
+            data.access
+              ?.permissions
+          )
+            ? data.access
+                .permissions
+            : [],
+
+        roles:
+          Array.isArray(
+            data.access
+              ?.roles
+          )
+            ? data.access
+                .roles
+            : [],
+
+        canViewRoles:
+          Boolean(
+            data.access
+              ?.canViewRoles
+          ),
+
+        canManageRoles:
+          Boolean(
+            data.access
+              ?.canManageRoles
+          ),
+      });
+
       const moduleState = {};
 
       (
@@ -117,11 +204,15 @@ export default function RolesPage() {
         )
           ? data.permissions
           : []
-      ).forEach((permission) => {
-        moduleState[
-          permission.module
-        ] = true;
-      });
+      ).forEach(
+        (
+          permission
+        ) => {
+          moduleState[
+            permission.module
+          ] = true;
+        }
+      );
 
       setExpandedModules(
         moduleState
@@ -141,49 +232,95 @@ export default function RolesPage() {
     }
   }
 
-  function handleChange(event) {
+  // =======================================================
+  // FORM HELPERS
+  // =======================================================
+
+  function handleChange(
+    event
+  ) {
     const {
       name,
       value,
       type,
       checked,
-    } = event.target;
+    } =
+      event.target;
 
-    setFormData((current) => ({
-      ...current,
+    setFormData(
+      (
+        current
+      ) => ({
+        ...current,
 
-      [name]:
-        type === "checkbox"
-          ? checked
-          : name === "code"
-            ? value.toUpperCase()
-            : value,
-    }));
+        [name]:
+          type ===
+          "checkbox"
+            ? checked
+            : name ===
+                "code"
+              ? value.toUpperCase()
+              : value,
+      })
+    );
   }
 
   function openCreateForm() {
-    setEditingRoleId(null);
+    if (
+      !canManage
+    ) {
+      return;
+    }
+
+    setEditingRoleId(
+      null
+    );
+
     setFormData(
       INITIAL_FORM_DATA
     );
-    setShowForm(true);
+
+    setShowForm(
+      true
+    );
 
     window.scrollTo({
       top: 0,
-      behavior: "smooth",
+      behavior:
+        "smooth",
     });
   }
 
-  function openEditForm(role) {
-    setEditingRoleId(role.id);
+  function openEditForm(
+    role
+  ) {
+    if (
+      !canManage
+    ) {
+      return;
+    }
+
+    setEditingRoleId(
+      role.id
+    );
 
     setFormData({
-      name: role.name || "",
-      code: role.code || "",
+      name:
+        role.name ||
+        "",
+
+      code:
+        role.code ||
+        "",
+
       description:
-        role.description || "",
+        role.description ||
+        "",
+
       is_active:
-        role.is_active !== false,
+        role.is_active !==
+        false,
+
       permission_ids:
         Array.isArray(
           role.permission_ids
@@ -192,53 +329,84 @@ export default function RolesPage() {
           : [],
     });
 
-    setShowForm(true);
+    setShowForm(
+      true
+    );
 
     window.scrollTo({
       top: 0,
-      behavior: "smooth",
+      behavior:
+        "smooth",
     });
   }
 
   function closeForm() {
-    setEditingRoleId(null);
+    setEditingRoleId(
+      null
+    );
+
     setFormData(
       INITIAL_FORM_DATA
     );
-    setShowForm(false);
+
+    setShowForm(
+      false
+    );
   }
 
   function togglePermission(
     permissionId
   ) {
-    setFormData((current) => {
-      const selected =
-        current.permission_ids.includes(
-          permissionId
-        );
+    if (
+      !canManage ||
+      isProtectedOwnerRole
+    ) {
+      return;
+    }
 
-      return {
-        ...current,
+    setFormData(
+      (
+        current
+      ) => {
+        const selected =
+          current.permission_ids.includes(
+            permissionId
+          );
 
-        permission_ids: selected
-          ? current.permission_ids.filter(
-              (id) =>
-                id !== permissionId
-            )
-          : [
-              ...current.permission_ids,
-              permissionId,
-            ],
-      };
-    });
+        return {
+          ...current,
+
+          permission_ids:
+            selected
+              ? current.permission_ids.filter(
+                  (
+                    id
+                  ) =>
+                    id !==
+                    permissionId
+                )
+              : [
+                  ...current.permission_ids,
+                  permissionId,
+                ],
+        };
+      }
+    );
   }
 
-  function toggleModule(module) {
+  function toggleModule(
+    module
+  ) {
     setExpandedModules(
-      (current) => ({
+      (
+        current
+      ) => ({
         ...current,
+
         [module]:
-          !current[module],
+          !current[
+            module
+          ],
       })
     );
   }
@@ -246,83 +414,144 @@ export default function RolesPage() {
   function selectModulePermissions(
     modulePermissions
   ) {
+    if (
+      !canManage ||
+      isProtectedOwnerRole
+    ) {
+      return;
+    }
+
     const moduleIds =
       modulePermissions.map(
-        (permission) =>
+        (
+          permission
+        ) =>
           permission.id
       );
 
     const allSelected =
-      moduleIds.every((id) =>
-        formData.permission_ids.includes(
+      moduleIds.every(
+        (
           id
-        )
+        ) =>
+          formData.permission_ids.includes(
+            id
+          )
       );
 
-    setFormData((current) => {
-      if (allSelected) {
+    setFormData(
+      (
+        current
+      ) => {
+        if (
+          allSelected
+        ) {
+          return {
+            ...current,
+
+            permission_ids:
+              current.permission_ids.filter(
+                (
+                  id
+                ) =>
+                  !moduleIds.includes(
+                    id
+                  )
+              ),
+          };
+        }
+
         return {
           ...current,
 
           permission_ids:
-            current.permission_ids.filter(
-              (id) =>
-                !moduleIds.includes(id)
-            ),
+            [
+              ...new Set([
+                ...current.permission_ids,
+                ...moduleIds,
+              ]),
+            ],
         };
       }
-
-      return {
-        ...current,
-
-        permission_ids: [
-          ...new Set([
-            ...current.permission_ids,
-            ...moduleIds,
-          ]),
-        ],
-      };
-    });
+    );
   }
 
   function selectAllPermissions() {
+    if (
+      !canManage ||
+      isProtectedOwnerRole
+    ) {
+      return;
+    }
+
     const allPermissionIds =
       permissions.map(
-        (permission) =>
+        (
+          permission
+        ) =>
           permission.id
       );
 
     const allSelected =
-      allPermissionIds.every((id) =>
-        formData.permission_ids.includes(
+      allPermissionIds.every(
+        (
           id
-        )
+        ) =>
+          formData.permission_ids.includes(
+            id
+          )
       );
 
-    setFormData((current) => ({
-      ...current,
+    setFormData(
+      (
+        current
+      ) => ({
+        ...current,
 
-      permission_ids:
-        allSelected
-          ? []
-          : allPermissionIds,
-    }));
+        permission_ids:
+          allSelected
+            ? []
+            : allPermissionIds,
+      })
+    );
   }
 
-  async function saveRole(event) {
+  // =======================================================
+  // SAVE ROLE
+  // =======================================================
+
+  async function saveRole(
+    event
+  ) {
     event.preventDefault();
 
-    if (!formData.name.trim()) {
+    if (
+      !canManage
+    ) {
       alert(
-        "Please enter the role name."
+        "You do not have permission to manage roles."
       );
+
       return;
     }
 
-    if (!formData.code.trim()) {
+    if (
+      !formData.name.trim()
+    ) {
+      alert(
+        "Please enter the role name."
+      );
+
+      return;
+    }
+
+    if (
+      !formData.code.trim()
+    ) {
       alert(
         "Please enter the role code."
       );
+
       return;
     }
 
@@ -339,21 +568,23 @@ export default function RolesPage() {
           ? "PATCH"
           : "POST";
 
-      const response = await fetch(
-        endpoint,
-        {
-          method,
+      const response =
+        await fetch(
+          endpoint,
+          {
+            method,
 
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
 
-          body: JSON.stringify(
-            formData
-          ),
-        }
-      );
+            body:
+              JSON.stringify(
+                formData
+              ),
+          }
+        );
 
       const data =
         await response.json();
@@ -365,9 +596,10 @@ export default function RolesPage() {
         );
       }
 
-      const wasEditing = Boolean(
-        editingRoleId
-      );
+      const wasEditing =
+        Boolean(
+          editingRoleId
+        );
 
       closeForm();
 
@@ -393,25 +625,43 @@ export default function RolesPage() {
     }
   }
 
+  // =======================================================
+  // DEACTIVATE ROLE
+  // =======================================================
+
   async function deactivateRole(
     role
   ) {
+    if (
+      !canManage
+    ) {
+      alert(
+        "You do not have permission to deactivate roles."
+      );
+
+      return;
+    }
+
     const confirmed =
       window.confirm(
         `Deactivate ${role.name}?`
       );
 
-    if (!confirmed) {
+    if (
+      !confirmed
+    ) {
       return;
     }
 
     try {
-      const response = await fetch(
-        `/api/roles/${role.id}`,
-        {
-          method: "DELETE",
-        }
-      );
+      const response =
+        await fetch(
+          `/api/roles/${role.id}`,
+          {
+            method:
+              "DELETE",
+          }
+        );
 
       const data =
         await response.json();
@@ -442,134 +692,211 @@ export default function RolesPage() {
     }
   }
 
+  // =======================================================
+  // GROUPED PERMISSIONS
+  // =======================================================
+
   const groupedPermissions =
-    useMemo(() => {
-      return permissions.reduce(
-        (groups, permission) => {
-          const module =
-            permission.module ||
-            "Other";
-
-          if (!groups[module]) {
-            groups[module] = [];
-          }
-
-          groups[module].push(
+    useMemo(
+      () => {
+        return permissions.reduce(
+          (
+            groups,
             permission
-          );
+          ) => {
+            const module =
+              permission.module ||
+              "Other";
 
-          return groups;
-        },
-        {}
-      );
-    }, [permissions]);
+            if (
+              !groups[
+                module
+              ]
+            ) {
+              groups[
+                module
+              ] = [];
+            }
 
-  const filteredRoles =
-    useMemo(() => {
-      const search =
-        searchValue
-          .trim()
-          .toLowerCase();
-
-      return roles.filter(
-        (role) => {
-          const matchesSearch =
-            !search ||
-            [
-              role.name,
-              role.code,
-              role.description,
-              ...(role.permissions ||
-                []).map(
-                (permission) =>
-                  permission.name
-              ),
-            ].some((value) =>
-              String(value || "")
-                .toLowerCase()
-                .includes(search)
+            groups[
+              module
+            ].push(
+              permission
             );
 
-          const matchesStatus =
-            statusFilter === "All" ||
-            (statusFilter ===
-              "Active" &&
-              role.is_active) ||
-            (statusFilter ===
-              "Inactive" &&
-              !role.is_active);
+            return groups;
+          },
+          {}
+        );
+      },
+      [
+        permissions,
+      ]
+    );
 
-          const matchesType =
-            typeFilter === "All" ||
-            (typeFilter ===
-              "System" &&
-              role.is_system_role) ||
-            (typeFilter ===
-              "Custom" &&
-              !role.is_system_role);
+  // =======================================================
+  // FILTERED ROLES
+  // =======================================================
 
-          return (
-            matchesSearch &&
-            matchesStatus &&
-            matchesType
-          );
-        }
-      );
-    }, [
-      roles,
-      searchValue,
-      statusFilter,
-      typeFilter,
-    ]);
+  const filteredRoles =
+    useMemo(
+      () => {
+        const search =
+          searchValue
+            .trim()
+            .toLowerCase();
+
+        return roles.filter(
+          (
+            role
+          ) => {
+            const matchesSearch =
+              !search ||
+              [
+                role.name,
+                role.code,
+                role.description,
+                ...(role.permissions ||
+                  []).map(
+                  (
+                    permission
+                  ) =>
+                    permission.name
+                ),
+              ].some(
+                (
+                  value
+                ) =>
+                  String(
+                    value ||
+                      ""
+                  )
+                    .toLowerCase()
+                    .includes(
+                      search
+                    )
+              );
+
+            const matchesStatus =
+              statusFilter ===
+                "All" ||
+              (
+                statusFilter ===
+                  "Active" &&
+                role.is_active
+              ) ||
+              (
+                statusFilter ===
+                  "Inactive" &&
+                !role.is_active
+              );
+
+            const matchesType =
+              typeFilter ===
+                "All" ||
+              (
+                typeFilter ===
+                  "System" &&
+                role.is_system_role
+              ) ||
+              (
+                typeFilter ===
+                  "Custom" &&
+                !role.is_system_role
+              );
+
+            return (
+              matchesSearch &&
+              matchesStatus &&
+              matchesType
+            );
+          }
+        );
+      },
+      [
+        roles,
+        searchValue,
+        statusFilter,
+        typeFilter,
+      ]
+    );
+
+  // =======================================================
+  // SUMMARY
+  // =======================================================
 
   const activeRoles =
     roles.filter(
-      (role) => role.is_active
+      (
+        role
+      ) =>
+        role.is_active
     ).length;
 
   const customRoles =
     roles.filter(
-      (role) =>
+      (
+        role
+      ) =>
         !role.is_system_role
     ).length;
 
   const totalAssignments =
     roles.reduce(
-      (total, role) =>
+      (
+        total,
+        role
+      ) =>
         total +
         Number(
-          role.employee_count || 0
+          role.employee_count ||
+            0
         ),
       0
     );
 
-  const canManage = Boolean(
-    currentEmployee
-      ?.is_organization_owner
-  );
+  // =======================================================
+  // RBAC
+  // =======================================================
+
+  const canManage =
+    Boolean(
+      access.canManageRoles
+    );
 
   const editingRole =
     roles.find(
-      (role) =>
-        role.id === editingRoleId
+      (
+        role
+      ) =>
+        role.id ===
+        editingRoleId
     ) || null;
 
   const isProtectedOwnerRole =
     Boolean(
       editingRole
         ?.is_system_role &&
-        editingRole?.code ===
+        editingRole
+          ?.code ===
           "ORG_OWNER"
     );
 
   const allPermissionsSelected =
-    permissions.length > 0 &&
+    permissions.length >
+      0 &&
     permissions.every(
-      (permission) =>
+      (
+        permission
+      ) =>
         formData.permission_ids.includes(
           permission.id
         )
     );
+
+  // =======================================================
+  // PAGE
+  // =======================================================
 
   return (
     <ProtectedRoute>
@@ -578,8 +905,14 @@ export default function RolesPage() {
         description="Configure business roles, access rights and employee responsibilities."
       >
         <div
-          className={styles.page}
+          className={
+            styles.page
+          }
         >
+          {/* =================================================
+              HEADER
+          ================================================= */}
+
           <section
             className={
               styles.pageHeader
@@ -636,8 +969,13 @@ export default function RolesPage() {
             )}
           </section>
 
+          {/* =================================================
+              READ-ONLY NOTICE
+          ================================================= */}
+
           {!canManage &&
-            !loading && (
+            !loading &&
+            !errorMessage && (
               <section
                 className={
                   styles.noticePanel
@@ -648,13 +986,20 @@ export default function RolesPage() {
                 </strong>
 
                 <p>
-                  Only the organisation
-                  owner can create roles or
-                  update permission
-                  assignments.
+                  You can review roles and
+                  permission coverage, but
+                  your role does not include
+                  the roles.manage
+                  permission required to
+                  create roles or change
+                  permissions.
                 </p>
               </section>
             )}
+
+          {/* =================================================
+              ROLE EDITOR
+          ================================================= */}
 
           {showForm &&
             canManage && (
@@ -662,7 +1007,9 @@ export default function RolesPage() {
                 className={
                   styles.roleEditor
                 }
-                onSubmit={saveRole}
+                onSubmit={
+                  saveRole
+                }
               >
                 <section
                   className={
@@ -913,13 +1260,17 @@ export default function RolesPage() {
                       ]) => {
                         const moduleIds =
                           modulePermissions.map(
-                            (permission) =>
+                            (
+                              permission
+                            ) =>
                               permission.id
                           );
 
                         const selectedCount =
                           moduleIds.filter(
-                            (id) =>
+                            (
+                              id
+                            ) =>
                               formData.permission_ids.includes(
                                 id
                               )
@@ -931,7 +1282,9 @@ export default function RolesPage() {
 
                         return (
                           <section
-                            key={module}
+                            key={
+                              module
+                            }
                             className={
                               styles.permissionModule
                             }
@@ -963,7 +1316,9 @@ export default function RolesPage() {
                                 }
                               >
                                 <strong>
-                                  {module}
+                                  {
+                                    module
+                                  }
                                 </strong>
 
                                 <small>
@@ -1101,8 +1456,12 @@ export default function RolesPage() {
                       className={
                         styles.secondaryButton
                       }
-                      onClick={closeForm}
-                      disabled={saving}
+                      onClick={
+                        closeForm
+                      }
+                      disabled={
+                        saving
+                      }
                     >
                       Cancel
                     </button>
@@ -1112,7 +1471,9 @@ export default function RolesPage() {
                       className={
                         styles.primaryButton
                       }
-                      disabled={saving}
+                      disabled={
+                        saving
+                      }
                     >
                       {saving
                         ? "Saving role..."
@@ -1125,6 +1486,10 @@ export default function RolesPage() {
               </form>
             )}
 
+          {/* =================================================
+              SUMMARY
+          ================================================= */}
+
           <section
             className={
               styles.summaryGrid
@@ -1133,7 +1498,9 @@ export default function RolesPage() {
             <SummaryCard
               icon="◆"
               label="Total roles"
-              value={roles.length}
+              value={
+                roles.length
+              }
               detail="All configured roles"
               tone="gold"
             />
@@ -1141,7 +1508,9 @@ export default function RolesPage() {
             <SummaryCard
               icon="✓"
               label="Active roles"
-              value={activeRoles}
+              value={
+                activeRoles
+              }
               detail="Available for assignment"
               tone="green"
             />
@@ -1149,7 +1518,9 @@ export default function RolesPage() {
             <SummaryCard
               icon="◇"
               label="Custom roles"
-              value={customRoles}
+              value={
+                customRoles
+              }
               detail="Created by organisation"
               tone="blue"
             />
@@ -1157,11 +1528,17 @@ export default function RolesPage() {
             <SummaryCard
               icon="◉"
               label="Assignments"
-              value={totalAssignments}
+              value={
+                totalAssignments
+              }
               detail="Employee role assignments"
               tone="purple"
             />
           </section>
+
+          {/* =================================================
+              FILTERS
+          ================================================= */}
 
           <section
             className={
@@ -1173,14 +1550,20 @@ export default function RolesPage() {
                 styles.searchBox
               }
             >
-              <span aria-hidden="true">
+              <span
+                aria-hidden="true"
+              >
                 ⌕
               </span>
 
               <input
                 type="search"
-                value={searchValue}
-                onChange={(event) =>
+                value={
+                  searchValue
+                }
+                onChange={(
+                  event
+                ) =>
                   setSearchValue(
                     event.target.value
                   )
@@ -1198,8 +1581,12 @@ export default function RolesPage() {
                 className={
                   styles.filterSelect
                 }
-                value={statusFilter}
-                onChange={(event) =>
+                value={
+                  statusFilter
+                }
+                onChange={(
+                  event
+                ) =>
                   setStatusFilter(
                     event.target.value
                   )
@@ -1222,8 +1609,12 @@ export default function RolesPage() {
                 className={
                   styles.filterSelect
                 }
-                value={typeFilter}
-                onChange={(event) =>
+                value={
+                  typeFilter
+                }
+                onChange={(
+                  event
+                ) =>
                   setTypeFilter(
                     event.target.value
                   )
@@ -1244,6 +1635,10 @@ export default function RolesPage() {
             </div>
           </section>
 
+          {/* =================================================
+              CONTENT
+          ================================================= */}
+
           {loading ? (
             <LoadingState />
           ) : errorMessage ? (
@@ -1257,7 +1652,11 @@ export default function RolesPage() {
                   Unable to load roles
                 </strong>
 
-                <p>{errorMessage}</p>
+                <p>
+                  {
+                    errorMessage
+                  }
+                </p>
               </div>
 
               <button
@@ -1300,7 +1699,9 @@ export default function RolesPage() {
                     styles.resultCount
                   }
                 >
-                  {filteredRoles.length}{" "}
+                  {
+                    filteredRoles.length
+                  }{" "}
                   result
                   {filteredRoles.length ===
                   1
@@ -1312,9 +1713,12 @@ export default function RolesPage() {
               {filteredRoles.length ===
               0 ? (
                 <EmptyState
-                  canManage={canManage}
+                  canManage={
+                    canManage
+                  }
                   hasRoles={
-                    roles.length > 0
+                    roles.length >
+                    0
                   }
                   onCreate={
                     openCreateForm
@@ -1327,15 +1731,23 @@ export default function RolesPage() {
                   }
                 >
                   {filteredRoles.map(
-                    (role) => (
+                    (
+                      role
+                    ) => (
                       <RoleCard
-                        key={role.id}
-                        role={role}
+                        key={
+                          role.id
+                        }
+                        role={
+                          role
+                        }
                         canManage={
                           canManage
                         }
                         onEdit={() =>
-                          openEditForm(role)
+                          openEditForm(
+                            role
+                          )
                         }
                         onDeactivate={() =>
                           deactivateRole(
@@ -1354,6 +1766,10 @@ export default function RolesPage() {
     </ProtectedRoute>
   );
 }
+
+// =========================================================
+// ROLE CARD
+// =========================================================
 
 function RoleCard({
   role,
@@ -1422,7 +1838,9 @@ function RoleCard({
           {role.code}
         </span>
 
-        <h3>{role.name}</h3>
+        <h3>
+          {role.name}
+        </h3>
 
         <p>
           {role.description ||
@@ -1438,14 +1856,16 @@ function RoleCard({
         <Metric
           label="Permissions"
           value={
-            role.permission_count || 0
+            role.permission_count ||
+            0
           }
         />
 
         <Metric
           label="Employees"
           value={
-            role.employee_count || 0
+            role.employee_count ||
+            0
           }
         />
       </div>
@@ -1464,21 +1884,34 @@ function RoleCard({
             styles.permissionTags
           }
         >
-          {(role.permissions || [])
-            .slice(0, 5)
-            .map((permission) => (
-              <span
-                key={permission.id}
-                className={
-                  styles.permissionTag
-                }
-              >
-                {permission.name}
-              </span>
-            ))}
+          {(role.permissions ||
+            [])
+            .slice(
+              0,
+              5
+            )
+            .map(
+              (
+                permission
+              ) => (
+                <span
+                  key={
+                    permission.id
+                  }
+                  className={
+                    styles.permissionTag
+                  }
+                >
+                  {
+                    permission.name
+                  }
+                </span>
+              )
+            )}
 
-          {(role.permissions || [])
-            .length > 5 && (
+          {(role.permissions ||
+            []).length >
+            5 && (
             <span
               className={
                 styles.permissionMore
@@ -1486,13 +1919,15 @@ function RoleCard({
             >
               +
               {(role.permissions ||
-                []).length - 5}{" "}
+                []).length -
+                5}{" "}
               more
             </span>
           )}
 
-          {(role.permissions || [])
-            .length === 0 && (
+          {(role.permissions ||
+            []).length ===
+            0 && (
             <span
               className={
                 styles.emptyValue
@@ -1515,7 +1950,9 @@ function RoleCard({
             className={
               styles.openButton
             }
-            onClick={onEdit}
+            onClick={
+              onEdit
+            }
           >
             Edit permissions
           </button>
@@ -1540,19 +1977,34 @@ function RoleCard({
   );
 }
 
+// =========================================================
+// METRIC
+// =========================================================
+
 function Metric({
   label,
   value,
 }) {
   return (
     <div
-      className={styles.metric}
+      className={
+        styles.metric
+      }
     >
-      <span>{label}</span>
-      <strong>{value}</strong>
+      <span>
+        {label}
+      </span>
+
+      <strong>
+        {value}
+      </strong>
     </div>
   );
 }
+
+// =========================================================
+// FORM FIELD
+// =========================================================
 
 function FormField({
   label,
@@ -1576,32 +2028,64 @@ function FormField({
     >
       <span>
         {label}
-        {required ? " *" : ""}
+        {required
+          ? " *"
+          : ""}
       </span>
 
       {textarea ? (
         <textarea
-          name={name}
-          rows={rows}
-          value={value}
-          onChange={onChange}
-          placeholder={placeholder}
-          required={required}
-          disabled={disabled}
+          name={
+            name
+          }
+          rows={
+            rows
+          }
+          value={
+            value
+          }
+          onChange={
+            onChange
+          }
+          placeholder={
+            placeholder
+          }
+          required={
+            required
+          }
+          disabled={
+            disabled
+          }
         />
       ) : (
         <input
-          name={name}
-          value={value}
-          onChange={onChange}
-          placeholder={placeholder}
-          required={required}
-          disabled={disabled}
+          name={
+            name
+          }
+          value={
+            value
+          }
+          onChange={
+            onChange
+          }
+          placeholder={
+            placeholder
+          }
+          required={
+            required
+          }
+          disabled={
+            disabled
+          }
         />
       )}
     </label>
   );
 }
+
+// =========================================================
+// SUMMARY CARD
+// =========================================================
 
 function SummaryCard({
   icon,
@@ -1636,11 +2120,20 @@ function SummaryCard({
         {label}
       </span>
 
-      <strong>{value}</strong>
-      <small>{detail}</small>
+      <strong>
+        {value}
+      </strong>
+
+      <small>
+        {detail}
+      </small>
     </div>
   );
 }
+
+// =========================================================
+// EMPTY STATE
+// =========================================================
 
 function EmptyState({
   canManage,
@@ -1649,7 +2142,9 @@ function EmptyState({
 }) {
   return (
     <div
-      className={styles.emptyState}
+      className={
+        styles.emptyState
+      }
     >
       <span
         className={
@@ -1671,20 +2166,27 @@ function EmptyState({
           : "Create a role and select the permissions employees need."}
       </p>
 
-      {canManage && !hasRoles && (
-        <button
-          type="button"
-          className={
-            styles.primaryButton
-          }
-          onClick={onCreate}
-        >
-          Create role
-        </button>
-      )}
+      {canManage &&
+        !hasRoles && (
+          <button
+            type="button"
+            className={
+              styles.primaryButton
+            }
+            onClick={
+              onCreate
+            }
+          >
+            Create role
+          </button>
+        )}
     </div>
   );
 }
+
+// =========================================================
+// LOADING
+// =========================================================
 
 function LoadingState() {
   return (
@@ -1695,19 +2197,32 @@ function LoadingState() {
     >
       {Array.from({
         length: 3,
-      }).map((_, index) => (
-        <div
-          key={index}
-          className={
-            styles.loadingCard
-          }
-        />
-      ))}
+      }).map(
+        (
+          _,
+          index
+        ) => (
+          <div
+            key={
+              index
+            }
+            className={
+              styles.loadingCard
+            }
+          />
+        )
+      )}
     </section>
   );
 }
 
-function getModuleIcon(module) {
+// =========================================================
+// MODULE ICONS
+// =========================================================
+
+function getModuleIcon(
+  module
+) {
   const icons = {
     Administration: "⚙",
     Leads: "◎",
@@ -1722,15 +2237,33 @@ function getModuleIcon(module) {
     AI: "✦",
   };
 
-  return icons[module] || "◆";
+  return (
+    icons[module] ||
+    "◆"
+  );
 }
 
-function capitalise(value) {
+// =========================================================
+// HELPER
+// =========================================================
+
+function capitalise(
+  value
+) {
   const text =
-    String(value || "");
+    String(
+      value ||
+        ""
+    );
 
   return (
-    text.charAt(0).toUpperCase() +
-    text.slice(1)
+    text
+      .charAt(
+        0
+      )
+      .toUpperCase() +
+    text.slice(
+      1
+    )
   );
 }
