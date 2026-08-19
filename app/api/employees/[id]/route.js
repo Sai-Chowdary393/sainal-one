@@ -6,6 +6,10 @@ import {
   createServerSupabaseClient,
 } from "../../../../lib/supabaseServer";
 
+import {
+  getCurrentEmployeeAccess,
+} from "../../../../lib/accessControl";
+
 // =========================================================
 // HELPERS
 // =========================================================
@@ -44,115 +48,36 @@ function isUuid(
   );
 }
 
-// =========================================================
-// CURRENT EMPLOYEE
-// =========================================================
-
-async function getCurrentEmployee(
-  supabase
+function unauthenticatedResponse(
+  message =
+    "You must be logged in."
 ) {
-  const {
-    data: {
-      user,
-    },
-    error:
-      userError,
-  } =
-    await supabase.auth.getUser();
-
-  if (
-    userError ||
-    !user
-  ) {
-    return {
-      employee:
-        null,
-
-      user:
-        null,
-
+  return NextResponse.json(
+    {
       error:
-        userError?.message ||
-        "You must be logged in.",
-
+        message,
+    },
+    {
       status:
         401,
-    };
-  }
+    }
+  );
+}
 
-  const {
-    data:
-      employee,
-    error:
-      employeeError,
-  } =
-    await supabase
-      .from(
-        "employees"
-      )
-      .select(
-        `
-          id,
-          organization_id,
-          user_id,
-          full_name,
-          email,
-          is_organization_owner,
-          is_active
-        `
-      )
-      .eq(
-        "user_id",
-        user.id
-      )
-      .eq(
-        "is_active",
-        true
-      )
-      .maybeSingle();
-
-  if (
-    employeeError
-  ) {
-    return {
-      employee:
-        null,
-
-      user,
-
+function forbiddenResponse(
+  message =
+    "You do not have permission to perform this action."
+) {
+  return NextResponse.json(
+    {
       error:
-        employeeError.message,
-
-      status:
-        500,
-    };
-  }
-
-  if (
-    !employee
-  ) {
-    return {
-      employee:
-        null,
-
-      user,
-
-      error:
-        "Your login is not linked to an active employee record.",
-
+        message,
+    },
+    {
       status:
         403,
-    };
-  }
-
-  return {
-    employee,
-    user,
-    error:
-      null,
-    status:
-      200,
-  };
+    }
+  );
 }
 
 // =========================================================
@@ -541,35 +466,55 @@ export async function GET(
       );
     }
 
-    const supabase =
-      await createServerSupabaseClient();
+    // =====================================================
+    // ACCESS CONTROL
+    // =====================================================
 
-    const current =
-      await getCurrentEmployee(
-        supabase
+    const access =
+      await getCurrentEmployeeAccess();
+
+    if (
+      !access.authenticated
+    ) {
+      return unauthenticatedResponse(
+        access.error
+      );
+    }
+
+    if (
+      !access.employee
+    ) {
+      return forbiddenResponse(
+        access.error ||
+          "Your login is not linked to an active employee record."
+      );
+    }
+
+    const canViewEmployees =
+      access.can(
+        "employees.view"
+      ) ||
+      access.can(
+        "employees.manage"
       );
 
     if (
-      !current.employee
+      !canViewEmployees
     ) {
-      return NextResponse.json(
-        {
-          error:
-            current.error,
-        },
-        {
-          status:
-            current.status,
-        }
+      return forbiddenResponse(
+        "You do not have permission to view employee records."
       );
     }
+
+    const supabase =
+      await createServerSupabaseClient();
 
     const employee =
       await loadEmployeeWorkspace({
         supabase,
 
         organizationId:
-          current.employee
+          access.employee
             .organization_id,
 
         employeeId:
@@ -591,9 +536,33 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(
-      employee
-    );
+    return NextResponse.json({
+      ...employee,
+
+      access: {
+        isOwner:
+          access.isOwner,
+
+        permissions:
+          access.permissions,
+
+        roles:
+          access.roles,
+
+        canViewEmployees:
+          true,
+
+        canManageEmployees:
+          access.can(
+            "employees.manage"
+          ),
+
+        canManageRoles:
+          access.can(
+            "roles.manage"
+          ),
+      },
+    });
   } catch (
     error
   ) {
@@ -647,44 +616,50 @@ export async function PATCH(
       );
     }
 
+    // =====================================================
+    // ACCESS CONTROL
+    // =====================================================
+
+    const access =
+      await getCurrentEmployeeAccess();
+
+    if (
+      !access.authenticated
+    ) {
+      return unauthenticatedResponse(
+        access.error
+      );
+    }
+
+    if (
+      !access.employee
+    ) {
+      return forbiddenResponse(
+        access.error ||
+          "Your login is not linked to an active employee record."
+      );
+    }
+
+    if (
+      !access.can(
+        "employees.manage"
+      )
+    ) {
+      return forbiddenResponse(
+        "You do not have permission to update employees."
+      );
+    }
+
     const supabase =
       await createServerSupabaseClient();
 
-    const current =
-      await getCurrentEmployee(
-        supabase
-      );
+    const organizationId =
+      access.employee
+        .organization_id;
 
-    if (
-      !current.employee
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            current.error,
-        },
-        {
-          status:
-            current.status,
-        }
-      );
-    }
-
-    if (
-      !current.employee
-        .is_organization_owner
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "Only the organisation owner can update employees.",
-        },
-        {
-          status:
-            403,
-        }
-      );
-    }
+    // =====================================================
+    // EXISTING EMPLOYEE
+    // =====================================================
 
     const {
       data:
@@ -705,8 +680,7 @@ export async function PATCH(
         )
         .eq(
           "organization_id",
-          current.employee
-            .organization_id
+          organizationId
         )
         .maybeSingle();
 
@@ -736,8 +710,29 @@ export async function PATCH(
     const body =
       await request.json();
 
+    // =====================================================
+    // ROLE MANAGEMENT REQUIRES roles.manage
+    // =====================================================
+
+    if (
+      Array.isArray(
+        body.role_ids
+      ) &&
+      !access.can(
+        "roles.manage"
+      )
+    ) {
+      return forbiddenResponse(
+        "You do not have permission to change employee role assignments."
+      );
+    }
+
     const updates =
       {};
+
+    // =====================================================
+    // EMPLOYEE NUMBER
+    // =====================================================
 
     if (
       Object.prototype.hasOwnProperty.call(
@@ -745,11 +740,83 @@ export async function PATCH(
         "employee_number"
       )
     ) {
-      updates.employee_number =
+      const employeeNumber =
         cleanText(
           body.employee_number
         );
+
+      if (
+        !employeeNumber
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Employee number cannot be empty.",
+          },
+          {
+            status:
+              400,
+          }
+        );
+      }
+
+      const {
+        data:
+          duplicateEmployeeNumber,
+        error:
+          duplicateNumberError,
+      } =
+        await supabase
+          .from(
+            "employees"
+          )
+          .select(
+            "id"
+          )
+          .eq(
+            "organization_id",
+            organizationId
+          )
+          .eq(
+            "employee_number",
+            employeeNumber
+          )
+          .neq(
+            "id",
+            id
+          )
+          .maybeSingle();
+
+      if (
+        duplicateNumberError
+      ) {
+        throw new Error(
+          duplicateNumberError.message
+        );
+      }
+
+      if (
+        duplicateEmployeeNumber
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Another employee already uses this employee number.",
+          },
+          {
+            status:
+              409,
+          }
+        );
+      }
+
+      updates.employee_number =
+        employeeNumber;
     }
+
+    // =====================================================
+    // FULL NAME
+    // =====================================================
 
     if (
       Object.prototype.hasOwnProperty.call(
@@ -757,11 +824,33 @@ export async function PATCH(
         "full_name"
       )
     ) {
-      updates.full_name =
+      const fullName =
         cleanText(
           body.full_name
         );
+
+      if (
+        !fullName
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Employee name cannot be empty.",
+          },
+          {
+            status:
+              400,
+          }
+        );
+      }
+
+      updates.full_name =
+        fullName;
     }
+
+    // =====================================================
+    // EMAIL
+    // =====================================================
 
     if (
       Object.prototype.hasOwnProperty.call(
@@ -769,11 +858,86 @@ export async function PATCH(
         "email"
       )
     ) {
-      updates.email =
+      const email =
         cleanText(
           body.email
+        ).toLowerCase();
+
+      if (
+        !email ||
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+          email
+        )
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Please enter a valid employee email address.",
+          },
+          {
+            status:
+              400,
+          }
         );
+      }
+
+      const {
+        data:
+          duplicateEmployeeEmail,
+        error:
+          duplicateEmailError,
+      } =
+        await supabase
+          .from(
+            "employees"
+          )
+          .select(
+            "id"
+          )
+          .eq(
+            "organization_id",
+            organizationId
+          )
+          .ilike(
+            "email",
+            email
+          )
+          .neq(
+            "id",
+            id
+          )
+          .maybeSingle();
+
+      if (
+        duplicateEmailError
+      ) {
+        throw new Error(
+          duplicateEmailError.message
+        );
+      }
+
+      if (
+        duplicateEmployeeEmail
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Another employee already uses this email address.",
+          },
+          {
+            status:
+              409,
+          }
+        );
+      }
+
+      updates.email =
+        email;
     }
+
+    // =====================================================
+    // SIMPLE FIELDS
+    // =====================================================
 
     if (
       Object.prototype.hasOwnProperty.call(
@@ -799,19 +963,89 @@ export async function PATCH(
         );
     }
 
+    // =====================================================
+    // DEPARTMENT
+    // =====================================================
+
     if (
       Object.prototype.hasOwnProperty.call(
         body,
         "department_id"
       )
     ) {
-      updates.department_id =
-        isUuid(
+      const departmentId =
+        cleanNullableText(
           body.department_id
+        );
+
+      if (
+        departmentId &&
+        !isUuid(
+          departmentId
         )
-          ? body.department_id
-          : null;
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Department must be a valid record ID.",
+          },
+          {
+            status:
+              400,
+          }
+        );
+      }
+
+      if (
+        departmentId
+      ) {
+        const {
+          data:
+            department,
+          error:
+            departmentError,
+        } =
+          await supabase
+            .from(
+              "departments"
+            )
+            .select(
+              "id"
+            )
+            .eq(
+              "id",
+              departmentId
+            )
+            .eq(
+              "organization_id",
+              organizationId
+            )
+            .maybeSingle();
+
+        if (
+          departmentError ||
+          !department
+        ) {
+          return NextResponse.json(
+            {
+              error:
+                "The selected department is not valid.",
+            },
+            {
+              status:
+                400,
+            }
+          );
+        }
+      }
+
+      updates.department_id =
+        departmentId;
     }
+
+    // =====================================================
+    // MANAGER
+    // =====================================================
 
     if (
       Object.prototype.hasOwnProperty.call(
@@ -819,13 +1053,99 @@ export async function PATCH(
         "manager_id"
       )
     ) {
-      updates.manager_id =
-        isUuid(
+      const managerId =
+        cleanNullableText(
           body.manager_id
+        );
+
+      if (
+        managerId &&
+        !isUuid(
+          managerId
         )
-          ? body.manager_id
-          : null;
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Manager must be a valid employee ID.",
+          },
+          {
+            status:
+              400,
+          }
+        );
+      }
+
+      if (
+        managerId ===
+        id
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "An employee cannot be their own manager.",
+          },
+          {
+            status:
+              400,
+          }
+        );
+      }
+
+      if (
+        managerId
+      ) {
+        const {
+          data:
+            manager,
+          error:
+            managerError,
+        } =
+          await supabase
+            .from(
+              "employees"
+            )
+            .select(
+              "id"
+            )
+            .eq(
+              "id",
+              managerId
+            )
+            .eq(
+              "organization_id",
+              organizationId
+            )
+            .eq(
+              "is_active",
+              true
+            )
+            .maybeSingle();
+
+        if (
+          managerError ||
+          !manager
+        ) {
+          return NextResponse.json(
+            {
+              error:
+                "The selected manager is not valid.",
+            },
+            {
+              status:
+                400,
+            }
+          );
+        }
+      }
+
+      updates.manager_id =
+        managerId;
     }
+
+    // =====================================================
+    // BACKUP EMPLOYEE
+    // =====================================================
 
     if (
       Object.prototype.hasOwnProperty.call(
@@ -833,13 +1153,99 @@ export async function PATCH(
         "backup_employee_id"
       )
     ) {
-      updates.backup_employee_id =
-        isUuid(
+      const backupEmployeeId =
+        cleanNullableText(
           body.backup_employee_id
+        );
+
+      if (
+        backupEmployeeId &&
+        !isUuid(
+          backupEmployeeId
         )
-          ? body.backup_employee_id
-          : null;
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Backup employee must be a valid employee ID.",
+          },
+          {
+            status:
+              400,
+          }
+        );
+      }
+
+      if (
+        backupEmployeeId ===
+        id
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "An employee cannot be their own backup.",
+          },
+          {
+            status:
+              400,
+          }
+        );
+      }
+
+      if (
+        backupEmployeeId
+      ) {
+        const {
+          data:
+            backupEmployee,
+          error:
+            backupError,
+        } =
+          await supabase
+            .from(
+              "employees"
+            )
+            .select(
+              "id"
+            )
+            .eq(
+              "id",
+              backupEmployeeId
+            )
+            .eq(
+              "organization_id",
+              organizationId
+            )
+            .eq(
+              "is_active",
+              true
+            )
+            .maybeSingle();
+
+        if (
+          backupError ||
+          !backupEmployee
+        ) {
+          return NextResponse.json(
+            {
+              error:
+                "The selected backup employee is not valid.",
+            },
+            {
+              status:
+                400,
+            }
+          );
+        }
+      }
+
+      updates.backup_employee_id =
+        backupEmployeeId;
     }
+
+    // =====================================================
+    // EMPLOYMENT FIELDS
+    // =====================================================
 
     if (
       Object.prototype.hasOwnProperty.call(
@@ -923,6 +1329,10 @@ export async function PATCH(
         );
     }
 
+    // =====================================================
+    // ACTIVE STATUS
+    // =====================================================
+
     if (
       Object.prototype.hasOwnProperty.call(
         body,
@@ -954,39 +1364,18 @@ export async function PATCH(
     }
 
     // =====================================================
-    // SELF LINKS
+    // AUDIT
     // =====================================================
 
     if (
-      updates.manager_id ===
-      id
+      Object.keys(
+        updates
+      ).length >
+      0
     ) {
-      return NextResponse.json(
-        {
-          error:
-            "An employee cannot be their own manager.",
-        },
-        {
-          status:
-            400,
-        }
-      );
-    }
-
-    if (
-      updates.backup_employee_id ===
-      id
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "An employee cannot be their own backup.",
-        },
-        {
-          status:
-            400,
-        }
-      );
+      updates.updated_by =
+        access.employee
+          .user_id;
     }
 
     // =====================================================
@@ -1020,8 +1409,7 @@ export async function PATCH(
           )
           .eq(
             "organization_id",
-            current.employee
-              .organization_id
+            organizationId
           )
           .select()
           .single();
@@ -1039,7 +1427,7 @@ export async function PATCH(
     }
 
     // =====================================================
-    // UPDATE ROLES
+    // UPDATE ROLE ASSIGNMENTS
     // =====================================================
 
     if (
@@ -1056,13 +1444,15 @@ export async function PATCH(
           ),
         ];
 
+      let validRoles =
+        [];
+
       if (
         roleIds.length >
         0
       ) {
         const {
-          data:
-            validRoles,
+          data,
           error:
             validRolesError,
         } =
@@ -1071,12 +1461,16 @@ export async function PATCH(
               "roles"
             )
             .select(
-              "id"
+              `
+                id,
+                code,
+                is_system_role,
+                is_active
+              `
             )
             .eq(
               "organization_id",
-              current.employee
-                .organization_id
+              organizationId
             )
             .eq(
               "is_active",
@@ -1095,31 +1489,13 @@ export async function PATCH(
           );
         }
 
-        const validRoleIds =
-          new Set(
-            (
-              validRoles ||
-              []
-            ).map(
-              (
-                role
-              ) =>
-                role.id
-            )
-          );
-
-        const invalidRole =
-          roleIds.some(
-            (
-              roleId
-            ) =>
-              !validRoleIds.has(
-                roleId
-              )
-          );
+        validRoles =
+          data ||
+          [];
 
         if (
-          invalidRole
+          validRoles.length !==
+          roleIds.length
         ) {
           return NextResponse.json(
             {
@@ -1133,6 +1509,57 @@ export async function PATCH(
           );
         }
       }
+
+      // ===================================================
+      // OWNER ROLE PROTECTION
+      // ===================================================
+
+      const selectedOwnerRole =
+        validRoles.some(
+          (
+            role
+          ) =>
+            role.code ===
+            "ORG_OWNER"
+        );
+
+      if (
+        !existingEmployee
+          .is_organization_owner &&
+        selectedOwnerRole
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "The Organisation Owner role cannot be assigned to another employee.",
+          },
+          {
+            status:
+              400,
+          }
+        );
+      }
+
+      if (
+        existingEmployee
+          .is_organization_owner &&
+        !selectedOwnerRole
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "The Organisation Owner must retain the Organisation Owner role.",
+          },
+          {
+            status:
+              400,
+          }
+        );
+      }
+
+      // ===================================================
+      // CLEAR EXISTING ROLE ASSIGNMENTS
+      // ===================================================
 
       const {
         error:
@@ -1149,8 +1576,7 @@ export async function PATCH(
           )
           .eq(
             "organization_id",
-            current.employee
-              .organization_id
+            organizationId
           );
 
       if (
@@ -1160,6 +1586,10 @@ export async function PATCH(
           deleteRolesError.message
         );
       }
+
+      // ===================================================
+      // INSERT NEW ROLE ASSIGNMENTS
+      // ===================================================
 
       if (
         roleIds.length >
@@ -1171,8 +1601,7 @@ export async function PATCH(
               roleId
             ) => ({
               organization_id:
-                current.employee
-                  .organization_id,
+                organizationId,
 
               employee_id:
                 id,
@@ -1181,11 +1610,8 @@ export async function PATCH(
                 roleId,
 
               assigned_by:
-                current.user
-                  ?.id ||
-                current.employee
-                  .user_id ||
-                null,
+                access.employee
+                  .user_id,
             })
           );
 
@@ -1219,9 +1645,7 @@ export async function PATCH(
       await loadEmployeeWorkspace({
         supabase,
 
-        organizationId:
-          current.employee
-            .organization_id,
+        organizationId,
 
         employeeId:
           id,
@@ -1288,44 +1712,50 @@ export async function DELETE(
       );
     }
 
+    // =====================================================
+    // ACCESS CONTROL
+    // =====================================================
+
+    const access =
+      await getCurrentEmployeeAccess();
+
+    if (
+      !access.authenticated
+    ) {
+      return unauthenticatedResponse(
+        access.error
+      );
+    }
+
+    if (
+      !access.employee
+    ) {
+      return forbiddenResponse(
+        access.error ||
+          "Your login is not linked to an active employee record."
+      );
+    }
+
+    if (
+      !access.can(
+        "employees.manage"
+      )
+    ) {
+      return forbiddenResponse(
+        "You do not have permission to deactivate employees."
+      );
+    }
+
     const supabase =
       await createServerSupabaseClient();
 
-    const current =
-      await getCurrentEmployee(
-        supabase
-      );
+    const organizationId =
+      access.employee
+        .organization_id;
 
-    if (
-      !current.employee
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            current.error,
-        },
-        {
-          status:
-            current.status,
-        }
-      );
-    }
-
-    if (
-      !current.employee
-        .is_organization_owner
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "Only the organisation owner can deactivate employees.",
-        },
-        {
-          status:
-            403,
-        }
-      );
-    }
+    // =====================================================
+    // EMPLOYEE
+    // =====================================================
 
     const {
       data:
@@ -1340,6 +1770,7 @@ export async function DELETE(
         .select(
           `
             id,
+            user_id,
             full_name,
             is_organization_owner,
             is_active
@@ -1351,8 +1782,7 @@ export async function DELETE(
         )
         .eq(
           "organization_id",
-          current.employee
-            .organization_id
+          organizationId
         )
         .maybeSingle();
 
@@ -1379,6 +1809,10 @@ export async function DELETE(
       );
     }
 
+    // =====================================================
+    // OWNER PROTECTION
+    // =====================================================
+
     if (
       employee
         .is_organization_owner
@@ -1394,6 +1828,49 @@ export async function DELETE(
         }
       );
     }
+
+    // =====================================================
+    // SELF-DEACTIVATION PROTECTION
+    // =====================================================
+
+    if (
+      String(
+        employee.id
+      ) ===
+      String(
+        access.employee.id
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "You cannot deactivate your own employee account.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
+    // =====================================================
+    // ALREADY INACTIVE
+    // =====================================================
+
+    if (
+      !employee.is_active
+    ) {
+      return NextResponse.json({
+        employee,
+
+        message:
+          "Employee is already inactive.",
+      });
+    }
+
+    // =====================================================
+    // DEACTIVATE
+    // =====================================================
 
     const {
       data:
@@ -1421,6 +1898,10 @@ export async function DELETE(
               .split(
                 "T"
               )[0],
+
+          updated_by:
+            access.employee
+              .user_id,
         })
         .eq(
           "id",
@@ -1428,8 +1909,7 @@ export async function DELETE(
         )
         .eq(
           "organization_id",
-          current.employee
-            .organization_id
+          organizationId
         )
         .select()
         .single();
