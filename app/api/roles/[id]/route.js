@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "../../../../lib/supabaseServer";
+import { getCurrentEmployeeAccess } from "../../../../lib/accessControl";
+
+// =========================================================
+// HELPERS
+// =========================================================
 
 function cleanText(value) {
   return typeof value === "string"
@@ -8,7 +13,9 @@ function cleanText(value) {
 }
 
 function cleanNullableText(value) {
-  const cleaned = cleanText(value);
+  const cleaned =
+    cleanText(value);
+
   return cleaned || null;
 }
 
@@ -18,45 +25,51 @@ function isUuid(value) {
   );
 }
 
-async function getCurrentEmployee(supabase) {
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError || !user) {
-    return null;
-  }
-
-  const {
-    data: employee,
-  } = await supabase
-    .from("employees")
-    .select(
-      `
-        id,
-        organization_id,
-        user_id,
-        is_organization_owner,
-        is_active
-      `
-    )
-    .eq("user_id", user.id)
-    .eq("is_active", true)
-    .maybeSingle();
-
-  return employee || null;
+function unauthenticatedResponse(
+  message = "You must be logged in."
+) {
+  return NextResponse.json(
+    {
+      error: message,
+    },
+    {
+      status: 401,
+    }
+  );
 }
+
+function forbiddenResponse(
+  message =
+    "You do not have permission to perform this action."
+) {
+  return NextResponse.json(
+    {
+      error: message,
+    },
+    {
+      status: 403,
+    }
+  );
+}
+
+// =========================================================
+// PATCH
+// UPDATE ROLE + PERMISSIONS
+// =========================================================
 
 export async function PATCH(
   request,
   context
 ) {
   try {
-    const { id } =
+    const {
+      id,
+    } =
       await context.params;
 
-    if (!isUuid(id)) {
+    if (
+      !isUuid(id)
+    ) {
       return NextResponse.json(
         {
           error:
@@ -68,51 +81,63 @@ export async function PATCH(
       );
     }
 
-    const supabase =
-      await createServerSupabaseClient();
+    // =====================================================
+    // ACCESS CONTROL
+    // =====================================================
 
-    const currentEmployee =
-      await getCurrentEmployee(
-        supabase
-      );
+    const access =
+      await getCurrentEmployeeAccess();
 
-    if (!currentEmployee) {
-      return NextResponse.json(
-        {
-          error:
-            "You must be logged in as an active employee.",
-        },
-        {
-          status: 401,
-        }
+    if (
+      !access.authenticated
+    ) {
+      return unauthenticatedResponse(
+        access.error
       );
     }
 
     if (
-      !currentEmployee
-        .is_organization_owner
+      !access.employee
     ) {
-      return NextResponse.json(
-        {
-          error:
-            "Only the organisation owner can update roles.",
-        },
-        {
-          status: 403,
-        }
+      return forbiddenResponse(
+        access.error ||
+          "Your login is not linked to an active employee record."
       );
     }
 
+    if (
+      !access.can(
+        "roles.manage"
+      )
+    ) {
+      return forbiddenResponse(
+        "You do not have permission to update roles."
+      );
+    }
+
+    const supabase =
+      await createServerSupabaseClient();
+
     const organizationId =
-      currentEmployee.organization_id;
+      access.employee
+        .organization_id;
+
+    // =====================================================
+    // EXISTING ROLE
+    // =====================================================
 
     const {
-      data: existingRole,
-      error: existingError,
+      data:
+        existingRole,
+      error:
+        existingError,
     } = await supabase
       .from("roles")
       .select("*")
-      .eq("id", id)
+      .eq(
+        "id",
+        id
+      )
       .eq(
         "organization_id",
         organizationId
@@ -120,13 +145,25 @@ export async function PATCH(
       .maybeSingle();
 
     if (
-      existingError ||
+      existingError
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            existingError.message,
+        },
+        {
+          status: 500,
+        }
+      );
+    }
+
+    if (
       !existingRole
     ) {
       return NextResponse.json(
         {
           error:
-            existingError?.message ||
             "Role not found.",
         },
         {
@@ -135,12 +172,18 @@ export async function PATCH(
       );
     }
 
-    const body = await request.json();
+    const body =
+      await request.json();
 
     const updates = {
       updated_by:
-        currentEmployee.user_id,
+        access.employee
+          .user_id,
     };
+
+    // =====================================================
+    // NAME
+    // =====================================================
 
     if (
       Object.prototype.hasOwnProperty.call(
@@ -148,9 +191,17 @@ export async function PATCH(
         "name"
       )
     ) {
-      if (existingRole.is_system_role) {
+      const name =
+        cleanText(
+          body.name
+        );
+
+      if (
+        existingRole
+          .is_system_role
+      ) {
         if (
-          cleanText(body.name) !==
+          name !==
           existingRole.name
         ) {
           return NextResponse.json(
@@ -164,11 +215,9 @@ export async function PATCH(
           );
         }
       } else {
-        const name = cleanText(
-          body.name
-        );
-
-        if (!name) {
+        if (
+          !name
+        ) {
           return NextResponse.json(
             {
               error:
@@ -180,9 +229,14 @@ export async function PATCH(
           );
         }
 
-        updates.name = name;
+        updates.name =
+          name;
       }
     }
+
+    // =====================================================
+    // CODE
+    // =====================================================
 
     if (
       Object.prototype.hasOwnProperty.call(
@@ -190,11 +244,17 @@ export async function PATCH(
         "code"
       )
     ) {
-      if (existingRole.is_system_role) {
+      const code =
+        cleanText(
+          body.code
+        ).toUpperCase();
+
+      if (
+        existingRole
+          .is_system_role
+      ) {
         if (
-          cleanText(
-            body.code
-          ).toUpperCase() !==
+          code !==
           existingRole.code
         ) {
           return NextResponse.json(
@@ -208,11 +268,9 @@ export async function PATCH(
           );
         }
       } else {
-        const code = cleanText(
-          body.code
-        ).toUpperCase();
-
-        if (!code) {
+        if (
+          !code
+        ) {
           return NextResponse.json(
             {
               error:
@@ -224,9 +282,79 @@ export async function PATCH(
           );
         }
 
-        updates.code = code;
+        if (
+          code ===
+          "ORG_OWNER"
+        ) {
+          return NextResponse.json(
+            {
+              error:
+                "ORG_OWNER is reserved for the protected Organisation Owner role.",
+            },
+            {
+              status: 400,
+            }
+          );
+        }
+
+        const {
+          data:
+            duplicateRole,
+          error:
+            duplicateRoleError,
+        } = await supabase
+          .from("roles")
+          .select("id")
+          .eq(
+            "organization_id",
+            organizationId
+          )
+          .ilike(
+            "code",
+            code
+          )
+          .neq(
+            "id",
+            id
+          )
+          .maybeSingle();
+
+        if (
+          duplicateRoleError
+        ) {
+          return NextResponse.json(
+            {
+              error:
+                duplicateRoleError.message,
+            },
+            {
+              status: 500,
+            }
+          );
+        }
+
+        if (
+          duplicateRole
+        ) {
+          return NextResponse.json(
+            {
+              error:
+                "Another role already uses this code.",
+            },
+            {
+              status: 409,
+            }
+          );
+        }
+
+        updates.code =
+          code;
       }
     }
+
+    // =====================================================
+    // DESCRIPTION
+    // =====================================================
 
     if (
       Object.prototype.hasOwnProperty.call(
@@ -240,6 +368,10 @@ export async function PATCH(
         );
     }
 
+    // =====================================================
+    // ACTIVE STATUS
+    // =====================================================
+
     if (
       Object.prototype.hasOwnProperty.call(
         body,
@@ -247,13 +379,15 @@ export async function PATCH(
       )
     ) {
       if (
-        existingRole.is_system_role &&
-        body.is_active === false
+        existingRole
+          .is_system_role &&
+        body.is_active ===
+          false
       ) {
         return NextResponse.json(
           {
             error:
-              "The Organisation Owner system role cannot be deactivated.",
+              "Protected system roles cannot be deactivated.",
           },
           {
             status: 400,
@@ -262,27 +396,48 @@ export async function PATCH(
       }
 
       updates.is_active =
-        Boolean(body.is_active);
+        Boolean(
+          body.is_active
+        );
     }
 
+    // =====================================================
+    // UPDATE ROLE DETAILS
+    // =====================================================
+
     const editableKeys =
-      Object.keys(updates).filter(
-        (key) => key !== "updated_by"
+      Object.keys(
+        updates
+      ).filter(
+        (key) =>
+          key !==
+          "updated_by"
       );
 
-    if (editableKeys.length > 0) {
+    if (
+      editableKeys.length >
+      0
+    ) {
       const {
-        error: updateError,
+        error:
+          updateError,
       } = await supabase
         .from("roles")
-        .update(updates)
-        .eq("id", id)
+        .update(
+          updates
+        )
+        .eq(
+          "id",
+          id
+        )
         .eq(
           "organization_id",
           organizationId
         );
 
-      if (updateError) {
+      if (
+        updateError
+      ) {
         return NextResponse.json(
           {
             error:
@@ -295,34 +450,52 @@ export async function PATCH(
       }
     }
 
+    // =====================================================
+    // UPDATE PERMISSIONS
+    // =====================================================
+
     if (
       Array.isArray(
         body.permission_ids
       )
     ) {
-      const permissionIds = [
-        ...new Set(
-          body.permission_ids.filter(
-            isUuid
-          )
-        ),
-      ];
+      const permissionIds =
+        [
+          ...new Set(
+            body.permission_ids.filter(
+              isUuid
+            )
+          ),
+        ];
+
+      // ===================================================
+      // ORG OWNER MUST RETAIN ALL ACTIVE PERMISSIONS
+      // ===================================================
 
       if (
-        existingRole.is_system_role &&
+        existingRole
+          .is_system_role &&
         existingRole.code ===
           "ORG_OWNER"
       ) {
         const {
-          data: allPermissions,
+          data:
+            allPermissions,
           error:
             allPermissionsError,
         } = await supabase
-          .from("permissions")
+          .from(
+            "permissions"
+          )
           .select("id")
-          .eq("is_active", true);
+          .eq(
+            "is_active",
+            true
+          );
 
-        if (allPermissionsError) {
+        if (
+          allPermissionsError
+        ) {
           return NextResponse.json(
             {
               error:
@@ -334,12 +507,16 @@ export async function PATCH(
           );
         }
 
-        const allPermissionIds = (
-          allPermissions || []
-        ).map(
-          (permission) =>
-            permission.id
-        );
+        const allPermissionIds =
+          (
+            allPermissions ||
+            []
+          ).map(
+            (
+              permission
+            ) =>
+              permission.id
+          );
 
         if (
           permissionIds.length !==
@@ -356,19 +533,24 @@ export async function PATCH(
           );
         }
 
-        const selectedSet = new Set(
-          permissionIds
-        );
+        const selectedSet =
+          new Set(
+            permissionIds
+          );
 
         const missingPermission =
           allPermissionIds.some(
-            (permissionId) =>
+            (
+              permissionId
+            ) =>
               !selectedSet.has(
                 permissionId
               )
           );
 
-        if (missingPermission) {
+        if (
+          missingPermission
+        ) {
           return NextResponse.json(
             {
               error:
@@ -380,19 +562,35 @@ export async function PATCH(
           );
         }
       } else if (
-        permissionIds.length > 0
+        permissionIds.length >
+        0
       ) {
+        // =================================================
+        // VALIDATE PERMISSIONS
+        // =================================================
+
         const {
-          data: validPermissions,
+          data:
+            validPermissions,
           error:
             permissionsError,
         } = await supabase
-          .from("permissions")
+          .from(
+            "permissions"
+          )
           .select("id")
-          .eq("is_active", true)
-          .in("id", permissionIds);
+          .eq(
+            "is_active",
+            true
+          )
+          .in(
+            "id",
+            permissionIds
+          );
 
-        if (permissionsError) {
+        if (
+          permissionsError
+        ) {
           return NextResponse.json(
             {
               error:
@@ -405,8 +603,10 @@ export async function PATCH(
         }
 
         if (
-          (validPermissions || [])
-            .length !==
+          (
+            validPermissions ||
+            []
+          ).length !==
           permissionIds.length
         ) {
           return NextResponse.json(
@@ -421,18 +621,30 @@ export async function PATCH(
         }
       }
 
+      // ===================================================
+      // CLEAR OLD PERMISSIONS
+      // ===================================================
+
       const {
-        error: deleteError,
+        error:
+          deleteError,
       } = await supabase
-        .from("role_permissions")
+        .from(
+          "role_permissions"
+        )
         .delete()
-        .eq("role_id", id)
+        .eq(
+          "role_id",
+          id
+        )
         .eq(
           "organization_id",
           organizationId
         );
 
-      if (deleteError) {
+      if (
+        deleteError
+      ) {
         return NextResponse.json(
           {
             error:
@@ -445,30 +657,48 @@ export async function PATCH(
         );
       }
 
-      if (permissionIds.length > 0) {
+      // ===================================================
+      // INSERT NEW PERMISSIONS
+      // ===================================================
+
+      if (
+        permissionIds.length >
+        0
+      ) {
         const assignments =
           permissionIds.map(
-            (permissionId) => ({
+            (
+              permissionId
+            ) => ({
               organization_id:
                 organizationId,
 
-              role_id: id,
+              role_id:
+                id,
 
               permission_id:
                 permissionId,
 
               granted_by:
-                currentEmployee.user_id,
+                access.employee
+                  .user_id,
             })
           );
 
         const {
-          error: insertError,
+          error:
+            insertError,
         } = await supabase
-          .from("role_permissions")
-          .insert(assignments);
+          .from(
+            "role_permissions"
+          )
+          .insert(
+            assignments
+          );
 
-        if (insertError) {
+        if (
+          insertError
+        ) {
           return NextResponse.json(
             {
               error:
@@ -483,20 +713,31 @@ export async function PATCH(
       }
     }
 
+    // =====================================================
+    // REFRESH ROLE
+    // =====================================================
+
     const {
-      data: updatedRole,
-      error: refreshedRoleError,
+      data:
+        updatedRole,
+      error:
+        refreshedRoleError,
     } = await supabase
       .from("roles")
       .select("*")
-      .eq("id", id)
+      .eq(
+        "id",
+        id
+      )
       .eq(
         "organization_id",
         organizationId
       )
       .single();
 
-    if (refreshedRoleError) {
+    if (
+      refreshedRoleError
+    ) {
       return NextResponse.json(
         {
           error:
@@ -509,12 +750,15 @@ export async function PATCH(
     }
 
     return NextResponse.json({
-      role: updatedRole,
+      role:
+        updatedRole,
 
       message:
         "Role and permissions updated successfully.",
     });
-  } catch (error) {
+  } catch (
+    error
+  ) {
     console.error(
       "Role PATCH error:",
       error
@@ -533,15 +777,26 @@ export async function PATCH(
   }
 }
 
+// =========================================================
+// DELETE
+// DEACTIVATE ROLE
+// =========================================================
+
 export async function DELETE(
   request,
   context
 ) {
   try {
-    const { id } =
+    const {
+      id,
+    } =
       await context.params;
 
-    if (!isUuid(id)) {
+    if (
+      !isUuid(
+        id
+      )
+    ) {
       return NextResponse.json(
         {
           error:
@@ -553,47 +808,56 @@ export async function DELETE(
       );
     }
 
-    const supabase =
-      await createServerSupabaseClient();
+    // =====================================================
+    // ACCESS CONTROL
+    // =====================================================
 
-    const currentEmployee =
-      await getCurrentEmployee(
-        supabase
-      );
+    const access =
+      await getCurrentEmployeeAccess();
 
-    if (!currentEmployee) {
-      return NextResponse.json(
-        {
-          error:
-            "You must be logged in as an active employee.",
-        },
-        {
-          status: 401,
-        }
+    if (
+      !access.authenticated
+    ) {
+      return unauthenticatedResponse(
+        access.error
       );
     }
 
     if (
-      !currentEmployee
-        .is_organization_owner
+      !access.employee
     ) {
-      return NextResponse.json(
-        {
-          error:
-            "Only the organisation owner can deactivate roles.",
-        },
-        {
-          status: 403,
-        }
+      return forbiddenResponse(
+        access.error ||
+          "Your login is not linked to an active employee record."
       );
     }
 
+    if (
+      !access.can(
+        "roles.manage"
+      )
+    ) {
+      return forbiddenResponse(
+        "You do not have permission to deactivate roles."
+      );
+    }
+
+    const supabase =
+      await createServerSupabaseClient();
+
     const organizationId =
-      currentEmployee.organization_id;
+      access.employee
+        .organization_id;
+
+    // =====================================================
+    // ROLE
+    // =====================================================
 
     const {
-      data: role,
-      error: roleError,
+      data:
+        role,
+      error:
+        roleError,
     } = await supabase
       .from("roles")
       .select(
@@ -605,18 +869,36 @@ export async function DELETE(
           is_active
         `
       )
-      .eq("id", id)
+      .eq(
+        "id",
+        id
+      )
       .eq(
         "organization_id",
         organizationId
       )
       .maybeSingle();
 
-    if (roleError || !role) {
+    if (
+      roleError
+    ) {
       return NextResponse.json(
         {
           error:
-            roleError?.message ||
+            roleError.message,
+        },
+        {
+          status: 500,
+        }
+      );
+    }
+
+    if (
+      !role
+    ) {
+      return NextResponse.json(
+        {
+          error:
             "Role not found.",
         },
         {
@@ -625,7 +907,14 @@ export async function DELETE(
       );
     }
 
-    if (role.is_system_role) {
+    // =====================================================
+    // SYSTEM ROLE PROTECTION
+    // =====================================================
+
+    if (
+      role
+        .is_system_role
+    ) {
       return NextResponse.json(
         {
           error:
@@ -637,22 +926,56 @@ export async function DELETE(
       );
     }
 
+    // =====================================================
+    // ALREADY INACTIVE
+    // =====================================================
+
+    if (
+      !role.is_active
+    ) {
+      return NextResponse.json({
+        role,
+
+        message:
+          `${role.name} is already inactive.`,
+      });
+    }
+
+    // =====================================================
+    // CHECK EMPLOYEE ASSIGNMENTS
+    // =====================================================
+
     const {
-      count: assignmentCount,
-      error: assignmentError,
+      count:
+        assignmentCount,
+      error:
+        assignmentError,
     } = await supabase
-      .from("user_roles")
-      .select("id", {
-        count: "exact",
-        head: true,
-      })
-      .eq("role_id", id)
+      .from(
+        "user_roles"
+      )
+      .select(
+        "id",
+        {
+          count:
+            "exact",
+
+          head:
+            true,
+        }
+      )
+      .eq(
+        "role_id",
+        id
+      )
       .eq(
         "organization_id",
         organizationId
       );
 
-    if (assignmentError) {
+    if (
+      assignmentError
+    ) {
       return NextResponse.json(
         {
           error:
@@ -664,7 +987,13 @@ export async function DELETE(
       );
     }
 
-    if ((assignmentCount || 0) > 0) {
+    if (
+      (
+        assignmentCount ||
+        0
+      ) >
+      0
+    ) {
       return NextResponse.json(
         {
           error:
@@ -676,22 +1005,39 @@ export async function DELETE(
       );
     }
 
+    // =====================================================
+    // DEACTIVATE
+    // =====================================================
+
     const {
-      error: deactivateError,
+      data:
+        deactivatedRole,
+      error:
+        deactivateError,
     } = await supabase
       .from("roles")
       .update({
-        is_active: false,
+        is_active:
+          false,
+
         updated_by:
-          currentEmployee.user_id,
+          access.employee
+            .user_id,
       })
-      .eq("id", id)
+      .eq(
+        "id",
+        id
+      )
       .eq(
         "organization_id",
         organizationId
-      );
+      )
+      .select()
+      .single();
 
-    if (deactivateError) {
+    if (
+      deactivateError
+    ) {
       return NextResponse.json(
         {
           error:
@@ -704,10 +1050,15 @@ export async function DELETE(
     }
 
     return NextResponse.json({
+      role:
+        deactivatedRole,
+
       message:
         `${role.name} was deactivated successfully.`,
     });
-  } catch (error) {
+  } catch (
+    error
+  ) {
     console.error(
       "Role DELETE error:",
       error
