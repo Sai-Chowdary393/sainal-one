@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "../../../lib/supabaseServer";
+import { getCurrentEmployeeAccess } from "../../../lib/accessControl";
+
+// =========================================================
+// HELPERS
+// =========================================================
 
 function cleanText(value) {
   return typeof value === "string"
@@ -8,7 +13,9 @@ function cleanText(value) {
 }
 
 function cleanNullableText(value) {
-  const cleaned = cleanText(value);
+  const cleaned =
+    cleanText(value);
+
   return cleaned || null;
 }
 
@@ -18,85 +25,94 @@ function isUuid(value) {
   );
 }
 
-async function getCurrentEmployee(supabase) {
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError || !user) {
-    return {
-      employee: null,
-      error: "You must be logged in.",
+function unauthenticatedResponse(
+  message = "You must be logged in."
+) {
+  return NextResponse.json(
+    {
+      error: message,
+    },
+    {
       status: 401,
-    };
-  }
-
-  const {
-    data: employee,
-    error: employeeError,
-  } = await supabase
-    .from("employees")
-    .select(
-      `
-        id,
-        organization_id,
-        user_id,
-        full_name,
-        email,
-        is_organization_owner,
-        is_active
-      `
-    )
-    .eq("user_id", user.id)
-    .eq("is_active", true)
-    .maybeSingle();
-
-  if (employeeError) {
-    return {
-      employee: null,
-      error: employeeError.message,
-      status: 500,
-    };
-  }
-
-  if (!employee) {
-    return {
-      employee: null,
-      error:
-        "Your login is not linked to an active employee record.",
-      status: 403,
-    };
-  }
-
-  return {
-    employee,
-    error: null,
-    status: 200,
-  };
+    }
+  );
 }
+
+function forbiddenResponse(
+  message =
+    "You do not have permission to perform this action."
+) {
+  return NextResponse.json(
+    {
+      error: message,
+    },
+    {
+      status: 403,
+    }
+  );
+}
+
+// =========================================================
+// GET
+// ROLES + PERMISSIONS WORKSPACE
+// =========================================================
 
 export async function GET() {
   try {
-    const supabase =
-      await createServerSupabaseClient();
+    // =====================================================
+    // ACCESS CONTROL
+    // =====================================================
 
-    const current =
-      await getCurrentEmployee(supabase);
+    const access =
+      await getCurrentEmployeeAccess();
 
-    if (!current.employee) {
-      return NextResponse.json(
-        {
-          error: current.error,
-        },
-        {
-          status: current.status,
-        }
+    if (
+      !access.authenticated
+    ) {
+      return unauthenticatedResponse(
+        access.error
       );
     }
 
+    if (
+      !access.employee
+    ) {
+      return forbiddenResponse(
+        access.error ||
+          "Your login is not linked to an active employee record."
+      );
+    }
+
+    /*
+     * roles.manage automatically implies the user
+     * should be able to view the roles workspace.
+     */
+    const canViewRoles =
+      access.can(
+        "roles.view"
+      ) ||
+      access.can(
+        "roles.manage"
+      );
+
+    if (
+      !canViewRoles
+    ) {
+      return forbiddenResponse(
+        "You do not have permission to view roles and permissions."
+      );
+    }
+
+    const supabase =
+      await createServerSupabaseClient();
+
     const organizationId =
-      current.employee.organization_id;
+      access.employee
+        .organization_id;
+
+    // =====================================================
+    // LOAD WORKSPACE
+    // =====================================================
 
     const [
       rolesResult,
@@ -104,139 +120,126 @@ export async function GET() {
       rolePermissionsResult,
       userRolesResult,
       employeesResult,
-    ] = await Promise.all([
-      supabase
-        .from("roles")
-        .select("*")
-        .eq(
-          "organization_id",
-          organizationId
-        )
-        .order("is_system_role", {
-          ascending: false,
-        })
-        .order("name", {
-          ascending: true,
-        }),
+    ] =
+      await Promise.all([
+        supabase
+          .from("roles")
+          .select("*")
+          .eq(
+            "organization_id",
+            organizationId
+          )
+          .order(
+            "is_system_role",
+            {
+              ascending: false,
+            }
+          )
+          .order(
+            "name",
+            {
+              ascending: true,
+            }
+          ),
 
-      supabase
-        .from("permissions")
-        .select("*")
-        .eq("is_active", true)
-        .order("module", {
-          ascending: true,
-        })
-        .order("name", {
-          ascending: true,
-        }),
+        supabase
+          .from(
+            "permissions"
+          )
+          .select("*")
+          .eq(
+            "is_active",
+            true
+          )
+          .order(
+            "module",
+            {
+              ascending: true,
+            }
+          )
+          .order(
+            "name",
+            {
+              ascending: true,
+            }
+          ),
 
-      supabase
-        .from("role_permissions")
-        .select(
-          `
-            id,
-            organization_id,
-            role_id,
-            permission_id,
-            granted_by,
-            granted_at
-          `
-        )
-        .eq(
-          "organization_id",
-          organizationId
-        ),
+        supabase
+          .from(
+            "role_permissions"
+          )
+          .select(
+            `
+              id,
+              organization_id,
+              role_id,
+              permission_id,
+              granted_by,
+              granted_at
+            `
+          )
+          .eq(
+            "organization_id",
+            organizationId
+          ),
 
-      supabase
-        .from("user_roles")
-        .select(
-          `
-            id,
-            organization_id,
-            employee_id,
-            role_id,
-            assigned_at
-          `
-        )
-        .eq(
-          "organization_id",
-          organizationId
-        ),
+        supabase
+          .from(
+            "user_roles"
+          )
+          .select(
+            `
+              id,
+              organization_id,
+              employee_id,
+              role_id,
+              assigned_at
+            `
+          )
+          .eq(
+            "organization_id",
+            organizationId
+          ),
 
-      supabase
-        .from("employees")
-        .select(
-          `
-            id,
-            employee_number,
-            full_name,
-            email,
-            job_title,
-            employment_status,
-            is_active
-          `
-        )
-        .eq(
-          "organization_id",
-          organizationId
-        )
-        .order("full_name", {
-          ascending: true,
-        }),
-    ]);
+        supabase
+          .from(
+            "employees"
+          )
+          .select(
+            `
+              id,
+              employee_number,
+              full_name,
+              email,
+              job_title,
+              employment_status,
+              is_active
+            `
+          )
+          .eq(
+            "organization_id",
+            organizationId
+          )
+          .order(
+            "full_name",
+            {
+              ascending: true,
+            }
+          ),
+      ]);
 
-    if (rolesResult.error) {
-      return NextResponse.json(
-        {
-          error: rolesResult.error.message,
-        },
-        {
-          status: 500,
-        }
-      );
-    }
+    // =====================================================
+    // ERRORS
+    // =====================================================
 
-    if (permissionsResult.error) {
-      return NextResponse.json(
-        {
-          error:
-            permissionsResult.error.message,
-        },
-        {
-          status: 500,
-        }
-      );
-    }
-
-    if (rolePermissionsResult.error) {
-      return NextResponse.json(
-        {
-          error:
-            rolePermissionsResult.error.message,
-        },
-        {
-          status: 500,
-        }
-      );
-    }
-
-    if (userRolesResult.error) {
-      return NextResponse.json(
-        {
-          error:
-            userRolesResult.error.message,
-        },
-        {
-          status: 500,
-        }
-      );
-    }
-
-    if (employeesResult.error) {
+    if (
+      rolesResult.error
+    ) {
       return NextResponse.json(
         {
           error:
-            employeesResult.error.message,
+            rolesResult.error
+              .message,
         },
         {
           status: 500,
@@ -244,17 +247,87 @@ export async function GET() {
       );
     }
 
-    const roles = Array.isArray(
-      rolesResult.data
-    )
-      ? rolesResult.data
-      : [];
+    if (
+      permissionsResult.error
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            permissionsResult
+              .error
+              .message,
+        },
+        {
+          status: 500,
+        }
+      );
+    }
 
-    const permissions = Array.isArray(
-      permissionsResult.data
-    )
-      ? permissionsResult.data
-      : [];
+    if (
+      rolePermissionsResult.error
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            rolePermissionsResult
+              .error
+              .message,
+        },
+        {
+          status: 500,
+        }
+      );
+    }
+
+    if (
+      userRolesResult.error
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            userRolesResult
+              .error
+              .message,
+        },
+        {
+          status: 500,
+        }
+      );
+    }
+
+    if (
+      employeesResult.error
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            employeesResult
+              .error
+              .message,
+        },
+        {
+          status: 500,
+        }
+      );
+    }
+
+    // =====================================================
+    // NORMALISE
+    // =====================================================
+
+    const roles =
+      Array.isArray(
+        rolesResult.data
+      )
+        ? rolesResult.data
+        : [];
+
+    const permissions =
+      Array.isArray(
+        permissionsResult.data
+      )
+        ? permissionsResult.data
+        : [];
 
     const rolePermissions =
       Array.isArray(
@@ -263,42 +336,68 @@ export async function GET() {
         ? rolePermissionsResult.data
         : [];
 
-    const userRoles = Array.isArray(
-      userRolesResult.data
-    )
-      ? userRolesResult.data
-      : [];
+    const userRoles =
+      Array.isArray(
+        userRolesResult.data
+      )
+        ? userRolesResult.data
+        : [];
 
-    const employees = Array.isArray(
-      employeesResult.data
-    )
-      ? employeesResult.data
-      : [];
+    const employees =
+      Array.isArray(
+        employeesResult.data
+      )
+        ? employeesResult.data
+        : [];
 
-    const permissionMap = new Map(
-      permissions.map((permission) => [
-        permission.id,
-        permission,
-      ])
-    );
+    // =====================================================
+    // LOOKUP MAPS
+    // =====================================================
 
-    const employeeMap = new Map(
-      employees.map((employee) => [
-        employee.id,
-        employee,
-      ])
-    );
+    const permissionMap =
+      new Map(
+        permissions.map(
+          (
+            permission
+          ) => [
+            permission.id,
+            permission,
+          ]
+        )
+      );
 
-    const permissionsByRole = new Map();
+    const employeeMap =
+      new Map(
+        employees.map(
+          (
+            employee
+          ) => [
+            employee.id,
+            employee,
+          ]
+        )
+      );
+
+    // =====================================================
+    // PERMISSIONS BY ROLE
+    // =====================================================
+
+    const permissionsByRole =
+      new Map();
 
     rolePermissions.forEach(
-      (assignment) => {
+      (
+        assignment
+      ) => {
         const permission =
           permissionMap.get(
-            assignment.permission_id
+            assignment
+              .permission_id
           ) || null;
 
-        if (!permission) {
+        if (
+          !permission
+        ) {
           return;
         }
 
@@ -321,79 +420,131 @@ export async function GET() {
       }
     );
 
-    const employeesByRole = new Map();
+    // =====================================================
+    // EMPLOYEES BY ROLE
+    // =====================================================
 
-    userRoles.forEach((assignment) => {
-      const employee =
-        employeeMap.get(
-          assignment.employee_id
-        ) || null;
+    const employeesByRole =
+      new Map();
 
-      if (!employee) {
-        return;
-      }
+    userRoles.forEach(
+      (
+        assignment
+      ) => {
+        const employee =
+          employeeMap.get(
+            assignment.employee_id
+          ) || null;
 
-      const currentEmployees =
-        employeesByRole.get(
-          assignment.role_id
-        ) || [];
+        if (
+          !employee
+        ) {
+          return;
+        }
 
-      currentEmployees.push({
-        assignment_id:
-          assignment.id,
-
-        ...employee,
-      });
-
-      employeesByRole.set(
-        assignment.role_id,
-        currentEmployees
-      );
-    });
-
-    const formattedRoles = roles.map(
-      (role) => {
-        const assignedPermissions =
-          permissionsByRole.get(
-            role.id
+        const currentEmployees =
+          employeesByRole.get(
+            assignment.role_id
           ) || [];
 
-        const assignedEmployees =
-          employeesByRole.get(role.id) ||
-          [];
+        currentEmployees.push({
+          assignment_id:
+            assignment.id,
 
-        return {
-          ...role,
+          ...employee,
+        });
 
-          permissions:
-            assignedPermissions,
-
-          permission_ids:
-            assignedPermissions.map(
-              (permission) =>
-                permission.id
-            ),
-
-          employees:
-            assignedEmployees,
-
-          employee_count:
-            assignedEmployees.length,
-
-          permission_count:
-            assignedPermissions.length,
-        };
+        employeesByRole.set(
+          assignment.role_id,
+          currentEmployees
+        );
       }
     );
 
+    // =====================================================
+    // FORMAT ROLES
+    // =====================================================
+
+    const formattedRoles =
+      roles.map(
+        (
+          role
+        ) => {
+          const assignedPermissions =
+            permissionsByRole.get(
+              role.id
+            ) || [];
+
+          const assignedEmployees =
+            employeesByRole.get(
+              role.id
+            ) || [];
+
+          return {
+            ...role,
+
+            permissions:
+              assignedPermissions,
+
+            permission_ids:
+              assignedPermissions.map(
+                (
+                  permission
+                ) =>
+                  permission.id
+              ),
+
+            employees:
+              assignedEmployees,
+
+            employee_count:
+              assignedEmployees
+                .length,
+
+            permission_count:
+              assignedPermissions
+                .length,
+          };
+        }
+      );
+
+    // =====================================================
+    // RESPONSE
+    // =====================================================
+
     return NextResponse.json({
-      roles: formattedRoles,
+      roles:
+        formattedRoles,
+
       permissions,
+
       employees,
+
       currentEmployee:
-        current.employee,
+        access.employee,
+
+      access: {
+        isOwner:
+          access.isOwner,
+
+        permissions:
+          access.permissions,
+
+        roles:
+          access.roles,
+
+        canViewRoles:
+          true,
+
+        canManageRoles:
+          access.can(
+            "roles.manage"
+          ),
+      },
     });
-  } catch (error) {
+  } catch (
+    error
+  ) {
     console.error(
       "Roles GET error:",
       error
@@ -412,52 +563,76 @@ export async function GET() {
   }
 }
 
-export async function POST(request) {
+// =========================================================
+// POST
+// CREATE ROLE
+// =========================================================
+
+export async function POST(
+  request
+) {
   try {
-    const supabase =
-      await createServerSupabaseClient();
+    // =====================================================
+    // ACCESS CONTROL
+    // =====================================================
 
-    const current =
-      await getCurrentEmployee(supabase);
+    const access =
+      await getCurrentEmployeeAccess();
 
-    if (!current.employee) {
-      return NextResponse.json(
-        {
-          error: current.error,
-        },
-        {
-          status: current.status,
-        }
+    if (
+      !access.authenticated
+    ) {
+      return unauthenticatedResponse(
+        access.error
       );
     }
 
     if (
-      !current.employee
-        .is_organization_owner
+      !access.employee
+    ) {
+      return forbiddenResponse(
+        access.error ||
+          "Your login is not linked to an active employee record."
+      );
+    }
+
+    if (
+      !access.can(
+        "roles.manage"
+      )
+    ) {
+      return forbiddenResponse(
+        "You do not have permission to create roles."
+      );
+    }
+
+    const supabase =
+      await createServerSupabaseClient();
+
+    const body =
+      await request.json();
+
+    const name =
+      cleanText(
+        body.name
+      );
+
+    const code =
+      cleanText(
+        body.code
+      ).toUpperCase();
+
+    // =====================================================
+    // REQUIRED FIELDS
+    // =====================================================
+
+    if (
+      !name
     ) {
       return NextResponse.json(
         {
           error:
-            "Only the organisation owner can create roles.",
-        },
-        {
-          status: 403,
-        }
-      );
-    }
-
-    const body = await request.json();
-
-    const name = cleanText(body.name);
-
-    const code = cleanText(
-      body.code
-    ).toUpperCase();
-
-    if (!name) {
-      return NextResponse.json(
-        {
-          error: "Role name is required.",
+            "Role name is required.",
         },
         {
           status: 400,
@@ -465,10 +640,31 @@ export async function POST(request) {
       );
     }
 
-    if (!code) {
+    if (
+      !code
+    ) {
       return NextResponse.json(
         {
-          error: "Role code is required.",
+          error:
+            "Role code is required.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
+    /*
+     * Reserve the Organisation Owner role code.
+     */
+    if (
+      code ===
+      "ORG_OWNER"
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "ORG_OWNER is reserved for the protected Organisation Owner role.",
         },
         {
           status: 400,
@@ -477,7 +673,63 @@ export async function POST(request) {
     }
 
     const organizationId =
-      current.employee.organization_id;
+      access.employee
+        .organization_id;
+
+    // =====================================================
+    // DUPLICATE CODE
+    // =====================================================
+
+    const {
+      data:
+        existingRoleCode,
+      error:
+        roleCodeError,
+    } = await supabase
+      .from("roles")
+      .select("id")
+      .eq(
+        "organization_id",
+        organizationId
+      )
+      .ilike(
+        "code",
+        code
+      )
+      .maybeSingle();
+
+    if (
+      roleCodeError
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            roleCodeError
+              .message,
+        },
+        {
+          status: 500,
+        }
+      );
+    }
+
+    if (
+      existingRoleCode
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "A role with this code already exists.",
+        },
+        {
+          status: 409,
+        }
+      );
+    }
+
+    // =====================================================
+    // PERMISSIONS
+    // =====================================================
 
     const permissionIds =
       Array.isArray(
@@ -492,21 +744,37 @@ export async function POST(request) {
           ]
         : [];
 
-    if (permissionIds.length > 0) {
+    if (
+      permissionIds.length >
+      0
+    ) {
       const {
-        data: validPermissions,
-        error: permissionsError,
+        data:
+          validPermissions,
+        error:
+          permissionsError,
       } = await supabase
-        .from("permissions")
+        .from(
+          "permissions"
+        )
         .select("id")
-        .eq("is_active", true)
-        .in("id", permissionIds);
+        .eq(
+          "is_active",
+          true
+        )
+        .in(
+          "id",
+          permissionIds
+        );
 
-      if (permissionsError) {
+      if (
+        permissionsError
+      ) {
         return NextResponse.json(
           {
             error:
-              permissionsError.message,
+              permissionsError
+                .message,
           },
           {
             status: 500,
@@ -515,8 +783,10 @@ export async function POST(request) {
       }
 
       if (
-        (validPermissions || [])
-          .length !==
+        (
+          validPermissions ||
+          []
+        ).length !==
         permissionIds.length
       ) {
         return NextResponse.json(
@@ -531,9 +801,15 @@ export async function POST(request) {
       }
     }
 
+    // =====================================================
+    // CREATE ROLE
+    // =====================================================
+
     const {
-      data: createdRole,
-      error: roleError,
+      data:
+        createdRole,
+      error:
+        roleError,
     } = await supabase
       .from("roles")
       .insert([
@@ -550,25 +826,32 @@ export async function POST(request) {
               body.description
             ),
 
-          is_system_role: false,
+          is_system_role:
+            false,
 
           is_active:
-            body.is_active !== false,
+            body.is_active !==
+            false,
 
           created_by:
-            current.employee.user_id,
+            access.employee
+              .user_id,
 
           updated_by:
-            current.employee.user_id,
+            access.employee
+              .user_id,
         },
       ])
       .select()
       .single();
 
-    if (roleError) {
+    if (
+      roleError
+    ) {
       return NextResponse.json(
         {
-          error: roleError.message,
+          error:
+            roleError.message,
         },
         {
           status: 500,
@@ -576,34 +859,58 @@ export async function POST(request) {
       );
     }
 
-    if (permissionIds.length > 0) {
+    // =====================================================
+    // ASSIGN PERMISSIONS
+    // =====================================================
+
+    if (
+      permissionIds.length >
+      0
+    ) {
       const assignments =
         permissionIds.map(
-          (permissionId) => ({
+          (
+            permissionId
+          ) => ({
             organization_id:
               organizationId,
 
-            role_id: createdRole.id,
+            role_id:
+              createdRole.id,
 
             permission_id:
               permissionId,
 
             granted_by:
-              current.employee.user_id,
+              access.employee
+                .user_id,
           })
         );
 
       const {
-        error: assignmentsError,
+        error:
+          assignmentsError,
       } = await supabase
-        .from("role_permissions")
-        .insert(assignments);
+        .from(
+          "role_permissions"
+        )
+        .insert(
+          assignments
+        );
 
-      if (assignmentsError) {
+      if (
+        assignmentsError
+      ) {
+        /*
+         * Clean up the role if permission assignment fails.
+         */
         await supabase
           .from("roles")
           .delete()
-          .eq("id", createdRole.id)
+          .eq(
+            "id",
+            createdRole.id
+          )
           .eq(
             "organization_id",
             organizationId
@@ -622,9 +929,14 @@ export async function POST(request) {
       }
     }
 
+    // =====================================================
+    // SUCCESS
+    // =====================================================
+
     return NextResponse.json(
       {
-        role: createdRole,
+        role:
+          createdRole,
 
         message:
           "Role created successfully.",
@@ -633,7 +945,9 @@ export async function POST(request) {
         status: 201,
       }
     );
-  } catch (error) {
+  } catch (
+    error
+  ) {
     console.error(
       "Roles POST error:",
       error
