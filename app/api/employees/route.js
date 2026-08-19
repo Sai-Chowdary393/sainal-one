@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "../../../lib/supabaseServer";
 import { createAdminSupabaseClient } from "../../../lib/supabaseAdmin";
+import { getCurrentEmployeeAccess } from "../../../lib/accessControl";
 
 // =========================================================
 // HELPERS
@@ -26,115 +27,101 @@ function isUuid(value) {
 }
 
 // =========================================================
-// CURRENT EMPLOYEE
+// ACCESS RESPONSE HELPERS
 // =========================================================
 
-async function getCurrentEmployee(
-  supabase
+function unauthenticatedResponse(
+  message =
+    "You must be logged in."
 ) {
-  const {
-    data: { user },
-    error: userError,
-  } =
-    await supabase.auth.getUser();
-
-  if (
-    userError ||
-    !user
-  ) {
-    return {
-      employee: null,
-      error:
-        "You must be logged in.",
+  return NextResponse.json(
+    {
+      error: message,
+    },
+    {
       status: 401,
-    };
-  }
+    }
+  );
+}
 
-  const {
-    data: employee,
-    error: employeeError,
-  } = await supabase
-    .from("employees")
-    .select(
-      `
-        id,
-        organization_id,
-        user_id,
-        full_name,
-        email,
-        is_organization_owner,
-        is_active
-      `
-    )
-    .eq(
-      "user_id",
-      user.id
-    )
-    .eq(
-      "is_active",
-      true
-    )
-    .maybeSingle();
-
-  if (employeeError) {
-    return {
-      employee: null,
-      error:
-        employeeError.message,
-      status: 500,
-    };
-  }
-
-  if (!employee) {
-    return {
-      employee: null,
-      error:
-        "Your login is not linked to an active employee record.",
+function forbiddenResponse(
+  message =
+    "You do not have permission to perform this action."
+) {
+  return NextResponse.json(
+    {
+      error: message,
+    },
+    {
       status: 403,
-    };
-  }
-
-  return {
-    employee,
-    error: null,
-    status: 200,
-  };
+    }
+  );
 }
 
 // =========================================================
 // GET
+// VIEW EMPLOYEE DIRECTORY
 // =========================================================
 
 export async function GET() {
   try {
-    const supabase =
-      await createServerSupabaseClient();
+    // =====================================================
+    // ACCESS CONTROL
+    // =====================================================
 
-    const current =
-      await getCurrentEmployee(
-        supabase
-      );
+    const access =
+      await getCurrentEmployeeAccess();
 
-    if (!current.employee) {
-      return NextResponse.json(
-        {
-          error:
-            current.error,
-        },
-        {
-          status:
-            current.status,
-        }
+    if (
+      !access.authenticated
+    ) {
+      return unauthenticatedResponse(
+        access.error
       );
     }
 
+    if (
+      !access.employee
+    ) {
+      return forbiddenResponse(
+        access.error ||
+          "Your login is not linked to an active employee record."
+      );
+    }
+
+    /*
+     * Organisation Owner is automatically allowed by
+     * access.can().
+     *
+     * employees.manage also implies the employee should
+     * be able to see the employee workspace.
+     */
+    const canViewEmployees =
+      access.can(
+        "employees.view"
+      ) ||
+      access.can(
+        "employees.manage"
+      );
+
+    if (
+      !canViewEmployees
+    ) {
+      return forbiddenResponse(
+        "You do not have permission to view employees."
+      );
+    }
+
+    const supabase =
+      await createServerSupabaseClient();
+
     const organizationId =
-      current.employee
+      access.employee
         .organization_id;
 
-    // -----------------------------------------------------
+    // =====================================================
     // EMPLOYEES
-    // -----------------------------------------------------
+    // =====================================================
 
     const {
       data: employeeRows,
@@ -153,7 +140,9 @@ export async function GET() {
         }
       );
 
-    if (employeesError) {
+    if (
+      employeesError
+    ) {
       return NextResponse.json(
         {
           error:
@@ -165,13 +154,14 @@ export async function GET() {
       );
     }
 
-    // -----------------------------------------------------
+    // =====================================================
     // DEPARTMENTS
-    // -----------------------------------------------------
+    // =====================================================
 
     const {
       data: departmentRows,
-      error: departmentsError,
+      error:
+        departmentsError,
     } = await supabase
       .from("departments")
       .select(
@@ -197,7 +187,9 @@ export async function GET() {
         }
       );
 
-    if (departmentsError) {
+    if (
+      departmentsError
+    ) {
       return NextResponse.json(
         {
           error:
@@ -209,9 +201,9 @@ export async function GET() {
       );
     }
 
-    // -----------------------------------------------------
+    // =====================================================
     // ROLES
-    // -----------------------------------------------------
+    // =====================================================
 
     const {
       data: roleRows,
@@ -240,7 +232,9 @@ export async function GET() {
         }
       );
 
-    if (rolesError) {
+    if (
+      rolesError
+    ) {
       return NextResponse.json(
         {
           error:
@@ -252,13 +246,15 @@ export async function GET() {
       );
     }
 
-    // -----------------------------------------------------
+    // =====================================================
     // USER ROLE ASSIGNMENTS
-    // -----------------------------------------------------
+    // =====================================================
 
     const {
-      data: userRoleRows,
-      error: userRolesError,
+      data:
+        userRoleRows,
+      error:
+        userRolesError,
     } = await supabase
       .from("user_roles")
       .select(
@@ -274,7 +270,9 @@ export async function GET() {
         organizationId
       );
 
-    if (userRolesError) {
+    if (
+      userRolesError
+    ) {
       return NextResponse.json(
         {
           error:
@@ -314,14 +312,16 @@ export async function GET() {
         ? userRoleRows
         : [];
 
-    // -----------------------------------------------------
+    // =====================================================
     // LOOKUP MAPS
-    // -----------------------------------------------------
+    // =====================================================
 
     const employeeMap =
       new Map(
         employees.map(
-          (employee) => [
+          (
+            employee
+          ) => [
             employee.id,
             employee,
           ]
@@ -331,7 +331,9 @@ export async function GET() {
     const departmentMap =
       new Map(
         departments.map(
-          (department) => [
+          (
+            department
+          ) => [
             department.id,
             department,
           ]
@@ -341,7 +343,9 @@ export async function GET() {
     const roleMap =
       new Map(
         roles.map(
-          (role) => [
+          (
+            role
+          ) => [
             role.id,
             role,
           ]
@@ -352,7 +356,9 @@ export async function GET() {
       new Map();
 
     userRoles.forEach(
-      (assignment) => {
+      (
+        assignment
+      ) => {
         const role =
           roleMap.get(
             assignment.role_id
@@ -390,13 +396,15 @@ export async function GET() {
       }
     );
 
-    // -----------------------------------------------------
+    // =====================================================
     // FORMAT EMPLOYEES
-    // -----------------------------------------------------
+    // =====================================================
 
     const formattedEmployees =
       employees.map(
-        (employee) => {
+        (
+          employee
+        ) => {
           const manager =
             employee.manager_id
               ? employeeMap.get(
@@ -461,6 +469,10 @@ export async function GET() {
         }
       );
 
+    // =====================================================
+    // RESPONSE
+    // =====================================================
+
     return NextResponse.json({
       employees:
         formattedEmployees,
@@ -470,7 +482,26 @@ export async function GET() {
       roles,
 
       currentEmployee:
-        current.employee,
+        access.employee,
+
+      access: {
+        isOwner:
+          access.isOwner,
+
+        permissions:
+          access.permissions,
+
+        roles:
+          access.roles,
+
+        canViewEmployees:
+          true,
+
+        canManageEmployees:
+          access.can(
+            "employees.manage"
+          ),
+      },
     });
   } catch (error) {
     console.error(
@@ -492,52 +523,50 @@ export async function GET() {
 }
 
 // =========================================================
-// POST - CREATE + INVITE EMPLOYEE
+// POST
+// CREATE + INVITE EMPLOYEE
 // =========================================================
 
 export async function POST(
   request
 ) {
   try {
-    const supabase =
-      await createServerSupabaseClient();
+    // =====================================================
+    // ACCESS CONTROL
+    // =====================================================
 
-    const current =
-      await getCurrentEmployee(
-        supabase
-      );
-
-    if (!current.employee) {
-      return NextResponse.json(
-        {
-          error:
-            current.error,
-        },
-        {
-          status:
-            current.status,
-        }
-      );
-    }
-
-    // -----------------------------------------------------
-    // OWNER ONLY
-    // -----------------------------------------------------
+    const access =
+      await getCurrentEmployeeAccess();
 
     if (
-      !current.employee
-        .is_organization_owner
+      !access.authenticated
     ) {
-      return NextResponse.json(
-        {
-          error:
-            "Only the organisation owner can invite employees.",
-        },
-        {
-          status: 403,
-        }
+      return unauthenticatedResponse(
+        access.error
       );
     }
+
+    if (
+      !access.employee
+    ) {
+      return forbiddenResponse(
+        access.error ||
+          "Your login is not linked to an active employee record."
+      );
+    }
+
+    if (
+      !access.can(
+        "employees.manage"
+      )
+    ) {
+      return forbiddenResponse(
+        "You do not have permission to create or invite employees."
+      );
+    }
+
+    const supabase =
+      await createServerSupabaseClient();
 
     const body =
       await request.json();
@@ -557,11 +586,13 @@ export async function POST(
         body.employee_number
       );
 
-    // -----------------------------------------------------
+    // =====================================================
     // REQUIRED FIELDS
-    // -----------------------------------------------------
+    // =====================================================
 
-    if (!fullName) {
+    if (
+      !fullName
+    ) {
       return NextResponse.json(
         {
           error:
@@ -590,7 +621,9 @@ export async function POST(
       );
     }
 
-    if (!employeeNumber) {
+    if (
+      !employeeNumber
+    ) {
       return NextResponse.json(
         {
           error:
@@ -603,12 +636,12 @@ export async function POST(
     }
 
     const organizationId =
-      current.employee
+      access.employee
         .organization_id;
 
-    // -----------------------------------------------------
-    // CHECK DUPLICATE EMPLOYEE NUMBER
-    // -----------------------------------------------------
+    // =====================================================
+    // DUPLICATE EMPLOYEE NUMBER
+    // =====================================================
 
     const {
       data:
@@ -657,9 +690,9 @@ export async function POST(
       );
     }
 
-    // -----------------------------------------------------
-    // CHECK DUPLICATE EMAIL
-    // -----------------------------------------------------
+    // =====================================================
+    // DUPLICATE EMAIL
+    // =====================================================
 
     const {
       data:
@@ -708,9 +741,9 @@ export async function POST(
       );
     }
 
-    // -----------------------------------------------------
+    // =====================================================
     // OPTIONAL IDS
-    // -----------------------------------------------------
+    // =====================================================
 
     const departmentId =
       cleanNullableText(
@@ -729,16 +762,23 @@ export async function POST(
 
     const optionalUuidValues = [
       {
-        name: "Department",
-        value: departmentId,
+        name:
+          "Department",
+
+        value:
+          departmentId,
       },
       {
-        name: "Manager",
-        value: managerId,
+        name:
+          "Manager",
+
+        value:
+          managerId,
       },
       {
         name:
           "Backup employee",
+
         value:
           backupEmployeeId,
       },
@@ -766,13 +806,16 @@ export async function POST(
       }
     }
 
-    // -----------------------------------------------------
+    // =====================================================
     // VALIDATE DEPARTMENT
-    // -----------------------------------------------------
+    // =====================================================
 
-    if (departmentId) {
+    if (
+      departmentId
+    ) {
       const {
-        data: department,
+        data:
+          department,
         error:
           departmentError,
       } = await supabase
@@ -804,15 +847,17 @@ export async function POST(
       }
     }
 
-    // -----------------------------------------------------
+    // =====================================================
     // VALIDATE MANAGER + BACKUP
-    // -----------------------------------------------------
+    // =====================================================
 
     const relatedEmployeeIds =
       [
         managerId,
         backupEmployeeId,
-      ].filter(Boolean);
+      ].filter(
+        Boolean
+      );
 
     if (
       relatedEmployeeIds
@@ -851,8 +896,10 @@ export async function POST(
       }
 
       if (
-        (relatedEmployees || [])
-          .length !==
+        (
+          relatedEmployees ||
+          []
+        ).length !==
         new Set(
           relatedEmployeeIds
         ).size
@@ -869,9 +916,9 @@ export async function POST(
       }
     }
 
-    // -----------------------------------------------------
-    // ROLES
-    // -----------------------------------------------------
+    // =====================================================
+    // VALIDATE SELECTED ROLES
+    // =====================================================
 
     const roleIds =
       Array.isArray(
@@ -887,18 +934,30 @@ export async function POST(
         : [];
 
     if (
-      roleIds.length > 0
+      roleIds.length >
+      0
     ) {
       const {
-        data: validRoles,
+        data:
+          validRoles,
         error:
           validRolesError,
       } = await supabase
         .from("roles")
-        .select("id")
+        .select(
+          `
+            id,
+            code,
+            is_active
+          `
+        )
         .eq(
           "organization_id",
           organizationId
+        )
+        .eq(
+          "is_active",
+          true
         )
         .in(
           "id",
@@ -921,14 +980,46 @@ export async function POST(
       }
 
       if (
-        (validRoles || [])
-          .length !==
+        (
+          validRoles ||
+          []
+        ).length !==
         roleIds.length
       ) {
         return NextResponse.json(
           {
             error:
               "One or more selected roles are invalid.",
+          },
+          {
+            status: 400,
+          }
+        );
+      }
+
+      /*
+       * Prevent anyone from creating another Organisation
+       * Owner through the normal employee invitation flow.
+       */
+      const includesOwnerRole =
+        (
+          validRoles ||
+          []
+        ).some(
+          (
+            role
+          ) =>
+            role.code ===
+            "ORG_OWNER"
+        );
+
+      if (
+        includesOwnerRole
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "The Organisation Owner role cannot be assigned through employee invitation.",
           },
           {
             status: 400,
@@ -945,8 +1036,10 @@ export async function POST(
       createAdminSupabaseClient();
 
     const {
-      data: inviteData,
-      error: inviteError,
+      data:
+        inviteData,
+      error:
+        inviteError,
     } =
       await adminSupabase
         .auth
@@ -968,7 +1061,7 @@ export async function POST(
                 organizationId,
 
               invited_by:
-                current.employee
+                access.employee
                   .user_id,
             },
           }
@@ -1044,8 +1137,8 @@ export async function POST(
         "Employee",
 
       /*
-       * Newly invited employees remain Invited
-       * until we complete their onboarding flow.
+       * Employee remains Invited until invitation
+       * onboarding has been completed.
        */
       employment_status:
         "Invited",
@@ -1082,17 +1175,18 @@ export async function POST(
         false,
 
       /*
-       * Keep this true so the invited user's login
-       * can resolve to the employee after acceptance.
+       * Keep employee enabled so their Auth login
+       * can resolve during invitation onboarding.
        */
-      is_active: true,
+      is_active:
+        true,
 
       created_by:
-        current.employee
+        access.employee
           .user_id,
 
       updated_by:
-        current.employee
+        access.employee
           .user_id,
     };
 
@@ -1109,11 +1203,13 @@ export async function POST(
       .select()
       .single();
 
-    // -----------------------------------------------------
-    // CLEAN UP AUTH USER IF DB CREATION FAILS
-    // -----------------------------------------------------
+    // =====================================================
+    // CLEAN UP AUTH USER IF EMPLOYEE CREATION FAILS
+    // =====================================================
 
-    if (createError) {
+    if (
+      createError
+    ) {
       try {
         await adminSupabase
           .auth
@@ -1146,11 +1242,14 @@ export async function POST(
     // =====================================================
 
     if (
-      roleIds.length > 0
+      roleIds.length >
+      0
     ) {
       const roleAssignments =
         roleIds.map(
-          (roleId) => ({
+          (
+            roleId
+          ) => ({
             organization_id:
               organizationId,
 
@@ -1161,7 +1260,7 @@ export async function POST(
               roleId,
 
             assigned_by:
-              current.employee
+              access.employee
                 .user_id,
           })
         );
@@ -1179,7 +1278,7 @@ export async function POST(
         roleAssignmentError
       ) {
         /*
-         * Remove the employee first.
+         * Remove employee database record.
          */
         await supabase
           .from("employees")
@@ -1190,7 +1289,7 @@ export async function POST(
           );
 
         /*
-         * Remove the invited Auth user as well.
+         * Remove Supabase Auth user.
          */
         try {
           await adminSupabase
@@ -1231,7 +1330,8 @@ export async function POST(
         employee:
           createdEmployee,
 
-        invited: true,
+        invited:
+          true,
 
         message:
           `Employee created and invitation sent to ${email}.`,
