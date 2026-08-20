@@ -1,8 +1,27 @@
-import { NextResponse } from "next/server";
-import { supabase } from "../../../../lib/supabase";
+import {
+  NextResponse,
+} from "next/server";
 
-const ORGANIZATION_ID =
-  "9d5bbb05-866b-4c38-b2ac-3019e7cf88e5";
+import {
+  getServerAccess,
+} from "../../../../lib/serverAccess";
+
+import {
+  createAdminSupabaseClient,
+} from "../../../../lib/supabaseAdmin";
+
+import {
+  attachRecordOwner,
+  buildClientAccess,
+  canViewOwnedRecord,
+  getRecordPermissions,
+  loadAssignableEmployees,
+  validateRecordOwner,
+} from "../../../../lib/recordAccess";
+
+// =========================================================
+// CONSTANTS
+// =========================================================
 
 const ALLOWED_STATUSES = [
   "Draft Invoice",
@@ -14,249 +33,461 @@ const ALLOWED_STATUSES = [
   "Cancelled",
 ];
 
+// =========================================================
+// HELPERS
+// =========================================================
+
 function cleanText(value) {
-  return typeof value === "string" ? value.trim() : "";
+  return typeof value === "string"
+    ? value.trim()
+    : "";
+}
+
+function isUuid(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    String(
+      value ||
+        ""
+    )
+  );
+}
+
+function forbidden(message) {
+  return NextResponse.json(
+    {
+      error:
+        message,
+    },
+    {
+      status:
+        403,
+    }
+  );
+}
+
+function getPermissions(access) {
+  return getRecordPermissions(
+    access,
+    {
+      prefix:
+        "invoices",
+
+      module:
+        "Invoices",
+    }
+  );
 }
 
 function parseMoney(value) {
-  if (value === null || value === undefined || value === "") {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
     return 0;
   }
 
-  const cleanedValue = String(value)
-    .replace(/,/g, "")
-    .replace(/[^\d.-]/g, "");
+  const cleaned =
+    String(value)
+      .replace(
+        /,/g,
+        ""
+      )
+      .replace(
+        /[^0-9.-]/g,
+        ""
+      );
 
-  const parsedValue = Number.parseFloat(cleanedValue);
+  const parsed =
+    Number.parseFloat(
+      cleaned
+    );
 
-  return Number.isFinite(parsedValue) ? parsedValue : 0;
+  return Number.isFinite(
+    parsed
+  )
+    ? parsed
+    : 0;
 }
 
 function parseVatRate(value) {
-  if (value === null || value === undefined || value === "") {
-    return 0;
-  }
+  const parsed =
+    Number.parseFloat(
+      String(
+        value ||
+          0
+      )
+        .replace(
+          "%",
+          ""
+        )
+        .trim()
+    );
 
-  const cleanedValue = String(value)
-    .replace("%", "")
-    .trim();
-
-  const parsedValue = Number.parseFloat(cleanedValue);
-
-  return Number.isFinite(parsedValue) ? parsedValue : 0;
+  return Number.isFinite(
+    parsed
+  )
+    ? parsed
+    : 0;
 }
 
 function formatCurrency(value) {
-  return new Intl.NumberFormat("en-GB", {
-    style: "currency",
-    currency: "GBP",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value || 0);
+  return new Intl.NumberFormat(
+    "en-GB",
+    {
+      style:
+        "currency",
+
+      currency:
+        "GBP",
+
+      minimumFractionDigits:
+        2,
+
+      maximumFractionDigits:
+        2,
+    }
+  ).format(
+    value ||
+      0
+  );
 }
 
 function formatVatRate(value) {
-  const numericValue = Number(value || 0);
+  const number =
+    Number(
+      value ||
+        0
+    );
 
-  return `${Number.isInteger(numericValue)
-    ? numericValue
-    : numericValue.toFixed(2)}%`;
+  return `${Number.isInteger(number)
+    ? number
+    : number.toFixed(2)}%`;
 }
 
 function isValidDate(value) {
-  if (!value) {
+  if (
+    !value
+  ) {
     return true;
   }
 
-  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+  return /^\d{4}-\d{2}-\d{2}$/.test(
+    value
+  );
 }
 
-export async function GET(request, context) {
-  try {
-    const { id } = await context.params;
-
-    if (!id) {
-      return NextResponse.json(
-        {
-          error: "Invoice ID is required.",
-        },
-        {
-          status: 400,
-        }
-      );
-    }
-
-    const { data, error } = await supabase
-      .from("invoices")
+async function loadInvoice({
+  supabase,
+  organizationId,
+  invoiceId,
+}) {
+  const {
+    data,
+    error,
+  } =
+    await supabase
+      .from(
+        "invoices"
+      )
       .select("*")
-      .eq("id", id)
-      .eq("organization_id", ORGANIZATION_ID)
-      .single();
+      .eq(
+        "id",
+        invoiceId
+      )
+      .eq(
+        "organization_id",
+        organizationId
+      )
+      .maybeSingle();
 
-    if (error || !data) {
+  if (
+    error
+  ) {
+    throw new Error(
+      error.message
+    );
+  }
+
+  return data;
+}
+
+// =========================================================
+// GET
+// =========================================================
+
+export async function GET(
+  request,
+  context
+) {
+  try {
+    const {
+      id,
+    } =
+      await context.params;
+
+    if (
+      !isUuid(
+        id
+      )
+    ) {
       return NextResponse.json(
         {
-          error: error?.message || "Invoice not found.",
+          error:
+            "A valid invoice ID is required.",
         },
         {
-          status: 404,
+          status:
+            400,
         }
       );
     }
 
-    return NextResponse.json(data);
+    const access =
+      await getServerAccess();
+
+    if (
+      !access.employee
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            access.error,
+        },
+        {
+          status:
+            access.status,
+        }
+      );
+    }
+
+    const permissions =
+      getPermissions(
+        access
+      );
+
+    if (
+      !permissions.canViewAll &&
+      !permissions.canViewTeam &&
+      !permissions.canViewOwn
+    ) {
+      return forbidden(
+        "You do not have permission to view invoices."
+      );
+    }
+
+    const supabase =
+      createAdminSupabaseClient();
+
+    const organizationId =
+      access.employee
+        .organization_id;
+
+    const invoice =
+      await loadInvoice({
+        supabase,
+        organizationId,
+
+        invoiceId:
+          id,
+      });
+
+    if (
+      !invoice
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Invoice not found.",
+        },
+        {
+          status:
+            404,
+        }
+      );
+    }
+
+    const visible =
+      await canViewOwnedRecord({
+        supabase,
+        access,
+        permissions,
+
+        record:
+          invoice,
+      });
+
+    if (
+      !visible
+    ) {
+      return forbidden(
+        "You do not have permission to view this invoice."
+      );
+    }
+
+    const formattedInvoice =
+      await attachRecordOwner({
+        supabase,
+        organizationId,
+
+        record:
+          invoice,
+      });
+
+    let employees = [];
+
+    if (
+      permissions.canAssign
+    ) {
+      employees =
+        await loadAssignableEmployees({
+          supabase,
+          organizationId,
+        });
+    }
+
+    return NextResponse.json({
+      invoice:
+        formattedInvoice,
+
+      employees,
+
+      currentEmployee:
+        access.employee,
+
+      access:
+        buildClientAccess({
+          access,
+          permissions,
+        }),
+    });
   } catch (error) {
-    console.error("Invoice GET error:", error);
+    console.error(
+      "Invoice GET error:",
+      error
+    );
 
     return NextResponse.json(
       {
-        error: "Failed to load invoice.",
+        error:
+          error.message ||
+          "Failed to load invoice.",
       },
       {
-        status: 500,
+        status:
+          500,
       }
     );
   }
 }
 
-export async function PATCH(request, context) {
-  try {
-    const { id } = await context.params;
-    const body = await request.json();
+// =========================================================
+// PATCH
+// =========================================================
 
-    if (!id) {
+export async function PATCH(
+  request,
+  context
+) {
+  try {
+    const {
+      id,
+    } =
+      await context.params;
+
+    if (
+      !isUuid(
+        id
+      )
+    ) {
       return NextResponse.json(
         {
-          error: "Invoice ID is required.",
+          error:
+            "A valid invoice ID is required.",
         },
         {
-          status: 400,
+          status:
+            400,
         }
       );
     }
 
-    const updates = {};
+    const access =
+      await getServerAccess();
 
-    if (typeof body.client === "string") {
-      const client = cleanText(body.client);
-
-      if (!client) {
-        return NextResponse.json(
-          {
-            error: "Client name cannot be empty.",
-          },
-          {
-            status: 400,
-          }
-        );
-      }
-
-      updates.client = client;
+    if (
+      !access.employee
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            access.error,
+        },
+        {
+          status:
+            access.status,
+        }
+      );
     }
 
-    if (typeof body.service === "string") {
-      const service = cleanText(body.service);
-
-      if (!service) {
-        return NextResponse.json(
-          {
-            error: "Service cannot be empty.",
-          },
-          {
-            status: 400,
-          }
-        );
-      }
-
-      updates.service = service;
-    }
-
-    if (typeof body.status === "string") {
-      if (!ALLOWED_STATUSES.includes(body.status)) {
-        return NextResponse.json(
-          {
-            error: "Invalid invoice status.",
-          },
-          {
-            status: 400,
-          }
-        );
-      }
-
-      updates.status = body.status;
-    }
-
-    if (typeof body.due_date === "string" || body.due_date === null) {
-      const dueDate = body.due_date || null;
-
-      if (dueDate && !isValidDate(dueDate)) {
-        return NextResponse.json(
-          {
-            error: "Due date must use YYYY-MM-DD format.",
-          },
-          {
-            status: 400,
-          }
-        );
-      }
-
-      updates.due_date = dueDate;
-    }
-
-    if (typeof body.payment_terms === "string") {
-      updates.payment_terms = cleanText(body.payment_terms);
-    }
-
-    const hasFinancialUpdate =
-      body.subtotal !== undefined ||
-      body.amount !== undefined ||
-      body.vat_rate !== undefined;
-
-    if (hasFinancialUpdate) {
-      const subtotalValue = parseMoney(
-        body.subtotal !== undefined
-          ? body.subtotal
-          : body.amount
+    const permissions =
+      getPermissions(
+        access
       );
 
-      const vatRateValue = parseVatRate(body.vat_rate);
+    const supabase =
+      createAdminSupabaseClient();
 
-      if (subtotalValue < 0) {
-        return NextResponse.json(
-          {
-            error: "Subtotal cannot be negative.",
-          },
-          {
-            status: 400,
-          }
-        );
-      }
+    const organizationId =
+      access.employee
+        .organization_id;
 
-      if (vatRateValue < 0 || vatRateValue > 100) {
-        return NextResponse.json(
-          {
-            error: "VAT rate must be between 0 and 100.",
-          },
-          {
-            status: 400,
-          }
-        );
-      }
+    const invoice =
+      await loadInvoice({
+        supabase,
+        organizationId,
 
-      const vatAmountValue =
-        subtotalValue * (vatRateValue / 100);
+        invoiceId:
+          id,
+      });
 
-      const totalAmountValue =
-        subtotalValue + vatAmountValue;
-
-      updates.subtotal = formatCurrency(subtotalValue);
-      updates.amount = formatCurrency(totalAmountValue);
-      updates.vat_rate = formatVatRate(vatRateValue);
-      updates.vat_amount = formatCurrency(vatAmountValue);
-      updates.total_amount = formatCurrency(totalAmountValue);
+    if (
+      !invoice
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Invoice not found.",
+        },
+        {
+          status:
+            404,
+        }
+      );
     }
 
-    const allowedFields = [
+    const visible =
+      await canViewOwnedRecord({
+        supabase,
+        access,
+        permissions,
+
+        record:
+          invoice,
+      });
+
+    if (
+      !visible
+    ) {
+      return forbidden(
+        "You do not have permission to update this invoice."
+      );
+    }
+
+    const body =
+      await request.json();
+
+    const editableFields = [
       "client",
       "service",
       "status",
@@ -265,119 +496,616 @@ export async function PATCH(request, context) {
       "subtotal",
       "amount",
       "vat_rate",
-      "vat_amount",
-      "total_amount",
     ];
 
-    const hasValidUpdate = allowedFields.some((field) =>
-      Object.prototype.hasOwnProperty.call(updates, field)
-    );
+    const wantsEdit =
+      editableFields.some(
+        (
+          field
+        ) =>
+          Object.prototype.hasOwnProperty.call(
+            body,
+            field
+          )
+      );
 
-    if (!hasValidUpdate) {
+    const wantsOwnerChange =
+      Object.prototype.hasOwnProperty.call(
+        body,
+        "owner_employee_id"
+      );
+
+    if (
+      wantsEdit &&
+      !permissions.canEdit
+    ) {
+      return forbidden(
+        "You do not have permission to edit invoices."
+      );
+    }
+
+    if (
+      wantsOwnerChange &&
+      !permissions.canAssign
+    ) {
+      return forbidden(
+        "You do not have permission to assign invoices."
+      );
+    }
+
+    if (
+      !wantsEdit &&
+      !wantsOwnerChange
+    ) {
       return NextResponse.json(
         {
-          error: "No valid invoice fields were provided.",
+          error:
+            "No supported invoice changes were provided.",
         },
         {
-          status: 400,
+          status:
+            400,
         }
       );
     }
 
-    const { data, error } = await supabase
-      .from("invoices")
-      .update(updates)
-      .eq("id", id)
-      .eq("organization_id", ORGANIZATION_ID)
-      .select()
-      .single();
+    const updates = {};
 
-    if (error) {
-      console.error("Invoice PATCH database error:", error);
+    // =====================================================
+    // CLIENT
+    // =====================================================
 
-      return NextResponse.json(
-        {
-          error: error.message,
-        },
-        {
-          status: 500,
+    if (
+      Object.prototype.hasOwnProperty.call(
+        body,
+        "client"
+      )
+    ) {
+      const client =
+        cleanText(
+          body.client
+        );
+
+      if (
+        !client
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Client name cannot be empty.",
+          },
+          {
+            status:
+              400,
+          }
+        );
+      }
+
+      updates.client =
+        client;
+    }
+
+    // =====================================================
+    // SERVICE
+    // =====================================================
+
+    if (
+      Object.prototype.hasOwnProperty.call(
+        body,
+        "service"
+      )
+    ) {
+      const service =
+        cleanText(
+          body.service
+        );
+
+      if (
+        !service
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Service cannot be empty.",
+          },
+          {
+            status:
+              400,
+          }
+        );
+      }
+
+      updates.service =
+        service;
+    }
+
+    // =====================================================
+    // STATUS
+    // =====================================================
+
+    if (
+      Object.prototype.hasOwnProperty.call(
+        body,
+        "status"
+      )
+    ) {
+      if (
+        !ALLOWED_STATUSES.includes(
+          body.status
+        )
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Invalid invoice status.",
+          },
+          {
+            status:
+              400,
+          }
+        );
+      }
+
+      updates.status =
+        body.status;
+    }
+
+    // =====================================================
+    // DUE DATE
+    // =====================================================
+
+    if (
+      Object.prototype.hasOwnProperty.call(
+        body,
+        "due_date"
+      )
+    ) {
+      const dueDate =
+        body.due_date ||
+        null;
+
+      if (
+        dueDate &&
+        !isValidDate(
+          dueDate
+        )
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Due date must use YYYY-MM-DD format.",
+          },
+          {
+            status:
+              400,
+          }
+        );
+      }
+
+      updates.due_date =
+        dueDate;
+    }
+
+    // =====================================================
+    // PAYMENT TERMS
+    // =====================================================
+
+    if (
+      Object.prototype.hasOwnProperty.call(
+        body,
+        "payment_terms"
+      )
+    ) {
+      updates.payment_terms =
+        cleanText(
+          body.payment_terms
+        );
+    }
+
+    // =====================================================
+    // FINANCIALS
+    // =====================================================
+
+    const hasFinancialUpdate =
+      Object.prototype.hasOwnProperty.call(
+        body,
+        "subtotal"
+      ) ||
+      Object.prototype.hasOwnProperty.call(
+        body,
+        "amount"
+      ) ||
+      Object.prototype.hasOwnProperty.call(
+        body,
+        "vat_rate"
+      );
+
+    if (
+      hasFinancialUpdate
+    ) {
+      const subtotal =
+        parseMoney(
+          body.subtotal ??
+            body.amount ??
+            invoice.subtotal
+        );
+
+      const vatRate =
+        parseVatRate(
+          body.vat_rate ??
+            invoice.vat_rate
+        );
+
+      if (
+        subtotal <
+        0
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Subtotal cannot be negative.",
+          },
+          {
+            status:
+              400,
+          }
+        );
+      }
+
+      if (
+        vatRate <
+          0 ||
+        vatRate >
+          100
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "VAT rate must be between 0 and 100.",
+          },
+          {
+            status:
+              400,
+          }
+        );
+      }
+
+      const vatAmount =
+        subtotal *
+        (
+          vatRate /
+          100
+        );
+
+      const total =
+        subtotal +
+        vatAmount;
+
+      updates.subtotal =
+        formatCurrency(
+          subtotal
+        );
+
+      updates.amount =
+        formatCurrency(
+          total
+        );
+
+      updates.vat_rate =
+        formatVatRate(
+          vatRate
+        );
+
+      updates.vat_amount =
+        formatCurrency(
+          vatAmount
+        );
+
+      updates.total_amount =
+        formatCurrency(
+          total
+        );
+    }
+
+    // =====================================================
+    // OWNER
+    // =====================================================
+
+    if (
+      wantsOwnerChange
+    ) {
+      const requestedOwnerId =
+        cleanText(
+          body.owner_employee_id
+        );
+
+      if (
+        !requestedOwnerId
+      ) {
+        updates.owner_employee_id =
+          null;
+      } else {
+        const owner =
+          await validateRecordOwner({
+            supabase,
+            organizationId,
+
+            employeeId:
+              requestedOwnerId,
+          });
+
+        if (
+          !owner
+        ) {
+          return NextResponse.json(
+            {
+              error:
+                "The selected invoice owner is not valid.",
+            },
+            {
+              status:
+                400,
+            }
+          );
         }
+
+        updates.owner_employee_id =
+          owner.id;
+      }
+    }
+
+    const {
+      data:
+        updatedInvoice,
+      error:
+        updateError,
+    } =
+      await supabase
+        .from(
+          "invoices"
+        )
+        .update(
+          updates
+        )
+        .eq(
+          "id",
+          id
+        )
+        .eq(
+          "organization_id",
+          organizationId
+        )
+        .select()
+        .single();
+
+    if (
+      updateError
+    ) {
+      throw new Error(
+        updateError.message
       );
     }
 
-    if (!data) {
-      return NextResponse.json(
-        {
-          error: "Invoice not found.",
-        },
-        {
-          status: 404,
-        }
-      );
-    }
+    const formattedInvoice =
+      await attachRecordOwner({
+        supabase,
+        organizationId,
 
-    return NextResponse.json(data);
+        record:
+          updatedInvoice,
+      });
+
+    return NextResponse.json({
+      invoice:
+        formattedInvoice,
+
+      message:
+        "Invoice updated successfully.",
+    });
   } catch (error) {
-    console.error("Invoice PATCH error:", error);
+    console.error(
+      "Invoice PATCH error:",
+      error
+    );
 
     return NextResponse.json(
       {
-        error: "Failed to update invoice.",
+        error:
+          error.message ||
+          "Failed to update invoice.",
       },
       {
-        status: 500,
+        status:
+          500,
       }
     );
   }
 }
 
-export async function DELETE(request, context) {
-  try {
-    const { id } = await context.params;
+// =========================================================
+// DELETE
+// =========================================================
 
-    if (!id) {
+export async function DELETE(
+  request,
+  context
+) {
+  try {
+    const {
+      id,
+    } =
+      await context.params;
+
+    if (
+      !isUuid(
+        id
+      )
+    ) {
       return NextResponse.json(
         {
-          error: "Invoice ID is required.",
+          error:
+            "A valid invoice ID is required.",
         },
         {
-          status: 400,
+          status:
+            400,
         }
       );
     }
 
-    const { data, error } = await supabase
-      .from("invoices")
-      .delete()
-      .eq("id", id)
-      .eq("organization_id", ORGANIZATION_ID)
-      .select()
-      .single();
+    const access =
+      await getServerAccess();
 
-    if (error) {
+    if (
+      !access.employee
+    ) {
       return NextResponse.json(
         {
-          error: error.message,
+          error:
+            access.error,
         },
         {
-          status: 500,
+          status:
+            access.status,
         }
+      );
+    }
+
+    const permissions =
+      getPermissions(
+        access
+      );
+
+    if (
+      !permissions.canDelete
+    ) {
+      return forbidden(
+        "You do not have permission to delete invoices."
+      );
+    }
+
+    const supabase =
+      createAdminSupabaseClient();
+
+    const organizationId =
+      access.employee
+        .organization_id;
+
+    const invoice =
+      await loadInvoice({
+        supabase,
+        organizationId,
+
+        invoiceId:
+          id,
+      });
+
+    if (
+      !invoice
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Invoice not found.",
+        },
+        {
+          status:
+            404,
+        }
+      );
+    }
+
+    const visible =
+      await canViewOwnedRecord({
+        supabase,
+        access,
+        permissions,
+
+        record:
+          invoice,
+      });
+
+    if (
+      !visible
+    ) {
+      return forbidden(
+        "You do not have permission to delete this invoice."
+      );
+    }
+
+    const protectedStatuses = [
+      "sent",
+      "partially paid",
+      "paid",
+    ];
+
+    if (
+      protectedStatuses.includes(
+        String(
+          invoice.status ||
+            ""
+        )
+          .trim()
+          .toLowerCase()
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Sent or paid invoices cannot be deleted. Cancel the invoice instead.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
+    const {
+      error:
+        deleteError,
+    } =
+      await supabase
+        .from(
+          "invoices"
+        )
+        .delete()
+        .eq(
+          "id",
+          id
+        )
+        .eq(
+          "organization_id",
+          organizationId
+        );
+
+    if (
+      deleteError
+    ) {
+      throw new Error(
+        deleteError.message
       );
     }
 
     return NextResponse.json({
-      message: "Invoice deleted successfully.",
-      invoice: data,
+      message:
+        "Invoice deleted successfully.",
     });
   } catch (error) {
-    console.error("Invoice DELETE error:", error);
+    console.error(
+      "Invoice DELETE error:",
+      error
+    );
 
     return NextResponse.json(
       {
-        error: "Failed to delete invoice.",
+        error:
+          error.message ||
+          "Failed to delete invoice.",
       },
       {
-        status: 500,
+        status:
+          500,
       }
     );
   }
