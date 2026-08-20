@@ -1,359 +1,640 @@
-import { NextResponse } from "next/server";
-import { Resend } from "resend";
-import { supabase } from "../../../../../lib/supabase";
+import {
+  NextResponse,
+} from "next/server";
 
 import {
-  buildEmailLayout,
-  escapeHtml,
-  getCompanyContactBlock,
-  getCompanyDisplayName,
-  textToHtml,
-} from "../../../../../lib/email/emailUtils";
+  Resend,
+} from "resend";
 
-import { createEmailLog } from "../../../../../lib/services/emailLogService";
+import {
+  getServerAccess,
+} from "../../../../../lib/serverAccess";
 
-const ORGANIZATION_ID =
-  "9d5bbb05-866b-4c38-b2ac-3019e7cf88e5";
+import {
+  createAdminSupabaseClient,
+} from "../../../../../lib/supabaseAdmin";
 
-function getResendClient() {
-  if (!process.env.RESEND_API_KEY) {
-    throw new Error(
-      "RESEND_API_KEY is not configured."
-    );
-  }
+import {
+  canViewOwnedRecord,
+  getRecordPermissions,
+} from "../../../../../lib/recordAccess";
 
-  return new Resend(
-    process.env.RESEND_API_KEY
+// =========================================================
+// HELPERS
+// =========================================================
+
+function cleanText(value) {
+  return typeof value ===
+    "string"
+    ? value.trim()
+    : "";
+}
+
+function isUuid(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    String(
+      value ||
+        ""
+    )
   );
 }
 
-export async function POST(request, context) {
+function isEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+    String(
+      value ||
+        ""
+    )
+  );
+}
+
+function forbidden(message) {
+  return NextResponse.json(
+    {
+      error:
+        message,
+    },
+    {
+      status:
+        403,
+    }
+  );
+}
+
+function getPermissions(access) {
+  return getRecordPermissions(
+    access,
+    {
+      prefix:
+        "proposals",
+
+      module:
+        "Proposals",
+    }
+  );
+}
+
+function escapeHtml(value) {
+  return String(
+    value ||
+      ""
+  )
+    .replace(
+      /&/g,
+      "&amp;"
+    )
+    .replace(
+      /</g,
+      "&lt;"
+    )
+    .replace(
+      />/g,
+      "&gt;"
+    )
+    .replace(
+      /"/g,
+      "&quot;"
+    )
+    .replace(
+      /'/g,
+      "&#039;"
+    );
+}
+
+function proposalToHtml(
+  proposal,
+  companyName
+) {
+  const content =
+    escapeHtml(
+      proposal.proposal_text ||
+        ""
+    ).replace(
+      /\n/g,
+      "<br />"
+    );
+
+  return `
+    <div style="font-family:Arial,sans-serif;line-height:1.6;color:#27241f;max-width:760px;margin:0 auto;">
+      <div style="border-bottom:3px solid #d5a51d;padding-bottom:18px;margin-bottom:26px;">
+        <div style="font-size:22px;font-weight:700;">
+          ${escapeHtml(companyName)}
+        </div>
+
+        <div style="margin-top:4px;color:#77736a;">
+          Proposal ${escapeHtml(
+            proposal.proposal_number ||
+              ""
+          )}
+        </div>
+      </div>
+
+      <p>
+        Hello ${
+          escapeHtml(
+            proposal.contact
+          ) ||
+          "there"
+        },
+      </p>
+
+      <p>
+        Please find our proposal below for
+        <strong>${escapeHtml(
+          proposal.service ||
+            proposal.title ||
+            "the requested service"
+        )}</strong>.
+      </p>
+
+      <div style="margin:26px 0;padding:22px;border:1px solid #e6e1d6;border-radius:12px;background:#faf8f2;">
+        ${content}
+      </div>
+
+      ${
+        proposal.amount
+          ? `
+            <p>
+              <strong>Proposal value:</strong>
+              ${escapeHtml(
+                proposal.amount
+              )}
+            </p>
+          `
+          : ""
+      }
+
+      <p style="margin-top:30px;">
+        Kind regards,<br />
+        ${escapeHtml(companyName)}
+      </p>
+    </div>
+  `;
+}
+
+// =========================================================
+// POST
+// =========================================================
+
+export async function POST(
+  request,
+  context
+) {
   try {
-    const { id } = await context.params;
-    const body = await request.json();
-
-    const [
-      proposalResult,
-      settingsResult,
-    ] = await Promise.all([
-      supabase
-        .from("proposals")
-        .select("*")
-        .eq("id", id)
-        .eq(
-          "organization_id",
-          ORGANIZATION_ID
-        )
-        .single(),
-
-      supabase
-        .from("company_settings")
-        .select("*")
-        .eq(
-          "organization_id",
-          ORGANIZATION_ID
-        )
-        .limit(1),
-    ]);
+    const {
+      id,
+    } =
+      await context.params;
 
     if (
-      proposalResult.error ||
-      !proposalResult.data
+      !isUuid(
+        id
+      )
     ) {
       return NextResponse.json(
         {
           error:
-            proposalResult.error?.message ||
+            "A valid proposal ID is required.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
+    // =====================================================
+    // ACCESS
+    // =====================================================
+
+    const access =
+      await getServerAccess();
+
+    if (
+      !access.employee
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            access.error,
+        },
+        {
+          status:
+            access.status,
+        }
+      );
+    }
+
+    const permissions =
+      getPermissions(
+        access
+      );
+
+    const canSend =
+      permissions.canSend ||
+      access.can(
+        "proposals.send"
+      ) ||
+      access.canModuleAction(
+        "Proposals",
+        "send"
+      );
+
+    if (
+      !canSend
+    ) {
+      return forbidden(
+        "You do not have permission to send proposals."
+      );
+    }
+
+    const supabase =
+      createAdminSupabaseClient();
+
+    const organizationId =
+      access.employee
+        .organization_id;
+
+    // =====================================================
+    // PROPOSAL
+    // =====================================================
+
+    const {
+      data:
+        proposal,
+      error:
+        proposalError,
+    } =
+      await supabase
+        .from(
+          "proposals"
+        )
+        .select("*")
+        .eq(
+          "id",
+          id
+        )
+        .eq(
+          "organization_id",
+          organizationId
+        )
+        .maybeSingle();
+
+    if (
+      proposalError
+    ) {
+      throw new Error(
+        proposalError.message
+      );
+    }
+
+    if (
+      !proposal
+    ) {
+      return NextResponse.json(
+        {
+          error:
             "Proposal not found.",
         },
         {
-          status: 404,
+          status:
+            404,
         }
       );
     }
 
-    if (settingsResult.error) {
+    const visible =
+      await canViewOwnedRecord({
+        supabase,
+        access,
+        permissions,
+
+        record:
+          proposal,
+      });
+
+    if (
+      !visible
+    ) {
+      return forbidden(
+        "You do not have permission to send this proposal."
+      );
+    }
+
+    // =====================================================
+    // REQUEST
+    // =====================================================
+
+    let body = {};
+
+    try {
+      body =
+        await request.json();
+    } catch {
+      body = {};
+    }
+
+    const recipientEmail =
+      cleanText(
+        body.email ||
+          body.to ||
+          proposal.email
+      )
+        .toLowerCase();
+
+    if (
+      !recipientEmail ||
+      !isEmail(
+        recipientEmail
+      )
+    ) {
       return NextResponse.json(
         {
           error:
-            settingsResult.error.message,
+            "A valid recipient email address is required.",
         },
         {
-          status: 500,
+          status:
+            400,
         }
       );
     }
 
-    const proposal =
-      proposalResult.data;
+    const subject =
+      cleanText(
+        body.subject
+      ) ||
+      `${proposal.title || "Proposal"} – ${
+        proposal.proposal_number ||
+        ""
+      }`;
 
-    const settings =
-      settingsResult.data?.[0] || null;
+    // =====================================================
+    // COMPANY
+    // =====================================================
 
-    const recipientEmail = String(
-      body.to || proposal.email || ""
-    ).trim();
+    const {
+      data:
+        companySettings,
+      error:
+        settingsError,
+    } =
+      await supabase
+        .from(
+          "company_settings"
+        )
+        .select(
+          `
+            company_name,
+            company_email,
+            website
+          `
+        )
+        .eq(
+          "organization_id",
+          organizationId
+        )
+        .maybeSingle();
 
-    if (!recipientEmail) {
-      return NextResponse.json(
-        {
-          error:
-            "The proposal does not have a recipient email. Please enter an email address.",
-        },
-        {
-          status: 400,
-        }
+    if (
+      settingsError
+    ) {
+      throw new Error(
+        settingsError.message
       );
     }
 
     const companyName =
-      getCompanyDisplayName(settings);
+      companySettings
+        ?.company_name ||
+      "SaiNal Technologies Ltd";
 
-    const subject =
-      String(body.subject || "").trim() ||
-      `${proposal.title} – ${companyName}`;
+    // =====================================================
+    // EMAIL CONFIG
+    // =====================================================
 
-    const introductoryText =
-      String(body.message || "").trim() ||
-      `Dear ${proposal.contact || "Client"},
+    const resendApiKey =
+      process.env
+        .RESEND_API_KEY;
 
-Please find our proposal below for your review.
+    const emailFrom =
+      process.env
+        .EMAIL_FROM;
 
-Please contact us if you have any questions or would like to discuss any part of the proposal.`;
-
-    const contentHtml = `
-      <table
-        role="presentation"
-        width="100%"
-        cellspacing="0"
-        cellpadding="0"
-        style="
-          margin-bottom: 24px;
-          border-collapse: collapse;
-          background: #faf9f6;
-          border-radius: 10px;
-        "
-      >
-        <tr>
-          <td style="padding: 10px 14px; font-weight: 700;">
-            Proposal Number
-          </td>
-
-          <td style="padding: 10px 14px;">
-            ${escapeHtml(
-              proposal.proposal_number
-            )}
-          </td>
-        </tr>
-
-        <tr>
-          <td style="padding: 10px 14px; font-weight: 700;">
-            Client
-          </td>
-
-          <td style="padding: 10px 14px;">
-            ${escapeHtml(
-              proposal.client || "-"
-            )}
-          </td>
-        </tr>
-
-        <tr>
-          <td style="padding: 10px 14px; font-weight: 700;">
-            Service
-          </td>
-
-          <td style="padding: 10px 14px;">
-            ${escapeHtml(
-              proposal.service || "-"
-            )}
-          </td>
-        </tr>
-
-        <tr>
-          <td style="padding: 10px 14px; font-weight: 700;">
-            Investment
-          </td>
-
-          <td style="padding: 10px 14px;">
-            ${escapeHtml(
-              proposal.amount ||
-                "To be confirmed"
-            )}
-          </td>
-        </tr>
-      </table>
-
-      <div
-        style="
-          border-top: 1px solid #e5e7eb;
-          padding-top: 22px;
-          margin-top: 20px;
-        "
-      >
-        ${textToHtml(
-          proposal.proposal_text || ""
-        )}
-      </div>
-
-      <div
-        style="
-          margin-top: 28px;
-          padding: 18px;
-          background: #fff8dc;
-          border-radius: 8px;
-          line-height: 1.7;
-        "
-      >
-        Thank you for considering
-        ${escapeHtml(companyName)}.<br /><br />
-
-        If you have any questions or would like to discuss this proposal,
-        please reply to this email.<br /><br />
-
-        We look forward to working with you.
-      </div>
-    `;
-
-    const html = buildEmailLayout({
-      companyName,
-
-      title:
-        proposal.title ||
-        "Business Proposal",
-
-      introductoryText,
-
-      contentHtml,
-
-      footerText: `${getCompanyContactBlock(
-        settings
-      )}
-
-Proposal reference: ${
-        proposal.proposal_number
-      }`,
-    });
-
-    const fromAddress =
-      process.env.EMAIL_FROM ||
-      `${companyName} <onboarding@resend.dev>`;
-
-    const resend = getResendClient();
-
-    const { data, error } =
-      await resend.emails.send({
-        from: fromAddress,
-        to: [recipientEmail],
-        subject,
-        html,
-
-        replyTo:
-          settings?.company_email ||
-          undefined,
-      });
-
-    if (error) {
-      console.error(
-        "Resend proposal error:",
-        error
-      );
-
-      await createEmailLog({
-        organizationId:
-          ORGANIZATION_ID,
-
-        recipient: recipientEmail,
-        subject,
-        emailType: "Proposal",
-
-        relatedRecordId:
-          proposal.id,
-
-        relatedRecordNumber:
-          proposal.proposal_number,
-
-        status: "Failed",
-
-        errorMessage:
-          error.message ||
-          "Failed to send proposal email.",
-      });
-
+    if (
+      !resendApiKey
+    ) {
       return NextResponse.json(
         {
           error:
-            error.message ||
-            "Failed to send proposal email.",
+            "Email service is not configured. RESEND_API_KEY is missing.",
         },
         {
-          status: 500,
+          status:
+            500,
         }
       );
     }
 
-    const {
-      data: updatedProposal,
-      error: updateError,
-    } = await supabase
-      .from("proposals")
-      .update({
-        status: "Sent",
-
-        updated_at:
-          new Date().toISOString(),
-      })
-      .eq("id", proposal.id)
-      .eq(
-        "organization_id",
-        ORGANIZATION_ID
-      )
-      .select()
-      .single();
-
-    if (updateError) {
-      console.error(
-        "Proposal sent but status update failed:",
-        updateError
+    if (
+      !emailFrom
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Email sender is not configured. EMAIL_FROM is missing.",
+        },
+        {
+          status:
+            500,
+        }
       );
     }
 
-    await createEmailLog({
-      organizationId:
-        ORGANIZATION_ID,
+    const resend =
+      new Resend(
+        resendApiKey
+      );
 
-      recipient: recipientEmail,
-      subject,
-      emailType: "Proposal",
+    const html =
+      proposalToHtml(
+        proposal,
+        companyName
+      );
 
-      relatedRecordId:
-        proposal.id,
+    const {
+      data:
+        emailResult,
+      error:
+        sendError,
+    } =
+      await resend.emails.send({
+        from:
+          emailFrom,
 
-      relatedRecordNumber:
-        proposal.proposal_number,
+        to: [
+          recipientEmail,
+        ],
 
-      status: "Sent",
+        subject,
 
-      providerEmailId:
-        data?.id || null,
-    });
+        html,
+      });
+
+    if (
+      sendError
+    ) {
+      console.error(
+        "Proposal email sending error:",
+        sendError
+      );
+
+      return NextResponse.json(
+        {
+          error:
+            sendError.message ||
+            "The proposal email could not be sent.",
+        },
+        {
+          status:
+            500,
+        }
+      );
+    }
+
+    // =====================================================
+    // UPDATE PROPOSAL
+    // =====================================================
+
+    const nextStatus =
+      String(
+        proposal.status ||
+          ""
+      )
+        .trim()
+        .toLowerCase() ===
+        "accepted"
+        ? "Accepted"
+        : "Sent";
+
+    const {
+      data:
+        updatedProposal,
+      error:
+        updateError,
+    } =
+      await supabase
+        .from(
+          "proposals"
+        )
+        .update({
+          status:
+            nextStatus,
+
+          updated_at:
+            new Date()
+              .toISOString(),
+        })
+        .eq(
+          "id",
+          id
+        )
+        .eq(
+          "organization_id",
+          organizationId
+        )
+        .select()
+        .single();
+
+    if (
+      updateError
+    ) {
+      throw new Error(
+        updateError.message
+      );
+    }
+
+    // =====================================================
+    // EMAIL LOG
+    // =====================================================
+
+    const {
+      error:
+        logError,
+    } =
+      await supabase
+        .from(
+          "email_logs"
+        )
+        .insert([
+          {
+            organization_id:
+              organizationId,
+
+            record_type:
+              "proposal",
+
+            record_id:
+              id,
+
+            recipient_email:
+              recipientEmail,
+
+            subject,
+
+            status:
+              "Sent",
+
+            provider:
+              "Resend",
+
+            provider_message_id:
+              emailResult?.id ||
+              null,
+
+            sent_by_user_id:
+              access.user?.id ||
+              null,
+
+            sent_by_employee_id:
+              access.employee.id,
+
+            created_at:
+              new Date()
+                .toISOString(),
+          },
+        ]);
+
+    if (
+      logError
+    ) {
+      console.error(
+        "Proposal email log error:",
+        logError
+      );
+    }
 
     return NextResponse.json({
       message:
-        "Proposal email sent successfully.",
-
-      emailId:
-        data?.id || null,
-
-      recipient:
-        recipientEmail,
+        "Proposal sent successfully.",
 
       proposal:
-        updatedProposal || proposal,
+        updatedProposal,
+
+      email: {
+        id:
+          emailResult?.id ||
+          null,
+
+        to:
+          recipientEmail,
+
+        subject,
+      },
     });
   } catch (error) {
     console.error(
-      "Send proposal email error:",
+      "Proposal send error:",
       error
     );
 
@@ -361,10 +642,11 @@ Proposal reference: ${
       {
         error:
           error.message ||
-          "Failed to send proposal email.",
+          "Failed to send proposal.",
       },
       {
-        status: 500,
+        status:
+          500,
       }
     );
   }
