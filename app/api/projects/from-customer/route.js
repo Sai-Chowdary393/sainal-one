@@ -1,69 +1,236 @@
-import { NextResponse } from "next/server";
-import { supabase } from "../../../../lib/supabase";
+import {
+  NextResponse,
+} from "next/server";
 
-const ORGANIZATION_ID =
-  "9d5bbb05-866b-4c38-b2ac-3019e7cf88e5";
+import {
+  getServerAccess,
+} from "../../../../lib/serverAccess";
 
-export async function POST(request) {
+import {
+  createAdminSupabaseClient,
+} from "../../../../lib/supabaseAdmin";
+
+import {
+  attachRecordOwner,
+  getRecordPermissions,
+} from "../../../../lib/recordAccess";
+
+// =========================================================
+// HELPERS
+// =========================================================
+
+function cleanText(value) {
+  return typeof value === "string"
+    ? value.trim()
+    : "";
+}
+
+function isUuid(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    String(value || "")
+  );
+}
+
+function forbidden(message) {
+  return NextResponse.json(
+    {
+      error: message,
+    },
+    {
+      status: 403,
+    }
+  );
+}
+
+function getPermissions(access) {
+  return getRecordPermissions(
+    access,
+    {
+      prefix: "projects",
+      module: "Projects",
+    }
+  );
+}
+
+function normalise(value) {
+  return String(
+    value ||
+      ""
+  )
+    .trim()
+    .toLowerCase();
+}
+
+function buildProjectName({
+  customer,
+  quote,
+}) {
+  const company =
+    cleanText(
+      customer.company
+    );
+
+  const customerName =
+    cleanText(
+      customer.customer_name
+    );
+
+  const service =
+    cleanText(
+      quote.service
+    );
+
+  const accountName =
+    company ||
+    customerName ||
+    cleanText(
+      quote.client
+    ) ||
+    "Customer";
+
+  if (service) {
+    return `${accountName} - ${service}`;
+  }
+
+  return `${accountName} Project`;
+}
+
+// =========================================================
+// POST
+// CUSTOMER + QUOTE -> PROJECT
+// =========================================================
+
+export async function POST(
+  request
+) {
   try {
-    const body = await request.json();
+    // =====================================================
+    // ACCESS
+    // =====================================================
 
-    const customerId = body.customer_id;
-    const quoteId = body.quote_id;
-
-    if (!customerId) {
-      return NextResponse.json(
-        {
-          error: "Customer ID is required.",
-        },
-        {
-          status: 400,
-        }
-      );
-    }
-
-    if (!quoteId) {
-      return NextResponse.json(
-        {
-          error: "Quote ID is required.",
-        },
-        {
-          status: 400,
-        }
-      );
-    }
-
-    const [customerResult, quoteResult] =
-      await Promise.all([
-        supabase
-          .from("customers")
-          .select("*")
-          .eq("id", customerId)
-          .eq(
-            "organization_id",
-            ORGANIZATION_ID
-          )
-          .single(),
-
-        supabase
-          .from("quotes")
-          .select("*")
-          .eq("id", quoteId)
-          .eq(
-            "organization_id",
-            ORGANIZATION_ID
-          )
-          .single(),
-      ]);
+    const access =
+      await getServerAccess();
 
     if (
-      customerResult.error ||
-      !customerResult.data
+      !access.employee
     ) {
       return NextResponse.json(
         {
           error:
-            customerResult.error?.message ||
+            access.error,
+        },
+        {
+          status:
+            access.status,
+        }
+      );
+    }
+
+    const permissions =
+      getPermissions(
+        access
+      );
+
+    if (
+      !permissions.canCreate
+    ) {
+      return forbidden(
+        "You do not have permission to create projects."
+      );
+    }
+
+    const body =
+      await request.json();
+
+    const customerId =
+      cleanText(
+        body.customer_id
+      );
+
+    const quoteId =
+      cleanText(
+        body.quote_id
+      );
+
+    if (
+      !customerId ||
+      !isUuid(
+        customerId
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "A valid customer ID is required.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
+    if (
+      !quoteId ||
+      !isUuid(
+        quoteId
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "A valid quote ID is required.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
+    const supabase =
+      createAdminSupabaseClient();
+
+    const organizationId =
+      access.employee
+        .organization_id;
+
+    // =====================================================
+    // CUSTOMER
+    // =====================================================
+
+    const {
+      data: customer,
+      error:
+        customerError,
+    } =
+      await supabase
+        .from(
+          "customers"
+        )
+        .select("*")
+        .eq(
+          "id",
+          customerId
+        )
+        .eq(
+          "organization_id",
+          organizationId
+        )
+        .maybeSingle();
+
+    if (
+      customerError
+    ) {
+      throw new Error(
+        customerError.message
+      );
+    }
+
+    if (
+      !customer
+    ) {
+      return NextResponse.json(
+        {
+          error:
             "Customer not found.",
         },
         {
@@ -72,14 +239,44 @@ export async function POST(request) {
       );
     }
 
+    // =====================================================
+    // QUOTE
+    // =====================================================
+
+    const {
+      data: quote,
+      error:
+        quoteError,
+    } =
+      await supabase
+        .from(
+          "quotes"
+        )
+        .select("*")
+        .eq(
+          "id",
+          quoteId
+        )
+        .eq(
+          "organization_id",
+          organizationId
+        )
+        .maybeSingle();
+
     if (
-      quoteResult.error ||
-      !quoteResult.data
+      quoteError
+    ) {
+      throw new Error(
+        quoteError.message
+      );
+    }
+
+    if (
+      !quote
     ) {
       return NextResponse.json(
         {
           error:
-            quoteResult.error?.message ||
             "Quote not found.",
         },
         {
@@ -88,52 +285,145 @@ export async function POST(request) {
       );
     }
 
-    const customer = customerResult.data;
-    const quote = quoteResult.data;
+    // =====================================================
+    // QUOTE / CUSTOMER RELATIONSHIP
+    // =====================================================
 
-    const { data: existingProject, error: existingError } =
-      await supabase
-        .from("projects")
-        .select("*")
-        .eq(
-          "organization_id",
-          ORGANIZATION_ID
+    if (
+      quote.customer_id &&
+      String(
+        quote.customer_id
+      ) !==
+        String(
+          customer.id
         )
-        .eq("quote_id", quote.id)
-        .maybeSingle();
-
-    if (existingError) {
+    ) {
       return NextResponse.json(
         {
-          error: existingError.message,
+          error:
+            "The selected quote belongs to a different customer.",
         },
         {
-          status: 500,
+          status: 400,
         }
       );
     }
 
-    if (existingProject) {
+    // =====================================================
+    // DUPLICATE PROJECT
+    // =====================================================
+
+    const {
+      data:
+        existingProjects,
+      error:
+        existingError,
+    } =
+      await supabase
+        .from(
+          "projects"
+        )
+        .select("*")
+        .eq(
+          "organization_id",
+          organizationId
+        );
+
+    if (
+      existingError
+    ) {
+      throw new Error(
+        existingError.message
+      );
+    }
+
+    const existingProject =
+      (
+        existingProjects ||
+        []
+      ).find(
+        (
+          project
+        ) =>
+          String(
+            project.quote_id ||
+              ""
+          ) ===
+            String(
+              quote.id
+            ) ||
+          (
+            String(
+              project.customer_id ||
+                ""
+            ) ===
+              String(
+                customer.id
+              ) &&
+            normalise(
+              project.status
+            ) !==
+              "cancelled"
+          )
+      );
+
+    if (
+      existingProject
+    ) {
+      const formattedProject =
+        await attachRecordOwner({
+          supabase,
+          organizationId,
+          record:
+            existingProject,
+        });
+
       return NextResponse.json({
+        project:
+          formattedProject,
+
+        alreadyExisted:
+          true,
+
         message:
-          "A project already exists for this quote.",
-        alreadyExists: true,
-        project: existingProject,
+          "A project already exists for this customer or quote.",
       });
     }
 
-    const projectName = `${
-      customer.company ||
-      customer.customer_name
-    } - ${quote.service || "Project"}`;
+    // =====================================================
+    // OWNER
+    // =====================================================
 
-    const { data: createdProject, error: createError } =
+    /*
+     * Prefer the customer account owner.
+     *
+     * If the customer was created before ownership existed,
+     * use the quote owner.
+     *
+     * Final fallback is the employee starting the project.
+     */
+    const ownerEmployeeId =
+      customer.owner_employee_id ||
+      quote.owner_employee_id ||
+      access.employee.id;
+
+    // =====================================================
+    // CREATE PROJECT
+    // =====================================================
+
+    const {
+      data: project,
+      error:
+        projectError,
+    } =
       await supabase
-        .from("projects")
+        .from(
+          "projects"
+        )
         .insert([
           {
             organization_id:
-              ORGANIZATION_ID,
+              organizationId,
 
             customer_id:
               customer.id,
@@ -142,53 +432,118 @@ export async function POST(request) {
               quote.id,
 
             project_name:
-              projectName,
+              buildProjectName({
+                customer,
+                quote,
+              }),
 
             description:
-              `Project created from quote ${
-                quote.quote_number ||
-                quote.id
-              }.`,
+              cleanText(
+                quote.service
+              ) ||
+              `Delivery project for ${
+                customer.company ||
+                customer.customer_name ||
+                quote.client ||
+                "customer"
+              }`,
+
+            amount:
+              quote.amount ||
+              null,
 
             status:
               "Planning",
 
             start_date:
-              new Date()
-                .toISOString()
-                .split("T")[0],
+              null,
 
             due_date:
               null,
 
-            amount:
-              quote.amount ||
-              "To be confirmed",
+            owner_employee_id:
+              ownerEmployeeId,
           },
         ])
         .select()
         .single();
 
-    if (createError) {
-      return NextResponse.json(
-        {
-          error: createError.message,
-        },
-        {
-          status: 500,
-        }
+    if (
+      projectError
+    ) {
+      throw new Error(
+        projectError.message
       );
     }
 
-    return NextResponse.json({
-      message:
-        "Project created successfully.",
-      alreadyExists: false,
-      project: createdProject,
-    });
+    // =====================================================
+    // LINK QUOTE TO CUSTOMER IF REQUIRED
+    // =====================================================
+
+    if (
+      !quote.customer_id
+    ) {
+      const {
+        error:
+          quoteUpdateError,
+      } =
+        await supabase
+          .from(
+            "quotes"
+          )
+          .update({
+            customer_id:
+              customer.id,
+          })
+          .eq(
+            "id",
+            quote.id
+          )
+          .eq(
+            "organization_id",
+            organizationId
+          );
+
+      if (
+        quoteUpdateError
+      ) {
+        console.error(
+          "Unable to link quote customer during project creation:",
+          quoteUpdateError
+        );
+      }
+    }
+
+    const formattedProject =
+      await attachRecordOwner({
+        supabase,
+        organizationId,
+        record:
+          project,
+      });
+
+    return NextResponse.json(
+      {
+        project:
+          formattedProject,
+
+        customer,
+
+        quote,
+
+        alreadyExisted:
+          false,
+
+        message:
+          "Project created successfully.",
+      },
+      {
+        status: 201,
+      }
+    );
   } catch (error) {
     console.error(
-      "Create project from customer error:",
+      "Project from customer error:",
       error
     );
 
@@ -196,7 +551,7 @@ export async function POST(request) {
       {
         error:
           error.message ||
-          "Failed to create project.",
+          "Unable to create project from customer.",
       },
       {
         status: 500,
