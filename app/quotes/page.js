@@ -14,6 +14,10 @@ import ProtectedRoute from "../../components/ProtectedRoute";
 
 import styles from "./quotes.module.css";
 
+// =========================================================
+// FORM
+// =========================================================
+
 const INITIAL_FORM_DATA = {
   quote_number: "",
   client: "",
@@ -22,8 +26,8 @@ const INITIAL_FORM_DATA = {
   phone: "",
   service: "",
   amount: "",
-  status: "Draft",
   quote_text: "",
+  owner_employee_id: "",
 };
 
 const STATUS_OPTIONS = [
@@ -32,28 +36,64 @@ const STATUS_OPTIONS = [
   "Approved",
   "Rejected",
   "Accepted",
-  "Sent",
   "Expired",
-  "Draft Quote",
 ];
 
+// =========================================================
+// PAGE
+// =========================================================
+
 export default function QuotesPage() {
-  const [quotes, setQuotes] =
-    useState([]);
+  const [
+    quotes,
+    setQuotes,
+  ] = useState([]);
 
-  const [loading, setLoading] =
-    useState(true);
+  const [
+    employees,
+    setEmployees,
+  ] = useState([]);
 
-  const [saving, setSaving] =
-    useState(false);
+  const [
+    currentEmployee,
+    setCurrentEmployee,
+  ] = useState(null);
+
+  const [
+    access,
+    setAccess,
+  ] = useState({
+    isOwner: false,
+    canViewAll: false,
+    canViewTeam: false,
+    canViewOwn: false,
+    canCreate: false,
+    canEdit: false,
+    canDelete: false,
+    canSend: false,
+    canApprove: false,
+    canAssign: false,
+  });
+
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
+
+  const [
+    saving,
+    setSaving,
+  ] = useState(false);
 
   const [
     errorMessage,
     setErrorMessage,
   ] = useState("");
 
-  const [showForm, setShowForm] =
-    useState(false);
+  const [
+    showForm,
+    setShowForm,
+  ] = useState(false);
 
   const [
     searchValue,
@@ -69,45 +109,20 @@ export default function QuotesPage() {
     formData,
     setFormData,
   ] = useState(
-    createInitialFormData()
+    INITIAL_FORM_DATA
   );
+
+  // =======================================================
+  // LOAD
+  // =======================================================
 
   useEffect(() => {
     fetchQuotes();
   }, []);
 
-  useEffect(() => {
-    try {
-      const searchParams =
-        new URLSearchParams(
-          window.location.search
-        );
-
-      if (
-        searchParams.get(
-          "create"
-        ) === "true"
-      ) {
-        setShowForm(true);
-
-        window.history.replaceState(
-          {},
-          "",
-          window.location.pathname
-        );
-      }
-    } catch (error) {
-      console.error(
-        "Unable to read quote page parameters:",
-        error
-      );
-    }
-  }, []);
-
   async function fetchQuotes() {
     try {
       setLoading(true);
-
       setErrorMessage("");
 
       const response =
@@ -122,7 +137,9 @@ export default function QuotesPage() {
       const data =
         await response.json();
 
-      if (!response.ok) {
+      if (
+        !response.ok
+      ) {
         throw new Error(
           data.error ||
             "Failed to load quotes."
@@ -130,15 +147,134 @@ export default function QuotesPage() {
       }
 
       setQuotes(
-        Array.isArray(data)
-          ? data
+        Array.isArray(
+          data.quotes
+        )
+          ? data.quotes
           : []
       );
+
+      setEmployees(
+        Array.isArray(
+          data.employees
+        )
+          ? data.employees
+          : []
+      );
+
+      setCurrentEmployee(
+        data.currentEmployee ||
+          null
+      );
+
+      const nextAccess = {
+        isOwner:
+          Boolean(
+            data.access
+              ?.isOwner
+          ),
+
+        canViewAll:
+          Boolean(
+            data.access
+              ?.canViewAll
+          ),
+
+        canViewTeam:
+          Boolean(
+            data.access
+              ?.canViewTeam
+          ),
+
+        canViewOwn:
+          Boolean(
+            data.access
+              ?.canViewOwn
+          ),
+
+        canCreate:
+          Boolean(
+            data.access
+              ?.canCreate
+          ),
+
+        canEdit:
+          Boolean(
+            data.access
+              ?.canEdit
+          ),
+
+        canDelete:
+          Boolean(
+            data.access
+              ?.canDelete
+          ),
+
+        canSend:
+          Boolean(
+            data.access
+              ?.canSend
+          ),
+
+        canApprove:
+          Boolean(
+            data.access
+              ?.canApprove
+          ),
+
+        canAssign:
+          Boolean(
+            data.access
+              ?.canAssign
+          ),
+      };
+
+      setAccess(
+        nextAccess
+      );
+
+      // ===================================================
+      // ?create=true
+      // ===================================================
+
+      const searchParams =
+        new URLSearchParams(
+          window.location.search
+        );
+
+      if (
+        searchParams.get(
+          "create"
+        ) ===
+          "true" &&
+        nextAccess.canCreate
+      ) {
+        setFormData({
+          ...INITIAL_FORM_DATA,
+
+          owner_employee_id:
+            nextAccess.canAssign
+              ? data.currentEmployee
+                  ?.id ||
+                ""
+              : "",
+        });
+
+        setShowForm(true);
+
+        window.history.replaceState(
+          {},
+          "",
+          window.location.pathname
+        );
+      }
     } catch (error) {
       console.error(
         "Quote loading error:",
         error
       );
+
+      setQuotes([]);
 
       setErrorMessage(
         error.message ||
@@ -149,16 +285,23 @@ export default function QuotesPage() {
     }
   }
 
+  // =======================================================
+  // FORM
+  // =======================================================
+
   function handleChange(
     event
   ) {
     const {
       name,
       value,
-    } = event.target;
+    } =
+      event.target;
 
     setFormData(
-      (currentData) => ({
+      (
+        currentData
+      ) => ({
         ...currentData,
 
         [name]:
@@ -168,33 +311,65 @@ export default function QuotesPage() {
   }
 
   function openCreateForm() {
-    setFormData(
-      createInitialFormData()
-    );
+    if (
+      !access.canCreate
+    ) {
+      return;
+    }
+
+    setFormData({
+      ...INITIAL_FORM_DATA,
+
+      owner_employee_id:
+        access.canAssign
+          ? currentEmployee
+              ?.id ||
+            ""
+          : "",
+    });
 
     setShowForm(true);
+
+    window.scrollTo({
+      top: 0,
+      behavior:
+        "smooth",
+    });
   }
 
   function closeCreateForm() {
     setFormData(
-      createInitialFormData()
+      INITIAL_FORM_DATA
     );
 
     setShowForm(false);
   }
+
+  // =======================================================
+  // CREATE
+  // =======================================================
 
   async function handleSubmit(
     event
   ) {
     event.preventDefault();
 
+    if (
+      !access.canCreate
+    ) {
+      alert(
+        "You do not have permission to create quotes."
+      );
+
+      return;
+    }
+
     const cleanClient =
       formData.client.trim();
 
-    const cleanContact =
-      formData.contact.trim();
-
-    if (!cleanClient) {
+    if (
+      !cleanClient
+    ) {
       alert(
         "Please enter the client or company name."
       );
@@ -218,6 +393,49 @@ export default function QuotesPage() {
             quoteNumber,
         });
 
+      const payload = {
+        quote_number:
+          quoteNumber,
+
+        client:
+          cleanClient,
+
+        contact:
+          formData.contact.trim(),
+
+        email:
+          formData.email.trim(),
+
+        phone:
+          formData.phone.trim(),
+
+        service:
+          formData.service.trim(),
+
+        amount:
+          formData.amount.trim(),
+
+        quote_text:
+          quoteText,
+
+        status:
+          "Draft",
+
+        customer_id:
+          null,
+
+        lead_id:
+          null,
+      };
+
+      if (
+        access.canAssign &&
+        formData.owner_employee_id
+      ) {
+        payload.owner_employee_id =
+          formData.owner_employee_id;
+      }
+
       const response =
         await fetch(
           "/api/quotes",
@@ -231,68 +449,32 @@ export default function QuotesPage() {
             },
 
             body:
-              JSON.stringify({
-                quote_number:
-                  quoteNumber,
-
-                client:
-                  cleanClient,
-
-                contact:
-                  cleanContact,
-
-                email:
-                  formData.email.trim(),
-
-                phone:
-                  formData.phone.trim(),
-
-                service:
-                  formData.service.trim(),
-
-                amount:
-                  formData.amount.trim(),
-
-                /*
-                 * Backend always creates
-                 * new quotations as Draft.
-                 */
-                status:
-                  "Draft",
-
-                quote_text:
-                  quoteText,
-
-                customer_id:
-                  null,
-
-                lead_id:
-                  null,
-              }),
+              JSON.stringify(
+                payload
+              ),
           }
         );
 
       const data =
         await response.json();
 
-      if (!response.ok) {
+      if (
+        !response.ok
+      ) {
         throw new Error(
           data.error ||
             "Failed to create quote."
         );
       }
 
-      const createdQuote =
-        Array.isArray(data)
-          ? data[0]
-          : data;
-
-      if (createdQuote) {
+      if (
+        data.quote
+      ) {
         setQuotes(
           (
             currentQuotes
           ) => [
-            createdQuote,
+            data.quote,
             ...currentQuotes,
           ]
         );
@@ -301,6 +483,11 @@ export default function QuotesPage() {
       }
 
       closeCreateForm();
+
+      alert(
+        data.message ||
+          "Quote created successfully."
+      );
     } catch (error) {
       console.error(
         "Quote creation error:",
@@ -316,72 +503,90 @@ export default function QuotesPage() {
     }
   }
 
+  // =======================================================
+  // FILTER
+  // =======================================================
+
   const filteredQuotes =
-    useMemo(() => {
-      const search =
-        searchValue
-          .trim()
-          .toLowerCase();
+    useMemo(
+      () => {
+        const search =
+          searchValue
+            .trim()
+            .toLowerCase();
 
-      return quotes.filter(
-        (quote) => {
-          const matchesSearch =
-            !search ||
-            [
-              quote.quote_number,
-              quote.client,
-              quote.contact,
-              quote.service,
-              quote.status,
-            ].some(
-              (value) =>
-                String(
-                  value || ""
-                )
-                  .toLowerCase()
-                  .includes(
-                    search
+        return quotes.filter(
+          (
+            quote
+          ) => {
+            const matchesSearch =
+              !search ||
+              [
+                quote.quote_number,
+                quote.client,
+                quote.contact,
+                quote.service,
+                quote.status,
+                quote.owner
+                  ?.full_name,
+              ].some(
+                (
+                  value
+                ) =>
+                  String(
+                    value ||
+                      ""
                   )
-            );
-
-          const matchesStatus =
-            statusFilter ===
-              "All" ||
-            normaliseStatus(
-              quote.status
-            ) ===
-              normaliseStatus(
-                statusFilter
+                    .toLowerCase()
+                    .includes(
+                      search
+                    )
               );
 
-          return (
-            matchesSearch &&
-            matchesStatus
-          );
-        }
-      );
-    }, [
-      quotes,
-      searchValue,
-      statusFilter,
-    ]);
+            const matchesStatus =
+              statusFilter ===
+                "All" ||
+              normaliseStatus(
+                quote.status
+              ) ===
+                normaliseStatus(
+                  statusFilter
+                );
+
+            return (
+              matchesSearch &&
+              matchesStatus
+            );
+          }
+        );
+      },
+      [
+        quotes,
+        searchValue,
+        statusFilter,
+      ]
+    );
+
+  // =======================================================
+  // SUMMARY
+  // =======================================================
 
   const draftQuotes =
     quotes.filter(
-      (quote) =>
-        [
-          "draft",
-          "draft quote",
-        ].includes(
-          normaliseStatus(
-            quote.status
-          )
-        )
+      (
+        quote
+      ) =>
+        normaliseStatus(
+          quote.status
+        ) ===
+        "draft"
     ).length;
 
   const pendingApprovalQuotes =
     quotes.filter(
-      (quote) =>
+      (
+        quote
+      ) =>
         normaliseStatus(
           quote.status
         ) ===
@@ -390,7 +595,9 @@ export default function QuotesPage() {
 
   const approvedQuotes =
     quotes.filter(
-      (quote) =>
+      (
+        quote
+      ) =>
         normaliseStatus(
           quote.status
         ) ===
@@ -399,7 +606,9 @@ export default function QuotesPage() {
 
   const acceptedQuotes =
     quotes.filter(
-      (quote) =>
+      (
+        quote
+      ) =>
         normaliseStatus(
           quote.status
         ) ===
@@ -408,19 +617,19 @@ export default function QuotesPage() {
 
   const pipelineValue =
     quotes
-      .filter((quote) => {
-        const status =
-          normaliseStatus(
-            quote.status
-          );
-
-        return (
-          status !==
-            "rejected" &&
-          status !==
-            "expired"
-        );
-      })
+      .filter(
+        (
+          quote
+        ) =>
+          ![
+            "rejected",
+            "expired",
+          ].includes(
+            normaliseStatus(
+              quote.status
+            )
+          )
+      )
       .reduce(
         (
           total,
@@ -433,20 +642,23 @@ export default function QuotesPage() {
         0
       );
 
-  const filtersActive =
-    Boolean(
-      searchValue
-    ) ||
-    statusFilter !==
-      "All";
-
   function clearFilters() {
     setSearchValue("");
-
-    setStatusFilter(
-      "All"
-    );
+    setStatusFilter("All");
   }
+
+  const visibilityLabel =
+    access.canViewAll
+      ? "All organisation quotes"
+      : access.canViewTeam
+        ? "Team quotes"
+        : access.canViewOwn
+          ? "My quotes"
+          : "Quote access";
+
+  // =======================================================
+  // PAGE
+  // =======================================================
 
   return (
     <ProtectedRoute>
@@ -459,7 +671,9 @@ export default function QuotesPage() {
             styles.page
           }
         >
-          {/* HEADER */}
+          {/* =================================================
+              HEADER
+          ================================================= */}
 
           <section
             className={
@@ -492,191 +706,214 @@ export default function QuotesPage() {
               </p>
             </div>
 
-            <button
-              type="button"
-              className={
-                styles.primaryButton
-              }
-              onClick={
-                showForm
-                  ? closeCreateForm
-                  : openCreateForm
-              }
-            >
-              <span>
-                {showForm
-                  ? "×"
-                  : "+"}
-              </span>
-
-              {showForm
-                ? "Close form"
-                : "Create quote"}
-            </button>
-          </section>
-
-          {/* CREATE FORM */}
-
-          {showForm && (
-            <section
-              className={
-                styles.formPanel
-              }
-            >
-              <div
+            {access.canCreate && (
+              <button
+                type="button"
                 className={
-                  styles.formHeading
+                  styles.primaryButton
+                }
+                onClick={
+                  showForm
+                    ? closeCreateForm
+                    : openCreateForm
                 }
               >
-                <div>
-                  <h3>
-                    Create a new quote
-                  </h3>
+                <span>
+                  {showForm
+                    ? "×"
+                    : "+"}
+                </span>
 
-                  <p>
-                    New quotations
-                    begin as Draft and
-                    can then be submitted
-                    through the configured
-                    approval workflow.
-                  </p>
-                </div>
-              </div>
+                {showForm
+                  ? "Close form"
+                  : "Create quote"}
+              </button>
+            )}
+          </section>
 
-              <form
+          {/* =================================================
+              CREATE
+          ================================================= */}
+
+          {showForm &&
+            access.canCreate && (
+              <section
                 className={
-                  styles.quoteForm
-                }
-                onSubmit={
-                  handleSubmit
+                  styles.formPanel
                 }
               >
                 <div
                   className={
-                    styles.formGrid
+                    styles.formHeading
                   }
                 >
-                  <FormField
-                    label="Quote number"
-                    name="quote_number"
-                    value={
-                      formData.quote_number
-                    }
-                    onChange={
-                      handleChange
-                    }
-                    placeholder="Automatically generated if empty"
-                  />
+                  <div>
+                    <h3>
+                      Create quote
+                    </h3>
 
-                  <FormField
-                    label="Client or company"
-                    name="client"
-                    value={
-                      formData.client
-                    }
-                    onChange={
-                      handleChange
-                    }
-                    placeholder="Example: Delta Services"
-                    required
-                  />
+                    <p>
+                      Build a quotation and
+                      optionally assign an
+                      owner.
+                    </p>
+                  </div>
+                </div>
 
-                  <FormField
-                    label="Primary contact"
-                    name="contact"
-                    value={
-                      formData.contact
-                    }
-                    onChange={
-                      handleChange
-                    }
-                    placeholder="Example: Robert Smith"
-                  />
-
-                  <FormField
-                    label="Email"
-                    name="email"
-                    type="email"
-                    value={
-                      formData.email
-                    }
-                    onChange={
-                      handleChange
-                    }
-                    placeholder="contact@company.com"
-                  />
-
-                  <FormField
-                    label="Phone"
-                    name="phone"
-                    type="tel"
-                    value={
-                      formData.phone
-                    }
-                    onChange={
-                      handleChange
-                    }
-                    placeholder="Telephone number"
-                  />
-
-                  <FormField
-                    label="Service"
-                    name="service"
-                    value={
-                      formData.service
-                    }
-                    onChange={
-                      handleChange
-                    }
-                    placeholder="Example: Business Automation"
-                  />
-
-                  <FormField
-                    label="Amount"
-                    name="amount"
-                    value={
-                      formData.amount
-                    }
-                    onChange={
-                      handleChange
-                    }
-                    placeholder="Example: £3,000"
-                  />
-
+                <form
+                  className={
+                    styles.quoteForm
+                  }
+                  onSubmit={
+                    handleSubmit
+                  }
+                >
                   <div
                     className={
-                      styles.field
+                      styles.formGrid
                     }
                   >
-                    <label
-                      htmlFor="quote-status"
-                    >
-                      Status
-                    </label>
+                    <FormField
+                      label="Quote number"
+                      name="quote_number"
+                      value={
+                        formData.quote_number
+                      }
+                      onChange={
+                        handleChange
+                      }
+                      placeholder="Generated automatically if blank"
+                    />
 
-                    <select
-                      id="quote-status"
-                      name="status"
-                      value="Draft"
-                      disabled
-                    >
-                      <option value="Draft">
-                        Draft
-                      </option>
-                    </select>
-                  </div>
+                    <FormField
+                      label="Client / company"
+                      name="client"
+                      value={
+                        formData.client
+                      }
+                      onChange={
+                        handleChange
+                      }
+                      placeholder="Example: NorthStar Logistics"
+                      required
+                    />
 
-                  <div
-                    className={`${styles.field} ${styles.fieldFull}`}
-                  >
-                    <label
-                      htmlFor="quote-text"
-                    >
-                      Quote text
-                    </label>
+                    <FormField
+                      label="Contact"
+                      name="contact"
+                      value={
+                        formData.contact
+                      }
+                      onChange={
+                        handleChange
+                      }
+                      placeholder="Customer contact"
+                    />
 
-                    <textarea
-                      id="quote-text"
+                    <FormField
+                      label="Email"
+                      name="email"
+                      type="email"
+                      value={
+                        formData.email
+                      }
+                      onChange={
+                        handleChange
+                      }
+                      placeholder="name@company.com"
+                    />
+
+                    <FormField
+                      label="Phone"
+                      name="phone"
+                      type="tel"
+                      value={
+                        formData.phone
+                      }
+                      onChange={
+                        handleChange
+                      }
+                      placeholder="Telephone number"
+                    />
+
+                    <FormField
+                      label="Service"
+                      name="service"
+                      value={
+                        formData.service
+                      }
+                      onChange={
+                        handleChange
+                      }
+                      placeholder="Service or solution"
+                    />
+
+                    <FormField
+                      label="Amount"
+                      name="amount"
+                      value={
+                        formData.amount
+                      }
+                      onChange={
+                        handleChange
+                      }
+                      placeholder="Example: £5,000"
+                    />
+
+                    {access.canAssign && (
+                      <div
+                        className={
+                          styles.field
+                        }
+                      >
+                        <label
+                          htmlFor="quote-owner"
+                        >
+                          Quote owner
+                        </label>
+
+                        <select
+                          id="quote-owner"
+                          name="owner_employee_id"
+                          value={
+                            formData.owner_employee_id
+                          }
+                          onChange={
+                            handleChange
+                          }
+                        >
+                          <option value="">
+                            Assign to me
+                          </option>
+
+                          {employees.map(
+                            (
+                              employee
+                            ) => (
+                              <option
+                                key={
+                                  employee.id
+                                }
+                                value={
+                                  employee.id
+                                }
+                              >
+                                {
+                                  employee.full_name
+                                }
+
+                                {employee.job_title
+                                  ? ` — ${employee.job_title}`
+                                  : ""}
+                              </option>
+                            )
+                          )}
+                        </select>
+                      </div>
+                    )}
+
+                    <FormField
+                      label="Quote text"
                       name="quote_text"
                       value={
                         formData.quote_text
@@ -684,51 +921,54 @@ export default function QuotesPage() {
                       onChange={
                         handleChange
                       }
-                      rows={10}
-                      placeholder="Leave empty to generate a standard quote document automatically."
+                      placeholder="Optional custom quotation text"
+                      textarea
+                      rows={8}
+                      fullWidth
                     />
                   </div>
-                </div>
 
-                <div
-                  className={
-                    styles.formActions
-                  }
-                >
-                  <button
-                    type="button"
+                  <div
                     className={
-                      styles.secondaryButton
-                    }
-                    onClick={
-                      closeCreateForm
-                    }
-                    disabled={
-                      saving
+                      styles.formActions
                     }
                   >
-                    Cancel
-                  </button>
+                    <button
+                      type="button"
+                      className={
+                        styles.secondaryButton
+                      }
+                      onClick={
+                        closeCreateForm
+                      }
+                      disabled={
+                        saving
+                      }
+                    >
+                      Cancel
+                    </button>
 
-                  <button
-                    type="submit"
-                    className={
-                      styles.primaryButton
-                    }
-                    disabled={
-                      saving
-                    }
-                  >
-                    {saving
-                      ? "Saving quote..."
-                      : "Save draft"}
-                  </button>
-                </div>
-              </form>
-            </section>
-          )}
+                    <button
+                      type="submit"
+                      className={
+                        styles.primaryButton
+                      }
+                      disabled={
+                        saving
+                      }
+                    >
+                      {saving
+                        ? "Creating quote..."
+                        : "Create quote"}
+                    </button>
+                  </div>
+                </form>
+              </section>
+            )}
 
-          {/* SUMMARY */}
+          {/* =================================================
+              SUMMARY
+          ================================================= */}
 
           <section
             className={
@@ -737,21 +977,23 @@ export default function QuotesPage() {
           >
             <SummaryCard
               icon="◇"
-              label="Total quotes"
+              label="Quotes"
               value={
                 quotes.length
               }
-              detail="All quotation records"
+              detail={
+                visibilityLabel
+              }
               tone="gold"
             />
 
             <SummaryCard
-              icon="▤"
+              icon="✎"
               label="Draft"
               value={
                 draftQuotes
               }
-              detail="Still being prepared"
+              detail="Quotes being prepared"
               tone="blue"
             />
 
@@ -761,22 +1003,42 @@ export default function QuotesPage() {
               value={
                 pendingApprovalQuotes
               }
-              detail={`${approvedQuotes} internally approved`}
+              detail="Awaiting internal approval"
               tone="purple"
             />
 
             <SummaryCard
-              icon="£"
-              label="Active pipeline"
-              value={formatCurrency(
-                pipelineValue
-              )}
-              detail={`${acceptedQuotes} accepted quotes`}
+              icon="✓"
+              label="Accepted"
+              value={
+                acceptedQuotes
+              }
+              detail={`${approvedQuotes} approved`}
               tone="green"
             />
           </section>
 
-          {/* FILTERS */}
+          <section
+            className={
+              styles.summaryGrid
+            }
+          >
+            <SummaryCard
+              icon="£"
+              label="Pipeline value"
+              value={
+                formatCurrency(
+                  pipelineValue
+                )
+              }
+              detail="Excludes rejected and expired quotes"
+              tone="gold"
+            />
+          </section>
+
+          {/* =================================================
+              FILTERS
+          ================================================= */}
 
           <section
             className={
@@ -788,15 +1050,13 @@ export default function QuotesPage() {
                 styles.searchBox
               }
             >
-              <span
-                aria-hidden="true"
-              >
+              <span>
                 ⌕
               </span>
 
               <input
                 type="search"
-                placeholder="Search quote number, client, service or status..."
+                placeholder="Search quote, client, owner or service..."
                 value={
                   searchValue
                 }
@@ -807,7 +1067,6 @@ export default function QuotesPage() {
                     event.target.value
                   )
                 }
-                aria-label="Search quotes"
               />
             </label>
 
@@ -830,14 +1089,15 @@ export default function QuotesPage() {
                     event.target.value
                   )
                 }
-                aria-label="Filter quotes by status"
               >
                 <option value="All">
                   All statuses
                 </option>
 
                 {STATUS_OPTIONS.map(
-                  (status) => (
+                  (
+                    status
+                  ) => (
                     <option
                       key={
                         status
@@ -846,13 +1106,17 @@ export default function QuotesPage() {
                         status
                       }
                     >
-                      {status}
+                      {
+                        status
+                      }
                     </option>
                   )
                 )}
               </select>
 
-              {filtersActive && (
+              {(searchValue ||
+                statusFilter !==
+                  "All") && (
                 <button
                   type="button"
                   className={
@@ -868,7 +1132,9 @@ export default function QuotesPage() {
             </div>
           </section>
 
-          {/* CONTENT */}
+          {/* =================================================
+              CONTENT
+          ================================================= */}
 
           {loading ? (
             <LoadingState />
@@ -880,12 +1146,13 @@ export default function QuotesPage() {
             >
               <div>
                 <strong>
-                  Unable to load
-                  quotes
+                  Unable to load quotes
                 </strong>
 
                 <p>
-                  {errorMessage}
+                  {
+                    errorMessage
+                  }
                 </p>
               </div>
 
@@ -914,15 +1181,13 @@ export default function QuotesPage() {
               >
                 <div>
                   <h3>
-                    Quotation records
+                    Quote records
                   </h3>
 
                   <p>
-                    Review quotations
-                    from draft through
-                    internal approval
-                    and customer
-                    acceptance.
+                    Review quotation status,
+                    ownership and commercial
+                    value.
                   </p>
                 </div>
 
@@ -946,12 +1211,19 @@ export default function QuotesPage() {
               0 ? (
                 <EmptyState
                   hasFilters={
-                    filtersActive
+                    Boolean(
+                      searchValue
+                    ) ||
+                    statusFilter !==
+                      "All"
+                  }
+                  canCreate={
+                    access.canCreate
                   }
                   onClearFilters={
                     clearFilters
                   }
-                  onCreateQuote={
+                  onCreate={
                     openCreateForm
                   }
                 />
@@ -974,6 +1246,10 @@ export default function QuotesPage() {
 
                         <th>
                           Client
+                        </th>
+
+                        <th>
+                          Owner
                         </th>
 
                         <th>
@@ -1038,29 +1314,34 @@ export default function QuotesPage() {
                                   </Link>
 
                                   <small>
-                                    Open full
-                                    quotation
+                                    {quote.contact ||
+                                      "No contact"}
                                   </small>
                                 </div>
                               </div>
                             </td>
 
                             <td>
-                              <div
+                              <span
                                 className={
                                   styles.clientCell
                                 }
                               >
-                                <strong>
-                                  {quote.client ||
-                                    "No client"}
-                                </strong>
+                                {quote.client ||
+                                  "No client"}
+                              </span>
+                            </td>
 
-                                <small>
-                                  {quote.contact ||
-                                    "No contact"}
-                                </small>
-                              </div>
+                            <td>
+                              <span
+                                className={
+                                  styles.clientCell
+                                }
+                              >
+                                {quote.owner
+                                  ?.full_name ||
+                                  "Unassigned"}
+                              </span>
                             </td>
 
                             <td>
@@ -1113,10 +1394,6 @@ export default function QuotesPage() {
                                 className={
                                   styles.openButton
                                 }
-                                aria-label={`Open ${
-                                  quote.quote_number ||
-                                  "quote"
-                                }`}
                               >
                                 Open
                                 <span>
@@ -1139,6 +1416,10 @@ export default function QuotesPage() {
   );
 }
 
+// =========================================================
+// FIELD
+// =========================================================
+
 function FormField({
   label,
   name,
@@ -1146,47 +1427,73 @@ function FormField({
   onChange,
   placeholder,
   type = "text",
+  textarea = false,
+  rows = 4,
   required = false,
+  fullWidth = false,
 }) {
   return (
-    <div
-      className={
-        styles.field
-      }
+    <label
+      className={`${styles.field} ${
+        fullWidth
+          ? styles.fieldFull
+          : ""
+      }`}
     >
-      <label
-        htmlFor={`quote-${name}`}
-      >
+      <span>
         {label}
         {required
           ? " *"
           : ""}
-      </label>
+      </span>
 
-      <input
-        id={`quote-${name}`}
-        name={
-          name
-        }
-        type={
-          type
-        }
-        value={
-          value
-        }
-        onChange={
-          onChange
-        }
-        placeholder={
-          placeholder
-        }
-        required={
-          required
-        }
-      />
-    </div>
+      {textarea ? (
+        <textarea
+          name={
+            name
+          }
+          rows={
+            rows
+          }
+          value={
+            value
+          }
+          onChange={
+            onChange
+          }
+          placeholder={
+            placeholder
+          }
+        />
+      ) : (
+        <input
+          name={
+            name
+          }
+          type={
+            type
+          }
+          value={
+            value
+          }
+          onChange={
+            onChange
+          }
+          placeholder={
+            placeholder
+          }
+          required={
+            required
+          }
+        />
+      )}
+    </label>
   );
 }
+
+// =========================================================
+// SUMMARY
+// =========================================================
 
 function SummaryCard({
   icon,
@@ -1202,7 +1509,8 @@ function SummaryCard({
           `summary${capitalise(
             tone
           )}`
-        ] || ""
+        ] ||
+        ""
       }`}
     >
       <span
@@ -1232,10 +1540,15 @@ function SummaryCard({
   );
 }
 
+// =========================================================
+// EMPTY
+// =========================================================
+
 function EmptyState({
   hasFilters,
+  canCreate,
   onClearFilters,
-  onCreateQuote,
+  onCreate,
 }) {
   return (
     <div
@@ -1254,33 +1567,49 @@ function EmptyState({
       <h3>
         {hasFilters
           ? "No matching quotes"
-          : "No quotes yet"}
+          : "No quotes found"}
       </h3>
 
       <p>
         {hasFilters
-          ? "Try changing or clearing the current search and status filter."
-          : "Create your first quotation to begin managing the sales approval process."}
+          ? "Try changing or clearing the current filters."
+          : canCreate
+            ? "Create your first quotation to begin the sales process."
+            : "There are no quote records available within your current access."}
       </p>
 
-      <button
-        type="button"
-        className={
-          styles.primaryButton
-        }
-        onClick={
-          hasFilters
-            ? onClearFilters
-            : onCreateQuote
-        }
-      >
-        {hasFilters
-          ? "Clear filters"
-          : "Create quote"}
-      </button>
+      {hasFilters ? (
+        <button
+          type="button"
+          className={
+            styles.primaryButton
+          }
+          onClick={
+            onClearFilters
+          }
+        >
+          Clear filters
+        </button>
+      ) : canCreate ? (
+        <button
+          type="button"
+          className={
+            styles.primaryButton
+          }
+          onClick={
+            onCreate
+          }
+        >
+          Create quote
+        </button>
+      ) : null}
     </div>
   );
 }
+
+// =========================================================
+// LOADING
+// =========================================================
 
 function LoadingState() {
   return (
@@ -1290,9 +1619,12 @@ function LoadingState() {
       }
     >
       {Array.from({
-        length: 5,
+        length: 6,
       }).map(
-        (_, index) => (
+        (
+          _,
+          index
+        ) => (
           <div
             key={
               index
@@ -1307,14 +1639,9 @@ function LoadingState() {
   );
 }
 
-function createInitialFormData() {
-  return {
-    ...INITIAL_FORM_DATA,
-
-    quote_number:
-      generateQuoteNumber(),
-  };
-}
+// =========================================================
+// HELPERS
+// =========================================================
 
 function generateQuoteNumber() {
   return `SNQ-${Date.now()
@@ -1329,7 +1656,7 @@ function buildQuoteText(
 
 QUOTE
 
-Quote Number: ${quote.quote_number}
+Quote Number: ${quote.quote_number || ""}
 Date: ${new Date().toLocaleDateString("en-GB")}
 
 Client:
@@ -1339,25 +1666,21 @@ ${quote.email || ""}
 ${quote.phone || ""}
 
 Service:
-${quote.service || "Professional Services"}
+${quote.service || "To be confirmed"}
 
 Estimated Cost:
 ${quote.amount || "To be confirmed"}
 
-Payment Terms:
-25% deposit required before work begins.
-75% balance payable before final delivery.
-
 Prepared By:
-SaiNal Technologies Ltd
-www.sainaltechnologies.com`;
+SaiNal Technologies Ltd`;
 }
 
 function normaliseStatus(
   value
 ) {
   return String(
-    value || ""
+    value ||
+      ""
   )
     .trim()
     .toLowerCase();
@@ -1366,36 +1689,41 @@ function normaliseStatus(
 function getMoneyValue(
   value
 ) {
-  if (
-    value === null ||
-    value === undefined ||
-    value === ""
-  ) {
-    return 0;
-  }
-
-  return (
+  const number =
     Number(
-      String(value).replace(
+      String(
+        value ||
+          ""
+      ).replace(
         /[^0-9.-]/g,
         ""
       )
-    ) || 0
-  );
+    );
+
+  return Number.isFinite(
+    number
+  )
+    ? number
+    : 0;
 }
 
 function formatCurrency(
   value
 ) {
   return Number(
-    value || 0
+    value ||
+      0
   ).toLocaleString(
     "en-GB",
     {
-      style: "currency",
-      currency: "GBP",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
+      style:
+        "currency",
+
+      currency:
+        "GBP",
+
+      maximumFractionDigits:
+        0,
     }
   );
 }
@@ -1403,30 +1731,47 @@ function formatCurrency(
 function formatQuoteAmount(
   value
 ) {
+  if (
+    !value
+  ) {
+    return "Not set";
+  }
+
+  if (
+    String(
+      value
+    ).includes(
+      "£"
+    )
+  ) {
+    return value;
+  }
+
   const amount =
     getMoneyValue(
       value
     );
 
-  if (
-    !value &&
-    amount === 0
-  ) {
-    return "Not set";
-  }
-
-  return formatCurrency(
-    amount
-  );
+  return amount
+    ? formatCurrency(
+        amount
+      )
+    : value;
 }
 
-function formatDate(value) {
-  if (!value) {
+function formatDate(
+  value
+) {
+  if (
+    !value
+  ) {
     return "Not available";
   }
 
   const date =
-    new Date(value);
+    new Date(
+      value
+    );
 
   if (
     Number.isNaN(
@@ -1439,16 +1784,26 @@ function formatDate(value) {
   return date.toLocaleDateString(
     "en-GB",
     {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
+      day:
+        "2-digit",
+
+      month:
+        "short",
+
+      year:
+        "numeric",
     }
   );
 }
 
-function capitalise(value) {
+function capitalise(
+  value
+) {
   const text =
-    String(value || "");
+    String(
+      value ||
+        ""
+    );
 
   return (
     text
