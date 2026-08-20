@@ -1,21 +1,26 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import Link from "next/link";
 
 import AppLayout from "../../components/layout/AppLayout";
 import ProtectedRoute from "../../components/ProtectedRoute";
 import StatusBadge from "../../components/StatusBadge";
-import styles from "./invoices.module.css";
 
 const INITIAL_FORM_DATA = {
   client: "",
   service: "",
   subtotal: "",
-  vat_rate: "0",
+  vat_rate: "20",
   due_date: "",
   payment_terms:
     "Payment due within 14 days of invoice date.",
+  owner_employee_id: "",
 };
 
 const STATUS_OPTIONS = [
@@ -29,141 +34,339 @@ const STATUS_OPTIONS = [
 ];
 
 export default function InvoicesPage() {
-  const [invoices, setInvoices] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [invoices, setInvoices] =
+    useState([]);
 
-  const [showForm, setShowForm] = useState(false);
-  const [searchValue, setSearchValue] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
+  const [employees, setEmployees] =
+    useState([]);
 
-  const [formData, setFormData] = useState(
+  const [
+    currentEmployee,
+    setCurrentEmployee,
+  ] = useState(null);
+
+  const [access, setAccess] =
+    useState({
+      isOwner: false,
+      canViewAll: false,
+      canViewTeam: false,
+      canViewOwn: false,
+      canCreate: false,
+      canEdit: false,
+      canDelete: false,
+      canAssign: false,
+      canSend: false,
+      canApprove: false,
+    });
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [saving, setSaving] =
+    useState(false);
+
+  const [
+    errorMessage,
+    setErrorMessage,
+  ] = useState("");
+
+  const [showForm, setShowForm] =
+    useState(false);
+
+  const [
+    searchValue,
+    setSearchValue,
+  ] = useState("");
+
+  const [
+    statusFilter,
+    setStatusFilter,
+  ] = useState("All");
+
+  const [
+    formData,
+    setFormData,
+  ] = useState(
     INITIAL_FORM_DATA
   );
 
-  useEffect(() => {
-    fetchInvoices();
-  }, []);
+  // =======================================================
+  // LOAD
+  // =======================================================
 
   useEffect(() => {
-    try {
-      const searchParams = new URLSearchParams(
-        window.location.search
-      );
-
-      if (searchParams.get("create") === "true") {
-        setShowForm(true);
-
-        window.history.replaceState(
-          {},
-          "",
-          window.location.pathname
-        );
-      }
-    } catch (error) {
-      console.error(
-        "Unable to read invoice page parameters:",
-        error
-      );
-    }
+    loadInvoices();
   }, []);
 
-  async function fetchInvoices() {
+  async function loadInvoices() {
     try {
       setLoading(true);
       setErrorMessage("");
 
-      const response = await fetch("/api/invoices", {
-        cache: "no-store",
-      });
+      const response =
+        await fetch(
+          "/api/invoices",
+          {
+            cache:
+              "no-store",
+          }
+        );
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
       if (!response.ok) {
         throw new Error(
-          data.error || "Failed to load invoices."
+          data.error ||
+            "Failed to load invoices."
         );
       }
 
-      setInvoices(Array.isArray(data) ? data : []);
+      const nextAccess = {
+        isOwner:
+          Boolean(
+            data.access?.isOwner
+          ),
+
+        canViewAll:
+          Boolean(
+            data.access
+              ?.canViewAll
+          ),
+
+        canViewTeam:
+          Boolean(
+            data.access
+              ?.canViewTeam
+          ),
+
+        canViewOwn:
+          Boolean(
+            data.access
+              ?.canViewOwn
+          ),
+
+        canCreate:
+          Boolean(
+            data.access
+              ?.canCreate
+          ),
+
+        canEdit:
+          Boolean(
+            data.access
+              ?.canEdit
+          ),
+
+        canDelete:
+          Boolean(
+            data.access
+              ?.canDelete
+          ),
+
+        canAssign:
+          Boolean(
+            data.access
+              ?.canAssign
+          ),
+
+        canSend:
+          Boolean(
+            data.access
+              ?.canSend
+          ),
+
+        canApprove:
+          Boolean(
+            data.access
+              ?.canApprove
+          ),
+      };
+
+      setAccess(
+        nextAccess
+      );
+
+      setInvoices(
+        Array.isArray(
+          data.invoices
+        )
+          ? data.invoices
+          : []
+      );
+
+      setEmployees(
+        Array.isArray(
+          data.employees
+        )
+          ? data.employees
+          : []
+      );
+
+      setCurrentEmployee(
+        data.currentEmployee ||
+          null
+      );
+
+      // Quick action
+      try {
+        const params =
+          new URLSearchParams(
+            window.location.search
+          );
+
+        if (
+          params.get(
+            "create"
+          ) ===
+            "true" &&
+          nextAccess.canCreate
+        ) {
+          setFormData({
+            ...INITIAL_FORM_DATA,
+
+            owner_employee_id:
+              nextAccess.canAssign
+                ? data
+                    .currentEmployee
+                    ?.id ||
+                  ""
+                : "",
+          });
+
+          setShowForm(true);
+
+          window.history.replaceState(
+            {},
+            "",
+            window.location
+              .pathname
+          );
+        }
+      } catch {
+        // Ignore URL helper errors.
+      }
     } catch (error) {
       console.error(
         "Invoice loading error:",
         error
       );
 
+      setInvoices([]);
+
       setErrorMessage(
         error.message ||
-          "We could not load the invoices."
+          "Unable to load invoices."
       );
     } finally {
       setLoading(false);
     }
   }
 
-  function handleChange(event) {
-    const { name, value } = event.target;
+  // =======================================================
+  // FORM
+  // =======================================================
 
-    setFormData((currentData) => ({
-      ...currentData,
-      [name]: value,
-    }));
+  function handleChange(
+    event
+  ) {
+    const {
+      name,
+      value,
+    } =
+      event.target;
+
+    setFormData(
+      (
+        current
+      ) => ({
+        ...current,
+        [name]: value,
+      })
+    );
   }
 
-  function openCreateForm() {
-    setFormData(INITIAL_FORM_DATA);
+  function openForm() {
+    if (
+      !access.canCreate
+    ) {
+      return;
+    }
+
+    setFormData({
+      ...INITIAL_FORM_DATA,
+
+      owner_employee_id:
+        access.canAssign
+          ? currentEmployee?.id ||
+            ""
+          : "",
+    });
+
     setShowForm(true);
+
+    window.scrollTo({
+      top: 0,
+      behavior:
+        "smooth",
+    });
   }
 
-  function closeCreateForm() {
-    setFormData(INITIAL_FORM_DATA);
+  function closeForm() {
+    setFormData(
+      INITIAL_FORM_DATA
+    );
+
     setShowForm(false);
   }
 
-  const subtotalNumber = getMoneyValue(
-    formData.subtotal
-  );
+  // =======================================================
+  // CREATE
+  // =======================================================
 
-  const vatRateNumber = getVatRate(
-    formData.vat_rate
-  );
-
-  const vatAmountNumber =
-    subtotalNumber * (vatRateNumber / 100);
-
-  const totalAmountNumber =
-    subtotalNumber + vatAmountNumber;
-
-  async function createInvoice(event) {
+  async function createInvoice(
+    event
+  ) {
     event.preventDefault();
 
-    const cleanClient = formData.client.trim();
-    const cleanService = formData.service.trim();
-
     if (
-      !cleanClient ||
-      !cleanService ||
-      !formData.subtotal
+      !access.canCreate
     ) {
       alert(
-        "Please enter client, service and subtotal."
+        "You do not have permission to create invoices."
       );
 
       return;
     }
 
-    if (subtotalNumber < 0) {
-      alert("Subtotal cannot be negative.");
+    const client =
+      formData.client.trim();
+
+    const service =
+      formData.service.trim();
+
+    if (
+      !client ||
+      !service
+    ) {
+      alert(
+        "Client and service are required."
+      );
+
       return;
     }
 
+    const subtotal =
+      getMoneyValue(
+        formData.subtotal
+      );
+
     if (
-      vatRateNumber < 0 ||
-      vatRateNumber > 100
+      subtotal <
+      0
     ) {
       alert(
-        "VAT rate must be between 0 and 100."
+        "Subtotal cannot be negative."
       );
 
       return;
@@ -172,54 +375,67 @@ export default function InvoicesPage() {
     try {
       setSaving(true);
 
-      const response = await fetch(
-        "/api/invoices",
-        {
-          method: "POST",
+      const payload = {
+        client,
+        service,
 
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
+        subtotal:
+          formData.subtotal,
 
-          body: JSON.stringify({
-            customer_id: null,
-            project_id: null,
+        vat_rate:
+          formData.vat_rate,
 
-            client: cleanClient,
+        due_date:
+          formData.due_date ||
+          null,
 
-            service: cleanService,
+        payment_terms:
+          formData.payment_terms
+            .trim(),
 
-            amount: formatCurrency(
-              totalAmountNumber
-            ),
+        status:
+          "Draft Invoice",
 
-            subtotal: formatCurrency(
-              subtotalNumber
-            ),
+        customer_id:
+          null,
 
-            vat_rate: `${vatRateNumber}%`,
+        project_id:
+          null,
 
-            vat_amount: formatCurrency(
-              vatAmountNumber
-            ),
+        quote_id:
+          null,
+      };
 
-            total_amount: formatCurrency(
-              totalAmountNumber
-            ),
+      if (
+        access.canAssign &&
+        formData
+          .owner_employee_id
+      ) {
+        payload.owner_employee_id =
+          formData.owner_employee_id;
+      }
 
-            due_date:
-              formData.due_date || null,
+      const response =
+        await fetch(
+          "/api/invoices",
+          {
+            method:
+              "POST",
 
-            payment_terms:
-              formData.payment_terms.trim(),
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
 
-            status: "Draft Invoice",
-          }),
-        }
-      );
+            body:
+              JSON.stringify(
+                payload
+              ),
+          }
+        );
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
       if (!response.ok) {
         throw new Error(
@@ -228,26 +444,26 @@ export default function InvoicesPage() {
         );
       }
 
-      const createdInvoice =
-        Array.isArray(data)
-          ? data[0]
-          : data;
-
-      if (createdInvoice) {
+      if (
+        data.invoice
+      ) {
         setInvoices(
-          (currentInvoices) => [
-            createdInvoice,
-            ...currentInvoices,
+          (
+            current
+          ) => [
+            data.invoice,
+            ...current,
           ]
         );
       } else {
-        await fetchInvoices();
+        await loadInvoices();
       }
 
-      closeCreateForm();
+      closeForm();
 
       alert(
-        "Invoice created successfully."
+        data.message ||
+          "Invoice created successfully."
       );
     } catch (error) {
       console.error(
@@ -257,467 +473,615 @@ export default function InvoicesPage() {
 
       alert(
         error.message ||
-          "Error creating invoice."
+          "Unable to create invoice."
       );
     } finally {
       setSaving(false);
     }
   }
 
-  const filteredInvoices = useMemo(() => {
-    const search = searchValue
-      .trim()
-      .toLowerCase();
+  // =======================================================
+  // FILTER
+  // =======================================================
 
-    return invoices.filter((invoice) => {
-      const matchesSearch =
-        !search ||
-        [
-          invoice.invoice_number,
-          invoice.client,
-          invoice.service,
-          invoice.status,
-        ].some((value) =>
-          String(value || "")
-            .toLowerCase()
-            .includes(search)
+  const filteredInvoices =
+    useMemo(
+      () => {
+        const search =
+          searchValue
+            .trim()
+            .toLowerCase();
+
+        return invoices.filter(
+          (
+            invoice
+          ) => {
+            const matchesSearch =
+              !search ||
+              [
+                invoice.invoice_number,
+                invoice.client,
+                invoice.service,
+                invoice.status,
+                invoice.owner
+                  ?.full_name,
+              ].some(
+                (
+                  value
+                ) =>
+                  String(
+                    value ||
+                      ""
+                  )
+                    .toLowerCase()
+                    .includes(
+                      search
+                    )
+              );
+
+            const matchesStatus =
+              statusFilter ===
+                "All" ||
+              normaliseStatus(
+                invoice.status
+              ) ===
+                normaliseStatus(
+                  statusFilter
+                );
+
+            return (
+              matchesSearch &&
+              matchesStatus
+            );
+          }
         );
+      },
+      [
+        invoices,
+        searchValue,
+        statusFilter,
+      ]
+    );
 
-      const matchesStatus =
-        statusFilter === "All" ||
-        normaliseStatus(invoice.status) ===
-          normaliseStatus(statusFilter);
+  // =======================================================
+  // METRICS
+  // =======================================================
 
-      return matchesSearch && matchesStatus;
-    });
-  }, [
-    invoices,
-    searchValue,
-    statusFilter,
-  ]);
+  const totalValue =
+    invoices.reduce(
+      (
+        total,
+        invoice
+      ) =>
+        total +
+        getInvoiceTotal(
+          invoice
+        ),
+      0
+    );
 
-  const totalInvoiced = invoices.reduce(
-    (total, invoice) =>
-      total +
-      getMoneyValue(
-        invoice.total_amount ||
-          invoice.amount
-      ),
-    0
-  );
-
-  const totalPaid = invoices
-    .filter(
-      (invoice) =>
+  const paidInvoices =
+    invoices.filter(
+      (
+        invoice
+      ) =>
         normaliseStatus(
           invoice.status
         ) === "paid"
-    )
-    .reduce(
-      (total, invoice) =>
+    );
+
+  const paidValue =
+    paidInvoices.reduce(
+      (
+        total,
+        invoice
+      ) =>
         total +
-        getMoneyValue(
-          invoice.total_amount ||
-            invoice.amount
+        getInvoiceTotal(
+          invoice
         ),
       0
     );
 
-  const totalOutstanding = invoices
-    .filter((invoice) => {
-      const status = normaliseStatus(
-        invoice.status
+  const overdueInvoices =
+    invoices.filter(
+      (
+        invoice
+      ) =>
+        normaliseStatus(
+          invoice.status
+        ) ===
+        "overdue" ||
+        (
+          isOverdue(
+            invoice.due_date
+          ) &&
+          ![
+            "paid",
+            "cancelled",
+          ].includes(
+            normaliseStatus(
+              invoice.status
+            )
+          )
+        )
+    );
+
+  const outstandingValue =
+    invoices
+      .filter(
+        (
+          invoice
+        ) =>
+          ![
+            "paid",
+            "cancelled",
+          ].includes(
+            normaliseStatus(
+              invoice.status
+            )
+          )
+      )
+      .reduce(
+        (
+          total,
+          invoice
+        ) =>
+          total +
+          getInvoiceTotal(
+            invoice
+          ),
+        0
       );
 
-      return ![
-        "paid",
-        "cancelled",
-      ].includes(status);
-    })
-    .reduce(
-      (total, invoice) =>
-        total +
-        getMoneyValue(
-          invoice.total_amount ||
-            invoice.amount
-        ),
-      0
-    );
-
-  const overdueInvoices = invoices.filter(
-    (invoice) => isInvoiceOverdue(invoice)
-  );
-
-  const overdueValue = overdueInvoices.reduce(
-    (total, invoice) =>
-      total +
-      getMoneyValue(
-        invoice.total_amount ||
-          invoice.amount
-      ),
-    0
-  );
+  const visibilityLabel =
+    access.canViewAll
+      ? "All organisation invoices"
+      : access.canViewTeam
+        ? "Team invoices"
+        : access.canViewOwn
+          ? "My invoices"
+          : "Invoice access";
 
   const filtersActive =
-    Boolean(searchValue) ||
-    statusFilter !== "All";
+    Boolean(
+      searchValue
+    ) ||
+    statusFilter !==
+      "All";
 
   function clearFilters() {
     setSearchValue("");
     setStatusFilter("All");
   }
 
+  // =======================================================
+  // PAGE
+  // =======================================================
+
   return (
     <ProtectedRoute>
       <AppLayout
         title="Invoices"
-        description="Manage billing, payments and outstanding revenue."
+        description="Manage billing, payment status and customer invoices."
       >
-        <div className={styles.page}>
+        <div
+          style={
+            pageStyles.page
+          }
+        >
+          {/* HEADER */}
+
           <section
-            className={styles.pageHeader}
+            style={
+              pageStyles.header
+            }
           >
-            <div
-              className={
-                styles.pageHeaderCopy
-              }
-            >
+            <div>
               <span
-                className={
-                  styles.eyebrow
+                style={
+                  pageStyles.eyebrow
                 }
               >
                 Finance workspace
               </span>
 
-              <h2>
+              <h2
+                style={
+                  pageStyles.heading
+                }
+              >
                 Invoice management
               </h2>
 
-              <p>
-                Create invoices, monitor
-                payment status and identify
-                overdue revenue. Full customer,
-                payment and bank details remain
-                inside each invoice workspace.
+              <p
+                style={
+                  pageStyles.description
+                }
+              >
+                Create invoices,
+                monitor payment
+                status and maintain
+                secure ownership of
+                financial records.
               </p>
             </div>
 
-            <button
-              type="button"
-              className={
-                styles.primaryButton
-              }
-              onClick={
-                showForm
-                  ? closeCreateForm
-                  : openCreateForm
-              }
-            >
-              <span>
-                {showForm ? "×" : "+"}
-              </span>
-
-              {showForm
-                ? "Close form"
-                : "Create invoice"}
-            </button>
-          </section>
-
-          {showForm && (
-            <section
-              className={
-                styles.formPanel
-              }
-            >
-              <div
-                className={
-                  styles.formHeading
+            {access.canCreate && (
+              <button
+                type="button"
+                style={
+                  pageStyles.primaryButton
+                }
+                onClick={
+                  showForm
+                    ? closeForm
+                    : openForm
                 }
               >
-                <div>
-                  <h3>
-                    Create a new invoice
-                  </h3>
+                {showForm
+                  ? "× Close form"
+                  : "+ Create invoice"}
+              </button>
+            )}
+          </section>
 
-                  <p>
-                    Enter billing information,
-                    VAT and payment terms.
-                  </p>
-                </div>
-              </div>
+          {/* CREATE FORM */}
 
-              <form
-                className={
-                  styles.invoiceForm
-                }
-                onSubmit={
-                  createInvoice
+          {showForm &&
+            access.canCreate && (
+              <section
+                style={
+                  pageStyles.panel
                 }
               >
                 <div
-                  className={
-                    styles.formGrid
+                  style={
+                    pageStyles.panelHeader
                   }
                 >
-                  <FormField
-                    label="Client or company"
-                    name="client"
-                    value={
-                      formData.client
-                    }
-                    onChange={
-                      handleChange
-                    }
-                    placeholder="Example: Delta Services"
-                    required
-                  />
-
-                  <FormField
-                    label="Service"
-                    name="service"
-                    value={
-                      formData.service
-                    }
-                    onChange={
-                      handleChange
-                    }
-                    placeholder="Example: Business Automation"
-                    required
-                  />
-
-                  <FormField
-                    label="Subtotal"
-                    name="subtotal"
-                    value={
-                      formData.subtotal
-                    }
-                    onChange={
-                      handleChange
-                    }
-                    placeholder="Example: 3000"
-                    required
-                  />
-
-                  <FormField
-                    label="VAT rate"
-                    name="vat_rate"
-                    value={
-                      formData.vat_rate
-                    }
-                    onChange={
-                      handleChange
-                    }
-                    placeholder="Example: 20"
-                  />
-
-                  <FormField
-                    label="Due date"
-                    name="due_date"
-                    type="date"
-                    value={
-                      formData.due_date
-                    }
-                    onChange={
-                      handleChange
-                    }
-                  />
-
-                  <div
-                    className={`${styles.field} ${styles.fieldFull}`}
-                  >
-                    <label
-                      htmlFor="invoice-payment-terms"
+                  <div>
+                    <h3
+                      style={
+                        pageStyles.panelTitle
+                      }
                     >
-                      Payment terms
-                    </label>
+                      Create invoice
+                    </h3>
 
-                    <textarea
-                      id="invoice-payment-terms"
-                      name="payment_terms"
+                    <p
+                      style={
+                        pageStyles.panelDescription
+                      }
+                    >
+                      Enter invoice
+                      details and assign
+                      an owner if
+                      required.
+                    </p>
+                  </div>
+                </div>
+
+                <form
+                  onSubmit={
+                    createInvoice
+                  }
+                >
+                  <div
+                    style={
+                      pageStyles.formGrid
+                    }
+                  >
+                    <Field
+                      label="Client"
+                      name="client"
                       value={
-                        formData.payment_terms
+                        formData.client
                       }
                       onChange={
                         handleChange
                       }
-                      rows={4}
+                      required
                     />
+
+                    <Field
+                      label="Service"
+                      name="service"
+                      value={
+                        formData.service
+                      }
+                      onChange={
+                        handleChange
+                      }
+                      required
+                    />
+
+                    <Field
+                      label="Subtotal"
+                      name="subtotal"
+                      value={
+                        formData.subtotal
+                      }
+                      onChange={
+                        handleChange
+                      }
+                      placeholder="Example: 1000"
+                    />
+
+                    <Field
+                      label="VAT rate (%)"
+                      name="vat_rate"
+                      type="number"
+                      value={
+                        formData.vat_rate
+                      }
+                      onChange={
+                        handleChange
+                      }
+                    />
+
+                    <Field
+                      label="Due date"
+                      name="due_date"
+                      type="date"
+                      value={
+                        formData.due_date
+                      }
+                      onChange={
+                        handleChange
+                      }
+                    />
+
+                    {access.canAssign && (
+                      <label
+                        style={
+                          pageStyles.field
+                        }
+                      >
+                        <span
+                          style={
+                            pageStyles.label
+                          }
+                        >
+                          Invoice owner
+                        </span>
+
+                        <select
+                          name="owner_employee_id"
+                          value={
+                            formData.owner_employee_id
+                          }
+                          onChange={
+                            handleChange
+                          }
+                          style={
+                            pageStyles.input
+                          }
+                        >
+                          <option value="">
+                            Assign to me
+                          </option>
+
+                          {employees.map(
+                            (
+                              employee
+                            ) => (
+                              <option
+                                key={
+                                  employee.id
+                                }
+                                value={
+                                  employee.id
+                                }
+                              >
+                                {
+                                  employee.full_name
+                                }
+
+                                {employee.job_title
+                                  ? ` — ${employee.job_title}`
+                                  : ""}
+                              </option>
+                            )
+                          )}
+                        </select>
+                      </label>
+                    )}
+
+                    <label
+                      style={{
+                        ...pageStyles.field,
+                        gridColumn:
+                          "1 / -1",
+                      }}
+                    >
+                      <span
+                        style={
+                          pageStyles.label
+                        }
+                      >
+                        Payment terms
+                      </span>
+
+                      <textarea
+                        name="payment_terms"
+                        rows={4}
+                        value={
+                          formData.payment_terms
+                        }
+                        onChange={
+                          handleChange
+                        }
+                        style={
+                          pageStyles.textarea
+                        }
+                      />
+                    </label>
                   </div>
-                </div>
 
-                <div
-                  className={
-                    styles.calculationPanel
-                  }
-                >
-                  <CalculationItem
-                    label="Subtotal"
-                    value={formatCurrency(
-                      subtotalNumber
-                    )}
-                  />
-
-                  <CalculationItem
-                    label={`VAT (${vatRateNumber}%)`}
-                    value={formatCurrency(
-                      vatAmountNumber
-                    )}
-                  />
-
-                  <CalculationItem
-                    label="Invoice total"
-                    value={formatCurrency(
-                      totalAmountNumber
-                    )}
-                    total
-                  />
-                </div>
-
-                <div
-                  className={
-                    styles.formActions
-                  }
-                >
-                  <button
-                    type="button"
-                    className={
-                      styles.secondaryButton
+                  <div
+                    style={
+                      pageStyles.actions
                     }
-                    onClick={
-                      closeCreateForm
-                    }
-                    disabled={saving}
                   >
-                    Cancel
-                  </button>
+                    <button
+                      type="button"
+                      style={
+                        pageStyles.secondaryButton
+                      }
+                      onClick={
+                        closeForm
+                      }
+                      disabled={
+                        saving
+                      }
+                    >
+                      Cancel
+                    </button>
 
-                  <button
-                    type="submit"
-                    className={
-                      styles.primaryButton
-                    }
-                    disabled={saving}
-                  >
-                    {saving
-                      ? "Saving invoice..."
-                      : "Save invoice"}
-                  </button>
-                </div>
-              </form>
-            </section>
-          )}
+                    <button
+                      type="submit"
+                      style={
+                        pageStyles.primaryButton
+                      }
+                      disabled={
+                        saving
+                      }
+                    >
+                      {saving
+                        ? "Creating..."
+                        : "Create invoice"}
+                    </button>
+                  </div>
+                </form>
+              </section>
+            )}
+
+          {/* SUMMARY */}
 
           <section
-            className={
-              styles.summaryGrid
+            style={
+              pageStyles.summaryGrid
             }
           >
             <SummaryCard
-              icon="£"
-              label="Total invoiced"
-              value={formatCurrency(
-                totalInvoiced
-              )}
-              detail={`${invoices.length} invoice${
-                invoices.length === 1
-                  ? ""
-                  : "s"
-              }`}
-              tone="gold"
+              label="Invoices"
+              value={
+                invoices.length
+              }
+              description={
+                visibilityLabel
+              }
             />
 
             <SummaryCard
-              icon="✓"
+              label="Invoice value"
+              value={
+                formatCurrency(
+                  totalValue
+                )
+              }
+              description="Total invoice value"
+            />
+
+            <SummaryCard
               label="Paid"
-              value={formatCurrency(
-                totalPaid
-              )}
-              detail="Received revenue"
-              tone="green"
-            />
-
-            <SummaryCard
-              icon="◷"
-              label="Outstanding"
-              value={formatCurrency(
-                totalOutstanding
-              )}
-              detail="Awaiting payment"
-              tone="blue"
-            />
-
-            <SummaryCard
-              icon="!"
-              label="Overdue"
-              value={formatCurrency(
-                overdueValue
-              )}
-              detail={`${overdueInvoices.length} overdue invoice${
-                overdueInvoices.length ===
+              value={
+                formatCurrency(
+                  paidValue
+                )
+              }
+              description={`${paidInvoices.length} paid invoice${
+                paidInvoices.length ===
                 1
                   ? ""
                   : "s"
               }`}
-              tone="red"
+            />
+
+            <SummaryCard
+              label="Outstanding"
+              value={
+                formatCurrency(
+                  outstandingValue
+                )
+              }
+              description={`${overdueInvoices.length} overdue`}
             />
           </section>
 
+          {/* TOOLBAR */}
+
           <section
-            className={
-              styles.toolbarPanel
+            style={
+              pageStyles.toolbar
             }
           >
-            <label
-              className={
-                styles.searchBox
+            <div
+              style={
+                pageStyles.searchBox
               }
             >
-              <span aria-hidden="true">
+              <span>
                 ⌕
               </span>
 
               <input
                 type="search"
-                placeholder="Search invoice number, client, service or status..."
-                value={searchValue}
-                onChange={(event) =>
+                placeholder="Search invoice, client, owner or service..."
+                value={
+                  searchValue
+                }
+                onChange={(
+                  event
+                ) =>
                   setSearchValue(
                     event.target.value
                   )
                 }
-                aria-label="Search invoices"
+                style={
+                  pageStyles.searchInput
+                }
               />
-            </label>
+            </div>
 
             <div
-              className={
-                styles.filters
+              style={
+                pageStyles.toolbarActions
               }
             >
               <select
-                className={
-                  styles.filterSelect
+                value={
+                  statusFilter
                 }
-                value={statusFilter}
-                onChange={(event) =>
+                onChange={(
+                  event
+                ) =>
                   setStatusFilter(
                     event.target.value
                   )
                 }
-                aria-label="Filter invoices by status"
+                style={
+                  pageStyles.filter
+                }
               >
                 <option value="All">
                   All statuses
                 </option>
 
                 {STATUS_OPTIONS.map(
-                  (status) => (
+                  (
+                    item
+                  ) => (
                     <option
-                      key={status}
-                      value={status}
+                      key={
+                        item
+                      }
+                      value={
+                        item
+                      }
                     >
-                      {status}
+                      {item}
                     </option>
                   )
                 )}
@@ -726,10 +1090,12 @@ export default function InvoicesPage() {
               {filtersActive && (
                 <button
                   type="button"
-                  className={
-                    styles.clearButton
+                  style={
+                    pageStyles.secondaryButton
                   }
-                  onClick={clearFilters}
+                  onClick={
+                    clearFilters
+                  }
                 >
                   Clear filters
                 </button>
@@ -737,17 +1103,20 @@ export default function InvoicesPage() {
             </div>
           </section>
 
+          {/* CONTENT */}
+
           {loading ? (
             <LoadingState />
           ) : errorMessage ? (
             <section
-              className={
-                styles.errorPanel
+              style={
+                pageStyles.error
               }
             >
               <div>
                 <strong>
-                  Unable to load invoices
+                  Unable to load
+                  invoices
                 </strong>
 
                 <p>
@@ -757,11 +1126,11 @@ export default function InvoicesPage() {
 
               <button
                 type="button"
-                className={
-                  styles.secondaryButton
+                style={
+                  pageStyles.secondaryButton
                 }
                 onClick={
-                  fetchInvoices
+                  loadInvoices
                 }
               >
                 Try again
@@ -769,34 +1138,44 @@ export default function InvoicesPage() {
             </section>
           ) : (
             <section
-              className={
-                styles.tablePanel
+              style={
+                pageStyles.panel
               }
             >
               <div
-                className={
-                  styles.tableHeading
+                style={
+                  pageStyles.tableHeader
                 }
               >
                 <div>
-                  <h3>
+                  <h3
+                    style={
+                      pageStyles.panelTitle
+                    }
+                  >
                     Invoice records
                   </h3>
 
-                  <p>
-                    Bank details, recipient email
-                    and the complete invoice
-                    document are visible only
-                    inside each invoice workspace.
+                  <p
+                    style={
+                      pageStyles.panelDescription
+                    }
+                  >
+                    Open an invoice to
+                    review billing,
+                    payment terms and
+                    document details.
                   </p>
                 </div>
 
                 <span
-                  className={
-                    styles.resultCount
+                  style={
+                    pageStyles.resultCount
                   }
                 >
-                  {filteredInvoices.length}{" "}
+                  {
+                    filteredInvoices.length
+                  }{" "}
                   result
                   {filteredInvoices.length ===
                   1
@@ -807,219 +1186,213 @@ export default function InvoicesPage() {
 
               {filteredInvoices.length ===
               0 ? (
-                <EmptyState
-                  hasFilters={
-                    filtersActive
+                <div
+                  style={
+                    pageStyles.empty
                   }
-                  onClearFilters={
-                    clearFilters
-                  }
-                  onCreateInvoice={
-                    openCreateForm
-                  }
-                />
+                >
+                  <span
+                    style={
+                      pageStyles.emptyIcon
+                    }
+                  >
+                    £
+                  </span>
+
+                  <h3>
+                    No invoices
+                    found
+                  </h3>
+
+                  <p>
+                    {filtersActive
+                      ? "Try clearing the current filters."
+                      : access.canCreate
+                        ? "Create your first invoice to begin tracking customer billing."
+                        : "There are no invoices available within your current access."}
+                  </p>
+
+                  {filtersActive ? (
+                    <button
+                      type="button"
+                      style={
+                        pageStyles.primaryButton
+                      }
+                      onClick={
+                        clearFilters
+                      }
+                    >
+                      Clear filters
+                    </button>
+                  ) : access.canCreate ? (
+                    <button
+                      type="button"
+                      style={
+                        pageStyles.primaryButton
+                      }
+                      onClick={
+                        openForm
+                      }
+                    >
+                      Create invoice
+                    </button>
+                  ) : null}
+                </div>
               ) : (
                 <div
-                  className={
-                    styles.tableWrapper
+                  style={
+                    pageStyles.tableWrapper
                   }
                 >
                   <table
-                    className={
-                      styles.invoiceTable
+                    style={
+                      pageStyles.table
                     }
                   >
                     <thead>
                       <tr>
-                        <th>
+                        <TableHead>
                           Invoice
-                        </th>
+                        </TableHead>
 
-                        <th>
+                        <TableHead>
                           Client
-                        </th>
+                        </TableHead>
 
-                        <th>
+                        <TableHead>
+                          Owner
+                        </TableHead>
+
+                        <TableHead>
                           Service
-                        </th>
+                        </TableHead>
 
-                        <th>
-                          Amount
-                        </th>
+                        <TableHead>
+                          Total
+                        </TableHead>
 
-                        <th>
+                        <TableHead>
+                          Due
+                        </TableHead>
+
+                        <TableHead>
                           Status
-                        </th>
+                        </TableHead>
 
-                        <th>
-                          Due date
-                        </th>
-
-                        <th>
+                        <TableHead>
                           Created
-                        </th>
+                        </TableHead>
 
-                        <th
-                          aria-label="Actions"
-                        />
+                        <TableHead />
                       </tr>
                     </thead>
 
                     <tbody>
                       {filteredInvoices.map(
-                        (invoice) => {
-                          const overdue =
-                            isInvoiceOverdue(
-                              invoice
-                            );
-
-                          return (
-                            <tr
-                              key={
-                                invoice.id
-                              }
-                            >
-                              <td>
-                                <div
-                                  className={
-                                    styles.invoiceIdentity
+                        (
+                          invoice
+                        ) => (
+                          <tr
+                            key={
+                              invoice.id
+                            }
+                          >
+                            <TableCell>
+                              <div
+                                style={
+                                  pageStyles.identity
+                                }
+                              >
+                                <span
+                                  style={
+                                    pageStyles.invoiceIcon
                                   }
                                 >
-                                  <span
-                                    className={
-                                      styles.invoiceIcon
+                                  £
+                                </span>
+
+                                <div>
+                                  <Link
+                                    href={`/invoices/${invoice.id}`}
+                                    style={
+                                      pageStyles.recordLink
                                     }
                                   >
-                                    £
-                                  </span>
+                                    {invoice.invoice_number ||
+                                      "Invoice"}
+                                  </Link>
 
-                                  <div
-                                    className={
-                                      styles.invoiceIdentityCopy
+                                  <small
+                                    style={
+                                      pageStyles.smallText
                                     }
                                   >
-                                    <Link
-                                      href={`/invoices/${invoice.id}`}
-                                      className={
-                                        styles.invoiceLink
-                                      }
-                                    >
-                                      {invoice.invoice_number ||
-                                        "Invoice"}
-                                    </Link>
-
-                                    <small>
-                                      Open finance
-                                      workspace
-                                    </small>
-                                  </div>
-                                </div>
-                              </td>
-
-                              <td>
-                                <div
-                                  className={
-                                    styles.clientCell
-                                  }
-                                >
-                                  <strong>
-                                    {invoice.client ||
-                                      "No client"}
-                                  </strong>
-
-                                  <small>
-                                    {invoice.customer_id
-                                      ? "Linked customer"
-                                      : "Direct invoice"}
+                                    Billing record
                                   </small>
                                 </div>
-                              </td>
+                              </div>
+                            </TableCell>
 
-                              <td>
-                                <span
-                                  className={
-                                    styles.serviceText
-                                  }
-                                >
-                                  {invoice.service ||
-                                    "Not specified"}
-                                </span>
-                              </td>
+                            <TableCell>
+                              {
+                                invoice.client ||
+                                "No client"
+                              }
+                            </TableCell>
 
-                              <td>
-                                <strong
-                                  className={
-                                    styles.amountText
-                                  }
-                                >
-                                  {formatInvoiceAmount(
-                                    invoice.total_amount ||
-                                      invoice.amount
-                                  )}
-                                </strong>
-                              </td>
+                            <TableCell>
+                              {invoice.owner
+                                ?.full_name ||
+                                "Unassigned"}
+                            </TableCell>
 
-                              <td>
-                                <StatusBadge
-                                  status={
-                                    invoice.status ||
-                                    "Draft Invoice"
-                                  }
-                                />
-                              </td>
+                            <TableCell>
+                              {invoice.service ||
+                                "Not specified"}
+                            </TableCell>
 
-                              <td>
-                                <span
-                                  className={`${styles.dueDate} ${
-                                    overdue
-                                      ? styles.dueDateOverdue
-                                      : ""
-                                  }`}
-                                >
-                                  {formatDate(
-                                    invoice.due_date
-                                  )}
-                                </span>
-
-                                {overdue && (
-                                  <span
-                                    className={
-                                      styles.overdueLabel
-                                    }
-                                  >
-                                    Overdue
-                                  </span>
+                            <TableCell>
+                              <strong>
+                                {formatInvoiceAmount(
+                                  invoice
                                 )}
-                              </td>
+                              </strong>
+                            </TableCell>
 
-                              <td>
-                                <span
-                                  className={
-                                    styles.createdDate
-                                  }
-                                >
-                                  {formatDate(
-                                    invoice.created_at
-                                  )}
-                                </span>
-                              </td>
+                            <TableCell>
+                              {formatDate(
+                                invoice.due_date
+                              )}
+                            </TableCell>
 
-                              <td>
-                                <Link
-                                  href={`/invoices/${invoice.id}`}
-                                  className={
-                                    styles.openButton
-                                  }
-                                >
-                                  Open
-                                  <span>
-                                    →
-                                  </span>
-                                </Link>
-                              </td>
-                            </tr>
-                          );
-                        }
+                            <TableCell>
+                              <StatusBadge
+                                status={
+                                  getDisplayStatus(
+                                    invoice
+                                  )
+                                }
+                              />
+                            </TableCell>
+
+                            <TableCell>
+                              {formatDate(
+                                invoice.created_at
+                              )}
+                            </TableCell>
+
+                            <TableCell>
+                              <Link
+                                href={`/invoices/${invoice.id}`}
+                                style={
+                                  pageStyles.openButton
+                                }
+                              >
+                                Open →
+                              </Link>
+                            </TableCell>
+                          </tr>
+                        )
                       )}
                     </tbody>
                   </table>
@@ -1033,312 +1406,718 @@ export default function InvoicesPage() {
   );
 }
 
-function FormField({
+// =========================================================
+// COMPONENTS
+// =========================================================
+
+function Field({
   label,
   name,
   value,
   onChange,
-  placeholder,
   type = "text",
+  placeholder = "",
   required = false,
 }) {
   return (
-    <div className={styles.field}>
-      <label
-        htmlFor={`invoice-${name}`}
+    <label
+      style={
+        pageStyles.field
+      }
+    >
+      <span
+        style={
+          pageStyles.label
+        }
       >
         {label}
-        {required ? " *" : ""}
-      </label>
-
-      <input
-        id={`invoice-${name}`}
-        name={name}
-        type={type}
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        required={required}
-      />
-    </div>
-  );
-}
-
-function CalculationItem({
-  label,
-  value,
-  total = false,
-}) {
-  return (
-    <div
-      className={`${styles.calculationItem} ${
-        total
-          ? styles.calculationTotal
-          : ""
-      }`}
-    >
-      <span>
-        {label}
+        {required
+          ? " *"
+          : ""}
       </span>
 
-      <strong>
-        {value}
-      </strong>
-    </div>
+      <input
+        name={
+          name
+        }
+        type={
+          type
+        }
+        value={
+          value
+        }
+        onChange={
+          onChange
+        }
+        placeholder={
+          placeholder
+        }
+        required={
+          required
+        }
+        style={
+          pageStyles.input
+        }
+      />
+    </label>
   );
 }
 
 function SummaryCard({
-  icon,
   label,
   value,
-  detail,
-  tone,
+  description,
 }) {
   return (
-    <div
-      className={`${styles.summaryCard} ${
-        styles[
-          `summary${capitalise(tone)}`
-        ] || ""
-      }`}
+    <article
+      style={
+        pageStyles.summaryCard
+      }
     >
       <span
-        className={
-          styles.summaryIcon
-        }
-      >
-        {icon}
-      </span>
-
-      <span
-        className={
-          styles.summaryLabel
+        style={
+          pageStyles.summaryLabel
         }
       >
         {label}
       </span>
 
-      <strong>
+      <strong
+        style={
+          pageStyles.summaryValue
+        }
+      >
         {value}
       </strong>
 
-      <small>
-        {detail}
+      <small
+        style={
+          pageStyles.summaryDescription
+        }
+      >
+        {description}
       </small>
-    </div>
+    </article>
   );
 }
 
-function EmptyState({
-  hasFilters,
-  onClearFilters,
-  onCreateInvoice,
+function TableHead({
+  children,
 }) {
   return (
-    <div
-      className={
-        styles.emptyState
+    <th
+      style={
+        pageStyles.th
       }
     >
-      <span
-        className={
-          styles.emptyIcon
-        }
-      >
-        £
-      </span>
+      {children}
+    </th>
+  );
+}
 
-      <h3>
-        {hasFilters
-          ? "No matching invoices"
-          : "No invoices yet"}
-      </h3>
-
-      <p>
-        {hasFilters
-          ? "Try changing or clearing the current search and status filter."
-          : "Create your first invoice to begin managing billing and payments."}
-      </p>
-
-      <button
-        type="button"
-        className={
-          styles.primaryButton
-        }
-        onClick={
-          hasFilters
-            ? onClearFilters
-            : onCreateInvoice
-        }
-      >
-        {hasFilters
-          ? "Clear filters"
-          : "Create invoice"}
-      </button>
-    </div>
+function TableCell({
+  children,
+}) {
+  return (
+    <td
+      style={
+        pageStyles.td
+      }
+    >
+      {children}
+    </td>
   );
 }
 
 function LoadingState() {
   return (
     <section
-      className={
-        styles.loadingPanel
+      style={
+        pageStyles.loading
       }
     >
       {Array.from({
-        length: 5,
-      }).map((_, index) => (
-        <div
-          key={index}
-          className={
-            styles.loadingRow
-          }
-        />
-      ))}
+        length: 6,
+      }).map(
+        (
+          _,
+          index
+        ) => (
+          <div
+            key={
+              index
+            }
+            style={
+              pageStyles.loadingRow
+            }
+          />
+        )
+      )}
     </section>
   );
 }
 
-function normaliseStatus(value) {
-  return String(value || "")
+// =========================================================
+// HELPERS
+// =========================================================
+
+function normaliseStatus(
+  value
+) {
+  return String(
+    value ||
+      ""
+  )
     .trim()
     .toLowerCase();
 }
 
-function getMoneyValue(value) {
-  if (
-    value === null ||
-    value === undefined ||
-    value === ""
-  ) {
-    return 0;
-  }
+function getMoneyValue(
+  value
+) {
+  const parsed =
+    Number(
+      String(
+        value ||
+          ""
+      ).replace(
+        /[^0-9.-]/g,
+        ""
+      )
+    );
 
-  const cleanedValue = String(value)
-    .replace(/,/g, "")
-    .replace(/[^\d.-]/g, "");
-
-  const parsedValue =
-    Number.parseFloat(cleanedValue);
-
-  return Number.isFinite(parsedValue)
-    ? parsedValue
+  return Number.isFinite(
+    parsed
+  )
+    ? parsed
     : 0;
 }
 
-function getVatRate(value) {
-  if (
-    value === null ||
-    value === undefined ||
-    value === ""
-  ) {
-    return 0;
-  }
-
-  const cleanedValue = String(value)
-    .replace("%", "")
-    .trim();
-
-  const parsedValue =
-    Number.parseFloat(cleanedValue);
-
-  return Number.isFinite(parsedValue)
-    ? parsedValue
-    : 0;
+function getInvoiceTotal(
+  invoice
+) {
+  return getMoneyValue(
+    invoice.total_amount ||
+      invoice.amount ||
+      invoice.subtotal
+  );
 }
 
-function formatCurrency(value) {
-  return new Intl.NumberFormat(
+function formatCurrency(
+  value
+) {
+  return Number(
+    value ||
+      0
+  ).toLocaleString(
     "en-GB",
     {
-      style: "currency",
-      currency: "GBP",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+      style:
+        "currency",
+
+      currency:
+        "GBP",
+
+      minimumFractionDigits:
+        2,
+
+      maximumFractionDigits:
+        2,
     }
-  ).format(value || 0);
+  );
 }
 
-function formatInvoiceAmount(value) {
+function formatInvoiceAmount(
+  invoice
+) {
+  const value =
+    invoice.total_amount ||
+    invoice.amount ||
+    invoice.subtotal;
+
   if (!value) {
     return "£0.00";
   }
 
+  if (
+    String(
+      value
+    ).includes("£")
+  ) {
+    return value;
+  }
+
   return formatCurrency(
-    getMoneyValue(value)
+    getMoneyValue(
+      value
+    )
   );
 }
 
-function formatDate(value) {
+function formatDate(
+  value
+) {
   if (!value) {
-    return "Not available";
+    return "Not set";
   }
 
-  const date = new Date(value);
+  const date =
+    new Date(value);
 
   if (
     Number.isNaN(
       date.getTime()
     )
   ) {
-    return "Not available";
+    return "Not set";
   }
 
   return date.toLocaleDateString(
     "en-GB",
     {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
+      day:
+        "2-digit",
+
+      month:
+        "short",
+
+      year:
+        "numeric",
     }
   );
 }
 
-function isInvoiceOverdue(invoice) {
-  const status = normaliseStatus(
-    invoice.status
-  );
-
-  if (status === "overdue") {
-    return true;
-  }
-
-  if (
-    ["paid", "cancelled"].includes(
-      status
-    )
-  ) {
+function isOverdue(
+  value
+) {
+  if (!value) {
     return false;
   }
 
-  if (!invoice.due_date) {
-    return false;
-  }
-
-  const dueDate = new Date(
-    invoice.due_date
-  );
+  const date =
+    new Date(value);
 
   if (
     Number.isNaN(
-      dueDate.getTime()
+      date.getTime()
     )
   ) {
     return false;
   }
 
-  dueDate.setHours(23, 59, 59, 999);
-
-  return dueDate < new Date();
-}
-
-function capitalise(value) {
-  const text = String(value || "");
-
   return (
-    text.charAt(0).toUpperCase() +
-    text.slice(1)
+    date.getTime() <
+    Date.now()
   );
 }
+
+function getDisplayStatus(
+  invoice
+) {
+  const status =
+    normaliseStatus(
+      invoice.status
+    );
+
+  if (
+    ![
+      "paid",
+      "cancelled",
+      "overdue",
+    ].includes(status) &&
+    isOverdue(
+      invoice.due_date
+    )
+  ) {
+    return "Overdue";
+  }
+
+  return (
+    invoice.status ||
+    "Draft Invoice"
+  );
+}
+
+// =========================================================
+// STYLES
+// =========================================================
+
+const pageStyles = {
+  page: {
+    display: "grid",
+    gap: "20px",
+    color: "#24221d",
+    fontSize: "13px",
+  },
+
+  header: {
+    display: "flex",
+    alignItems:
+      "flex-start",
+    justifyContent:
+      "space-between",
+    gap: "24px",
+  },
+
+  eyebrow: {
+    display: "block",
+    marginBottom: "7px",
+    color: "#a17800",
+    fontSize: "11px",
+    fontWeight: 800,
+    letterSpacing: "1px",
+    textTransform:
+      "uppercase",
+  },
+
+  heading: {
+    margin: 0,
+    fontSize: "28px",
+    lineHeight: 1.15,
+  },
+
+  description: {
+    maxWidth: "720px",
+    margin: "8px 0 0",
+    color: "#7c786e",
+    fontSize: "13px",
+    lineHeight: 1.6,
+  },
+
+  panel: {
+    overflow: "hidden",
+    border:
+      "1px solid #dedbd2",
+    borderRadius: "16px",
+    background: "#ffffff",
+  },
+
+  panelHeader: {
+    padding: "20px 22px",
+    borderBottom:
+      "1px solid #ece9e2",
+  },
+
+  panelTitle: {
+    margin: 0,
+    fontSize: "17px",
+  },
+
+  panelDescription: {
+    margin: "5px 0 0",
+    color: "#89857b",
+    fontSize: "12px",
+  },
+
+  primaryButton: {
+    minHeight: "40px",
+    padding: "0 16px",
+    border:
+      "1px solid #b98700",
+    borderRadius: "10px",
+    background: "#dda900",
+    color: "#17130a",
+    fontSize: "12px",
+    fontWeight: 750,
+    cursor: "pointer",
+  },
+
+  secondaryButton: {
+    minHeight: "40px",
+    padding: "0 15px",
+    border:
+      "1px solid #dedbd2",
+    borderRadius: "10px",
+    background: "#ffffff",
+    color: "#403d36",
+    fontSize: "12px",
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+
+  formGrid: {
+    display: "grid",
+    gridTemplateColumns:
+      "repeat(2, minmax(0, 1fr))",
+    gap: "16px",
+    padding: "22px",
+  },
+
+  field: {
+    display: "grid",
+    gap: "7px",
+  },
+
+  label: {
+    color: "#39362f",
+    fontSize: "12px",
+    fontWeight: 750,
+  },
+
+  input: {
+    width: "100%",
+    minHeight: "42px",
+    padding: "0 12px",
+    border:
+      "1px solid #dcd8ce",
+    borderRadius: "9px",
+    outline: 0,
+    background: "#ffffff",
+    color: "#292722",
+    fontSize: "13px",
+  },
+
+  textarea: {
+    width: "100%",
+    padding: "11px 12px",
+    border:
+      "1px solid #dcd8ce",
+    borderRadius: "9px",
+    outline: 0,
+    resize: "vertical",
+    fontFamily: "inherit",
+    fontSize: "13px",
+  },
+
+  actions: {
+    display: "flex",
+    justifyContent:
+      "flex-end",
+    gap: "10px",
+    padding: "0 22px 22px",
+  },
+
+  summaryGrid: {
+    display: "grid",
+    gridTemplateColumns:
+      "repeat(4, minmax(0, 1fr))",
+    gap: "14px",
+  },
+
+  summaryCard: {
+    display: "grid",
+    gap: "8px",
+    minHeight: "132px",
+    padding: "18px",
+    border:
+      "1px solid #dedbd2",
+    borderRadius: "15px",
+    background: "#ffffff",
+  },
+
+  summaryLabel: {
+    color: "#756f64",
+    fontSize: "10px",
+    fontWeight: 800,
+    letterSpacing:
+      ".7px",
+    textTransform:
+      "uppercase",
+  },
+
+  summaryValue: {
+    fontSize: "25px",
+  },
+
+  summaryDescription: {
+    marginTop: "auto",
+    color: "#938e84",
+    fontSize: "11px",
+  },
+
+  toolbar: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent:
+      "space-between",
+    gap: "16px",
+    padding: "12px",
+    border:
+      "1px solid #dedbd2",
+    borderRadius: "14px",
+    background: "#ffffff",
+  },
+
+  searchBox: {
+    display: "flex",
+    width: "480px",
+    maxWidth: "100%",
+    minHeight: "42px",
+    alignItems: "center",
+    gap: "8px",
+    padding: "0 12px",
+    border:
+      "1px solid #dedbd2",
+    borderRadius: "10px",
+  },
+
+  searchInput: {
+    width: "100%",
+    border: 0,
+    outline: 0,
+    fontSize: "13px",
+  },
+
+  toolbarActions: {
+    display: "flex",
+    gap: "10px",
+  },
+
+  filter: {
+    minHeight: "42px",
+    padding: "0 12px",
+    border:
+      "1px solid #dedbd2",
+    borderRadius: "10px",
+    background: "#ffffff",
+    fontSize: "12px",
+  },
+
+  tableHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent:
+      "space-between",
+    gap: "20px",
+    padding: "18px 20px",
+    borderBottom:
+      "1px solid #ece9e2",
+  },
+
+  resultCount: {
+    padding: "5px 9px",
+    borderRadius: "999px",
+    background: "#f7efd2",
+    color: "#8a6500",
+    fontSize: "10px",
+    fontWeight: 800,
+  },
+
+  tableWrapper: {
+    overflowX: "auto",
+  },
+
+  table: {
+    width: "100%",
+    borderCollapse:
+      "collapse",
+  },
+
+  th: {
+    padding: "12px 15px",
+    borderBottom:
+      "1px solid #ebe8e0",
+    color: "#827d72",
+    fontSize: "10px",
+    fontWeight: 800,
+    letterSpacing:
+      ".6px",
+    textAlign: "left",
+    textTransform:
+      "uppercase",
+    whiteSpace: "nowrap",
+  },
+
+  td: {
+    padding: "14px 15px",
+    borderBottom:
+      "1px solid #efede7",
+    color: "#444039",
+    fontSize: "12px",
+    verticalAlign:
+      "middle",
+    whiteSpace: "nowrap",
+  },
+
+  identity: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+  },
+
+  invoiceIcon: {
+    display: "grid",
+    width: "34px",
+    height: "34px",
+    placeItems: "center",
+    borderRadius: "9px",
+    background: "#29271f",
+    color: "#e2b83a",
+    fontWeight: 800,
+  },
+
+  recordLink: {
+    color: "#7f5e00",
+    fontWeight: 800,
+    textDecoration: "none",
+  },
+
+  smallText: {
+    display: "block",
+    marginTop: "3px",
+    color: "#9a958b",
+    fontSize: "10px",
+  },
+
+  openButton: {
+    display:
+      "inline-flex",
+    minHeight: "34px",
+    alignItems: "center",
+    padding: "0 11px",
+    border:
+      "1px solid #ded8c6",
+    borderRadius: "9px",
+    background: "#fffdf6",
+    color: "#8a6500",
+    fontSize: "11px",
+    fontWeight: 800,
+    textDecoration: "none",
+  },
+
+  error: {
+    display: "flex",
+    justifyContent:
+      "space-between",
+    gap: "20px",
+    padding: "20px",
+    border:
+      "1px solid #efcaca",
+    borderRadius: "14px",
+    background: "#fff7f7",
+    color: "#9d3939",
+  },
+
+  empty: {
+    display: "grid",
+    minHeight: "300px",
+    placeItems: "center",
+    alignContent: "center",
+    gap: "10px",
+    padding: "30px",
+    textAlign: "center",
+  },
+
+  emptyIcon: {
+    display: "grid",
+    width: "52px",
+    height: "52px",
+    placeItems: "center",
+    borderRadius: "14px",
+    background: "#f4ebca",
+    color: "#947000",
+    fontSize: "20px",
+    fontWeight: 800,
+  },
+
+  loading: {
+    display: "grid",
+    gap: "10px",
+  },
+
+  loadingRow: {
+    height: "70px",
+    borderRadius: "12px",
+    background: "#eeece6",
+  },
+};
