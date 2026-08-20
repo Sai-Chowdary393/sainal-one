@@ -1,14 +1,24 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import Link from "next/link";
 
 import AppLayout from "../../components/layout/AppLayout";
 import ProtectedRoute from "../../components/ProtectedRoute";
 import StatusBadge from "../../components/StatusBadge";
+
 import styles from "./proposals.module.css";
 
-const INITIAL_FORM_DATA = {
+// =========================================================
+// CONSTANTS
+// =========================================================
+
+const EMPTY_FORM = {
   title: "",
   client: "",
   contact: "",
@@ -17,202 +27,474 @@ const INITIAL_FORM_DATA = {
   amount: "",
   status: "Draft",
   proposal_text: "",
+  owner_employee_id: "",
 };
 
-const STATUS_OPTIONS = [
+const STATUSES = [
   "Draft",
   "Sent",
   "Accepted",
   "Rejected",
 ];
 
+// =========================================================
+// PAGE
+// =========================================================
+
 export default function ProposalsPage() {
-  const [proposals, setProposals] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [
+    proposals,
+    setProposals,
+  ] = useState([]);
 
-  const [showForm, setShowForm] = useState(false);
-  const [searchValue, setSearchValue] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
+  const [
+    employees,
+    setEmployees,
+  ] = useState([]);
 
-  const [formData, setFormData] = useState(
-    INITIAL_FORM_DATA
+  const [
+    currentEmployee,
+    setCurrentEmployee,
+  ] = useState(null);
+
+  const [
+    access,
+    setAccess,
+  ] = useState({
+    isOwner: false,
+    canViewAll: false,
+    canViewTeam: false,
+    canViewOwn: false,
+    canCreate: false,
+    canEdit: false,
+    canDelete: false,
+    canAssign: false,
+    canSend: false,
+  });
+
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
+
+  const [
+    saving,
+    setSaving,
+  ] = useState(false);
+
+  const [
+    error,
+    setError,
+  ] = useState("");
+
+  const [
+    showForm,
+    setShowForm,
+  ] = useState(false);
+
+  const [
+    search,
+    setSearch,
+  ] = useState("");
+
+  const [
+    status,
+    setStatus,
+  ] = useState("All");
+
+  const [
+    form,
+    setForm,
+  ] = useState(
+    EMPTY_FORM
   );
 
-  useEffect(() => {
-    fetchProposals();
-  }, []);
+  // =======================================================
+  // LOAD
+  // =======================================================
 
   useEffect(() => {
-    try {
-      const searchParams = new URLSearchParams(
-        window.location.search
-      );
-
-      if (searchParams.get("create") === "true") {
-        setShowForm(true);
-
-        window.history.replaceState(
-          {},
-          "",
-          window.location.pathname
-        );
-      }
-    } catch (error) {
-      console.error(
-        "Unable to read proposal page parameters:",
-        error
-      );
-    }
+    load();
   }, []);
 
-  async function fetchProposals() {
+  async function load() {
     try {
       setLoading(true);
-      setErrorMessage("");
+      setError("");
 
-      const response = await fetch("/api/proposals", {
-        cache: "no-store",
-      });
+      const response =
+        await fetch(
+          "/api/proposals",
+          {
+            cache:
+              "no-store",
+          }
+        );
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
-      if (!response.ok) {
+      if (
+        !response.ok
+      ) {
         throw new Error(
-          data.error || "Failed to load proposals."
+          data.error ||
+            "Failed to load proposals."
         );
       }
 
-      setProposals(
-        Array.isArray(data) ? data : []
+      const nextAccess = {
+        isOwner:
+          Boolean(
+            data.access
+              ?.isOwner
+          ),
+
+        canViewAll:
+          Boolean(
+            data.access
+              ?.canViewAll
+          ),
+
+        canViewTeam:
+          Boolean(
+            data.access
+              ?.canViewTeam
+          ),
+
+        canViewOwn:
+          Boolean(
+            data.access
+              ?.canViewOwn
+          ),
+
+        canCreate:
+          Boolean(
+            data.access
+              ?.canCreate
+          ),
+
+        canEdit:
+          Boolean(
+            data.access
+              ?.canEdit
+          ),
+
+        canDelete:
+          Boolean(
+            data.access
+              ?.canDelete
+          ),
+
+        canAssign:
+          Boolean(
+            data.access
+              ?.canAssign
+          ),
+
+        canSend:
+          Boolean(
+            data.access
+              ?.canSend
+          ),
+      };
+
+      setAccess(
+        nextAccess
       );
+
+      setProposals(
+        Array.isArray(
+          data.proposals
+        )
+          ? data.proposals
+          : []
+      );
+
+      setEmployees(
+        Array.isArray(
+          data.employees
+        )
+          ? data.employees
+          : []
+      );
+
+      setCurrentEmployee(
+        data.currentEmployee ||
+          null
+      );
+
+      // ===================================================
+      // QUICK ACTION ?create=true
+      // ===================================================
+
+      try {
+        const params =
+          new URLSearchParams(
+            window.location.search
+          );
+
+        if (
+          params.get(
+            "create"
+          ) ===
+            "true" &&
+          nextAccess.canCreate
+        ) {
+          setForm({
+            ...EMPTY_FORM,
+
+            owner_employee_id:
+              nextAccess.canAssign
+                ? data.currentEmployee
+                    ?.id ||
+                  ""
+                : "",
+          });
+
+          setShowForm(
+            true
+          );
+
+          window.history.replaceState(
+            {},
+            "",
+            window.location.pathname
+          );
+        }
+      } catch {
+        // Ignore URL helper errors.
+      }
     } catch (error) {
       console.error(
         "Proposal loading error:",
         error
       );
 
-      setErrorMessage(
+      setProposals(
+        []
+      );
+
+      setError(
         error.message ||
-          "We could not load the proposals."
+          "Unable to load proposals."
       );
     } finally {
-      setLoading(false);
+      setLoading(
+        false
+      );
     }
   }
 
-  function handleChange(event) {
-    const { name, value } = event.target;
+  // =======================================================
+  // FORM
+  // =======================================================
 
-    setFormData((currentData) => ({
-      ...currentData,
-      [name]: value,
-    }));
+  function change(
+    event
+  ) {
+    const {
+      name,
+      value,
+    } =
+      event.target;
+
+    setForm(
+      (
+        current
+      ) => ({
+        ...current,
+
+        [name]:
+          value,
+      })
+    );
   }
 
-  function openCreateForm() {
-    setFormData(INITIAL_FORM_DATA);
-    setShowForm(true);
+  function openForm() {
+    if (
+      !access.canCreate
+    ) {
+      return;
+    }
+
+    setForm({
+      ...EMPTY_FORM,
+
+      owner_employee_id:
+        access.canAssign
+          ? currentEmployee
+              ?.id ||
+            ""
+          : "",
+    });
+
+    setShowForm(
+      true
+    );
+
+    window.scrollTo({
+      top: 0,
+      behavior:
+        "smooth",
+    });
   }
 
-  function closeCreateForm() {
-    setFormData(INITIAL_FORM_DATA);
-    setShowForm(false);
+  function closeForm() {
+    setShowForm(
+      false
+    );
+
+    setForm(
+      EMPTY_FORM
+    );
   }
 
-  async function handleSubmit(event) {
+  // =======================================================
+  // CREATE
+  // =======================================================
+
+  async function createProposal(
+    event
+  ) {
     event.preventDefault();
 
-    const cleanTitle = formData.title.trim();
-    const cleanClient = formData.client.trim();
-    const cleanService = formData.service.trim();
-
-    if (!cleanTitle || !cleanClient || !cleanService) {
+    if (
+      !access.canCreate
+    ) {
       alert(
-        "Please enter the proposal title, client and service."
+        "You do not have permission to create proposals."
       );
+
+      return;
+    }
+
+    if (
+      !form.title.trim() ||
+      !form.client.trim() ||
+      !form.service.trim()
+    ) {
+      alert(
+        "Please enter title, client and service."
+      );
+
       return;
     }
 
     try {
-      setSaving(true);
-
-      const proposalNumber =
-        generateProposalNumber();
-
-      const proposalText =
-        formData.proposal_text.trim() ||
-        buildProposalText({
-          ...formData,
-          proposal_number: proposalNumber,
-        });
-
-      const response = await fetch(
-        "/api/proposals",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          body: JSON.stringify({
-            proposal_number:
-              proposalNumber,
-
-            title:
-              cleanTitle,
-
-            client:
-              cleanClient,
-
-            contact:
-              formData.contact.trim(),
-
-            email:
-              formData.email.trim(),
-
-            service:
-              cleanService,
-
-            amount:
-              formData.amount.trim(),
-
-            status:
-              formData.status || "Draft",
-
-            proposal_text:
-              proposalText,
-          }),
-        }
+      setSaving(
+        true
       );
 
-      const data = await response.json();
+      const proposalNumber =
+        `SNP-${Date.now()
+          .toString()
+          .slice(-6)}`;
 
-      if (!response.ok) {
+      const proposalText =
+        form.proposal_text.trim() ||
+        defaultText({
+          ...form,
+
+          proposal_number:
+            proposalNumber,
+        });
+
+      const payload = {
+        ...form,
+
+        proposal_number:
+          proposalNumber,
+
+        title:
+          form.title.trim(),
+
+        client:
+          form.client.trim(),
+
+        contact:
+          form.contact.trim(),
+
+        email:
+          form.email.trim(),
+
+        service:
+          form.service.trim(),
+
+        amount:
+          form.amount.trim(),
+
+        proposal_text:
+          proposalText,
+
+        lead_id:
+          null,
+
+        customer_id:
+          null,
+
+        quote_id:
+          null,
+      };
+
+      if (
+        !access.canAssign
+      ) {
+        delete payload.owner_employee_id;
+      }
+
+      const response =
+        await fetch(
+          "/api/proposals",
+          {
+            method:
+              "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify(
+                payload
+              ),
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (
+        !response.ok
+      ) {
         throw new Error(
           data.error ||
             "Failed to create proposal."
         );
       }
 
-      const createdProposal =
-        Array.isArray(data)
-          ? data[0]
-          : data;
-
-      if (createdProposal) {
+      if (
+        data.proposal
+      ) {
         setProposals(
-          (currentProposals) => [
-            createdProposal,
-            ...currentProposals,
+          (
+            current
+          ) => [
+            data.proposal,
+            ...current,
           ]
         );
       } else {
-        await fetchProposals();
+        await load();
       }
 
-      closeCreateForm();
+      closeForm();
+
+      alert(
+        data.message ||
+          "Proposal created successfully."
+      );
     } catch (error) {
       console.error(
         "Proposal creation error:",
@@ -224,90 +506,144 @@ export default function ProposalsPage() {
           "Error creating proposal."
       );
     } finally {
-      setSaving(false);
+      setSaving(
+        false
+      );
     }
   }
 
-  const filteredProposals = useMemo(() => {
-    const search = searchValue
-      .trim()
-      .toLowerCase();
+  // =======================================================
+  // FILTER
+  // =======================================================
 
-    return proposals.filter((proposal) => {
-      const matchesSearch =
-        !search ||
-        [
-          proposal.proposal_number,
-          proposal.title,
-          proposal.client,
-          proposal.contact,
-          proposal.service,
-          proposal.status,
-        ].some((value) =>
-          String(value || "")
-            .toLowerCase()
-            .includes(search)
+  const filtered =
+    useMemo(
+      () => {
+        const query =
+          search
+            .trim()
+            .toLowerCase();
+
+        return proposals.filter(
+          (
+            proposal
+          ) => {
+            const matchesSearch =
+              !query ||
+              [
+                proposal.proposal_number,
+                proposal.title,
+                proposal.client,
+                proposal.contact,
+                proposal.service,
+                proposal.status,
+                proposal.owner
+                  ?.full_name,
+              ].some(
+                (
+                  value
+                ) =>
+                  String(
+                    value ||
+                      ""
+                  )
+                    .toLowerCase()
+                    .includes(
+                      query
+                    )
+              );
+
+            const matchesStatus =
+              status ===
+                "All" ||
+              normalise(
+                proposal.status
+              ) ===
+                normalise(
+                  status
+                );
+
+            return (
+              matchesSearch &&
+              matchesStatus
+            );
+          }
         );
-
-      const matchesStatus =
-        statusFilter === "All" ||
-        normaliseStatus(
-          proposal.status
-        ) === normaliseStatus(statusFilter);
-
-      return matchesSearch && matchesStatus;
-    });
-  }, [
-    proposals,
-    searchValue,
-    statusFilter,
-  ]);
-
-  const draftCount = proposals.filter(
-    (proposal) =>
-      normaliseStatus(
-        proposal.status
-      ) === "draft"
-  ).length;
-
-  const sentCount = proposals.filter(
-    (proposal) =>
-      normaliseStatus(
-        proposal.status
-      ) === "sent"
-  ).length;
-
-  const acceptedCount = proposals.filter(
-    (proposal) =>
-      normaliseStatus(
-        proposal.status
-      ) === "accepted"
-  ).length;
-
-  const acceptedValue = proposals
-    .filter(
-      (proposal) =>
-        normaliseStatus(
-          proposal.status
-        ) === "accepted"
-    )
-    .reduce(
-      (total, proposal) =>
-        total +
-        getMoneyValue(
-          proposal.amount
-        ),
-      0
+      },
+      [
+        proposals,
+        search,
+        status,
+      ]
     );
 
   const filtersActive =
-    Boolean(searchValue) ||
-    statusFilter !== "All";
+    Boolean(
+      search
+    ) ||
+    status !==
+      "All";
 
   function clearFilters() {
-    setSearchValue("");
-    setStatusFilter("All");
+    setSearch("");
+    setStatus("All");
   }
+
+  // =======================================================
+  // STATS
+  // =======================================================
+
+  function count(
+    selectedStatus
+  ) {
+    return proposals.filter(
+      (
+        proposal
+      ) =>
+        normalise(
+          proposal.status
+        ) ===
+        normalise(
+          selectedStatus
+        )
+    ).length;
+  }
+
+  const acceptedValue =
+    proposals
+      .filter(
+        (
+          proposal
+        ) =>
+          normalise(
+            proposal.status
+          ) ===
+          "accepted"
+      )
+      .reduce(
+        (
+          total,
+          proposal
+        ) =>
+          total +
+          money(
+            proposal.amount
+          ),
+        0
+      );
+
+  const visibilityLabel =
+    access.canViewAll
+      ? "All organisation proposals"
+      : access.canViewTeam
+        ? "Team proposals"
+        : access.canViewOwn
+          ? "My proposals"
+          : "Proposal access";
+
+  // =======================================================
+  // PAGE
+  // =======================================================
 
   return (
     <ProtectedRoute>
@@ -315,17 +651,21 @@ export default function ProposalsPage() {
         title="Proposal Studio"
         description="Create, refine and track customer proposals."
       >
-        <div className={styles.page}>
+        <div
+          className={
+            styles.page
+          }
+        >
+          {/* ===============================================
+              HEADER
+          =============================================== */}
+
           <section
             className={
-              styles.pageHeader
+              styles.header
             }
           >
-            <div
-              className={
-                styles.pageHeaderCopy
-              }
-            >
+            <div>
               <span
                 className={
                   styles.eyebrow
@@ -339,307 +679,370 @@ export default function ProposalsPage() {
               </h2>
 
               <p>
-                Build professional proposals,
-                track approval and keep the
-                complete customer document
-                inside a secure workspace.
+                Build professional
+                proposals, track customer
+                response and control access
+                through organisation roles.
               </p>
             </div>
 
-            <button
-              type="button"
-              className={
-                styles.primaryButton
-              }
-              onClick={
-                showForm
-                  ? closeCreateForm
-                  : openCreateForm
-              }
-            >
-              <span>
-                {showForm ? "×" : "+"}
-              </span>
-
-              {showForm
-                ? "Close form"
-                : "Create proposal"}
-            </button>
-          </section>
-
-          {showForm && (
-            <section
-              className={
-                styles.formPanel
-              }
-            >
-              <div
+            {access.canCreate && (
+              <button
+                type="button"
                 className={
-                  styles.formHeading
+                  styles.primary
+                }
+                onClick={
+                  showForm
+                    ? closeForm
+                    : openForm
                 }
               >
-                <div>
+                {showForm
+                  ? "× Close form"
+                  : "+ Create proposal"}
+              </button>
+            )}
+          </section>
+
+          {/* ===============================================
+              CREATE FORM
+          =============================================== */}
+
+          {showForm &&
+            access.canCreate && (
+              <section
+                className={
+                  styles.card
+                }
+              >
+                <div
+                  className={
+                    styles.sectionTitle
+                  }
+                >
                   <h3>
                     Create a new proposal
                   </h3>
 
                   <p>
                     Add the client, service,
-                    pricing and proposal
-                    content.
+                    commercial value and
+                    proposal document.
                   </p>
                 </div>
-              </div>
 
-              <form
-                className={
-                  styles.proposalForm
-                }
-                onSubmit={handleSubmit}
-              >
-                <div
+                <form
+                  onSubmit={
+                    createProposal
+                  }
                   className={
-                    styles.formGrid
+                    styles.form
                   }
                 >
-                  <FormField
-                    label="Proposal title"
-                    name="title"
-                    value={
-                      formData.title
-                    }
-                    onChange={
-                      handleChange
-                    }
-                    placeholder="Example: Business Automation Proposal"
-                    required
-                  />
-
-                  <FormField
-                    label="Client"
-                    name="client"
-                    value={
-                      formData.client
-                    }
-                    onChange={
-                      handleChange
-                    }
-                    placeholder="Example: Delta Services"
-                    required
-                  />
-
-                  <FormField
-                    label="Primary contact"
-                    name="contact"
-                    value={
-                      formData.contact
-                    }
-                    onChange={
-                      handleChange
-                    }
-                    placeholder="Example: Robert Smith"
-                  />
-
-                  <FormField
-                    label="Email"
-                    name="email"
-                    type="email"
-                    value={
-                      formData.email
-                    }
-                    onChange={
-                      handleChange
-                    }
-                    placeholder="contact@company.com"
-                  />
-
-                  <FormField
-                    label="Service"
-                    name="service"
-                    value={
-                      formData.service
-                    }
-                    onChange={
-                      handleChange
-                    }
-                    placeholder="Example: Digital Transformation"
-                    required
-                  />
-
-                  <FormField
-                    label="Amount"
-                    name="amount"
-                    value={
-                      formData.amount
-                    }
-                    onChange={
-                      handleChange
-                    }
-                    placeholder="Example: £12,000"
-                  />
-
                   <div
                     className={
-                      styles.field
+                      styles.formGrid
                     }
                   >
+                    <Field
+                      label="Proposal title"
+                      name="title"
+                      value={
+                        form.title
+                      }
+                      onChange={
+                        change
+                      }
+                      required
+                    />
+
+                    <Field
+                      label="Client"
+                      name="client"
+                      value={
+                        form.client
+                      }
+                      onChange={
+                        change
+                      }
+                      required
+                    />
+
+                    <Field
+                      label="Primary contact"
+                      name="contact"
+                      value={
+                        form.contact
+                      }
+                      onChange={
+                        change
+                      }
+                    />
+
+                    <Field
+                      label="Email"
+                      name="email"
+                      type="email"
+                      value={
+                        form.email
+                      }
+                      onChange={
+                        change
+                      }
+                    />
+
+                    <Field
+                      label="Service"
+                      name="service"
+                      value={
+                        form.service
+                      }
+                      onChange={
+                        change
+                      }
+                      required
+                    />
+
+                    <Field
+                      label="Amount"
+                      name="amount"
+                      value={
+                        form.amount
+                      }
+                      onChange={
+                        change
+                      }
+                      placeholder="Example: £12,000"
+                    />
+
                     <label
-                      htmlFor="proposal-status"
+                      className={
+                        styles.field
+                      }
                     >
                       Status
+
+                      <select
+                        name="status"
+                        value={
+                          form.status
+                        }
+                        onChange={
+                          change
+                        }
+                      >
+                        {STATUSES.map(
+                          (
+                            item
+                          ) => (
+                            <option
+                              key={
+                                item
+                              }
+                              value={
+                                item
+                              }
+                            >
+                              {
+                                item
+                              }
+                            </option>
+                          )
+                        )}
+                      </select>
                     </label>
 
-                    <select
-                      id="proposal-status"
-                      name="status"
-                      value={
-                        formData.status
-                      }
-                      onChange={
-                        handleChange
-                      }
-                    >
-                      {STATUS_OPTIONS.map(
-                        (status) => (
-                          <option
-                            key={status}
-                            value={status}
-                          >
-                            {status}
+                    {access.canAssign && (
+                      <label
+                        className={
+                          styles.field
+                        }
+                      >
+                        Proposal owner
+
+                        <select
+                          name="owner_employee_id"
+                          value={
+                            form.owner_employee_id
+                          }
+                          onChange={
+                            change
+                          }
+                        >
+                          <option value="">
+                            Assign to me
                           </option>
-                        )
-                      )}
-                    </select>
+
+                          {employees.map(
+                            (
+                              employee
+                            ) => (
+                              <option
+                                key={
+                                  employee.id
+                                }
+                                value={
+                                  employee.id
+                                }
+                              >
+                                {
+                                  employee.full_name
+                                }
+
+                                {employee.job_title
+                                  ? ` — ${employee.job_title}`
+                                  : ""}
+                              </option>
+                            )
+                          )}
+                        </select>
+                      </label>
+                    )}
+
+                    <label
+                      className={`${styles.field} ${styles.full}`}
+                    >
+                      Proposal content
+
+                      <textarea
+                        name="proposal_text"
+                        rows={16}
+                        value={
+                          form.proposal_text
+                        }
+                        onChange={
+                          change
+                        }
+                        placeholder="Leave empty to create a standard proposal structure."
+                      />
+                    </label>
                   </div>
 
                   <div
-                    className={`${styles.field} ${styles.fieldFull}`}
+                    className={
+                      styles.actions
+                    }
                   >
-                    <label
-                      htmlFor="proposal-text"
+                    <button
+                      type="button"
+                      className={
+                        styles.secondary
+                      }
+                      onClick={
+                        closeForm
+                      }
                     >
-                      Proposal content
-                    </label>
+                      Cancel
+                    </button>
 
-                    <textarea
-                      id="proposal-text"
-                      name="proposal_text"
-                      value={
-                        formData.proposal_text
+                    <button
+                      type="submit"
+                      className={
+                        styles.primary
                       }
-                      onChange={
-                        handleChange
+                      disabled={
+                        saving
                       }
-                      rows={18}
-                      placeholder="Leave empty to generate a standard proposal structure automatically."
-                    />
+                    >
+                      {saving
+                        ? "Saving..."
+                        : "Save proposal"}
+                    </button>
                   </div>
-                </div>
+                </form>
+              </section>
+            )}
 
-                <div
-                  className={
-                    styles.formActions
-                  }
-                >
-                  <button
-                    type="button"
-                    className={
-                      styles.secondaryButton
-                    }
-                    onClick={
-                      closeCreateForm
-                    }
-                    disabled={saving}
-                  >
-                    Cancel
-                  </button>
-
-                  <button
-                    type="submit"
-                    className={
-                      styles.primaryButton
-                    }
-                    disabled={saving}
-                  >
-                    {saving
-                      ? "Saving proposal..."
-                      : "Save proposal"}
-                  </button>
-                </div>
-              </form>
-            </section>
-          )}
+          {/* ===============================================
+              STATS
+          =============================================== */}
 
           <section
             className={
-              styles.summaryGrid
+              styles.stats
             }
           >
-            <SummaryCard
+            <Stat
               icon="▤"
               label="Total proposals"
               value={
                 proposals.length
               }
-              detail="All proposal records"
+              note={
+                visibilityLabel
+              }
               tone="gold"
             />
 
-            <SummaryCard
+            <Stat
               icon="◇"
               label="Draft"
-              value={draftCount}
-              detail="Still being prepared"
+              value={
+                count(
+                  "Draft"
+                )
+              }
+              note="Still being prepared"
               tone="blue"
             />
 
-            <SummaryCard
+            <Stat
               icon="→"
               label="Sent"
-              value={sentCount}
-              detail="Awaiting client response"
+              value={
+                count(
+                  "Sent"
+                )
+              }
+              note="Awaiting customer response"
               tone="purple"
             />
 
-            <SummaryCard
+            <Stat
               icon="£"
               label="Accepted value"
-              value={formatCurrency(
-                acceptedValue
-              )}
-              detail={`${acceptedCount} accepted proposal${
-                acceptedCount === 1
-                  ? ""
-                  : "s"
-              }`}
+              value={
+                currency(
+                  acceptedValue
+                )
+              }
+              note={`${count(
+                "Accepted"
+              )} accepted proposals`}
               tone="green"
             />
           </section>
 
+          {/* ===============================================
+              FILTERS
+          =============================================== */}
+
           <section
             className={
-              styles.toolbarPanel
+              styles.toolbar
             }
           >
             <label
               className={
-                styles.searchBox
+                styles.search
               }
             >
-              <span aria-hidden="true">
-                ⌕
-              </span>
+              ⌕
 
               <input
                 type="search"
-                placeholder="Search proposal, client, service or status..."
-                value={searchValue}
-                onChange={(event) =>
-                  setSearchValue(
+                value={
+                  search
+                }
+                onChange={(
+                  event
+                ) =>
+                  setSearch(
                     event.target.value
                   )
                 }
-                aria-label="Search proposals"
+                placeholder="Search proposal, client, owner, service or status..."
               />
             </label>
 
@@ -649,28 +1052,36 @@ export default function ProposalsPage() {
               }
             >
               <select
-                className={
-                  styles.filterSelect
+                value={
+                  status
                 }
-                value={statusFilter}
-                onChange={(event) =>
-                  setStatusFilter(
+                onChange={(
+                  event
+                ) =>
+                  setStatus(
                     event.target.value
                   )
                 }
-                aria-label="Filter proposals by status"
               >
-                <option value="All">
-                  All statuses
-                </option>
-
-                {STATUS_OPTIONS.map(
-                  (status) => (
+                {[
+                  "All",
+                  ...STATUSES,
+                ].map(
+                  (
+                    item
+                  ) => (
                     <option
-                      key={status}
-                      value={status}
+                      key={
+                        item
+                      }
+                      value={
+                        item
+                      }
                     >
-                      {status}
+                      {item ===
+                      "All"
+                        ? "All statuses"
+                        : item}
                     </option>
                   )
                 )}
@@ -679,10 +1090,9 @@ export default function ProposalsPage() {
               {filtersActive && (
                 <button
                   type="button"
-                  className={
-                    styles.clearButton
+                  onClick={
+                    clearFilters
                   }
-                  onClick={clearFilters}
                 >
                   Clear filters
                 </button>
@@ -690,12 +1100,16 @@ export default function ProposalsPage() {
             </div>
           </section>
 
+          {/* ===============================================
+              CONTENT
+          =============================================== */}
+
           {loading ? (
-            <LoadingState />
-          ) : errorMessage ? (
+            <Loading />
+          ) : error ? (
             <section
               className={
-                styles.errorPanel
+                styles.error
               }
             >
               <div>
@@ -703,16 +1117,18 @@ export default function ProposalsPage() {
                   Unable to load proposals
                 </strong>
 
-                <p>{errorMessage}</p>
+                <p>
+                  {error}
+                </p>
               </div>
 
               <button
                 type="button"
                 className={
-                  styles.secondaryButton
+                  styles.secondary
                 }
                 onClick={
-                  fetchProposals
+                  load
                 }
               >
                 Try again
@@ -721,12 +1137,12 @@ export default function ProposalsPage() {
           ) : (
             <section
               className={
-                styles.tablePanel
+                styles.tableCard
               }
             >
               <div
                 className={
-                  styles.tableHeading
+                  styles.tableHead
                 }
               >
                 <div>
@@ -735,52 +1151,81 @@ export default function ProposalsPage() {
                   </h3>
 
                   <p>
-                    Sensitive contact details
-                    and the full proposal
-                    document are available only
-                    inside each Proposal Studio
+                    Full proposal content and
+                    customer details remain
+                    inside each secure
                     workspace.
                   </p>
                 </div>
 
-                <span
-                  className={
-                    styles.resultCount
-                  }
-                >
-                  {filteredProposals.length}{" "}
+                <span>
+                  {
+                    filtered.length
+                  }{" "}
                   result
-                  {filteredProposals.length ===
+                  {filtered.length ===
                   1
                     ? ""
                     : "s"}
                 </span>
               </div>
 
-              {filteredProposals.length ===
+              {filtered.length ===
               0 ? (
-                <EmptyState
-                  hasFilters={
-                    filtersActive
+                <div
+                  className={
+                    styles.empty
                   }
-                  onClearFilters={
-                    clearFilters
-                  }
-                  onCreateProposal={
-                    openCreateForm
-                  }
-                />
+                >
+                  <b>
+                    ▤
+                  </b>
+
+                  <h3>
+                    No proposals found
+                  </h3>
+
+                  <p>
+                    {filtersActive
+                      ? "Try clearing the current filters."
+                      : access.canCreate
+                        ? "Create your first customer proposal."
+                        : "There are no proposals available within your current access."}
+                  </p>
+
+                  {filtersActive ? (
+                    <button
+                      type="button"
+                      className={
+                        styles.primary
+                      }
+                      onClick={
+                        clearFilters
+                      }
+                    >
+                      Clear filters
+                    </button>
+                  ) : access.canCreate ? (
+                    <button
+                      type="button"
+                      className={
+                        styles.primary
+                      }
+                      onClick={
+                        openForm
+                      }
+                    >
+                      Create proposal
+                    </button>
+                  ) : null}
+                </div>
               ) : (
                 <div
                   className={
-                    styles.tableWrapper
+                    styles.tableWrap
                   }
                 >
-                  <table
-                    className={
-                      styles.proposalTable
-                    }
-                  >
+                  <table>
                     <thead>
                       <tr>
                         <th>
@@ -789,6 +1234,10 @@ export default function ProposalsPage() {
 
                         <th>
                           Client
+                        </th>
+
+                        <th>
+                          Owner
                         </th>
 
                         <th>
@@ -807,15 +1256,15 @@ export default function ProposalsPage() {
                           Created
                         </th>
 
-                        <th
-                          aria-label="Actions"
-                        />
+                        <th />
                       </tr>
                     </thead>
 
                     <tbody>
-                      {filteredProposals.map(
-                        (proposal) => (
+                      {filtered.map(
+                        (
+                          proposal
+                        ) => (
                           <tr
                             key={
                               proposal.id
@@ -824,27 +1273,16 @@ export default function ProposalsPage() {
                             <td>
                               <div
                                 className={
-                                  styles.proposalIdentity
+                                  styles.identity
                                 }
                               >
-                                <span
-                                  className={
-                                    styles.proposalIcon
-                                  }
-                                >
+                                <span>
                                   ▤
                                 </span>
 
-                                <div
-                                  className={
-                                    styles.proposalIdentityCopy
-                                  }
-                                >
+                                <div>
                                   <Link
                                     href={`/proposals/${proposal.id}`}
-                                    className={
-                                      styles.proposalLink
-                                    }
                                   >
                                     {proposal.proposal_number ||
                                       "Proposal"}
@@ -859,44 +1297,40 @@ export default function ProposalsPage() {
                             </td>
 
                             <td>
-                              <div
-                                className={
-                                  styles.clientCell
-                                }
-                              >
-                                <strong>
-                                  {proposal.client ||
-                                    "No client"}
-                                </strong>
-
-                                <small>
-                                  {proposal.contact ||
-                                    "No contact"}
-                                </small>
-                              </div>
-                            </td>
-
-                            <td>
-                              <span
-                                className={
-                                  styles.serviceText
-                                }
-                              >
-                                {proposal.service ||
-                                  "Not specified"}
-                              </span>
-                            </td>
-
-                            <td>
-                              <strong
-                                className={
-                                  styles.amountText
-                                }
-                              >
-                                {formatProposalAmount(
-                                  proposal.amount
-                                )}
+                              <strong>
+                                {proposal.client ||
+                                  "No client"}
                               </strong>
+
+                              <small
+                                className={
+                                  styles.block
+                                }
+                              >
+                                {proposal.contact ||
+                                  "No contact"}
+                              </small>
+                            </td>
+
+                            <td>
+                              {proposal.owner
+                                ?.full_name ||
+                                "Unassigned"}
+                            </td>
+
+                            <td>
+                              {proposal.service ||
+                                "Not specified"}
+                            </td>
+
+                            <td
+                              className={
+                                styles.amount
+                              }
+                            >
+                              {formatAmount(
+                                proposal.amount
+                              )}
                             </td>
 
                             <td>
@@ -909,28 +1343,19 @@ export default function ProposalsPage() {
                             </td>
 
                             <td>
-                              <span
-                                className={
-                                  styles.createdDate
-                                }
-                              >
-                                {formatDate(
-                                  proposal.created_at
-                                )}
-                              </span>
+                              {date(
+                                proposal.created_at
+                              )}
                             </td>
 
                             <td>
                               <Link
-                                href={`/proposals/${proposal.id}`}
                                 className={
-                                  styles.openButton
+                                  styles.open
                                 }
+                                href={`/proposals/${proposal.id}`}
                               >
-                                Open
-                                <span>
-                                  →
-                                </span>
+                                Open →
                               </Link>
                             </td>
                           </tr>
@@ -948,306 +1373,283 @@ export default function ProposalsPage() {
   );
 }
 
-function FormField({
+// =========================================================
+// FIELD
+// =========================================================
+
+function Field({
   label,
   name,
   value,
   onChange,
-  placeholder,
   type = "text",
+  placeholder = "",
   required = false,
 }) {
   return (
-    <div className={styles.field}>
-      <label
-        htmlFor={`proposal-${name}`}
-      >
-        {label}
-        {required ? " *" : ""}
-      </label>
+    <label
+      className={
+        styles.field
+      }
+    >
+      {label}
+      {required
+        ? " *"
+        : ""}
 
       <input
-        id={`proposal-${name}`}
-        name={name}
-        type={type}
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        required={required}
+        name={
+          name
+        }
+        type={
+          type
+        }
+        value={
+          value
+        }
+        onChange={
+          onChange
+        }
+        placeholder={
+          placeholder
+        }
+        required={
+          required
+        }
       />
-    </div>
+    </label>
   );
 }
 
-function SummaryCard({
+// =========================================================
+// STAT
+// =========================================================
+
+function Stat({
   icon,
   label,
   value,
-  detail,
+  note,
   tone,
 }) {
   return (
     <div
-      className={`${styles.summaryCard} ${
+      className={`${styles.stat} ${
         styles[
-          `summary${capitalise(tone)}`
-        ] || ""
+          tone
+        ] ||
+        ""
       }`}
     >
-      <span
-        className={
-          styles.summaryIcon
-        }
-      >
+      <b>
         {icon}
-      </span>
+      </b>
 
-      <span
-        className={
-          styles.summaryLabel
-        }
-      >
+      <span>
         {label}
       </span>
 
-      <strong>{value}</strong>
+      <strong>
+        {value}
+      </strong>
 
-      <small>{detail}</small>
+      <small>
+        {note}
+      </small>
     </div>
   );
 }
 
-function EmptyState({
-  hasFilters,
-  onClearFilters,
-  onCreateProposal,
-}) {
-  return (
-    <div className={styles.emptyState}>
-      <span
-        className={styles.emptyIcon}
-      >
-        ▤
-      </span>
+// =========================================================
+// LOADING
+// =========================================================
 
-      <h3>
-        {hasFilters
-          ? "No matching proposals"
-          : "No proposals yet"}
-      </h3>
-
-      <p>
-        {hasFilters
-          ? "Try changing or clearing the current search and status filter."
-          : "Create your first proposal to begin managing scope, pricing and customer approval."}
-      </p>
-
-      <button
-        type="button"
-        className={
-          styles.primaryButton
-        }
-        onClick={
-          hasFilters
-            ? onClearFilters
-            : onCreateProposal
-        }
-      >
-        {hasFilters
-          ? "Clear filters"
-          : "Create proposal"}
-      </button>
-    </div>
-  );
-}
-
-function LoadingState() {
+function Loading() {
   return (
     <section
       className={
-        styles.loadingPanel
+        styles.loading
       }
     >
       {Array.from({
         length: 5,
-      }).map((_, index) => (
-        <div
-          key={index}
-          className={
-            styles.loadingRow
-          }
-        />
-      ))}
+      }).map(
+        (
+          _,
+          index
+        ) => (
+          <div
+            key={
+              index
+            }
+          />
+        )
+      )}
     </section>
   );
 }
 
-function generateProposalNumber() {
-  return `SNP-${Date.now()
-    .toString()
-    .slice(-6)}`;
+// =========================================================
+// HELPERS
+// =========================================================
+
+function normalise(
+  value
+) {
+  return String(
+    value ||
+      ""
+  )
+    .trim()
+    .toLowerCase();
 }
 
-function buildProposalText(
+function money(
+  value
+) {
+  const parsed =
+    Number(
+      String(
+        value ||
+          ""
+      ).replace(
+        /[^0-9.-]/g,
+        ""
+      )
+    );
+
+  return Number.isFinite(
+    parsed
+  )
+    ? parsed
+    : 0;
+}
+
+function currency(
+  value
+) {
+  return Number(
+    value ||
+      0
+  ).toLocaleString(
+    "en-GB",
+    {
+      style:
+        "currency",
+
+      currency:
+        "GBP",
+
+      maximumFractionDigits:
+        0,
+    }
+  );
+}
+
+function formatAmount(
+  value
+) {
+  if (
+    !value
+  ) {
+    return "Not set";
+  }
+
+  if (
+    String(
+      value
+    ).includes(
+      "£"
+    )
+  ) {
+    return value;
+  }
+
+  const parsed =
+    money(
+      value
+    );
+
+  return parsed
+    ? currency(
+        parsed
+      )
+    : value;
+}
+
+function date(
+  value
+) {
+  if (
+    !value
+  ) {
+    return "Not available";
+  }
+
+  const item =
+    new Date(
+      value
+    );
+
+  if (
+    Number.isNaN(
+      item.getTime()
+    )
+  ) {
+    return "Not available";
+  }
+
+  return item.toLocaleDateString(
+    "en-GB",
+    {
+      day:
+        "2-digit",
+
+      month:
+        "short",
+
+      year:
+        "numeric",
+    }
+  );
+}
+
+function defaultText(
   proposal
 ) {
   return `SAINAL TECHNOLOGIES LTD
 
 PROPOSAL
 
-Proposal Number: ${
-    proposal.proposal_number
-  }
+Proposal Number: ${proposal.proposal_number || ""}
+Date: ${new Date().toLocaleDateString("en-GB")}
 
-Date: ${new Date().toLocaleDateString(
-    "en-GB"
-  )}
+PROPOSAL TITLE
+${proposal.title || ""}
 
-Prepared For:
+CLIENT
 ${proposal.client || ""}
 ${proposal.contact || ""}
 ${proposal.email || ""}
 
-Proposal Title:
-${proposal.title || ""}
+SERVICE
+${proposal.service || ""}
 
-EXECUTIVE SUMMARY
+PROPOSED VALUE
+${proposal.amount || "To be confirmed"}
 
-SaiNal Technologies Ltd proposes to deliver ${
-    proposal.service ||
-    "professional services"
-  } for ${
-    proposal.client ||
-    "the client"
-  }.
+OVERVIEW
+SaiNal Technologies Ltd is pleased to provide this proposal for the requested services.
 
-CLIENT OBJECTIVES
+SCOPE
+The final scope, delivery plan and milestones will be agreed with the customer before commencement.
 
-- Improve operational efficiency
-- Reduce manual work
-- Improve visibility and reporting
-- Deliver a scalable solution
+COMMERCIAL TERMS
+Commercial terms are subject to confirmation and customer acceptance.
 
-PROPOSED SOLUTION
+NEXT STEPS
+Please review this proposal and contact SaiNal Technologies Ltd with any questions.
 
-We will provide a structured delivery approach covering discovery, design, implementation, testing and go-live support.
-
-SCOPE OF WORK
-
-- Discovery and requirements
-- Solution design
-- Implementation
-- Testing and quality assurance
-- User training
-- Go-live support
-
-DELIVERABLES
-
-- Approved solution design
-- Configured and tested solution
-- Documentation
-- Training
-- Go-live handover
-
-TIMELINE
-
-The final project timeline will be confirmed after discovery.
-
-COMMERCIAL VALUE
-
-${
-  proposal.amount ||
-  "To be confirmed"
-}
-
-TERMS
-
-Payment terms and final commercial conditions will be confirmed before project commencement.
-
-Prepared By:
-SaiNal Technologies Ltd
-www.sainaltechnologies.com`;
-}
-
-function normaliseStatus(value) {
-  return String(value || "")
-    .trim()
-    .toLowerCase();
-}
-
-function getMoneyValue(value) {
-  if (
-    value === null ||
-    value === undefined ||
-    value === ""
-  ) {
-    return 0;
-  }
-
-  return (
-    Number(
-      String(value).replace(
-        /[^0-9.-]/g,
-        ""
-      )
-    ) || 0
-  );
-}
-
-function formatCurrency(value) {
-  return Number(value || 0).toLocaleString(
-    "en-GB",
-    {
-      style: "currency",
-      currency: "GBP",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }
-  );
-}
-
-function formatProposalAmount(
-  value
-) {
-  if (!value) {
-    return "To be confirmed";
-  }
-
-  return formatCurrency(
-    getMoneyValue(value)
-  );
-}
-
-function formatDate(value) {
-  if (!value) {
-    return "Not available";
-  }
-
-  const date = new Date(value);
-
-  if (
-    Number.isNaN(
-      date.getTime()
-    )
-  ) {
-    return "Not available";
-  }
-
-  return date.toLocaleDateString(
-    "en-GB",
-    {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    }
-  );
-}
-
-function capitalise(value) {
-  const text = String(value || "");
-
-  return (
-    text.charAt(0).toUpperCase() +
-    text.slice(1)
-  );
+Prepared by:
+SaiNal Technologies Ltd`;
 }
