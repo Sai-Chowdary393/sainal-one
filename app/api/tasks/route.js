@@ -6,98 +6,165 @@ import {
   getServerAccess,
 } from "../../../lib/serverAccess";
 
+import {
+  createAdminSupabaseClient,
+} from "../../../lib/supabaseAdmin";
+
+import {
+  buildClientAccess,
+  canViewOwnedRecord,
+  getRecordPermissions,
+  getTeamEmployeeIds,
+  loadAssignableEmployees,
+  validateRecordOwner,
+} from "../../../lib/recordAccess";
+
+// =========================================================
+// CONSTANTS
+// =========================================================
+
+const ALLOWED_STATUSES = [
+  "Open",
+  "Pending",
+  "To Do",
+  "In Progress",
+  "Completed",
+  "Blocked",
+  "Cancelled",
+];
+
+const ALLOWED_PRIORITIES = [
+  "Low",
+  "Medium",
+  "High",
+  "Critical",
+];
+
+const RECORD_TYPE_ALIASES = {
+  lead: [
+    "lead",
+    "leads",
+  ],
+
+  quote: [
+    "quote",
+    "quotes",
+  ],
+
+  customer: [
+    "customer",
+    "customers",
+  ],
+
+  proposal: [
+    "proposal",
+    "proposals",
+  ],
+
+  project: [
+    "project",
+    "projects",
+  ],
+
+  invoice: [
+    "invoice",
+    "invoices",
+  ],
+};
+
 // =========================================================
 // HELPERS
 // =========================================================
 
-function isUuid(value) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    String(value || "")
-  );
+function cleanText(
+  value
+) {
+  return typeof value ===
+    "string"
+    ? value.trim()
+    : "";
 }
 
-function normaliseRecordType(
+function cleanNullableText(
+  value
+) {
+  const cleaned =
+    cleanText(
+      value
+    );
+
+  return cleaned ||
+    null;
+}
+
+function normalise(
   value
 ) {
   return String(
-    value || ""
+    value ||
+      ""
   )
     .trim()
     .toLowerCase();
 }
 
-function normaliseText(
+function isUuid(
   value
 ) {
-  if (
-    value === null ||
-    value === undefined
-  ) {
-    return "";
-  }
-
-  return String(
-    value
-  ).trim();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    String(
+      value ||
+        ""
+    )
+  );
 }
 
-function getRecordTypeAliases(
+function isDateValue(
   value
 ) {
-  switch (
-    normaliseRecordType(
+  if (!value) {
+    return true;
+  }
+
+  return /^\d{4}-\d{2}-\d{2}$/.test(
+    String(
       value
     )
-  ) {
-    case "quote":
-    case "quotes":
-      return [
-        "quote",
-        "quotes",
-      ];
+  );
+}
 
-    case "lead":
-    case "leads":
-      return [
-        "lead",
-        "leads",
-      ];
+function forbidden(
+  message
+) {
+  return NextResponse.json(
+    {
+      error:
+        message,
+    },
+    {
+      status:
+        403,
+    }
+  );
+}
 
-    case "customer":
-    case "customers":
-      return [
-        "customer",
-        "customers",
-      ];
+function getPermissions(
+  access
+) {
+  return getRecordPermissions(
+    access,
+    {
+      prefix:
+        "tasks",
 
-    case "invoice":
-    case "invoices":
-      return [
-        "invoice",
-        "invoices",
-      ];
-
-    case "project":
-    case "projects":
-      return [
-        "project",
-        "projects",
-      ];
-
-    case "proposal":
-    case "proposals":
-      return [
-        "proposal",
-        "proposals",
-      ];
-
-    default:
-      return [];
-  }
+      module:
+        "Tasks",
+    }
+  );
 }
 
 // =========================================================
-// EMPLOYEE ENRICHMENT
+// ENRICH TASK ASSIGNEES
 // =========================================================
 
 async function enrichTasksWithEmployees({
@@ -107,9 +174,14 @@ async function enrichTasksWithEmployees({
 }) {
   const employeeIds = [
     ...new Set(
-      (tasks || [])
+      (
+        tasks ||
+        []
+      )
         .map(
-          (task) =>
+          (
+            task
+          ) =>
             task.assigned_employee_id
         )
         .filter(Boolean)
@@ -121,9 +193,12 @@ async function enrichTasksWithEmployees({
     0
   ) {
     return (
-      tasks || []
+      tasks ||
+      []
     ).map(
-      (task) => ({
+      (
+        task
+      ) => ({
         ...task,
 
         assigned_employee:
@@ -138,13 +213,16 @@ async function enrichTasksWithEmployees({
     error,
   } =
     await supabase
-      .from("employees")
+      .from(
+        "employees"
+      )
       .select(
         `
           id,
           full_name,
           email,
-          job_title
+          job_title,
+          department_id
         `
       )
       .eq(
@@ -157,20 +235,8 @@ async function enrichTasksWithEmployees({
       );
 
   if (error) {
-    console.error(
-      "Task employee enrichment error:",
-      error
-    );
-
-    return (
-      tasks || []
-    ).map(
-      (task) => ({
-        ...task,
-
-        assigned_employee:
-          null,
-      })
+    throw new Error(
+      error.message
     );
   }
 
@@ -190,170 +256,37 @@ async function enrichTasksWithEmployees({
     );
 
   return (
-    tasks || []
+    tasks ||
+    []
   ).map(
-    (task) => ({
+    (
+      task
+    ) => ({
       ...task,
 
       assigned_employee:
         task.assigned_employee_id
           ? employeeMap.get(
               task.assigned_employee_id
-            ) || null
+            ) ||
+            null
           : null,
     })
   );
 }
 
 // =========================================================
-// ASSIGNMENT VALIDATION
+// VALIDATE PROJECT
 // =========================================================
 
-async function resolveAssignedEmployeeId({
-  access,
-  requestedEmployeeId,
-  assignmentWasProvided,
-}) {
-  /*
-   * Important difference:
-   *
-   * undefined
-   * → caller did not specify assignment
-   * → default to current employee
-   *
-   * null / ""
-   * → caller deliberately selected Unassigned
-   * → store NULL
-   */
-
-  if (
-    !assignmentWasProvided
-  ) {
-    return access.employee.id;
-  }
-
-  if (
-    requestedEmployeeId ===
-      null ||
-    normaliseText(
-      requestedEmployeeId
-    ) ===
-      ""
-  ) {
-    return null;
-  }
-
-  const employeeId =
-    normaliseText(
-      requestedEmployeeId
-    );
-
-  if (
-    !isUuid(
-      employeeId
-    )
-  ) {
-    throw new TaskValidationError(
-      "A valid employee ID is required for task assignment."
-    );
-  }
-
-  /*
-   * Normal employees may create work for themselves,
-   * but they cannot assign new tasks to another employee.
-   *
-   * Organisation owners can assign work across the team.
-   *
-   * We can extend this later to manager / task.manage
-   * permissions.
-   */
-
-  if (
-    !access.employee
-      .is_organization_owner &&
-    String(
-      employeeId
-    ) !==
-      String(
-        access.employee.id
-      )
-  ) {
-    throw new TaskPermissionError(
-      "You do not have permission to assign tasks to another employee."
-    );
-  }
-
-  const {
-    data:
-      employee,
-    error,
-  } =
-    await access.supabase
-      .from("employees")
-      .select(
-        `
-          id,
-          organization_id,
-          is_active,
-          employment_status
-        `
-      )
-      .eq(
-        "id",
-        employeeId
-      )
-      .eq(
-        "organization_id",
-        access.employee
-          .organization_id
-      )
-      .maybeSingle();
-
-  if (error) {
-    throw new Error(
-      error.message
-    );
-  }
-
-  if (!employee) {
-    throw new TaskValidationError(
-      "The selected employee does not belong to this organisation."
-    );
-  }
-
-  if (
-    employee.is_active ===
-    false
-  ) {
-    throw new TaskValidationError(
-      "Tasks cannot be assigned to an inactive employee."
-    );
-  }
-
-  if (
-    normaliseText(
-      employee.employment_status
-    )
-      .toLowerCase() ===
-    "inactive"
-  ) {
-    throw new TaskValidationError(
-      "Tasks cannot be assigned to an inactive employee."
-    );
-  }
-
-  return employee.id;
-}
-
-// =========================================================
-// PROJECT VALIDATION
-// =========================================================
-
-async function validateProject({
+async function validateProjectForTask({
+  supabase,
   access,
   projectId,
 }) {
-  if (!projectId) {
+  if (
+    !projectId
+  ) {
     return null;
   }
 
@@ -362,32 +295,32 @@ async function validateProject({
       projectId
     )
   ) {
-    throw new TaskValidationError(
-      "A valid project ID is required."
+    throw new Error(
+      "The selected project is not valid."
     );
   }
+
+  const organizationId =
+    access.employee
+      .organization_id;
 
   const {
     data:
       project,
     error,
   } =
-    await access.supabase
-      .from("projects")
-      .select(
-        `
-          id,
-          organization_id
-        `
+    await supabase
+      .from(
+        "projects"
       )
+      .select("*")
       .eq(
         "id",
         projectId
       )
       .eq(
         "organization_id",
-        access.employee
-          .organization_id
+        organizationId
       )
       .maybeSingle();
 
@@ -398,149 +331,50 @@ async function validateProject({
   }
 
   if (!project) {
-    throw new TaskValidationError(
-      "The selected project could not be found in this organisation."
-    );
-  }
-
-  return project.id;
-}
-
-// =========================================================
-// RECORD VALIDATION
-// =========================================================
-
-function validateRecordLink({
-  recordType,
-  recordId,
-}) {
-  const cleanRecordType =
-    normaliseRecordType(
-      recordType
-    );
-
-  const cleanRecordId =
-    normaliseText(
-      recordId
-    );
-
-  /*
-   * Neither supplied is fine.
-   */
-
-  if (
-    !cleanRecordType &&
-    !cleanRecordId
-  ) {
-    return {
-      recordType: null,
-      recordId: null,
-    };
-  }
-
-  /*
-   * If one is supplied, both must be supplied.
-   */
-
-  if (
-    !cleanRecordType ||
-    !cleanRecordId
-  ) {
-    throw new TaskValidationError(
-      "Both record_type and record_id are required when linking a task to a business record."
-    );
-  }
-
-  if (
-    getRecordTypeAliases(
-      cleanRecordType
-    ).length ===
-    0
-  ) {
-    throw new TaskValidationError(
-      `Unsupported task record type "${recordType}".`
-    );
-  }
-
-  if (
-    !isUuid(
-      cleanRecordId
-    )
-  ) {
-    throw new TaskValidationError(
-      "A valid record ID is required."
+    throw new Error(
+      "The selected project is not valid."
     );
   }
 
   /*
-   * Store singular lower-case form so new data
-   * becomes consistent.
-   *
-   * Existing GET logic still supports plural legacy values.
+   * Prevent a Tasks user from attaching work to a Project
+   * that they themselves cannot access.
    */
+  const projectPermissions =
+    getRecordPermissions(
+      access,
+      {
+        prefix:
+          "projects",
 
-  const aliases =
-    getRecordTypeAliases(
-      cleanRecordType
+        module:
+          "Projects",
+      }
     );
 
-  return {
-    recordType:
-      aliases[0],
+  const visible =
+    await canViewOwnedRecord({
+      supabase,
+      access,
 
-    recordId:
-      cleanRecordId,
-  };
-}
+      permissions:
+        projectPermissions,
 
-// =========================================================
-// CUSTOM ERRORS
-// =========================================================
+      record:
+        project,
+    });
 
-class TaskValidationError extends Error {
-  constructor(message) {
-    super(message);
-
-    this.name =
-      "TaskValidationError";
-
-    this.status =
-      400;
+  if (!visible) {
+    throw new Error(
+      "You do not have permission to create tasks for this project."
+    );
   }
-}
 
-class TaskPermissionError extends Error {
-  constructor(message) {
-    super(message);
-
-    this.name =
-      "TaskPermissionError";
-
-    this.status =
-      403;
-  }
+  return project;
 }
 
 // =========================================================
 // GET TASKS
-// =========================================================
-//
-// DEFAULT
-// GET /api/tasks
-// → logged-in employee's assigned tasks
-//
-// PROJECT DASHBOARD
-// GET /api/tasks?scope=projects
-// → all project-linked tasks in organisation
-//
-// SINGLE PROJECT
-// GET /api/tasks?scope=project&project_id=UUID
-// → all tasks for one project
-//
-// BUSINESS RECORD
-// GET /api/tasks?scope=record&record_type=quote&record_id=UUID
-// → all tasks linked to one business record
-//
 // =========================================================
 
 export async function GET(
@@ -550,7 +384,9 @@ export async function GET(
     const access =
       await getServerAccess();
 
-    if (!access.employee) {
+    if (
+      !access.employee
+    ) {
       return NextResponse.json(
         {
           error:
@@ -563,12 +399,27 @@ export async function GET(
       );
     }
 
+    const permissions =
+      getPermissions(
+        access
+      );
+
+    if (
+      !permissions.canViewAll &&
+      !permissions.canViewTeam &&
+      !permissions.canViewOwn
+    ) {
+      return forbidden(
+        "You do not have permission to view tasks."
+      );
+    }
+
+    const supabase =
+      createAdminSupabaseClient();
+
     const organizationId =
       access.employee
         .organization_id;
-
-    const employeeId =
-      access.employee.id;
 
     const url =
       new URL(
@@ -576,32 +427,39 @@ export async function GET(
       );
 
     const scope =
-      String(
+      normalise(
         url.searchParams.get(
           "scope"
-        ) || "mine"
-      )
-        .trim()
-        .toLowerCase();
+        ) ||
+          "all"
+      );
 
     const projectId =
-      url.searchParams.get(
-        "project_id"
+      cleanText(
+        url.searchParams.get(
+          "project_id"
+        )
       );
 
     const recordType =
-      url.searchParams.get(
-        "record_type"
+      normalise(
+        url.searchParams.get(
+          "record_type"
+        )
       );
 
     const recordId =
-      url.searchParams.get(
-        "record_id"
+      cleanText(
+        url.searchParams.get(
+          "record_id"
+        )
       );
 
     let query =
-      access.supabase
-        .from("tasks")
+      supabase
+        .from(
+          "tasks"
+        )
         .select("*")
         .eq(
           "organization_id",
@@ -609,40 +467,45 @@ export async function GET(
         );
 
     // =====================================================
-    // MY WORK
+    // RBAC VISIBILITY
     // =====================================================
 
     if (
-      scope === "mine"
+      !permissions.canViewAll &&
+      permissions.canViewTeam
+    ) {
+      const teamIds =
+        await getTeamEmployeeIds({
+          supabase,
+
+          employee:
+            access.employee,
+        });
+
+      query =
+        query.in(
+          "assigned_employee_id",
+          teamIds
+        );
+    } else if (
+      !permissions.canViewAll &&
+      permissions.canViewOwn
     ) {
       query =
         query.eq(
           "assigned_employee_id",
-          employeeId
+          access.employee.id
         );
     }
 
     // =====================================================
-    // ALL PROJECT TASKS
+    // PROJECT FILTER
     // =====================================================
 
-    else if (
-      scope === "projects"
-    ) {
-      query =
-        query.not(
-          "project_id",
-          "is",
-          null
-        );
-    }
-
-    // =====================================================
-    // SINGLE PROJECT
-    // =====================================================
-
-    else if (
-      scope === "project"
+    if (
+      scope ===
+        "project" ||
+      projectId
     ) {
       if (
         !projectId ||
@@ -653,10 +516,11 @@ export async function GET(
         return NextResponse.json(
           {
             error:
-              "A valid project_id is required for project task scope.",
+              "A valid project_id is required.",
           },
           {
-            status: 400,
+            status:
+              400,
           }
         );
       }
@@ -669,14 +533,30 @@ export async function GET(
     }
 
     // =====================================================
-    // BUSINESS RECORD
+    // RELATED RECORD FILTER
     // =====================================================
 
     else if (
-      scope === "record"
+      scope ===
+      "record"
     ) {
       if (
-        !recordId ||
+        !recordType ||
+        !recordId
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "record_type and record_id are required.",
+          },
+          {
+            status:
+              400,
+          }
+        );
+      }
+
+      if (
         !isUuid(
           recordId
         )
@@ -684,33 +564,21 @@ export async function GET(
         return NextResponse.json(
           {
             error:
-              "A valid record_id is required for record task scope.",
+              "A valid record_id is required.",
           },
           {
-            status: 400,
+            status:
+              400,
           }
         );
       }
 
       const recordAliases =
-        getRecordTypeAliases(
+        RECORD_TYPE_ALIASES[
           recordType
-        );
-
-      if (
-        recordAliases.length ===
-        0
-      ) {
-        return NextResponse.json(
-          {
-            error:
-              "A supported record_type is required for record task scope.",
-          },
-          {
-            status: 400,
-          }
-        );
-      }
+        ] || [
+          recordType,
+        ];
 
       query =
         query
@@ -725,17 +593,36 @@ export async function GET(
     }
 
     // =====================================================
-    // INVALID SCOPE
+    // MY TASKS
     // =====================================================
 
-    else {
+    else if (
+      scope ===
+      "mine"
+    ) {
+      query =
+        query.eq(
+          "assigned_employee_id",
+          access.employee.id
+        );
+    }
+
+    // =====================================================
+    // VALID SCOPES
+    // =====================================================
+
+    else if (
+      scope !==
+      "all"
+    ) {
       return NextResponse.json(
         {
           error:
             "Unsupported task scope.",
         },
         {
-          status: 400,
+          status:
+            400,
         }
       );
     }
@@ -747,7 +634,8 @@ export async function GET(
       await query.order(
         "created_at",
         {
-          ascending: false,
+          ascending:
+            false,
         }
       );
 
@@ -759,38 +647,41 @@ export async function GET(
 
     const tasks =
       await enrichTasksWithEmployees({
-        supabase:
-          access.supabase,
-
+        supabase,
         organizationId,
 
         tasks:
-          data || [],
+          data ||
+          [],
       });
+
+    let employees = [];
+
+    if (
+      permissions.canAssign
+    ) {
+      employees =
+        await loadAssignableEmployees({
+          supabase,
+          organizationId,
+        });
+    }
 
     return NextResponse.json({
       tasks,
 
+      employees,
+
       scope,
 
-      currentEmployee: {
-        id:
-          access.employee.id,
+      currentEmployee:
+        access.employee,
 
-        full_name:
-          access.employee
-            .full_name,
-
-        email:
-          access.employee
-            .email,
-
-        is_organization_owner:
-          Boolean(
-            access.employee
-              .is_organization_owner
-          ),
-      },
+      access:
+        buildClientAccess({
+          access,
+          permissions,
+        }),
     });
   } catch (error) {
     console.error(
@@ -806,7 +697,6 @@ export async function GET(
       },
       {
         status:
-          error.status ||
           500,
       }
     );
@@ -824,7 +714,9 @@ export async function POST(
     const access =
       await getServerAccess();
 
-    if (!access.employee) {
+    if (
+      !access.employee
+    ) {
       return NextResponse.json(
         {
           error:
@@ -837,24 +729,112 @@ export async function POST(
       );
     }
 
+    const permissions =
+      getPermissions(
+        access
+      );
+
+    if (
+      !permissions.canCreate
+    ) {
+      return forbidden(
+        "You do not have permission to create tasks."
+      );
+    }
+
     const body =
       await request.json();
 
-    // =====================================================
-    // TASK NAME
-    // =====================================================
-
     const taskName =
-      normaliseText(
+      cleanText(
         body.task_name ||
           body.title
       );
 
-    if (!taskName) {
-      throw new TaskValidationError(
-        "Task name is required."
+    if (
+      !taskName
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Task name is required.",
+        },
+        {
+          status:
+            400,
+        }
       );
     }
+
+    const status =
+      cleanText(
+        body.status
+      ) ||
+      "To Do";
+
+    if (
+      !ALLOWED_STATUSES.includes(
+        status
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Invalid task status.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
+    const priority =
+      cleanText(
+        body.priority
+      ) ||
+      "Medium";
+
+    if (
+      !ALLOWED_PRIORITIES.includes(
+        priority
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Invalid task priority.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
+    const dueDate =
+      body.due_date ||
+      null;
+
+    if (
+      !isDateValue(
+        dueDate
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Task due date must use YYYY-MM-DD format.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
+    const supabase =
+      createAdminSupabaseClient();
 
     const organizationId =
       access.employee
@@ -864,190 +844,262 @@ export async function POST(
     // PROJECT
     // =====================================================
 
+    let project =
+      null;
+
     const projectId =
-      body.project_id
-        ? await validateProject({
-            access,
-
-            projectId:
-              body.project_id,
-          })
-        : null;
-
-    // =====================================================
-    // ASSIGNMENT
-    // =====================================================
-
-    const assignmentWasProvided =
-      Object.prototype.hasOwnProperty.call(
-        body,
-        "assigned_employee_id"
+      cleanText(
+        body.project_id
       );
 
-    const assignedEmployeeId =
-      await resolveAssignedEmployeeId({
-        access,
-
-        requestedEmployeeId:
-          body.assigned_employee_id,
-
-        assignmentWasProvided,
-      });
+    if (
+      projectId
+    ) {
+      try {
+        project =
+          await validateProjectForTask({
+            supabase,
+            access,
+            projectId,
+          });
+      } catch (error) {
+        return NextResponse.json(
+          {
+            error:
+              error.message,
+          },
+          {
+            status:
+              403,
+          }
+        );
+      }
+    }
 
     // =====================================================
-    // BUSINESS RECORD
+    // ASSIGNEE
     // =====================================================
 
-    const recordLink =
-      validateRecordLink({
-        recordType:
-          body.record_type,
+    let assignedEmployeeId =
+      project
+        ?.owner_employee_id ||
+      access.employee.id;
 
-        recordId:
-          body.record_id,
-      });
+    if (
+      body.assigned_employee_id
+    ) {
+      if (
+        !permissions.canAssign
+      ) {
+        return forbidden(
+          "You do not have permission to assign tasks."
+        );
+      }
+
+      const requestedEmployeeId =
+        cleanText(
+          body.assigned_employee_id
+        );
+
+      if (
+        !isUuid(
+          requestedEmployeeId
+        )
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "The selected task assignee is not valid.",
+          },
+          {
+            status:
+              400,
+          }
+        );
+      }
+
+      const employee =
+        await validateRecordOwner({
+          supabase,
+          organizationId,
+
+          employeeId:
+            requestedEmployeeId,
+        });
+
+      if (
+        !employee
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "The selected task assignee is not valid.",
+          },
+          {
+            status:
+              400,
+          }
+        );
+      }
+
+      assignedEmployeeId =
+        employee.id;
+    }
+
+    // =====================================================
+    // RECORD LINK
+    // =====================================================
+
+    const recordType =
+      cleanNullableText(
+        body.record_type
+      );
+
+    const recordId =
+      cleanNullableText(
+        body.record_id
+      );
+
+    if (
+      recordId &&
+      !isUuid(
+        recordId
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "The related record ID is not valid.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
 
     // =====================================================
     // WORKFLOW RUN
     // =====================================================
 
-    let workflowRunId =
-      null;
+    const workflowRunId =
+      cleanNullableText(
+        body.workflow_run_id
+      );
 
     if (
-      body.workflow_run_id
+      workflowRunId &&
+      !isUuid(
+        workflowRunId
+      )
     ) {
-      if (
-        !isUuid(
-          body.workflow_run_id
-        )
-      ) {
-        throw new TaskValidationError(
-          "A valid workflow run ID is required."
-        );
-      }
-
-      workflowRunId =
-        body.workflow_run_id;
+      return NextResponse.json(
+        {
+          error:
+            "The workflow run ID is not valid.",
+        },
+        {
+          status:
+            400,
+        }
+      );
     }
 
-    // =====================================================
-    // TASK VALUES
-    // =====================================================
-
     const now =
-      new Date().toISOString();
-
-    const taskValues = {
-      project_id:
-        projectId,
-
-      task_name:
-        taskName,
-
-      description:
-        normaliseText(
-          body.description
-        ) ||
-        null,
-
-      status:
-        normaliseText(
-          body.status
-        ) ||
-        "To Do",
-
-      due_date:
-        body.due_date ||
-        null,
-
-      organization_id:
-        organizationId,
-
-      /*
-       * This can now genuinely be null.
-       *
-       * Selecting "Unassigned" no longer silently
-       * assigns the task back to the creator.
-       */
-      assigned_employee_id:
-        assignedEmployeeId,
-
-      record_type:
-        recordLink.recordType,
-
-      record_id:
-        recordLink.recordId,
-
-      workflow_run_id:
-        workflowRunId,
-
-      priority:
-        normaliseText(
-          body.priority
-        ) ||
-        "Medium",
-
-      created_at:
-        now,
-
-      updated_at:
-        now,
-    };
+      new Date()
+        .toISOString();
 
     // =====================================================
     // INSERT
     // =====================================================
 
     const {
-      data,
-      error,
+      data:
+        task,
+      error:
+        createError,
     } =
-      await access.supabase
-        .from("tasks")
+      await supabase
+        .from(
+          "tasks"
+        )
         .insert([
-          taskValues,
+          {
+            organization_id:
+              organizationId,
+
+            project_id:
+              project?.id ||
+              null,
+
+            task_name:
+              taskName,
+
+            description:
+              cleanNullableText(
+                body.description
+              ),
+
+            status,
+
+            due_date:
+              dueDate,
+
+            assigned_employee_id:
+              assignedEmployeeId,
+
+            record_type:
+              recordType,
+
+            record_id:
+              recordId,
+
+            workflow_run_id:
+              workflowRunId,
+
+            priority,
+
+            created_at:
+              now,
+
+            updated_at:
+              now,
+          },
         ])
         .select()
         .single();
 
-    if (error) {
+    if (
+      createError
+    ) {
       throw new Error(
-        error.message
+        createError.message
       );
     }
-
-    // =====================================================
-    // ENRICH RESPONSE
-    // =====================================================
 
     const [
       enrichedTask,
     ] =
       await enrichTasksWithEmployees({
-        supabase:
-          access.supabase,
-
+        supabase,
         organizationId,
 
         tasks: [
-          data,
+          task,
         ],
       });
 
     return NextResponse.json(
       {
         task:
-          enrichedTask ||
-          data,
+          enrichedTask,
 
         message:
-          assignedEmployeeId
-            ? "Task created and assigned successfully."
-            : "Unassigned task created successfully.",
+          "Task created successfully.",
       },
       {
-        status: 201,
+        status:
+          201,
       }
     );
   } catch (error) {
@@ -1064,7 +1116,6 @@ export async function POST(
       },
       {
         status:
-          error.status ||
           500,
       }
     );
