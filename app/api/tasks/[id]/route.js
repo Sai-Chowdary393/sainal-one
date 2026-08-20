@@ -6,64 +6,136 @@ import {
   getServerAccess,
 } from "../../../../lib/serverAccess";
 
+import {
+  createAdminSupabaseClient,
+} from "../../../../lib/supabaseAdmin";
+
+import {
+  buildClientAccess,
+  canViewOwnedRecord,
+  getRecordPermissions,
+  loadAssignableEmployees,
+  validateRecordOwner,
+} from "../../../../lib/recordAccess";
+
+// =========================================================
+// CONSTANTS
+// =========================================================
+
+const ALLOWED_STATUSES = [
+  "Open",
+  "Pending",
+  "To Do",
+  "In Progress",
+  "Completed",
+  "Blocked",
+  "Cancelled",
+];
+
+const ALLOWED_PRIORITIES = [
+  "Low",
+  "Medium",
+  "High",
+  "Critical",
+];
+
 // =========================================================
 // HELPERS
 // =========================================================
 
-function isUuid(value) {
+function cleanText(
+  value
+) {
+  return typeof value ===
+    "string"
+    ? value.trim()
+    : "";
+}
+
+function cleanNullableText(
+  value
+) {
+  const cleaned =
+    cleanText(
+      value
+    );
+
+  return cleaned ||
+    null;
+}
+
+function isUuid(
+  value
+) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    String(value || "")
+    String(
+      value ||
+        ""
+    )
   );
 }
 
-function normaliseText(value) {
-  if (
-    value === null ||
-    value === undefined
-  ) {
-    return "";
+function isDateValue(
+  value
+) {
+  if (!value) {
+    return true;
   }
 
-  return String(value).trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(
+    String(
+      value
+    )
+  );
 }
 
-class TaskValidationError extends Error {
-  constructor(message) {
-    super(message);
-
-    this.name =
-      "TaskValidationError";
-
-    this.status =
-      400;
-  }
+function forbidden(
+  message
+) {
+  return NextResponse.json(
+    {
+      error:
+        message,
+    },
+    {
+      status:
+        403,
+    }
+  );
 }
 
-class TaskPermissionError extends Error {
-  constructor(message) {
-    super(message);
+function getPermissions(
+  access
+) {
+  return getRecordPermissions(
+    access,
+    {
+      prefix:
+        "tasks",
 
-    this.name =
-      "TaskPermissionError";
-
-    this.status =
-      403;
-  }
+      module:
+        "Tasks",
+    }
+  );
 }
 
 // =========================================================
-// TASK ACCESS
+// LOAD TASK
 // =========================================================
 
-function buildTaskAccessQuery({
+async function loadTask({
   supabase,
   organizationId,
-  employee,
   taskId,
 }) {
-  let query =
-    supabase
-      .from("tasks")
+  const {
+    data,
+    error,
+  } =
+    await supabase
+      .from(
+        "tasks"
+      )
       .select("*")
       .eq(
         "id",
@@ -72,104 +144,6 @@ function buildTaskAccessQuery({
       .eq(
         "organization_id",
         organizationId
-      );
-
-  if (
-    !employee
-      .is_organization_owner
-  ) {
-    query =
-      query.eq(
-        "assigned_employee_id",
-        employee.id
-      );
-  }
-
-  return query;
-}
-
-// =========================================================
-// ASSIGNMENT VALIDATION
-// =========================================================
-
-async function validateAssignedEmployee({
-  access,
-  assignedEmployeeId,
-}) {
-  /*
-   * NULL / empty means deliberately Unassigned.
-   */
-
-  if (
-    assignedEmployeeId ===
-      null ||
-    assignedEmployeeId ===
-      undefined ||
-    normaliseText(
-      assignedEmployeeId
-    ) ===
-      ""
-  ) {
-    return null;
-  }
-
-  const employeeId =
-    normaliseText(
-      assignedEmployeeId
-    );
-
-  if (
-    !isUuid(
-      employeeId
-    )
-  ) {
-    throw new TaskValidationError(
-      "A valid employee ID is required for task assignment."
-    );
-  }
-
-  /*
-   * Only organisation owners may currently
-   * reassign tasks.
-   *
-   * Later this can be extended to managers
-   * or a tasks.assign permission.
-   */
-
-  if (
-    !access.employee
-      .is_organization_owner
-  ) {
-    throw new TaskPermissionError(
-      "You do not have permission to reassign this task."
-    );
-  }
-
-  const {
-    data: employee,
-    error,
-  } =
-    await access.supabase
-      .from("employees")
-      .select(
-        `
-          id,
-          organization_id,
-          full_name,
-          email,
-          job_title,
-          employment_status,
-          is_active
-        `
-      )
-      .eq(
-        "id",
-        employeeId
-      )
-      .eq(
-        "organization_id",
-        access.employee
-          .organization_id
       )
       .maybeSingle();
 
@@ -179,340 +153,94 @@ async function validateAssignedEmployee({
     );
   }
 
-  if (!employee) {
-    throw new TaskValidationError(
-      "The selected employee does not belong to this organisation."
-    );
-  }
-
-  if (
-    employee.is_active ===
-    false
-  ) {
-    throw new TaskValidationError(
-      "Tasks cannot be assigned to an inactive employee."
-    );
-  }
-
-  if (
-    normaliseText(
-      employee.employment_status
-    )
-      .toLowerCase() ===
-    "inactive"
-  ) {
-    throw new TaskValidationError(
-      "Tasks cannot be assigned to an inactive employee."
-    );
-  }
-
-  return employee.id;
+  return data;
 }
 
 // =========================================================
-// ACTIVITY HELPERS
+// ENRICH TASK
 // =========================================================
 
-function normaliseActivityValue(
-  value
-) {
-  if (
-    value === null ||
-    value === undefined
-  ) {
-    return "";
-  }
-
-  if (
-    typeof value ===
-    "object"
-  ) {
-    try {
-      return JSON.stringify(
-        value
-      );
-    } catch {
-      return String(
-        value
-      );
-    }
-  }
-
-  return String(
-    value
-  );
-}
-
-function valuesAreEqual(
-  first,
-  second
-) {
-  return (
-    normaliseActivityValue(
-      first
-    ) ===
-    normaliseActivityValue(
-      second
-    )
-  );
-}
-
-function getFieldLabel(
-  field
-) {
-  switch (field) {
-    case "task_name":
-      return "Task name";
-
-    case "description":
-      return "Description";
-
-    case "status":
-      return "Status";
-
-    case "priority":
-      return "Priority";
-
-    case "due_date":
-      return "Due date";
-
-    case "assigned_employee_id":
-      return "Assigned employee";
-
-    default:
-      return String(
-        field ||
-          "Field"
-      );
-  }
-}
-
-function getActivityType({
-  field,
-  newValue,
-}) {
-  if (
-    field ===
-    "status"
-  ) {
-    if (
-      String(
-        newValue || ""
-      )
-        .trim()
-        .toLowerCase() ===
-      "completed"
-    ) {
-      return "task_completed";
-    }
-
-    return "status_changed";
-  }
-
-  if (
-    field ===
-    "assigned_employee_id"
-  ) {
-    return "assignment_changed";
-  }
-
-  return "field_changed";
-}
-
-function getActivityMessage({
-  field,
-  oldValue,
-  newValue,
-}) {
-  const fieldLabel =
-    getFieldLabel(
-      field
-    );
-
-  const oldText =
-    normaliseActivityValue(
-      oldValue
-    ) ||
-    "Empty";
-
-  const newText =
-    normaliseActivityValue(
-      newValue
-    ) ||
-    "Empty";
-
-  if (
-    field ===
-    "status"
-  ) {
-    if (
-      newText
-        .trim()
-        .toLowerCase() ===
-      "completed"
-    ) {
-      return `Task completed. Status changed from ${oldText} to ${newText}.`;
-    }
-
-    return `Status changed from ${oldText} to ${newText}.`;
-  }
-
-  if (
-    field ===
-    "priority"
-  ) {
-    return `Priority changed from ${oldText} to ${newText}.`;
-  }
-
-  if (
-    field ===
-    "due_date"
-  ) {
-    return `Due date changed from ${oldText} to ${newText}.`;
-  }
-
-  if (
-    field ===
-    "task_name"
-  ) {
-    return "Task name was updated.";
-  }
-
-  if (
-    field ===
-    "description"
-  ) {
-    return "Task description was updated.";
-  }
-
-  if (
-    field ===
-    "assigned_employee_id"
-  ) {
-    if (
-      !newValue
-    ) {
-      return "Task was unassigned.";
-    }
-
-    if (
-      !oldValue
-    ) {
-      return "Task was assigned to an employee.";
-    }
-
-    return "Task assignment was changed.";
-  }
-
-  return `${fieldLabel} changed from ${oldText} to ${newText}.`;
-}
-
-// =========================================================
-// WRITE TASK ACTIVITY
-// =========================================================
-
-async function writeTaskActivity({
+async function enrichTask({
   supabase,
   organizationId,
-  employeeId,
-  taskId,
-  existingTask,
-  updatedTask,
-  fields,
+  task,
 }) {
-  const activityRows =
-    [];
-
-  for (
-    const field of fields
-  ) {
-    const oldValue =
-      existingTask?.[
-        field
-      ];
-
-    const newValue =
-      updatedTask?.[
-        field
-      ];
-
-    if (
-      valuesAreEqual(
-        oldValue,
-        newValue
-      )
-    ) {
-      continue;
-    }
-
-    activityRows.push({
-      organization_id:
-        organizationId,
-
-      task_id:
-        taskId,
-
-      employee_id:
-        employeeId,
-
-      activity_type:
-        getActivityType({
-          field,
-          newValue,
-        }),
-
-      field_name:
-        field,
-
-      old_value:
-        normaliseActivityValue(
-          oldValue
-        ) ||
-        null,
-
-      new_value:
-        normaliseActivityValue(
-          newValue
-        ) ||
-        null,
-
-      message:
-        getActivityMessage({
-          field,
-          oldValue,
-          newValue,
-        }),
-    });
-  }
-
   if (
-    activityRows.length ===
-    0
+    !task ||
+    !task.assigned_employee_id
   ) {
-    return;
+    return {
+      ...task,
+
+      assigned_employee:
+        null,
+    };
   }
 
   const {
+    data:
+      employee,
     error,
   } =
     await supabase
       .from(
-        "task_activity"
+        "employees"
       )
-      .insert(
-        activityRows
-      );
+      .select(
+        `
+          id,
+          full_name,
+          email,
+          job_title,
+          department_id
+        `
+      )
+      .eq(
+        "id",
+        task.assigned_employee_id
+      )
+      .eq(
+        "organization_id",
+        organizationId
+      )
+      .maybeSingle();
 
   if (error) {
-    /*
-     * Do not fail an otherwise successful task update
-     * because audit logging failed.
-     */
-    console.error(
-      "Task activity logging error:",
-      error
+    throw new Error(
+      error.message
     );
   }
+
+  return {
+    ...task,
+
+    assigned_employee:
+      employee ||
+      null,
+  };
+}
+
+// =========================================================
+// CAN VIEW TASK
+// =========================================================
+
+async function canAccessTask({
+  supabase,
+  access,
+  permissions,
+  task,
+}) {
+  return canViewOwnedRecord({
+    supabase,
+    access,
+    permissions,
+
+    record:
+      task,
+
+    ownerField:
+      "assigned_employee_id",
+  });
 }
 
 // =========================================================
@@ -540,7 +268,8 @@ export async function GET(
             "A valid task ID is required.",
         },
         {
-          status: 400,
+          status:
+            400,
         }
       );
     }
@@ -563,45 +292,97 @@ export async function GET(
       );
     }
 
-    const {
-      data: task,
-      error,
-    } =
-      await buildTaskAccessQuery({
-        supabase:
-          access.supabase,
+    const permissions =
+      getPermissions(
+        access
+      );
 
-        organizationId:
-          access.employee
-            .organization_id,
+    if (
+      !permissions.canViewAll &&
+      !permissions.canViewTeam &&
+      !permissions.canViewOwn
+    ) {
+      return forbidden(
+        "You do not have permission to view tasks."
+      );
+    }
 
-        employee:
-          access.employee,
+    const supabase =
+      createAdminSupabaseClient();
+
+    const organizationId =
+      access.employee
+        .organization_id;
+
+    const task =
+      await loadTask({
+        supabase,
+        organizationId,
 
         taskId:
           id,
-      }).maybeSingle();
-
-    if (error) {
-      throw new Error(
-        error.message
-      );
-    }
+      });
 
     if (!task) {
       return NextResponse.json(
         {
           error:
-            "Task not found or you do not have access to it.",
+            "Task not found.",
         },
         {
-          status: 404,
+          status:
+            404,
         }
       );
     }
 
+    const visible =
+      await canAccessTask({
+        supabase,
+        access,
+        permissions,
+        task,
+      });
+
+    if (!visible) {
+      return forbidden(
+        "You do not have permission to view this task."
+      );
+    }
+
+    const formattedTask =
+      await enrichTask({
+        supabase,
+        organizationId,
+        task,
+      });
+
+    let employees = [];
+
+    if (
+      permissions.canAssign
+    ) {
+      employees =
+        await loadAssignableEmployees({
+          supabase,
+          organizationId,
+        });
+    }
+
     return NextResponse.json({
-      task,
+      task:
+        formattedTask,
+
+      employees,
+
+      currentEmployee:
+        access.employee,
+
+      access:
+        buildClientAccess({
+          access,
+          permissions,
+        }),
     });
   } catch (error) {
     console.error(
@@ -617,7 +398,6 @@ export async function GET(
       },
       {
         status:
-          error.status ||
           500,
       }
     );
@@ -625,7 +405,7 @@ export async function GET(
 }
 
 // =========================================================
-// UPDATE TASK
+// PATCH TASK
 // =========================================================
 
 export async function PATCH(
@@ -649,7 +429,8 @@ export async function PATCH(
             "A valid task ID is required.",
         },
         {
-          status: 400,
+          status:
+            400,
         }
       );
     }
@@ -672,41 +453,26 @@ export async function PATCH(
       );
     }
 
-    const body =
-      await request.json();
+    const permissions =
+      getPermissions(
+        access
+      );
 
-    // =====================================================
-    // LOAD CURRENT TASK
-    // =====================================================
+    const supabase =
+      createAdminSupabaseClient();
 
-    const {
-      data:
-        existingTask,
-      error:
-        existingTaskError,
-    } =
-      await buildTaskAccessQuery({
-        supabase:
-          access.supabase,
+    const organizationId =
+      access.employee
+        .organization_id;
 
-        organizationId:
-          access.employee
-            .organization_id,
-
-        employee:
-          access.employee,
+    const existingTask =
+      await loadTask({
+        supabase,
+        organizationId,
 
         taskId:
           id,
-      }).maybeSingle();
-
-    if (
-      existingTaskError
-    ) {
-      throw new Error(
-        existingTaskError.message
-      );
-    }
+      });
 
     if (
       !existingTask
@@ -714,127 +480,323 @@ export async function PATCH(
       return NextResponse.json(
         {
           error:
-            "Task not found or you do not have permission to update it.",
+            "Task not found.",
         },
         {
-          status: 404,
+          status:
+            404,
         }
       );
     }
 
-    // =====================================================
-    // PROTECTED FIELDS
-    // =====================================================
+    const visible =
+      await canAccessTask({
+        supabase,
+        access,
+        permissions,
 
-    const protectedFields =
-      new Set([
-        "id",
-        "organization_id",
-        "created_at",
-        "workflow_run_id",
-        "record_type",
-        "record_id",
-        "project_id",
-      ]);
+        task:
+          existingTask,
+      });
 
-    const updateValues =
-      {};
+    if (!visible) {
+      return forbidden(
+        "You do not have permission to update this task."
+      );
+    }
 
-    Object.entries(
-      body || {}
-    ).forEach(
-      ([
-        key,
-        value,
-      ]) => {
-        if (
-          protectedFields.has(
-            key
+    const body =
+      await request.json();
+
+    const editableFields = [
+      "task_name",
+      "description",
+      "status",
+      "due_date",
+      "priority",
+    ];
+
+    const wantsEdit =
+      editableFields.some(
+        (
+          field
+        ) =>
+          Object.prototype.hasOwnProperty.call(
+            body,
+            field
           )
-        ) {
-          return;
-        }
+      );
 
-        updateValues[
-          key
-        ] =
-          value;
-      }
-    );
-
-    // =====================================================
-    // ASSIGNMENT SECURITY
-    // =====================================================
-
-    const assignmentWasProvided =
+    const wantsAssigneeChange =
       Object.prototype.hasOwnProperty.call(
-        updateValues,
+        body,
         "assigned_employee_id"
       );
 
     if (
-      assignmentWasProvided
+      wantsEdit &&
+      !permissions.canEdit
     ) {
-      /*
-       * Normal employees may update their assigned
-       * tasks but may not change ownership.
-       */
-
-      if (
-        !access.employee
-          .is_organization_owner
-      ) {
-        throw new TaskPermissionError(
-          "You do not have permission to reassign this task."
-        );
-      }
-
-      updateValues.assigned_employee_id =
-        await validateAssignedEmployee({
-          access,
-
-          assignedEmployeeId:
-            updateValues
-              .assigned_employee_id,
-        });
+      return forbidden(
+        "You do not have permission to edit tasks."
+      );
     }
 
-    // =====================================================
-    // EDITABLE FIELDS
-    // =====================================================
-
-    const editableFields =
-      Object.keys(
-        updateValues
+    if (
+      wantsAssigneeChange &&
+      !permissions.canAssign
+    ) {
+      return forbidden(
+        "You do not have permission to assign tasks."
       );
+    }
 
     if (
-      editableFields.length ===
-      0
+      !wantsEdit &&
+      !wantsAssigneeChange
     ) {
       return NextResponse.json(
         {
           error:
-            "No editable task fields were provided.",
+            "No supported task changes were provided.",
         },
         {
-          status: 400,
+          status:
+            400,
         }
       );
     }
 
-    updateValues.updated_at =
-      new Date().toISOString();
+    const updates = {
+      updated_at:
+        new Date()
+          .toISOString(),
+    };
 
     // =====================================================
-    // UPDATE TASK
+    // NAME
     // =====================================================
 
-    let updateQuery =
-      access.supabase
-        .from("tasks")
+    if (
+      Object.prototype.hasOwnProperty.call(
+        body,
+        "task_name"
+      )
+    ) {
+      const taskName =
+        cleanText(
+          body.task_name
+        );
+
+      if (
+        !taskName
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Task name cannot be empty.",
+          },
+          {
+            status:
+              400,
+          }
+        );
+      }
+
+      updates.task_name =
+        taskName;
+    }
+
+    // =====================================================
+    // DESCRIPTION
+    // =====================================================
+
+    if (
+      Object.prototype.hasOwnProperty.call(
+        body,
+        "description"
+      )
+    ) {
+      updates.description =
+        cleanNullableText(
+          body.description
+        );
+    }
+
+    // =====================================================
+    // STATUS
+    // =====================================================
+
+    if (
+      Object.prototype.hasOwnProperty.call(
+        body,
+        "status"
+      )
+    ) {
+      if (
+        !ALLOWED_STATUSES.includes(
+          body.status
+        )
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Invalid task status.",
+          },
+          {
+            status:
+              400,
+          }
+        );
+      }
+
+      updates.status =
+        body.status;
+    }
+
+    // =====================================================
+    // PRIORITY
+    // =====================================================
+
+    if (
+      Object.prototype.hasOwnProperty.call(
+        body,
+        "priority"
+      )
+    ) {
+      if (
+        !ALLOWED_PRIORITIES.includes(
+          body.priority
+        )
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Invalid task priority.",
+          },
+          {
+            status:
+              400,
+          }
+        );
+      }
+
+      updates.priority =
+        body.priority;
+    }
+
+    // =====================================================
+    // DUE DATE
+    // =====================================================
+
+    if (
+      Object.prototype.hasOwnProperty.call(
+        body,
+        "due_date"
+      )
+    ) {
+      const dueDate =
+        body.due_date ||
+        null;
+
+      if (
+        !isDateValue(
+          dueDate
+        )
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Task due date must use YYYY-MM-DD format.",
+          },
+          {
+            status:
+              400,
+          }
+        );
+      }
+
+      updates.due_date =
+        dueDate;
+    }
+
+    // =====================================================
+    // ASSIGNEE
+    // =====================================================
+
+    if (
+      wantsAssigneeChange
+    ) {
+      const employeeId =
+        cleanText(
+          body.assigned_employee_id
+        );
+
+      if (!employeeId) {
+        updates.assigned_employee_id =
+          null;
+      } else {
+        if (
+          !isUuid(
+            employeeId
+          )
+        ) {
+          return NextResponse.json(
+            {
+              error:
+                "The selected task assignee is not valid.",
+            },
+            {
+              status:
+                400,
+            }
+          );
+        }
+
+        const employee =
+          await validateRecordOwner({
+            supabase,
+            organizationId,
+
+            employeeId,
+          });
+
+        if (
+          !employee
+        ) {
+          return NextResponse.json(
+            {
+              error:
+                "The selected task assignee is not valid.",
+            },
+            {
+              status:
+                400,
+            }
+          );
+        }
+
+        updates.assigned_employee_id =
+          employee.id;
+      }
+    }
+
+    // =====================================================
+    // UPDATE
+    // =====================================================
+
+    const {
+      data:
+        updatedTask,
+      error:
+        updateError,
+    } =
+      await supabase
+        .from(
+          "tasks"
+        )
         .update(
-          updateValues
+          updates
         )
         .eq(
           "id",
@@ -842,81 +804,34 @@ export async function PATCH(
         )
         .eq(
           "organization_id",
-          access.employee
-            .organization_id
-        );
+          organizationId
+        )
+        .select()
+        .single();
 
     if (
-      !access.employee
-        .is_organization_owner
+      updateError
     ) {
-      updateQuery =
-        updateQuery.eq(
-          "assigned_employee_id",
-          access.employee.id
-        );
-    }
-
-    const {
-      data: task,
-      error,
-    } =
-      await updateQuery
-        .select()
-        .maybeSingle();
-
-    if (error) {
       throw new Error(
-        error.message
+        updateError.message
       );
     }
 
-    if (!task) {
-      return NextResponse.json(
-        {
-          error:
-            "Task could not be updated.",
-        },
-        {
-          status: 404,
-        }
-      );
-    }
+    const formattedTask =
+      await enrichTask({
+        supabase,
+        organizationId,
 
-    // =====================================================
-    // ACTIVITY / AUDIT LOG
-    // =====================================================
-
-    await writeTaskActivity({
-      supabase:
-        access.supabase,
-
-      organizationId:
-        access.employee
-          .organization_id,
-
-      employeeId:
-        access.employee.id,
-
-      taskId:
-        id,
-
-      existingTask,
-
-      updatedTask:
-        task,
-
-      fields:
-        editableFields,
-    });
+        task:
+          updatedTask,
+      });
 
     return NextResponse.json({
-      task,
+      task:
+        formattedTask,
 
       message:
-        assignmentWasProvided
-          ? "Task updated and assignment saved successfully."
-          : "Task updated successfully.",
+        "Task updated successfully.",
     });
   } catch (error) {
     console.error(
@@ -932,7 +847,6 @@ export async function PATCH(
       },
       {
         status:
-          error.status ||
           500,
       }
     );
@@ -964,7 +878,8 @@ export async function DELETE(
             "A valid task ID is required.",
         },
         {
-          status: 400,
+          status:
+            400,
         }
       );
     }
@@ -987,90 +902,90 @@ export async function DELETE(
       );
     }
 
-    const {
-      data:
-        existingTask,
-      error:
-        existingTaskError,
-    } =
-      await buildTaskAccessQuery({
-        supabase:
-          access.supabase,
-
-        organizationId:
-          access.employee
-            .organization_id,
-
-        employee:
-          access.employee,
-
-        taskId:
-          id,
-      }).maybeSingle();
+    const permissions =
+      getPermissions(
+        access
+      );
 
     if (
-      existingTaskError
+      !permissions.canDelete
     ) {
-      throw new Error(
-        existingTaskError.message
+      return forbidden(
+        "You do not have permission to delete tasks."
       );
     }
 
-    if (
-      !existingTask
-    ) {
+    const supabase =
+      createAdminSupabaseClient();
+
+    const organizationId =
+      access.employee
+        .organization_id;
+
+    const task =
+      await loadTask({
+        supabase,
+        organizationId,
+
+        taskId:
+          id,
+      });
+
+    if (!task) {
       return NextResponse.json(
         {
           error:
-            "Task not found or you do not have permission to delete it.",
+            "Task not found.",
         },
         {
-          status: 404,
+          status:
+            404,
         }
       );
     }
 
-    /*
-     * Remove associated task history first.
-     * Current task_activity relationship does not
-     * use ON DELETE CASCADE.
-     */
+    const visible =
+      await canAccessTask({
+        supabase,
+        access,
+        permissions,
+        task,
+      });
 
-    const {
-      error:
-        activityDeleteError,
-    } =
-      await access.supabase
-        .from(
-          "task_activity"
-        )
-        .delete()
-        .eq(
-          "organization_id",
-          access.employee
-            .organization_id
-        )
-        .eq(
-          "task_id",
-          id
-        );
-
-    if (
-      activityDeleteError
-    ) {
-      console.error(
-        "Task activity cleanup error:",
-        activityDeleteError
+    if (!visible) {
+      return forbidden(
+        "You do not have permission to delete this task."
       );
     }
 
-    // =====================================================
-    // DELETE TASK
-    // =====================================================
+    /*
+     * Workflow-created tasks are audit-linked records.
+     * We keep them and allow completion/cancellation rather
+     * than silently destroying workflow history.
+     */
+    if (
+      task.workflow_run_id
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Workflow-created tasks cannot be deleted. Mark the task Completed or Cancelled instead.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
 
-    let deleteQuery =
-      access.supabase
-        .from("tasks")
+    const {
+      error:
+        deleteError,
+    } =
+      await supabase
+        .from(
+          "tasks"
+        )
         .delete()
         .eq(
           "id",
@@ -1078,53 +993,19 @@ export async function DELETE(
         )
         .eq(
           "organization_id",
-          access.employee
-            .organization_id
+          organizationId
         );
 
     if (
-      !access.employee
-        .is_organization_owner
+      deleteError
     ) {
-      deleteQuery =
-        deleteQuery.eq(
-          "assigned_employee_id",
-          access.employee.id
-        );
-    }
-
-    const {
-      data,
-      error,
-    } =
-      await deleteQuery
-        .select();
-
-    if (error) {
       throw new Error(
-        error.message
-      );
-    }
-
-    if (
-      !data ||
-      data.length ===
-        0
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "Task could not be deleted.",
-        },
-        {
-          status: 404,
-        }
+        deleteError.message
       );
     }
 
     return NextResponse.json({
-      task:
-        data[0],
+      task,
 
       message:
         "Task deleted successfully.",
@@ -1143,7 +1024,6 @@ export async function DELETE(
       },
       {
         status:
-          error.status ||
           500,
       }
     );
