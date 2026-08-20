@@ -1,354 +1,603 @@
-import { NextResponse } from "next/server";
-import { supabase } from "../../../../../lib/supabase";
+import {
+  NextResponse,
+} from "next/server";
 
-const ORGANIZATION_ID =
-  "9d5bbb05-866b-4c38-b2ac-3019e7cf88e5";
+import {
+  getServerAccess,
+} from "../../../../../lib/serverAccess";
 
-function normalise(value) {
-  return String(value || "")
+import {
+  createAdminSupabaseClient,
+} from "../../../../../lib/supabaseAdmin";
+
+import {
+  canViewOwnedRecord,
+  getRecordPermissions,
+} from "../../../../../lib/recordAccess";
+
+// =========================================================
+// HELPERS
+// =========================================================
+
+function isUuid(
+  value
+) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    String(
+      value ||
+        ""
+    )
+  );
+}
+
+function normalise(
+  value
+) {
+  return String(
+    value ||
+      ""
+  )
     .trim()
     .toLowerCase();
 }
 
-function getCustomerName(quote) {
-  const contact = String(
-    quote.contact || ""
-  ).trim();
+function getCustomerName(
+  quote
+) {
+  const contact =
+    String(
+      quote.contact ||
+        ""
+    ).trim();
 
-  const client = String(
-    quote.client || ""
-  ).trim();
+  const client =
+    String(
+      quote.client ||
+        ""
+    ).trim();
 
-  return contact || client || "Customer";
+  return (
+    contact ||
+    client ||
+    "Customer"
+  );
 }
 
-export async function POST(request, context) {
-  try {
-    const { id } = await context.params;
-
-    if (!id) {
-      return NextResponse.json(
-        {
-          error: "Quote ID is required.",
-        },
-        {
-          status: 400,
-        }
-      );
+function forbidden(
+  message
+) {
+  return NextResponse.json(
+    {
+      error:
+        message,
+    },
+    {
+      status:
+        403,
     }
+  );
+}
 
-    /*
-     * Load the quote that is being converted.
-     */
+// =========================================================
+// POST
+// QUOTE -> CUSTOMER
+// =========================================================
+
+export async function POST(
+  request,
+  context
+) {
+  try {
     const {
-      data: quote,
-      error: quoteError,
-    } = await supabase
-      .from("quotes")
-      .select("*")
-      .eq("id", id)
-      .eq(
-        "organization_id",
-        ORGANIZATION_ID
-      )
-      .single();
+      id,
+    } =
+      await context.params;
 
-    if (quoteError || !quote) {
+    if (
+      !isUuid(
+        id
+      )
+    ) {
       return NextResponse.json(
         {
           error:
-            quoteError?.message ||
-            "Quote not found.",
+            "A valid quote ID is required.",
         },
         {
-          status: 404,
+          status:
+            400,
         }
       );
     }
 
+    // =====================================================
+    // ACCESS
+    // =====================================================
+
+    const access =
+      await getServerAccess();
+
+    if (
+      !access.employee
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            access.error,
+        },
+        {
+          status:
+            access.status,
+        }
+      );
+    }
+
+    const quotePermissions =
+      getRecordPermissions(
+        access,
+        {
+          prefix:
+            "quotes",
+
+          module:
+            "Quotes",
+        }
+      );
+
+    const customerPermissions =
+      getRecordPermissions(
+        access,
+        {
+          prefix:
+            "customers",
+
+          module:
+            "Customers",
+        }
+      );
+
     /*
-     * If this quote already has a customer ID,
-     * return the linked customer.
+     * Converting a quote creates/links a customer and changes
+     * the quote, so both sides of the operation are secured.
      */
-    if (quote.customer_id) {
-      const {
-        data: linkedCustomer,
-        error: linkedCustomerError,
-      } = await supabase
-        .from("customers")
+    const canConvertQuote =
+      quotePermissions.canConvert ||
+      quotePermissions.canEdit;
+
+    if (
+      !canConvertQuote
+    ) {
+      return forbidden(
+        "You do not have permission to convert quotes."
+      );
+    }
+
+    if (
+      !customerPermissions.canCreate
+    ) {
+      return forbidden(
+        "You do not have permission to create customers."
+      );
+    }
+
+    const supabase =
+      createAdminSupabaseClient();
+
+    const organizationId =
+      access.employee
+        .organization_id;
+
+    // =====================================================
+    // QUOTE
+    // =====================================================
+
+    const {
+      data:
+        quote,
+      error:
+        quoteError,
+    } =
+      await supabase
+        .from(
+          "quotes"
+        )
         .select("*")
         .eq(
           "id",
-          quote.customer_id
+          id
         )
         .eq(
           "organization_id",
-          ORGANIZATION_ID
+          organizationId
         )
         .maybeSingle();
 
+    if (
+      quoteError
+    ) {
+      throw new Error(
+        quoteError.message
+      );
+    }
+
+    if (
+      !quote
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Quote not found.",
+        },
+        {
+          status:
+            404,
+        }
+      );
+    }
+
+    // =====================================================
+    // RECORD VISIBILITY
+    // =====================================================
+
+    const visible =
+      await canViewOwnedRecord({
+        supabase,
+        access,
+
+        permissions:
+          quotePermissions,
+
+        record:
+          quote,
+      });
+
+    if (
+      !visible
+    ) {
+      return forbidden(
+        "You do not have permission to convert this quote."
+      );
+    }
+
+    // =====================================================
+    // ALREADY LINKED
+    // =====================================================
+
+    if (
+      quote.customer_id
+    ) {
+      const {
+        data:
+          linkedCustomer,
+        error:
+          linkedCustomerError,
+      } =
+        await supabase
+          .from(
+            "customers"
+          )
+          .select("*")
+          .eq(
+            "id",
+            quote.customer_id
+          )
+          .eq(
+            "organization_id",
+            organizationId
+          )
+          .maybeSingle();
+
       if (
-        !linkedCustomerError &&
+        linkedCustomerError
+      ) {
+        throw new Error(
+          linkedCustomerError.message
+        );
+      }
+
+      if (
         linkedCustomer
       ) {
         return NextResponse.json({
           message:
             "Quote is already linked to this customer.",
 
-          alreadyExisted: true,
+          alreadyExisted:
+            true,
 
-          customer: linkedCustomer,
+          customer:
+            linkedCustomer,
 
           quote,
         });
       }
-
-      /*
-       * The quote contains a customer ID, but
-       * that customer no longer exists.
-       * Continue and create or find a valid one.
-       */
-      console.warn(
-        "Quote contains an invalid customer_id:",
-        quote.customer_id
-      );
     }
 
-    /*
-     * A lead ID is required because your
-     * customers table uses lead_id for the
-     * Lead → Quote → Customer relationship.
-     */
-    if (!quote.lead_id) {
+    // =====================================================
+    // LEAD REQUIREMENT
+    // =====================================================
+
+    if (
+      !quote.lead_id
+    ) {
       return NextResponse.json(
         {
           error:
             "This quote is not linked to a lead. Please confirm that the quote contains the original lead_id before converting it to a customer.",
         },
         {
-          status: 400,
+          status:
+            400,
         }
       );
     }
 
-    /*
-     * Search for an existing customer.
-     *
-     * Important:
-     * We only match using lead_id or email.
-     * We do not match using company name alone,
-     * because one company can have several
-     * different contacts.
-     */
+    // =====================================================
+    // EXISTING CUSTOMER
+    // =====================================================
+
     const {
-      data: customers,
-      error: customersError,
-    } = await supabase
-      .from("customers")
-      .select("*")
-      .eq(
-        "organization_id",
-        ORGANIZATION_ID
-      );
-
-    if (customersError) {
-      console.error(
-        "Customer search error:",
-        customersError
-      );
-
-      return NextResponse.json(
-        {
-          error:
-            customersError.message ||
-            "Failed to search customers.",
-        },
-        {
-          status: 500,
-        }
-      );
-    }
-
-    const quoteEmail = normalise(
-      quote.email
-    );
-
-    const existingCustomer = (
-      customers || []
-    ).find((customer) => {
-      const sameLead =
-        Boolean(quote.lead_id) &&
-        Boolean(customer.lead_id) &&
-        String(customer.lead_id) ===
-          String(quote.lead_id);
-
-      const customerEmail = normalise(
-        customer.email
-      );
-
-      const sameEmail =
-        Boolean(quoteEmail) &&
-        Boolean(customerEmail) &&
-        customerEmail === quoteEmail;
-
-      return sameLead || sameEmail;
-    });
-
-    let customer =
-      existingCustomer || null;
-
-    let alreadyExisted =
-      Boolean(existingCustomer);
-
-    /*
-     * Create a new customer when no matching
-     * lead ID or email address exists.
-     */
-    if (!customer) {
-      const customerPayload = {
-        lead_id: quote.lead_id,
-
-        customer_name:
-          getCustomerName(quote),
-
-        company: String(
-          quote.client || ""
-        ).trim(),
-
-        email: String(
-          quote.email || ""
-        ).trim(),
-
-        phone: String(
-          quote.phone || ""
-        ).trim(),
-
-        status: "Active",
-
-        organization_id:
-          ORGANIZATION_ID,
-      };
-
-      const {
-        data: createdCustomer,
-        error: customerCreateError,
-      } = await supabase
-        .from("customers")
-        .insert([customerPayload])
-        .select()
-        .single();
-
-      if (
-        customerCreateError ||
-        !createdCustomer
-      ) {
-        console.error(
-          "Customer creation error:",
-          customerCreateError
+      data:
+        customers,
+      error:
+        customersError,
+    } =
+      await supabase
+        .from(
+          "customers"
+        )
+        .select("*")
+        .eq(
+          "organization_id",
+          organizationId
         );
 
-        return NextResponse.json(
-          {
-            error:
-              customerCreateError?.message ||
-              "Failed to create customer.",
-          },
-          {
-            status: 500,
-          }
+    if (
+      customersError
+    ) {
+      throw new Error(
+        customersError.message
+      );
+    }
+
+    const quoteEmail =
+      normalise(
+        quote.email
+      );
+
+    const existingCustomer =
+      (
+        customers ||
+        []
+      ).find(
+        (
+          customer
+        ) => {
+          const sameLead =
+            Boolean(
+              quote.lead_id
+            ) &&
+            Boolean(
+              customer.lead_id
+            ) &&
+            String(
+              customer.lead_id
+            ) ===
+              String(
+                quote.lead_id
+              );
+
+          const customerEmail =
+            normalise(
+              customer.email
+            );
+
+          const sameEmail =
+            Boolean(
+              quoteEmail
+            ) &&
+            Boolean(
+              customerEmail
+            ) &&
+            customerEmail ===
+              quoteEmail;
+
+          return (
+            sameLead ||
+            sameEmail
+          );
+        }
+      );
+
+    let customer =
+      existingCustomer ||
+      null;
+
+    let alreadyExisted =
+      Boolean(
+        existingCustomer
+      );
+
+    // =====================================================
+    // CREATE CUSTOMER
+    // =====================================================
+
+    if (
+      !customer
+    ) {
+      /*
+       * The customer inherits the quote owner.
+       *
+       * Older unassigned quotes fall back to the employee
+       * performing the conversion.
+       */
+      const ownerEmployeeId =
+        quote.owner_employee_id ||
+        access.employee.id;
+
+      const {
+        data:
+          createdCustomer,
+        error:
+          customerCreateError,
+      } =
+        await supabase
+          .from(
+            "customers"
+          )
+          .insert([
+            {
+              lead_id:
+                quote.lead_id,
+
+              customer_name:
+                getCustomerName(
+                  quote
+                ),
+
+              company:
+                String(
+                  quote.client ||
+                    ""
+                ).trim(),
+
+              email:
+                String(
+                  quote.email ||
+                    ""
+                ).trim(),
+
+              phone:
+                String(
+                  quote.phone ||
+                    ""
+                ).trim(),
+
+              status:
+                "Active",
+
+              organization_id:
+                organizationId,
+
+              owner_employee_id:
+                ownerEmployeeId,
+            },
+          ])
+          .select()
+          .single();
+
+      if (
+        customerCreateError
+      ) {
+        throw new Error(
+          customerCreateError.message
         );
       }
 
-      customer = createdCustomer;
-      alreadyExisted = false;
+      customer =
+        createdCustomer;
+
+      alreadyExisted =
+        false;
     }
 
-    /*
-     * Link the quote to the customer and set
-     * the quote status to Accepted.
-     */
+    // =====================================================
+    // LINK QUOTE
+    // =====================================================
+
     const {
-      data: updatedQuote,
-      error: quoteUpdateError,
-    } = await supabase
-      .from("quotes")
-      .update({
-        customer_id: customer.id,
-        status: "Accepted",
-        updated_at:
-          new Date().toISOString(),
-      })
-      .eq("id", quote.id)
-      .eq(
-        "organization_id",
-        ORGANIZATION_ID
-      )
-      .select()
-      .single();
+      data:
+        updatedQuote,
+      error:
+        quoteUpdateError,
+    } =
+      await supabase
+        .from(
+          "quotes"
+        )
+        .update({
+          customer_id:
+            customer.id,
+
+          status:
+            "Accepted",
+
+          updated_at:
+            new Date()
+              .toISOString(),
+        })
+        .eq(
+          "id",
+          quote.id
+        )
+        .eq(
+          "organization_id",
+          organizationId
+        )
+        .select()
+        .single();
 
     if (
-      quoteUpdateError ||
-      !updatedQuote
+      quoteUpdateError
     ) {
-      console.error(
-        "Quote linking error:",
-        quoteUpdateError
-      );
-
       /*
-       * If this request created a brand-new
-       * customer but failed to link the quote,
-       * remove that customer to avoid leaving
-       * an incomplete customer record.
+       * Roll back a newly-created customer if the quote
+       * cannot be linked.
        */
       if (
         !alreadyExisted &&
         customer?.id
       ) {
         const {
-          error: cleanupError,
-        } = await supabase
-          .from("customers")
-          .delete()
-          .eq("id", customer.id)
-          .eq(
-            "organization_id",
-            ORGANIZATION_ID
-          );
+          error:
+            cleanupError,
+        } =
+          await supabase
+            .from(
+              "customers"
+            )
+            .delete()
+            .eq(
+              "id",
+              customer.id
+            )
+            .eq(
+              "organization_id",
+              organizationId
+            );
 
-        if (cleanupError) {
+        if (
+          cleanupError
+        ) {
           console.error(
-            "Customer cleanup error:",
+            "Customer conversion rollback error:",
             cleanupError
           );
         }
       }
 
-      return NextResponse.json(
-        {
-          error:
-            "The customer could not be linked to the quote: " +
-            (quoteUpdateError?.message ||
-              "Unknown database error."),
-        },
-        {
-          status: 500,
-        }
+      throw new Error(
+        "The customer could not be linked to the quote: " +
+          quoteUpdateError.message
       );
     }
 
     return NextResponse.json({
-      message: alreadyExisted
-        ? "Existing customer linked successfully."
-        : "Customer created and linked successfully.",
+      message:
+        alreadyExisted
+          ? "Existing customer linked successfully."
+          : "Customer created and linked successfully.",
 
       alreadyExisted,
 
       customer,
 
-      quote: updatedQuote,
+      quote:
+        updatedQuote,
     });
-  } catch (error) {
+  } catch (
+    error
+  ) {
     console.error(
       "Quote conversion error:",
       error
@@ -361,7 +610,8 @@ export async function POST(request, context) {
           "Failed to convert quote to customer.",
       },
       {
-        status: 500,
+        status:
+          500,
       }
     );
   }
