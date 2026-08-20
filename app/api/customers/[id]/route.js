@@ -15,12 +15,68 @@ import {
   buildClientAccess,
   canViewOwnedRecord,
   getRecordPermissions,
+  getTeamEmployeeIds,
   loadAssignableEmployees,
   validateRecordOwner,
 } from "../../../../lib/recordAccess";
 
 // =========================================================
-// HELPERS
+// MODULE CONFIG
+// =========================================================
+
+const RELATED_MODULES = {
+  leads: {
+    table: "leads",
+    prefix: "leads",
+    module: "Leads",
+    ownerField: "owner_employee_id",
+  },
+
+  quotes: {
+    table: "quotes",
+    prefix: "quotes",
+    module: "Quotes",
+    ownerField: "owner_employee_id",
+  },
+
+  proposals: {
+    table: "proposals",
+    prefix: "proposals",
+    module: "Proposals",
+    ownerField: "owner_employee_id",
+  },
+
+  projects: {
+    table: "projects",
+    prefix: "projects",
+    module: "Projects",
+    ownerField: "owner_employee_id",
+  },
+
+  tasks: {
+    table: "tasks",
+    prefix: "tasks",
+    module: "Tasks",
+    ownerField: "assigned_employee_id",
+  },
+
+  invoices: {
+    table: "invoices",
+    prefix: "invoices",
+    module: "Invoices",
+    ownerField: "owner_employee_id",
+  },
+
+  followUps: {
+    table: "follow_ups",
+    prefix: "followups",
+    module: "Follow-ups",
+    ownerField: "assigned_employee_id",
+  },
+};
+
+// =========================================================
+// BASIC HELPERS
 // =========================================================
 
 function isUuid(value) {
@@ -62,16 +118,23 @@ function forbidden(message) {
   );
 }
 
-function getPermissions(access) {
+function getCustomerPermissions(access) {
   return getRecordPermissions(
     access,
     {
-      prefix:
-        "customers",
-
-      module:
-        "Customers",
+      prefix: "customers",
+      module: "Customers",
     }
+  );
+}
+
+function canViewModule(
+  permissions
+) {
+  return Boolean(
+    permissions.canViewAll ||
+      permissions.canViewTeam ||
+      permissions.canViewOwn
   );
 }
 
@@ -100,16 +163,13 @@ function parseMoney(value) {
   }
 
   const cleaned =
-    String(value)
-      .replace(
-        /[^0-9.-]/g,
-        ""
-      );
+    String(value).replace(
+      /[^0-9.-]/g,
+      ""
+    );
 
   const number =
-    Number(
-      cleaned
-    );
+    Number(cleaned);
 
   return Number.isFinite(
     number
@@ -151,8 +211,8 @@ function matchesEmail(
 
   return Boolean(
     a &&
-    b &&
-    a === b
+      b &&
+      a === b
   );
 }
 
@@ -168,8 +228,8 @@ function matchesCompany(
 
   return Boolean(
     a &&
-    b &&
-    a === b
+      b &&
+      a === b
   );
 }
 
@@ -239,9 +299,7 @@ function taskMatchesCustomer({
   relatedProjectIds,
   relatedQuoteIds,
 }) {
-  if (
-    !task
-  ) {
+  if (!task) {
     return false;
   }
 
@@ -249,6 +307,17 @@ function taskMatchesCustomer({
     sameId(
       task.customer_id,
       customer.id
+    )
+  ) {
+    return true;
+  }
+
+  if (
+    task.project_id &&
+    relatedProjectIds.has(
+      String(
+        task.project_id
+      )
     )
   ) {
     return true;
@@ -305,6 +374,127 @@ function taskMatchesCustomer({
 }
 
 // =========================================================
+// RBAC RELATED MODULE LOADER
+// =========================================================
+
+async function loadVisibleRecords({
+  supabase,
+  access,
+  config,
+}) {
+  const permissions =
+    getRecordPermissions(
+      access,
+      {
+        prefix:
+          config.prefix,
+
+        module:
+          config.module,
+      }
+    );
+
+  if (
+    !canViewModule(
+      permissions
+    )
+  ) {
+    return {
+      records: [],
+      permissions,
+    };
+  }
+
+  const organizationId =
+    access.employee
+      .organization_id;
+
+  let query =
+    supabase
+      .from(
+        config.table
+      )
+      .select("*")
+      .eq(
+        "organization_id",
+        organizationId
+      );
+
+  // =======================================================
+  // TEAM
+  // =======================================================
+
+  if (
+    !permissions.canViewAll &&
+    permissions.canViewTeam
+  ) {
+    const teamEmployeeIds =
+      await getTeamEmployeeIds({
+        supabase,
+
+        employee:
+          access.employee,
+      });
+
+    if (
+      !teamEmployeeIds ||
+      teamEmployeeIds.length ===
+        0
+    ) {
+      return {
+        records: [],
+        permissions,
+      };
+    }
+
+    query =
+      query.in(
+        config.ownerField,
+        teamEmployeeIds
+      );
+  }
+
+  // =======================================================
+  // OWN
+  // =======================================================
+
+  else if (
+    !permissions.canViewAll &&
+    permissions.canViewOwn
+  ) {
+    query =
+      query.eq(
+        config.ownerField,
+        access.employee.id
+      );
+  }
+
+  const {
+    data,
+    error,
+  } =
+    await query.order(
+      "created_at",
+      {
+        ascending: false,
+      }
+    );
+
+  if (error) {
+    throw new Error(
+      error.message
+    );
+  }
+
+  return {
+    records:
+      data || [],
+
+    permissions,
+  };
+}
+
+// =========================================================
 // EMPLOYEE ENRICHMENT
 // =========================================================
 
@@ -320,11 +510,8 @@ async function attachTaskEmployees({
         []
       )
         .map(
-          (
-            task
-          ) =>
-            task.assigned_employee_id ||
-            task.owner_employee_id
+          (task) =>
+            task.assigned_employee_id
         )
         .filter(Boolean)
     ),
@@ -338,9 +525,7 @@ async function attachTaskEmployees({
       tasks ||
       []
     ).map(
-      (
-        task
-      ) => ({
+      (task) => ({
         ...task,
 
         assigned_employee:
@@ -356,14 +541,13 @@ async function attachTaskEmployees({
   } =
     await supabase
       .from("employees")
-      .select(
-        `
-          id,
-          full_name,
-          email,
-          job_title
-        `
-      )
+      .select(`
+        id,
+        full_name,
+        email,
+        job_title,
+        department_id
+      `)
       .eq(
         "organization_id",
         organizationId
@@ -385,9 +569,7 @@ async function attachTaskEmployees({
         employeeRows ||
         []
       ).map(
-        (
-          employee
-        ) => [
+        (employee) => [
           employee.id,
           employee,
         ]
@@ -398,17 +580,116 @@ async function attachTaskEmployees({
     tasks ||
     []
   ).map(
-    (
-      task
-    ) => ({
+    (task) => ({
       ...task,
 
       assigned_employee:
-        employeeMap.get(
-          task.assigned_employee_id ||
-            task.owner_employee_id
-        ) ||
-        null,
+        task.assigned_employee_id
+          ? employeeMap.get(
+              task.assigned_employee_id
+            ) ||
+            null
+          : null,
+    })
+  );
+}
+
+// =========================================================
+// FOLLOW-UP EMPLOYEE ENRICHMENT
+// =========================================================
+
+async function attachFollowUpEmployees({
+  supabase,
+  organizationId,
+  followUps,
+}) {
+  const employeeIds = [
+    ...new Set(
+      (
+        followUps ||
+        []
+      )
+        .map(
+          (followUp) =>
+            followUp.assigned_employee_id
+        )
+        .filter(Boolean)
+    ),
+  ];
+
+  if (
+    employeeIds.length ===
+    0
+  ) {
+    return (
+      followUps ||
+      []
+    ).map(
+      (followUp) => ({
+        ...followUp,
+
+        assigned_employee:
+          null,
+      })
+    );
+  }
+
+  const {
+    data:
+      employees,
+    error,
+  } =
+    await supabase
+      .from("employees")
+      .select(`
+        id,
+        full_name,
+        email,
+        job_title,
+        department_id
+      `)
+      .eq(
+        "organization_id",
+        organizationId
+      )
+      .in(
+        "id",
+        employeeIds
+      );
+
+  if (error) {
+    throw new Error(
+      error.message
+    );
+  }
+
+  const employeeMap =
+    new Map(
+      (
+        employees ||
+        []
+      ).map(
+        (employee) => [
+          employee.id,
+          employee,
+        ]
+      )
+    );
+
+  return (
+    followUps ||
+    []
+  ).map(
+    (followUp) => ({
+      ...followUp,
+
+      assigned_employee:
+        followUp.assigned_employee_id
+          ? employeeMap.get(
+              followUp.assigned_employee_id
+            ) ||
+            null
+          : null,
     })
   );
 }
@@ -423,16 +704,13 @@ function buildSummary({
   projects,
   tasks,
   invoices,
-  followUps,
 }) {
   const activeProjects =
     (
       projects ||
       []
     ).filter(
-      (
-        project
-      ) => {
+      (project) => {
         const status =
           normalise(
             project.status
@@ -456,9 +734,7 @@ function buildSummary({
       tasks ||
       []
     ).filter(
-      (
-        task
-      ) => {
+      (task) => {
         const status =
           normalise(
             task.status
@@ -482,9 +758,7 @@ function buildSummary({
       invoices ||
       []
     ).filter(
-      (
-        invoice
-      ) => {
+      (invoice) => {
         const status =
           normalise(
             invoice.status
@@ -501,7 +775,8 @@ function buildSummary({
       }
     );
 
-  const recommendations = [];
+  const recommendations =
+    [];
 
   if (
     quotes.length ===
@@ -550,21 +825,22 @@ function buildSummary({
 
   return {
     headline:
-      `${customer.customer_name || "Customer"} has ${quotes.length} quote${
-        quotes.length === 1
+      `${customer.customer_name || "Customer"} has ${quotes.length} visible quote${
+        quotes.length ===
+        1
           ? ""
           : "s"
-      }, ${activeProjects.length} active project${
+      }, ${activeProjects.length} visible active project${
         activeProjects.length ===
         1
           ? ""
           : "s"
-      }, ${pendingTasks.length} open task${
+      }, ${pendingTasks.length} visible open task${
         pendingTasks.length ===
         1
           ? ""
           : "s"
-      } and ${outstandingInvoices.length} outstanding invoice${
+      } and ${outstandingInvoices.length} visible outstanding invoice${
         outstandingInvoices.length ===
         1
           ? ""
@@ -626,7 +902,7 @@ export async function GET(
     }
 
     const permissions =
-      getPermissions(
+      getCustomerPermissions(
         access
       );
 
@@ -658,9 +934,7 @@ export async function GET(
         customerError,
     } =
       await supabase
-        .from(
-          "customers"
-        )
+        .from("customers")
         .select("*")
         .eq(
           "id",
@@ -680,9 +954,7 @@ export async function GET(
       );
     }
 
-    if (
-      !customer
-    ) {
+    if (!customer) {
       return NextResponse.json(
         {
           error:
@@ -694,22 +966,17 @@ export async function GET(
       );
     }
 
-    // =====================================================
-    // RECORD VISIBILITY
-    // =====================================================
-
     const visible =
       await canViewOwnedRecord({
         supabase,
         access,
         permissions,
+
         record:
           customer,
       });
 
-    if (
-      !visible
-    ) {
+    if (!visible) {
       return forbidden(
         "You do not have permission to view this customer."
       );
@@ -719,12 +986,13 @@ export async function GET(
       await attachRecordOwner({
         supabase,
         organizationId,
+
         record:
           customer,
       });
 
     // =====================================================
-    // ORGANISATION DATA
+    // LOAD RELATED MODULES USING THEIR OWN RBAC
     // =====================================================
 
     const [
@@ -737,145 +1005,104 @@ export async function GET(
       followUpsResult,
     ] =
       await Promise.all([
-        supabase
-          .from("leads")
-          .select("*")
-          .eq(
-            "organization_id",
-            organizationId
-          ),
+        loadVisibleRecords({
+          supabase,
+          access,
 
-        supabase
-          .from("quotes")
-          .select("*")
-          .eq(
-            "organization_id",
-            organizationId
-          ),
+          config:
+            RELATED_MODULES.leads,
+        }),
 
-        supabase
-          .from(
-            "proposals"
-          )
-          .select("*")
-          .eq(
-            "organization_id",
-            organizationId
-          ),
+        loadVisibleRecords({
+          supabase,
+          access,
 
-        supabase
-          .from(
-            "projects"
-          )
-          .select("*")
-          .eq(
-            "organization_id",
-            organizationId
-          ),
+          config:
+            RELATED_MODULES.quotes,
+        }),
 
-        supabase
-          .from("tasks")
-          .select("*")
-          .eq(
-            "organization_id",
-            organizationId
-          ),
+        loadVisibleRecords({
+          supabase,
+          access,
 
-        supabase
-          .from(
-            "invoices"
-          )
-          .select("*")
-          .eq(
-            "organization_id",
-            organizationId
-          ),
+          config:
+            RELATED_MODULES.proposals,
+        }),
 
-        supabase
-          .from(
-            "follow_ups"
-          )
-          .select("*")
-          .eq(
-            "organization_id",
-            organizationId
-          ),
+        loadVisibleRecords({
+          supabase,
+          access,
+
+          config:
+            RELATED_MODULES.projects,
+        }),
+
+        loadVisibleRecords({
+          supabase,
+          access,
+
+          config:
+            RELATED_MODULES.tasks,
+        }),
+
+        loadVisibleRecords({
+          supabase,
+          access,
+
+          config:
+            RELATED_MODULES.invoices,
+        }),
+
+        loadVisibleRecords({
+          supabase,
+          access,
+
+          config:
+            RELATED_MODULES.followUps,
+        }),
       ]);
 
-    const results = [
-      leadsResult,
-      quotesResult,
-      proposalsResult,
-      projectsResult,
-      tasksResult,
-      invoicesResult,
-      followUpsResult,
-    ];
+    const visibleLeads =
+      leadsResult.records;
 
-    const firstError =
-      results.find(
-        (
-          result
-        ) =>
-          result.error
-      );
+    const visibleQuotes =
+      quotesResult.records;
 
-    if (
-      firstError?.error
-    ) {
-      throw new Error(
-        firstError.error.message
-      );
-    }
+    const visibleProposals =
+      proposalsResult.records;
 
-    const allLeads =
-      leadsResult.data ||
-      [];
+    const visibleProjects =
+      projectsResult.records;
 
-    const allQuotes =
-      quotesResult.data ||
-      [];
+    const visibleTasks =
+      tasksResult.records;
 
-    const allProposals =
-      proposalsResult.data ||
-      [];
+    const visibleInvoices =
+      invoicesResult.records;
 
-    const allProjects =
-      projectsResult.data ||
-      [];
-
-    const allTasks =
-      tasksResult.data ||
-      [];
-
-    const allInvoices =
-      invoicesResult.data ||
-      [];
-
-    const allFollowUps =
-      followUpsResult.data ||
-      [];
+    const visibleFollowUps =
+      followUpsResult.records;
 
     // =====================================================
     // LEAD
+    //
+    // Customer access does NOT automatically grant Lead
+    // access. Only a Lead already visible under Lead RBAC
+    // may be returned here.
     // =====================================================
 
     const lead =
       customer.lead_id
-        ? allLeads.find(
-            (
-              item
-            ) =>
+        ? visibleLeads.find(
+            (item) =>
               sameId(
                 item.id,
                 customer.lead_id
               )
           ) ||
           null
-        : allLeads.find(
-            (
-              item
-            ) =>
+        : visibleLeads.find(
+            (item) =>
               matchesEmail(
                 item.email,
                 customer.email
@@ -892,10 +1119,8 @@ export async function GET(
     // =====================================================
 
     const quotes =
-      allQuotes.filter(
-        (
-          quote
-        ) =>
+      visibleQuotes.filter(
+        (quote) =>
           recordMatchesCustomer({
             record:
               quote,
@@ -907,9 +1132,7 @@ export async function GET(
     const quoteIds =
       new Set(
         quotes.map(
-          (
-            quote
-          ) =>
+          (quote) =>
             String(
               quote.id
             )
@@ -921,10 +1144,8 @@ export async function GET(
     // =====================================================
 
     const proposals =
-      allProposals.filter(
-        (
-          proposal
-        ) => {
+      visibleProposals.filter(
+        (proposal) => {
           if (
             recordMatchesCustomer({
               record:
@@ -936,13 +1157,13 @@ export async function GET(
             return true;
           }
 
-          return (
+          return Boolean(
             proposal.quote_id &&
-            quoteIds.has(
-              String(
-                proposal.quote_id
+              quoteIds.has(
+                String(
+                  proposal.quote_id
+                )
               )
-            )
           );
         }
       );
@@ -952,10 +1173,8 @@ export async function GET(
     // =====================================================
 
     const projects =
-      allProjects.filter(
-        (
-          project
-        ) =>
+      visibleProjects.filter(
+        (project) =>
           recordMatchesCustomer({
             record:
               project,
@@ -967,9 +1186,7 @@ export async function GET(
     const projectIds =
       new Set(
         projects.map(
-          (
-            project
-          ) =>
+          (project) =>
             String(
               project.id
             )
@@ -978,18 +1195,21 @@ export async function GET(
 
     // =====================================================
     // TASKS
+    //
+    // Only Tasks already allowed by Tasks RBAC can reach
+    // this stage.
     // =====================================================
 
     const rawTasks =
-      allTasks.filter(
-        (
-          task
-        ) =>
+      visibleTasks.filter(
+        (task) =>
           taskMatchesCustomer({
             task,
             customer,
+
             relatedProjectIds:
               projectIds,
+
             relatedQuoteIds:
               quoteIds,
           })
@@ -999,6 +1219,7 @@ export async function GET(
       await attachTaskEmployees({
         supabase,
         organizationId,
+
         tasks:
           rawTasks,
       });
@@ -1008,10 +1229,8 @@ export async function GET(
     // =====================================================
 
     const invoices =
-      allInvoices.filter(
-        (
-          invoice
-        ) => {
+      visibleInvoices.filter(
+        (invoice) => {
           if (
             recordMatchesCustomer({
               record:
@@ -1034,35 +1253,27 @@ export async function GET(
             return true;
           }
 
-          return (
+          return Boolean(
             invoice.quote_id &&
-            quoteIds.has(
-              String(
-                invoice.quote_id
+              quoteIds.has(
+                String(
+                  invoice.quote_id
+                )
               )
-            )
           );
         }
       );
 
     // =====================================================
     // FOLLOW UPS
+    //
+    // Only Follow-ups visible under Follow-up RBAC can be
+    // returned in the Customer workspace.
     // =====================================================
 
-    const followUps =
-      allFollowUps.filter(
-        (
-          followUp
-        ) => {
-          if (
-            sameId(
-              followUp.customer_id,
-              customer.id
-            )
-          ) {
-            return true;
-          }
-
+    const rawFollowUps =
+      visibleFollowUps.filter(
+        (followUp) => {
           const relatedType =
             normalise(
               followUp.related_type
@@ -1077,6 +1288,18 @@ export async function GET(
             sameId(
               relatedId,
               customer.id
+            )
+          ) {
+            return true;
+          }
+
+          if (
+            relatedType ===
+              "lead" &&
+            lead &&
+            sameId(
+              relatedId,
+              lead.id
             )
           ) {
             return true;
@@ -1112,8 +1335,21 @@ export async function GET(
         }
       );
 
+    const followUps =
+      await attachFollowUpEmployees({
+        supabase,
+        organizationId,
+
+        followUps:
+          rawFollowUps,
+      });
+
     // =====================================================
     // FINANCIAL SUMMARY
+    //
+    // IMPORTANT:
+    // These totals use only invoices / quotes the employee
+    // is permitted to view.
     // =====================================================
 
     const totalQuoted =
@@ -1139,9 +1375,9 @@ export async function GET(
         ) =>
           total +
           parseMoney(
-            invoice.amount ||
-              invoice.total ||
-              invoice.total_amount
+            invoice.total_amount ||
+              invoice.amount ||
+              invoice.total
           ),
         0
       );
@@ -1149,9 +1385,7 @@ export async function GET(
     const paidAmount =
       invoices
         .filter(
-          (
-            invoice
-          ) =>
+          (invoice) =>
             normalise(
               invoice.status
             ) ===
@@ -1164,9 +1398,9 @@ export async function GET(
           ) =>
             total +
             parseMoney(
-              invoice.amount ||
-                invoice.total ||
-                invoice.total_amount
+              invoice.total_amount ||
+                invoice.amount ||
+                invoice.total
             ),
           0
         );
@@ -1222,11 +1456,10 @@ export async function GET(
         projects,
         tasks,
         invoices,
-        followUps,
       });
 
     // =====================================================
-    // ASSIGNABLE EMPLOYEES
+    // CUSTOMER OWNER ASSIGNMENT OPTIONS
     // =====================================================
 
     let employees = [];
@@ -1279,6 +1512,62 @@ export async function GET(
           access,
           permissions,
         }),
+
+      /*
+       * This lets the Customer frontend hide sections/actions
+       * later if we want to make each related panel explicitly
+       * permission-aware.
+       */
+      relatedAccess: {
+        leads:
+          buildClientAccess({
+            access,
+            permissions:
+              leadsResult.permissions,
+          }),
+
+        quotes:
+          buildClientAccess({
+            access,
+            permissions:
+              quotesResult.permissions,
+          }),
+
+        proposals:
+          buildClientAccess({
+            access,
+            permissions:
+              proposalsResult.permissions,
+          }),
+
+        projects:
+          buildClientAccess({
+            access,
+            permissions:
+              projectsResult.permissions,
+          }),
+
+        tasks:
+          buildClientAccess({
+            access,
+            permissions:
+              tasksResult.permissions,
+          }),
+
+        invoices:
+          buildClientAccess({
+            access,
+            permissions:
+              invoicesResult.permissions,
+          }),
+
+        followUps:
+          buildClientAccess({
+            access,
+            permissions:
+              followUpsResult.permissions,
+          }),
+      },
     });
   } catch (error) {
     console.error(
@@ -1346,7 +1635,7 @@ export async function PATCH(
     }
 
     const permissions =
-      getPermissions(
+      getCustomerPermissions(
         access
       );
 
@@ -1368,9 +1657,7 @@ export async function PATCH(
         existingError,
     } =
       await supabase
-        .from(
-          "customers"
-        )
+        .from("customers")
         .select("*")
         .eq(
           "id",
@@ -1409,6 +1696,7 @@ export async function PATCH(
         supabase,
         access,
         permissions,
+
         record:
           existingCustomer,
       });
@@ -1440,9 +1728,7 @@ export async function PATCH(
 
     const wantsCustomerEdit =
       editableFields.some(
-        (
-          field
-        ) =>
+        (field) =>
           Object.prototype.hasOwnProperty.call(
             body,
             field
@@ -1482,7 +1768,11 @@ export async function PATCH(
       );
     }
 
-    const updateValues = {};
+    const updateValues = {
+      updated_at:
+        new Date()
+          .toISOString(),
+    };
 
     // =====================================================
     // NORMAL FIELDS
@@ -1624,7 +1914,7 @@ export async function PATCH(
         }
 
         updateValues.owner_employee_id =
-          requestedOwnerId;
+          validOwner.id;
       }
     }
 
@@ -1639,9 +1929,7 @@ export async function PATCH(
         updateError,
     } =
       await supabase
-        .from(
-          "customers"
-        )
+        .from("customers")
         .update(
           updateValues
         )
@@ -1668,6 +1956,7 @@ export async function PATCH(
       await attachRecordOwner({
         supabase,
         organizationId,
+
         record:
           updatedCustomer,
       });
@@ -1745,7 +2034,7 @@ export async function DELETE(
     }
 
     const permissions =
-      getPermissions(
+      getCustomerPermissions(
         access
       );
 
@@ -1771,9 +2060,7 @@ export async function DELETE(
         customerError,
     } =
       await supabase
-        .from(
-          "customers"
-        )
+        .from("customers")
         .select("*")
         .eq(
           "id",
@@ -1812,6 +2099,7 @@ export async function DELETE(
         supabase,
         access,
         permissions,
+
         record:
           customer,
       });
@@ -1901,9 +2189,7 @@ export async function DELETE(
         projectsResult,
         invoicesResult,
       ].find(
-        (
-          result
-        ) =>
+        (result) =>
           result.error
       );
 
@@ -1911,7 +2197,9 @@ export async function DELETE(
       relationError?.error
     ) {
       throw new Error(
-        relationError.error.message
+        relationError
+          .error
+          .message
       );
     }
 
@@ -1953,9 +2241,7 @@ export async function DELETE(
         deleteError,
     } =
       await supabase
-        .from(
-          "customers"
-        )
+        .from("customers")
         .delete()
         .eq(
           "id",
