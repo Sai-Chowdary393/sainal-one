@@ -15,6 +15,7 @@ import {
   buildClientAccess,
   canViewOwnedRecord,
   getRecordPermissions,
+  getTeamEmployeeIds,
   loadAssignableEmployees,
   validateRecordOwner,
 } from "../../../../lib/recordAccess";
@@ -71,15 +72,17 @@ function isDateValue(value) {
 function forbidden(message) {
   return NextResponse.json(
     {
-      error: message,
+      error:
+        message,
     },
     {
-      status: 403,
+      status:
+        403,
     }
   );
 }
 
-function getPermissions(access) {
+function getProjectPermissions(access) {
   return getRecordPermissions(
     access,
     {
@@ -88,6 +91,19 @@ function getPermissions(access) {
 
       module:
         "Projects",
+    }
+  );
+}
+
+function getTaskPermissions(access) {
+  return getRecordPermissions(
+    access,
+    {
+      prefix:
+        "tasks",
+
+      module:
+        "Tasks",
     }
   );
 }
@@ -120,9 +136,7 @@ async function loadProject({
       )
       .maybeSingle();
 
-  if (
-    error
-  ) {
+  if (error) {
     throw new Error(
       error.message
     );
@@ -132,19 +146,33 @@ async function loadProject({
 }
 
 // =========================================================
-// LOAD PROJECT TASKS
+// LOAD PROJECT TASKS WITH TASK RBAC
 // =========================================================
 
 async function loadProjectTasks({
   supabase,
+  access,
   organizationId,
   projectId,
 }) {
-  const {
-    data,
-    error,
-  } =
-    await supabase
+  const taskPermissions =
+    getTaskPermissions(
+      access
+    );
+
+  if (
+    !taskPermissions.canViewAll &&
+    !taskPermissions.canViewTeam &&
+    !taskPermissions.canViewOwn
+  ) {
+    return {
+      tasks: [],
+      taskPermissions,
+    };
+  }
+
+  let query =
+    supabase
       .from(
         "tasks"
       )
@@ -156,24 +184,156 @@ async function loadProjectTasks({
       .eq(
         "project_id",
         projectId
-      )
-      .order(
-        "created_at",
-        {
-          ascending:
-            true,
-        }
       );
 
   if (
-    error
+    !taskPermissions.canViewAll &&
+    taskPermissions.canViewTeam
+  ) {
+    const teamIds =
+      await getTeamEmployeeIds({
+        supabase,
+        employee:
+          access.employee,
+      });
+
+    query =
+      query.in(
+        "assigned_employee_id",
+        teamIds
+      );
+  } else if (
+    !taskPermissions.canViewAll &&
+    taskPermissions.canViewOwn
+  ) {
+    query =
+      query.eq(
+        "assigned_employee_id",
+        access.employee.id
+      );
+  }
+
+  const {
+    data:
+      taskRows,
+    error:
+      taskError,
+  } =
+    await query.order(
+      "created_at",
+      {
+        ascending:
+          true,
+      }
+    );
+
+  if (
+    taskError
   ) {
     throw new Error(
-      error.message
+      taskError.message
     );
   }
 
-  return data || [];
+  const employeeIds = [
+    ...new Set(
+      (
+        taskRows ||
+        []
+      )
+        .map(
+          (
+            task
+          ) =>
+            task.assigned_employee_id
+        )
+        .filter(Boolean)
+    ),
+  ];
+
+  let employeeMap =
+    new Map();
+
+  if (
+    employeeIds.length >
+    0
+  ) {
+    const {
+      data:
+        taskEmployees,
+      error:
+        taskEmployeesError,
+    } =
+      await supabase
+        .from(
+          "employees"
+        )
+        .select(
+          `
+            id,
+            full_name,
+            email,
+            job_title,
+            department_id
+          `
+        )
+        .eq(
+          "organization_id",
+          organizationId
+        )
+        .in(
+          "id",
+          employeeIds
+        );
+
+    if (
+      taskEmployeesError
+    ) {
+      throw new Error(
+        taskEmployeesError.message
+      );
+    }
+
+    employeeMap =
+      new Map(
+        (
+          taskEmployees ||
+          []
+        ).map(
+          (
+            employee
+          ) => [
+            employee.id,
+            employee,
+          ]
+        )
+      );
+  }
+
+  const tasks =
+    (
+      taskRows ||
+      []
+    ).map(
+      (
+        task
+      ) => ({
+        ...task,
+
+        assigned_employee:
+          task.assigned_employee_id
+            ? employeeMap.get(
+                task.assigned_employee_id
+              ) ||
+              null
+            : null,
+      })
+    );
+
+  return {
+    tasks,
+    taskPermissions,
+  };
 }
 
 // =========================================================
@@ -191,9 +351,7 @@ export async function GET(
       await context.params;
 
     if (
-      !isUuid(
-        id
-      )
+      !isUuid(id)
     ) {
       return NextResponse.json(
         {
@@ -201,7 +359,8 @@ export async function GET(
             "A valid project ID is required.",
         },
         {
-          status: 400,
+          status:
+            400,
         }
       );
     }
@@ -224,15 +383,15 @@ export async function GET(
       );
     }
 
-    const permissions =
-      getPermissions(
+    const projectPermissions =
+      getProjectPermissions(
         access
       );
 
     if (
-      !permissions.canViewAll &&
-      !permissions.canViewTeam &&
-      !permissions.canViewOwn
+      !projectPermissions.canViewAll &&
+      !projectPermissions.canViewTeam &&
+      !projectPermissions.canViewOwn
     ) {
       return forbidden(
         "You do not have permission to view projects."
@@ -250,21 +409,19 @@ export async function GET(
       await loadProject({
         supabase,
         organizationId,
-
         projectId:
           id,
       });
 
-    if (
-      !project
-    ) {
+    if (!project) {
       return NextResponse.json(
         {
           error:
             "Project not found.",
         },
         {
-          status: 404,
+          status:
+            404,
         }
       );
     }
@@ -273,14 +430,13 @@ export async function GET(
       await canViewOwnedRecord({
         supabase,
         access,
-        permissions,
+        permissions:
+          projectPermissions,
         record:
           project,
       });
 
-    if (
-      !visible
-    ) {
+    if (!visible) {
       return forbidden(
         "You do not have permission to view this project."
       );
@@ -295,14 +451,17 @@ export async function GET(
       });
 
     // =====================================================
-    // TASKS
+    // TASKS WITH TASK RBAC
     // =====================================================
 
-    const tasks =
+    const {
+      tasks,
+      taskPermissions,
+    } =
       await loadProjectTasks({
         supabase,
+        access,
         organizationId,
-
         projectId:
           id,
       });
@@ -311,8 +470,7 @@ export async function GET(
     // CUSTOMER
     // =====================================================
 
-    let customer =
-      null;
+    let customer = null;
 
     if (
       project.customer_id
@@ -345,9 +503,7 @@ export async function GET(
           )
           .maybeSingle();
 
-      if (
-        error
-      ) {
+      if (error) {
         throw new Error(
           error.message
         );
@@ -362,8 +518,7 @@ export async function GET(
     // QUOTE
     // =====================================================
 
-    let quote =
-      null;
+    let quote = null;
 
     if (
       project.quote_id
@@ -397,9 +552,7 @@ export async function GET(
           )
           .maybeSingle();
 
-      if (
-        error
-      ) {
+      if (error) {
         throw new Error(
           error.message
         );
@@ -450,15 +603,31 @@ export async function GET(
     }
 
     // =====================================================
-    // ASSIGNMENT
+    // PROJECT ASSIGNMENT OPTIONS
     // =====================================================
 
     let employees = [];
 
     if (
-      permissions.canAssign
+      projectPermissions.canAssign
     ) {
       employees =
+        await loadAssignableEmployees({
+          supabase,
+          organizationId,
+        });
+    }
+
+    // =====================================================
+    // TASK ASSIGNMENT OPTIONS
+    // =====================================================
+
+    let taskEmployees = [];
+
+    if (
+      taskPermissions.canAssign
+    ) {
+      taskEmployees =
         await loadAssignableEmployees({
           supabase,
           organizationId,
@@ -481,13 +650,23 @@ export async function GET(
 
       employees,
 
+      taskEmployees,
+
       currentEmployee:
         access.employee,
 
       access:
         buildClientAccess({
           access,
-          permissions,
+          permissions:
+            projectPermissions,
+        }),
+
+      taskAccess:
+        buildClientAccess({
+          access,
+          permissions:
+            taskPermissions,
         }),
     });
   } catch (error) {
@@ -503,7 +682,8 @@ export async function GET(
           "Unable to load project.",
       },
       {
-        status: 500,
+        status:
+          500,
       }
     );
   }
@@ -524,9 +704,7 @@ export async function PATCH(
       await context.params;
 
     if (
-      !isUuid(
-        id
-      )
+      !isUuid(id)
     ) {
       return NextResponse.json(
         {
@@ -534,7 +712,8 @@ export async function PATCH(
             "A valid project ID is required.",
         },
         {
-          status: 400,
+          status:
+            400,
         }
       );
     }
@@ -558,7 +737,7 @@ export async function PATCH(
     }
 
     const permissions =
-      getPermissions(
+      getProjectPermissions(
         access
       );
 
@@ -573,21 +752,19 @@ export async function PATCH(
       await loadProject({
         supabase,
         organizationId,
-
         projectId:
           id,
       });
 
-    if (
-      !project
-    ) {
+    if (!project) {
       return NextResponse.json(
         {
           error:
             "Project not found.",
         },
         {
-          status: 404,
+          status:
+            404,
         }
       );
     }
@@ -601,9 +778,7 @@ export async function PATCH(
           project,
       });
 
-    if (
-      !visible
-    ) {
+    if (!visible) {
       return forbidden(
         "You do not have permission to update this project."
       );
@@ -666,16 +841,13 @@ export async function PATCH(
             "No supported project changes were provided.",
         },
         {
-          status: 400,
+          status:
+            400,
         }
       );
     }
 
     const updates = {};
-
-    // =====================================================
-    // NAME
-    // =====================================================
 
     if (
       Object.prototype.hasOwnProperty.call(
@@ -688,16 +860,15 @@ export async function PATCH(
           body.project_name
         );
 
-      if (
-        !projectName
-      ) {
+      if (!projectName) {
         return NextResponse.json(
           {
             error:
               "Project name cannot be empty.",
           },
           {
-            status: 400,
+            status:
+              400,
           }
         );
       }
@@ -705,10 +876,6 @@ export async function PATCH(
       updates.project_name =
         projectName;
     }
-
-    // =====================================================
-    // DESCRIPTION
-    // =====================================================
 
     if (
       Object.prototype.hasOwnProperty.call(
@@ -722,10 +889,6 @@ export async function PATCH(
         );
     }
 
-    // =====================================================
-    // AMOUNT
-    // =====================================================
-
     if (
       Object.prototype.hasOwnProperty.call(
         body,
@@ -737,10 +900,6 @@ export async function PATCH(
           body.amount
         );
     }
-
-    // =====================================================
-    // STATUS
-    // =====================================================
 
     if (
       Object.prototype.hasOwnProperty.call(
@@ -759,7 +918,8 @@ export async function PATCH(
               "Invalid project status.",
           },
           {
-            status: 400,
+            status:
+              400,
           }
         );
       }
@@ -767,10 +927,6 @@ export async function PATCH(
       updates.status =
         body.status;
     }
-
-    // =====================================================
-    // DATES
-    // =====================================================
 
     const nextStartDate =
       Object.prototype.hasOwnProperty.call(
@@ -804,7 +960,8 @@ export async function PATCH(
             "Project dates must use YYYY-MM-DD format.",
         },
         {
-          status: 400,
+          status:
+            400,
         }
       );
     }
@@ -825,7 +982,8 @@ export async function PATCH(
             "Project due date cannot be before the start date.",
         },
         {
-          status: 400,
+          status:
+            400,
         }
       );
     }
@@ -850,10 +1008,6 @@ export async function PATCH(
         nextDueDate;
     }
 
-    // =====================================================
-    // OWNER
-    // =====================================================
-
     if (
       wantsOwnerChange
     ) {
@@ -862,9 +1016,7 @@ export async function PATCH(
           body.owner_employee_id
         );
 
-      if (
-        !requestedOwnerId
-      ) {
+      if (!requestedOwnerId) {
         updates.owner_employee_id =
           null;
       } else {
@@ -879,7 +1031,8 @@ export async function PATCH(
                 "The selected project owner is not valid.",
             },
             {
-              status: 400,
+              status:
+                400,
             }
           );
         }
@@ -888,21 +1041,19 @@ export async function PATCH(
           await validateRecordOwner({
             supabase,
             organizationId,
-
             employeeId:
               requestedOwnerId,
           });
 
-        if (
-          !owner
-        ) {
+        if (!owner) {
           return NextResponse.json(
             {
               error:
                 "The selected project owner is not valid.",
             },
             {
-              status: 400,
+              status:
+                400,
             }
           );
         }
@@ -911,10 +1062,6 @@ export async function PATCH(
           owner.id;
       }
     }
-
-    // =====================================================
-    // UPDATE
-    // =====================================================
 
     const {
       data:
@@ -952,7 +1099,6 @@ export async function PATCH(
       await attachRecordOwner({
         supabase,
         organizationId,
-
         record:
           updatedProject,
       });
@@ -977,7 +1123,8 @@ export async function PATCH(
           "Unable to update project.",
       },
       {
-        status: 500,
+        status:
+          500,
       }
     );
   }
@@ -998,9 +1145,7 @@ export async function DELETE(
       await context.params;
 
     if (
-      !isUuid(
-        id
-      )
+      !isUuid(id)
     ) {
       return NextResponse.json(
         {
@@ -1008,7 +1153,8 @@ export async function DELETE(
             "A valid project ID is required.",
         },
         {
-          status: 400,
+          status:
+            400,
         }
       );
     }
@@ -1032,7 +1178,7 @@ export async function DELETE(
     }
 
     const permissions =
-      getPermissions(
+      getProjectPermissions(
         access
       );
 
@@ -1055,21 +1201,19 @@ export async function DELETE(
       await loadProject({
         supabase,
         organizationId,
-
         projectId:
           id,
       });
 
-    if (
-      !project
-    ) {
+    if (!project) {
       return NextResponse.json(
         {
           error:
             "Project not found.",
         },
         {
-          status: 404,
+          status:
+            404,
         }
       );
     }
@@ -1083,17 +1227,11 @@ export async function DELETE(
           project,
       });
 
-    if (
-      !visible
-    ) {
+    if (!visible) {
       return forbidden(
         "You do not have permission to delete this project."
       );
     }
-
-    // =====================================================
-    // RELATED TASKS + INVOICES
-    // =====================================================
 
     const [
       tasksResult,
@@ -1179,14 +1317,11 @@ export async function DELETE(
             "This project cannot be deleted while tasks or invoices are linked to it. Cancel the project instead.",
         },
         {
-          status: 400,
+          status:
+            400,
         }
       );
     }
-
-    // =====================================================
-    // DELETE
-    // =====================================================
 
     const {
       error:
@@ -1231,7 +1366,8 @@ export async function DELETE(
           "Unable to delete project.",
       },
       {
-        status: 500,
+        status:
+          500,
       }
     );
   }
