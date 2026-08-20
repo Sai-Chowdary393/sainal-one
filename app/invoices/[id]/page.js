@@ -1,16 +1,27 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useState,
+} from "react";
+
 import Link from "next/link";
-import { useParams } from "next/navigation";
+
+import {
+  useParams,
+  useRouter,
+} from "next/navigation";
 
 import AppLayout from "../../../components/layout/AppLayout";
 import ProtectedRoute from "../../../components/ProtectedRoute";
 import SendRecordEmail from "../../../components/SendRecordEmail";
 import StatusBadge from "../../../components/StatusBadge";
-import styles from "./invoice-details.module.css";
 
-const INVOICE_STATUS_OPTIONS = [
+// =========================================================
+// CONSTANTS
+// =========================================================
+
+const STATUS_OPTIONS = [
   "Draft Invoice",
   "Draft",
   "Sent",
@@ -20,29 +31,77 @@ const INVOICE_STATUS_OPTIONS = [
   "Cancelled",
 ];
 
+// =========================================================
+// PAGE
+// =========================================================
+
 export default function InvoiceDetailsPage() {
-  const params = useParams();
-  const invoiceId = params?.id;
+  const params =
+    useParams();
 
-  const [invoice, setInvoice] = useState(null);
-  const [draftInvoice, setDraftInvoice] = useState(null);
-  const [settings, setSettings] = useState(null);
-  const [recipientEmail, setRecipientEmail] = useState("");
+  const router =
+    useRouter();
 
-  const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [updatingStatus, setUpdatingStatus] =
+  const invoiceId =
+    params?.id;
+
+  const [invoice, setInvoice] =
+    useState(null);
+
+  const [
+    draftInvoice,
+    setDraftInvoice,
+  ] = useState(null);
+
+  const [settings, setSettings] =
+    useState(null);
+
+  const [employees, setEmployees] =
+    useState([]);
+
+  const [access, setAccess] =
+    useState({
+      isOwner: false,
+      canEdit: false,
+      canDelete: false,
+      canAssign: false,
+      canSend: false,
+      canApprove: false,
+      permissions: [],
+    });
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [editing, setEditing] =
     useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
+
+  const [saving, setSaving] =
+    useState(false);
+
+  const [deleting, setDeleting] =
+    useState(false);
+
+  const [
+    errorMessage,
+    setErrorMessage,
+  ] = useState("");
+
+  // =======================================================
+  // LOAD
+  // =======================================================
 
   useEffect(() => {
-    if (invoiceId) {
-      fetchInvoice();
+    if (
+      invoiceId
+    ) {
+      loadInvoice();
     }
-  }, [invoiceId]);
+  }, [
+    invoiceId,
+  ]);
 
-  async function fetchInvoice() {
+  async function loadInvoice() {
     try {
       setLoading(true);
       setErrorMessage("");
@@ -50,70 +109,123 @@ export default function InvoiceDetailsPage() {
       const [
         invoiceResponse,
         settingsResponse,
-        quotesResponse,
-      ] = await Promise.all([
-        fetch(`/api/invoices/${invoiceId}`, {
-          cache: "no-store",
-        }),
+      ] =
+        await Promise.all([
+          fetch(
+            `/api/invoices/${invoiceId}`,
+            {
+              cache:
+                "no-store",
+            }
+          ),
 
-        fetch("/api/company-settings", {
-          cache: "no-store",
-        }),
-
-        fetch("/api/quotes", {
-          cache: "no-store",
-        }),
-      ]);
+          fetch(
+            "/api/company-settings",
+            {
+              cache:
+                "no-store",
+            }
+          ),
+        ]);
 
       const invoiceData =
         await invoiceResponse.json();
 
-      const settingsData =
-        await settingsResponse.json();
+      let settingsData =
+        null;
 
-      const quotesData =
-        quotesResponse.ok
-          ? await quotesResponse.json()
-          : [];
+      if (
+        settingsResponse.ok
+      ) {
+        settingsData =
+          await settingsResponse.json();
+      }
 
-      if (!invoiceResponse.ok) {
+      if (
+        !invoiceResponse.ok
+      ) {
         throw new Error(
           invoiceData.error ||
             "Failed to load invoice."
         );
       }
 
-      if (!settingsResponse.ok) {
-        throw new Error(
-          settingsData.error ||
-            "Failed to load company settings."
-        );
-      }
-
-      const selectedInvoice = Array.isArray(
-        invoiceData
-      )
-        ? invoiceData[0]
-        : invoiceData;
-
-      const relatedQuote = (
-        Array.isArray(quotesData)
-          ? quotesData
-          : []
-      ).find(
-        (quote) =>
-          String(quote.id) ===
-          String(selectedInvoice?.quote_id)
+      setInvoice(
+        invoiceData.invoice ||
+          null
       );
 
-      setInvoice(selectedInvoice || null);
-      setDraftInvoice(selectedInvoice || null);
-      setSettings(settingsData || null);
+      setDraftInvoice(
+        invoiceData.invoice ||
+          null
+      );
 
-      setRecipientEmail(
-        relatedQuote?.email ||
-          selectedInvoice?.email ||
-          ""
+      setEmployees(
+        Array.isArray(
+          invoiceData.employees
+        )
+          ? invoiceData.employees
+          : []
+      );
+
+      setAccess({
+        isOwner:
+          Boolean(
+            invoiceData
+              .access
+              ?.isOwner
+          ),
+
+        canEdit:
+          Boolean(
+            invoiceData
+              .access
+              ?.canEdit
+          ),
+
+        canDelete:
+          Boolean(
+            invoiceData
+              .access
+              ?.canDelete
+          ),
+
+        canAssign:
+          Boolean(
+            invoiceData
+              .access
+              ?.canAssign
+          ),
+
+        canSend:
+          Boolean(
+            invoiceData
+              .access
+              ?.canSend
+          ),
+
+        canApprove:
+          Boolean(
+            invoiceData
+              .access
+              ?.canApprove
+          ),
+
+        permissions:
+          Array.isArray(
+            invoiceData
+              .access
+              ?.permissions
+          )
+            ? invoiceData
+                .access
+                .permissions
+            : [],
+      });
+
+      setSettings(
+        settingsData ||
+          null
       );
     } catch (error) {
       console.error(
@@ -121,31 +233,33 @@ export default function InvoiceDetailsPage() {
         error
       );
 
+      setInvoice(null);
+
+      setDraftInvoice(null);
+
       setErrorMessage(
         error.message ||
-          "We could not load this invoice."
+          "Unable to load invoice."
       );
     } finally {
       setLoading(false);
     }
   }
 
+  // =======================================================
+  // EDIT
+  // =======================================================
+
   function startEditing() {
+    if (
+      !access.canEdit &&
+      !access.canAssign
+    ) {
+      return;
+    }
+
     setDraftInvoice({
       ...invoice,
-
-      subtotal:
-        invoice.subtotal ||
-        invoice.amount ||
-        "",
-
-      vat_rate:
-        invoice.vat_rate || "0%",
-
-      payment_terms:
-        invoice.payment_terms ||
-        settings?.payment_terms ||
-        "Payment due within 14 days of invoice date.",
     });
 
     setEditing(true);
@@ -159,122 +273,169 @@ export default function InvoiceDetailsPage() {
     setEditing(false);
   }
 
-  function handleFieldChange(event) {
-    const { name, value } = event.target;
+  function handleChange(
+    event
+  ) {
+    const {
+      name,
+      value,
+    } =
+      event.target;
 
-    setDraftInvoice((currentInvoice) => ({
-      ...currentInvoice,
-      [name]: value,
-    }));
+    setDraftInvoice(
+      (
+        current
+      ) => ({
+        ...current,
+        [name]: value,
+      })
+    );
   }
 
-  async function saveInvoice() {
-    if (!draftInvoice) {
-      return;
-    }
+  // =======================================================
+  // PATCH
+  // =======================================================
 
-    if (!draftInvoice.client?.trim()) {
-      alert("Client name is required.");
-      return;
-    }
-
-    if (!draftInvoice.service?.trim()) {
-      alert("Service is required.");
-      return;
-    }
-
-    const subtotalValue = parseMoney(
-      draftInvoice.subtotal
-    );
-
-    const vatRateValue = parseVatRate(
-      draftInvoice.vat_rate
-    );
-
-    if (subtotalValue < 0) {
-      alert("Subtotal cannot be negative.");
-      return;
-    }
-
-    if (
-      vatRateValue < 0 ||
-      vatRateValue > 100
-    ) {
-      alert(
-        "VAT rate must be between 0 and 100."
-      );
-      return;
-    }
-
-    try {
-      setSaving(true);
-
-      const response = await fetch(
+  async function patchInvoice(
+    payload
+  ) {
+    const response =
+      await fetch(
         `/api/invoices/${invoiceId}`,
         {
-          method: "PATCH",
+          method:
+            "PATCH",
 
           headers: {
             "Content-Type":
               "application/json",
           },
 
-          body: JSON.stringify({
-            client:
-              draftInvoice.client.trim(),
-
-            service:
-              draftInvoice.service.trim(),
-
-            subtotal:
-              subtotalValue,
-
-            vat_rate:
-              vatRateValue,
-
-            due_date:
-              draftInvoice.due_date || null,
-
-            payment_terms:
-              String(
-                draftInvoice.payment_terms ||
-                  ""
-              ).trim(),
-
-            status:
-              draftInvoice.status ||
-              "Draft Invoice",
-          }),
+          body:
+            JSON.stringify(
+              payload
+            ),
         }
       );
 
-      const data = await response.json();
+    const data =
+      await response.json();
 
-      if (!response.ok) {
-        throw new Error(
-          data.error ||
-            "Failed to save invoice."
-        );
+    if (!response.ok) {
+      throw new Error(
+        data.error ||
+          "Failed to update invoice."
+      );
+    }
+
+    return data;
+  }
+
+  // =======================================================
+  // SAVE
+  // =======================================================
+
+  async function saveInvoice() {
+    if (
+      !draftInvoice
+    ) {
+      return;
+    }
+
+    if (
+      access.canEdit &&
+      (
+        !String(
+          draftInvoice.client ||
+            ""
+        ).trim() ||
+        !String(
+          draftInvoice.service ||
+            ""
+        ).trim()
+      )
+    ) {
+      alert(
+        "Client and service are required."
+      );
+
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      const payload = {};
+
+      if (
+        access.canEdit
+      ) {
+        payload.client =
+          String(
+            draftInvoice.client ||
+              ""
+          ).trim();
+
+        payload.service =
+          String(
+            draftInvoice.service ||
+              ""
+          ).trim();
+
+        payload.status =
+          draftInvoice.status ||
+          "Draft Invoice";
+
+        payload.due_date =
+          draftInvoice.due_date ||
+          null;
+
+        payload.payment_terms =
+          String(
+            draftInvoice.payment_terms ||
+              ""
+          ).trim();
+
+        payload.subtotal =
+          draftInvoice.subtotal ||
+          draftInvoice.amount ||
+          "0";
+
+        payload.vat_rate =
+          draftInvoice.vat_rate ||
+          "0";
       }
 
-      const updatedInvoice = Array.isArray(
-        data
-      )
-        ? data[0]
-        : data;
+      if (
+        access.canAssign
+      ) {
+        payload.owner_employee_id =
+          draftInvoice.owner_employee_id ||
+          "";
+      }
+
+      const data =
+        await patchInvoice(
+          payload
+        );
+
+      const updatedInvoice =
+        data.invoice ||
+        draftInvoice;
 
       setInvoice(
-        updatedInvoice || draftInvoice
+        updatedInvoice
       );
 
       setDraftInvoice(
-        updatedInvoice || draftInvoice
+        updatedInvoice
       );
 
       setEditing(false);
 
       alert(
-        "Invoice updated successfully."
+        data.message ||
+          "Invoice updated successfully."
       );
     } catch (error) {
       console.error(
@@ -284,172 +445,146 @@ export default function InvoiceDetailsPage() {
 
       alert(
         error.message ||
-          "Error saving invoice."
+          "Unable to save invoice."
       );
     } finally {
       setSaving(false);
     }
   }
 
-  async function updateInvoiceStatus(status) {
+  // =======================================================
+  // STATUS
+  // =======================================================
+
+  async function updateStatus(
+    status
+  ) {
+    if (
+      !access.canEdit
+    ) {
+      return;
+    }
+
     try {
-      setUpdatingStatus(true);
+      setSaving(true);
 
-      const response = await fetch(
-        `/api/invoices/${invoiceId}`,
-        {
-          method: "PATCH",
+      const data =
+        await patchInvoice({
+          status,
+        });
 
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-
-          body: JSON.stringify({
-            status,
-          }),
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.error ||
-            "Failed to update invoice."
+      if (
+        data.invoice
+      ) {
+        setInvoice(
+          data.invoice
         );
+
+        setDraftInvoice(
+          data.invoice
+        );
+      } else {
+        await loadInvoice();
       }
-
-      const updatedInvoice = Array.isArray(
-        data
-      )
-        ? data[0]
-        : data;
-
-      const fallbackInvoice = {
-        ...invoice,
-        status,
-      };
-
-      setInvoice(
-        updatedInvoice || fallbackInvoice
-      );
-
-      setDraftInvoice(
-        updatedInvoice || fallbackInvoice
-      );
-
-      alert(`Invoice marked as ${status}.`);
     } catch (error) {
       console.error(
-        "Invoice status update error:",
+        "Invoice status error:",
         error
       );
 
       alert(
         error.message ||
-          "Error updating invoice."
+          "Unable to update invoice status."
       );
     } finally {
-      setUpdatingStatus(false);
+      setSaving(false);
     }
   }
+
+  // =======================================================
+  // DELETE
+  // =======================================================
+
+  async function deleteInvoice() {
+    if (
+      !access.canDelete ||
+      !invoice
+    ) {
+      return;
+    }
+
+    const confirmed =
+      window.confirm(
+        `Delete ${
+          invoice.invoice_number ||
+          "this invoice"
+        }?\n\nSent or paid invoices cannot be deleted.`
+      );
+
+    if (
+      !confirmed
+    ) {
+      return;
+    }
+
+    try {
+      setDeleting(true);
+
+      const response =
+        await fetch(
+          `/api/invoices/${invoiceId}`,
+          {
+            method:
+              "DELETE",
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error ||
+            "Failed to delete invoice."
+        );
+      }
+
+      alert(
+        data.message ||
+          "Invoice deleted successfully."
+      );
+
+      router.push(
+        "/invoices"
+      );
+
+      router.refresh();
+    } catch (error) {
+      console.error(
+        "Invoice deletion error:",
+        error
+      );
+
+      alert(
+        error.message ||
+          "Unable to delete invoice."
+      );
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  // =======================================================
+  // PRINT
+  // =======================================================
 
   function downloadPDF() {
     window.print();
   }
 
-  async function copyInvoiceSummary() {
-    try {
-      if (!invoice) {
-        return;
-      }
-
-      const summary = [
-        `Invoice: ${
-          invoice.invoice_number ||
-          "Invoice"
-        }`,
-
-        `Client: ${
-          invoice.client ||
-          "Not available"
-        }`,
-
-        `Service: ${
-          invoice.service ||
-          "Not available"
-        }`,
-
-        `Total: ${getStoredTotal(invoice)}`,
-
-        `Status: ${
-          invoice.status ||
-          "Draft Invoice"
-        }`,
-
-        `Due date: ${formatDate(
-          invoice.due_date
-        )}`,
-      ].join("\n");
-
-      await navigator.clipboard.writeText(
-        summary
-      );
-
-      alert(
-        "Invoice summary copied successfully."
-      );
-    } catch (error) {
-      console.error(
-        "Invoice copy error:",
-        error
-      );
-
-      alert(
-        "Unable to copy the invoice summary."
-      );
-    }
-  }
-
-  const visibleInvoice = editing
-    ? draftInvoice
-    : invoice;
-
-  const calculations = useMemo(() => {
-    if (!visibleInvoice) {
-      return {
-        subtotalValue: 0,
-        vatRateValue: 0,
-        vatAmountValue: 0,
-        totalValue: 0,
-      };
-    }
-
-    const subtotalValue = parseMoney(
-      visibleInvoice.subtotal ||
-        visibleInvoice.amount
-    );
-
-    const vatRateValue = parseVatRate(
-      visibleInvoice.vat_rate
-    );
-
-    const vatAmountValue =
-      subtotalValue *
-      (vatRateValue / 100);
-
-    const totalValue =
-      subtotalValue +
-      vatAmountValue;
-
-    return {
-      subtotalValue,
-      vatRateValue,
-      vatAmountValue,
-      totalValue,
-    };
-  }, [visibleInvoice]);
+  // =======================================================
+  // STATES
+  // =======================================================
 
   if (loading) {
     return (
@@ -469,16 +604,17 @@ export default function InvoiceDetailsPage() {
       <ProtectedRoute>
         <AppLayout
           title="Invoice Workspace"
-          description="Manage billing and payment activity."
+          description="Review and manage customer billing."
         >
           <section
-            className={
-              styles.errorPanel
+            style={
+              detailStyles.error
             }
           >
             <div>
               <strong>
-                Unable to load invoice
+                Unable to load
+                invoice
               </strong>
 
               <p>
@@ -488,10 +624,12 @@ export default function InvoiceDetailsPage() {
 
             <button
               type="button"
-              className={
-                styles.secondaryButton
+              style={
+                detailStyles.secondaryButton
               }
-              onClick={fetchInvoice}
+              onClick={
+                loadInvoice
+              }
             >
               Try again
             </button>
@@ -503,23 +641,22 @@ export default function InvoiceDetailsPage() {
 
   if (
     !invoice ||
-    !draftInvoice ||
-    !visibleInvoice
+    !draftInvoice
   ) {
     return (
       <ProtectedRoute>
         <AppLayout
           title="Invoice Workspace"
-          description="Manage billing and payment activity."
+          description="Review and manage customer billing."
         >
           <section
-            className={
-              styles.notFound
+            style={
+              detailStyles.notFound
             }
           >
             <span
-              className={
-                styles.notFoundIcon
+              style={
+                detailStyles.bigIcon
               }
             >
               £
@@ -530,15 +667,16 @@ export default function InvoiceDetailsPage() {
             </h2>
 
             <p>
-              This invoice may have been
-              deleted or you may not have
-              permission to open it.
+              This invoice may have
+              been deleted or you may
+              not have permission to
+              view it.
             </p>
 
             <Link
               href="/invoices"
-              className={
-                styles.primaryButton
+              style={
+                detailStyles.primaryLink
               }
             >
               Return to invoices
@@ -548,6 +686,15 @@ export default function InvoiceDetailsPage() {
       </ProtectedRoute>
     );
   }
+
+  // =======================================================
+  // DATA
+  // =======================================================
+
+  const visibleInvoice =
+    editing
+      ? draftInvoice
+      : invoice;
 
   const companyName =
     settings?.company_name ||
@@ -562,96 +709,75 @@ export default function InvoiceDetailsPage() {
     "United Kingdom";
 
   const companyEmail =
-    settings?.company_email || "";
+    settings?.company_email ||
+    "";
 
   const companyPhone =
-    settings?.company_phone || "";
+    settings?.company_phone ||
+    "";
 
   const vatNumber =
-    settings?.vat_number || "";
+    settings?.vat_number ||
+    "";
 
-  const companyRegistrationNumber =
-    settings?.company_registration_number ||
+  const registrationNumber =
+    settings
+      ?.company_registration_number ||
     "";
 
   const bankName =
-    settings?.bank_name || "";
+    settings?.bank_name ||
+    "";
 
   const bankAccountName =
-    settings?.bank_account_name || "";
+    settings?.bank_account_name ||
+    "";
 
   const bankSortCode =
-    settings?.bank_sort_code || "";
+    settings?.bank_sort_code ||
+    "";
 
   const bankAccountNumber =
-    settings?.bank_account_number || "";
-
-  const storedSubtotal =
-    editing
-      ? formatCurrency(
-          calculations.subtotalValue
-        )
-      : visibleInvoice.subtotal ||
-        visibleInvoice.amount ||
-        "£0.00";
-
-  const storedVatRate =
-    editing
-      ? `${calculations.vatRateValue}%`
-      : visibleInvoice.vat_rate ||
-        "0%";
-
-  const storedVatAmount =
-    editing
-      ? formatCurrency(
-          calculations.vatAmountValue
-        )
-      : visibleInvoice.vat_amount ||
-        "£0.00";
-
-  const storedTotal =
-    editing
-      ? formatCurrency(
-          calculations.totalValue
-        )
-      : visibleInvoice.total_amount ||
-        visibleInvoice.amount ||
-        "£0.00";
+    settings?.bank_account_number ||
+    "";
 
   const paymentTerms =
     visibleInvoice.payment_terms ||
     settings?.payment_terms ||
     "Payment due within 14 days of invoice date.";
 
-  const overdue = isInvoiceOverdue(
-    visibleInvoice
-  );
+  const subtotal =
+    visibleInvoice.subtotal ||
+    visibleInvoice.amount ||
+    "£0.00";
 
-  const paid =
-    normaliseStatus(
-      visibleInvoice.status
-    ) === "paid";
+  const vatRate =
+    visibleInvoice.vat_rate ||
+    "0%";
 
-  const paymentRisk =
-    getPaymentRisk({
-      invoice: visibleInvoice,
-      overdue,
-      paid,
-    });
+  const vatAmount =
+    visibleInvoice.vat_amount ||
+    "£0.00";
 
-  const recommendations =
-    getInvoiceRecommendations({
-      invoice: visibleInvoice,
-      overdue,
-      paid,
-      recipientEmail,
-      bankDetailsAvailable: Boolean(
-        bankName ||
-          bankAccountName ||
-          bankSortCode ||
-          bankAccountNumber
-      ),
-    });
+  const totalAmount =
+    visibleInvoice.total_amount ||
+    visibleInvoice.amount ||
+    "£0.00";
+
+  const displayStatus =
+    getDisplayStatus(
+      visibleInvoice
+    );
+
+  const canSend =
+    Boolean(
+      access.isOwner ||
+      access.canSend
+    );
+
+  // =======================================================
+  // PAGE
+  // =======================================================
 
   return (
     <ProtectedRoute>
@@ -660,564 +786,512 @@ export default function InvoiceDetailsPage() {
           invoice.invoice_number ||
           "Invoice Workspace"
         }
-        description="Billing, payment status and customer invoice document."
+        description="Invoice details, customer billing, payment status and document delivery."
       >
         <div
-          className={
-            styles.page
+          style={
+            detailStyles.page
           }
         >
+          {/* HEADER */}
+
           <section
-            className={`${styles.pageHeader} ${styles.noPrint}`}
+            style={
+              detailStyles.header
+            }
           >
-            <div
-              className={
-                styles.headerCopy
-              }
-            >
+            <div>
               <Link
                 href="/invoices"
-                className={
-                  styles.backLink
+                style={
+                  detailStyles.backLink
                 }
               >
                 ← Back to invoices
               </Link>
 
               <span
-                className={
-                  styles.eyebrow
+                style={
+                  detailStyles.eyebrow
                 }
               >
                 Finance workspace
               </span>
 
-              <h2>
+              <h2
+                style={
+                  detailStyles.heading
+                }
+              >
                 {invoice.invoice_number ||
                   "Invoice"}
               </h2>
 
-              <p>
-                Manage billing, payment
-                status and customer delivery.
+              <p
+                style={
+                  detailStyles.description
+                }
+              >
+                {invoice.client ||
+                  "No client specified"}
               </p>
             </div>
 
             <div
-              className={
-                styles.headerActions
+              style={
+                detailStyles.actions
               }
             >
-              {!editing && (
-                <SendRecordEmail
-                  endpoint={`/api/invoices/${invoice.id}/send`}
-                  defaultEmail={
-                    recipientEmail
-                  }
-                  defaultSubject={`Invoice ${
-                    invoice.invoice_number ||
-                    ""
-                  } from ${companyName}`}
-                  recordLabel="invoice"
-                  onSent={(data) => {
-                    if (data.invoice) {
-                      setInvoice(
+              {!editing &&
+                canSend && (
+                  <SendRecordEmail
+                    endpoint={`/api/invoices/${invoice.id}/send`}
+                    defaultEmail=""
+                    defaultSubject={`Invoice ${
+                      invoice.invoice_number ||
+                      ""
+                    } from ${companyName}`}
+                    recordLabel="invoice"
+                    onSent={(
+                      data
+                    ) => {
+                      if (
                         data.invoice
-                      );
+                      ) {
+                        setInvoice(
+                          data.invoice
+                        );
 
-                      setDraftInvoice(
-                        data.invoice
-                      );
-                    } else {
-                      setInvoice(
-                        (
-                          currentInvoice
-                        ) => ({
-                          ...currentInvoice,
+                        setDraftInvoice(
+                          data.invoice
+                        );
+                      } else {
+                        loadInvoice();
+                      }
+                    }}
+                  />
+                )}
 
-                          status:
-                            normaliseStatus(
-                              currentInvoice.status
-                            ) === "paid"
-                              ? "Paid"
-                              : "Sent",
-                        })
-                      );
+              {!editing &&
+                (
+                  access.canEdit ||
+                  access.canAssign
+                ) && (
+                  <button
+                    type="button"
+                    style={
+                      detailStyles.secondaryButton
                     }
-                  }}
-                />
-              )}
+                    onClick={
+                      startEditing
+                    }
+                  >
+                    Edit invoice
+                  </button>
+                )}
 
-              {!editing ? (
-                <button
-                  type="button"
-                  className={
-                    styles.secondaryButton
-                  }
-                  onClick={
-                    startEditing
-                  }
-                >
-                  Edit invoice
-                </button>
-              ) : (
+              {editing && (
                 <>
                   <button
                     type="button"
-                    className={
-                      styles.secondaryButton
+                    style={
+                      detailStyles.primaryButton
                     }
-                    disabled={saving}
-                    onClick={
-                      cancelEditing
-                    }
-                  >
-                    Cancel
-                  </button>
-
-                  <button
-                    type="button"
-                    className={
-                      styles.primaryButton
-                    }
-                    disabled={saving}
                     onClick={
                       saveInvoice
+                    }
+                    disabled={
+                      saving
                     }
                   >
                     {saving
                       ? "Saving..."
                       : "Save changes"}
                   </button>
-                </>
-              )}
-
-              <button
-                type="button"
-                className={
-                  styles.secondaryButton
-                }
-                onClick={
-                  copyInvoiceSummary
-                }
-              >
-                Copy summary
-              </button>
-
-              <button
-                type="button"
-                className={
-                  styles.primaryButton
-                }
-                onClick={
-                  downloadPDF
-                }
-              >
-                Print / Save PDF
-              </button>
-
-              {!editing && !paid && (
-                <>
-                  <button
-                    type="button"
-                    className={
-                      styles.warningButton
-                    }
-                    disabled={
-                      updatingStatus
-                    }
-                    onClick={() =>
-                      updateInvoiceStatus(
-                        "Sent"
-                      )
-                    }
-                  >
-                    {updatingStatus
-                      ? "Updating..."
-                      : "Mark sent"}
-                  </button>
 
                   <button
                     type="button"
-                    className={
-                      styles.successButton
+                    style={
+                      detailStyles.secondaryButton
+                    }
+                    onClick={
+                      cancelEditing
                     }
                     disabled={
-                      updatingStatus
-                    }
-                    onClick={() =>
-                      updateInvoiceStatus(
-                        "Paid"
-                      )
+                      saving
                     }
                   >
-                    {updatingStatus
-                      ? "Updating..."
-                      : "Mark paid"}
+                    Cancel
                   </button>
                 </>
               )}
+
+              {!editing &&
+                access.canDelete && (
+                  <button
+                    type="button"
+                    style={
+                      detailStyles.dangerButton
+                    }
+                    disabled={
+                      deleting
+                    }
+                    onClick={
+                      deleteInvoice
+                    }
+                  >
+                    {deleting
+                      ? "Deleting..."
+                      : "Delete"}
+                  </button>
+                )}
             </div>
           </section>
 
+          {/* HERO */}
+
           <section
-            className={
-              styles.heroCard
+            style={
+              detailStyles.hero
             }
           >
             <div
-              className={
-                styles.invoiceIdentity
+              style={
+                detailStyles.identity
               }
             >
               <span
-                className={
-                  styles.invoiceIcon
+                style={
+                  detailStyles.invoiceIcon
                 }
               >
                 £
               </span>
 
-              <div
-                className={
-                  styles.identityCopy
-                }
-              >
+              <div>
                 <span
-                  className={
-                    styles.heroLabel
+                  style={
+                    detailStyles.smallLabel
                   }
                 >
-                  Customer invoice
+                  Invoice
                 </span>
 
-                <h3>
-                  {visibleInvoice.client ||
-                    "Unnamed client"}
+                <h3
+                  style={
+                    detailStyles.heroTitle
+                  }
+                >
+                  {invoice.invoice_number ||
+                    "Invoice"}
                 </h3>
 
-                <p>
-                  {visibleInvoice.service ||
-                    "Professional services"}
-                </p>
-
                 <div
-                  className={
-                    styles.identityMeta
+                  style={
+                    detailStyles.meta
                   }
                 >
                   <StatusBadge
                     status={
-                      visibleInvoice.status ||
-                      "Draft Invoice"
+                      displayStatus
                     }
                   />
 
                   <span
-                    className={
-                      styles.metaBadge
+                    style={
+                      detailStyles.metaBadge
                     }
                   >
-                    Created{" "}
-                    {formatDate(
-                      invoice.created_at
-                    )}
+                    Owner:{" "}
+                    {invoice.owner
+                      ?.full_name ||
+                      "Unassigned"}
                   </span>
 
                   <span
-                    className={
-                      overdue
-                        ? styles.overdueBadge
-                        : styles.metaBadge
+                    style={
+                      detailStyles.metaBadge
                     }
                   >
-                    {overdue
-                      ? "Payment overdue"
-                      : `Due ${formatDate(
-                          visibleInvoice.due_date
-                        )}`}
+                    Due{" "}
+                    {formatDate(
+                      invoice.due_date
+                    )}
                   </span>
-
-                  {invoice.customer_id && (
-                    <span
-                      className={
-                        styles.linkedBadge
-                      }
-                    >
-                      Linked customer
-                    </span>
-                  )}
                 </div>
               </div>
             </div>
 
             <div
-              className={
-                styles.heroMetrics
+              style={
+                detailStyles.totalBox
               }
             >
-              <HeroMetric
-                label="Subtotal"
-                value={
-                  storedSubtotal
-                }
-              />
+              <span>
+                Total due
+              </span>
 
-              <HeroMetric
-                label="VAT"
-                value={
-                  storedVatAmount
-                }
-              />
-
-              <HeroMetric
-                label="Total"
-                value={
-                  storedTotal
-                }
-                paid={paid}
-                warning={overdue}
-              />
+              <strong>
+                {totalAmount}
+              </strong>
             </div>
           </section>
 
-          <section
-            className={
-              styles.workspaceGrid
-            }
-          >
+          {/* EDIT */}
+
+          {editing && (
             <section
-              className={
-                styles.panel
+              style={
+                detailStyles.panel
               }
             >
               <div
-                className={
-                  styles.panelHeader
+                style={
+                  detailStyles.panelHeader
                 }
               >
-                <div>
+                <h3>
+                  Edit invoice
+                </h3>
+
+                <p>
+                  Update billing
+                  details, financial
+                  values and ownership.
+                </p>
+              </div>
+
+              <div
+                style={
+                  detailStyles.formGrid
+                }
+              >
+                {access.canEdit && (
+                  <>
+                    <EditField
+                      label="Client"
+                      name="client"
+                      value={
+                        visibleInvoice.client
+                      }
+                      onChange={
+                        handleChange
+                      }
+                    />
+
+                    <EditField
+                      label="Service"
+                      name="service"
+                      value={
+                        visibleInvoice.service
+                      }
+                      onChange={
+                        handleChange
+                      }
+                    />
+
+                    <EditField
+                      label="Subtotal"
+                      name="subtotal"
+                      value={
+                        visibleInvoice.subtotal ||
+                        visibleInvoice.amount
+                      }
+                      onChange={
+                        handleChange
+                      }
+                    />
+
+                    <EditField
+                      label="VAT rate"
+                      name="vat_rate"
+                      value={
+                        visibleInvoice.vat_rate
+                      }
+                      onChange={
+                        handleChange
+                      }
+                    />
+
+                    <EditField
+                      label="Due date"
+                      name="due_date"
+                      type="date"
+                      value={
+                        toDateInput(
+                          visibleInvoice.due_date
+                        )
+                      }
+                      onChange={
+                        handleChange
+                      }
+                    />
+
+                    <label
+                      style={
+                        detailStyles.field
+                      }
+                    >
+                      <span>
+                        Status
+                      </span>
+
+                      <select
+                        name="status"
+                        value={
+                          visibleInvoice.status ||
+                          "Draft Invoice"
+                        }
+                        onChange={
+                          handleChange
+                        }
+                        style={
+                          detailStyles.input
+                        }
+                      >
+                        {STATUS_OPTIONS.map(
+                          (
+                            item
+                          ) => (
+                            <option
+                              key={
+                                item
+                              }
+                              value={
+                                item
+                              }
+                            >
+                              {item}
+                            </option>
+                          )
+                        )}
+                      </select>
+                    </label>
+                  </>
+                )}
+
+                {access.canAssign && (
+                  <label
+                    style={
+                      detailStyles.field
+                    }
+                  >
+                    <span>
+                      Invoice owner
+                    </span>
+
+                    <select
+                      name="owner_employee_id"
+                      value={
+                        visibleInvoice.owner_employee_id ||
+                        ""
+                      }
+                      onChange={
+                        handleChange
+                      }
+                      style={
+                        detailStyles.input
+                      }
+                    >
+                      <option value="">
+                        Unassigned
+                      </option>
+
+                      {employees.map(
+                        (
+                          employee
+                        ) => (
+                          <option
+                            key={
+                              employee.id
+                            }
+                            value={
+                              employee.id
+                            }
+                          >
+                            {
+                              employee.full_name
+                            }
+
+                            {employee.job_title
+                              ? ` — ${employee.job_title}`
+                              : ""}
+                          </option>
+                        )
+                      )}
+                    </select>
+                  </label>
+                )}
+
+                {access.canEdit && (
+                  <label
+                    style={{
+                      ...detailStyles.field,
+                      gridColumn:
+                        "1 / -1",
+                    }}
+                  >
+                    <span>
+                      Payment terms
+                    </span>
+
+                    <textarea
+                      name="payment_terms"
+                      rows={4}
+                      value={
+                        visibleInvoice.payment_terms ||
+                        ""
+                      }
+                      onChange={
+                        handleChange
+                      }
+                      style={
+                        detailStyles.textarea
+                      }
+                    />
+                  </label>
+                )}
+              </div>
+            </section>
+          )}
+
+          {/* INFO + PAYMENT STATUS */}
+
+          {!editing && (
+            <section
+              style={
+                detailStyles.twoColumn
+              }
+            >
+              <section
+                style={
+                  detailStyles.panel
+                }
+              >
+                <div
+                  style={
+                    detailStyles.panelHeader
+                  }
+                >
                   <h3>
                     Invoice information
                   </h3>
 
                   <p>
-                    Client, service, VAT and
-                    payment details
+                    Billing and
+                    commercial details.
                   </p>
                 </div>
-              </div>
 
-              {editing ? (
-                <>
-                  <div
-                    className={
-                      styles.formGrid
-                    }
-                  >
-                    <Field
-                      label="Client"
-                      name="client"
-                      value={
-                        draftInvoice.client
-                      }
-                      onChange={
-                        handleFieldChange
-                      }
-                      disabled={saving}
-                    />
-
-                    <Field
-                      label="Service"
-                      name="service"
-                      value={
-                        draftInvoice.service
-                      }
-                      onChange={
-                        handleFieldChange
-                      }
-                      disabled={saving}
-                    />
-
-                    <Field
-                      label="Subtotal"
-                      name="subtotal"
-                      value={
-                        draftInvoice.subtotal
-                      }
-                      onChange={
-                        handleFieldChange
-                      }
-                      disabled={saving}
-                    />
-
-                    <Field
-                      label="VAT rate"
-                      name="vat_rate"
-                      value={
-                        draftInvoice.vat_rate
-                      }
-                      onChange={
-                        handleFieldChange
-                      }
-                      disabled={saving}
-                    />
-
-                    <Field
-                      label="VAT amount"
-                      value={
-                        storedVatAmount
-                      }
-                      disabled
-                    />
-
-                    <Field
-                      label="Total amount"
-                      value={
-                        storedTotal
-                      }
-                      disabled
-                    />
-
-                    <Field
-                      label="Due date"
-                      name="due_date"
-                      type="date"
-                      value={
-                        draftInvoice.due_date
-                      }
-                      onChange={
-                        handleFieldChange
-                      }
-                      disabled={saving}
-                    />
-
-                    <div
-                      className={
-                        styles.field
-                      }
-                    >
-                      <label
-                        htmlFor="invoice-status"
-                      >
-                        Status
-                      </label>
-
-                      <select
-                        id="invoice-status"
-                        name="status"
-                        value={
-                          draftInvoice.status ||
-                          "Draft Invoice"
-                        }
-                        disabled={saving}
-                        onChange={
-                          handleFieldChange
-                        }
-                      >
-                        {INVOICE_STATUS_OPTIONS.map(
-                          (
-                            status
-                          ) => (
-                            <option
-                              key={
-                                status
-                              }
-                              value={
-                                status
-                              }
-                            >
-                              {
-                                status
-                              }
-                            </option>
-                          )
-                        )}
-                      </select>
-                    </div>
-
-                    <div
-                      className={`${styles.field} ${styles.fieldFull}`}
-                    >
-                      <label
-                        htmlFor="invoice-payment-terms"
-                      >
-                        Payment terms
-                      </label>
-
-                      <textarea
-                        id="invoice-payment-terms"
-                        name="payment_terms"
-                        rows={4}
-                        value={
-                          draftInvoice.payment_terms ||
-                          ""
-                        }
-                        disabled={saving}
-                        onChange={
-                          handleFieldChange
-                        }
-                      />
-                    </div>
-                  </div>
-
-                  <div
-                    className={
-                      styles.calculationPanel
-                    }
-                  >
-                    <CalculationItem
-                      label="Subtotal"
-                      value={
-                        storedSubtotal
-                      }
-                    />
-
-                    <CalculationItem
-                      label={`VAT (${storedVatRate})`}
-                      value={
-                        storedVatAmount
-                      }
-                    />
-
-                    <CalculationItem
-                      label="Invoice total"
-                      value={
-                        storedTotal
-                      }
-                      total
-                    />
-                  </div>
-                </>
-              ) : (
                 <div
-                  className={
-                    styles.detailList
+                  style={
+                    detailStyles.detailList
                   }
                 >
-                  <DetailRow
-                    label="Invoice number"
-                    value={
-                      invoice.invoice_number
-                    }
-                  />
-
                   <DetailRow
                     label="Client"
                     value={
                       invoice.client
-                    }
-                  />
-
-                  <DetailRow
-                    label="Recipient email"
-                    value={
-                      recipientEmail
-                    }
-                    href={
-                      recipientEmail
-                        ? `mailto:${recipientEmail}`
-                        : null
                     }
                   />
 
@@ -1231,841 +1305,554 @@ export default function InvoiceDetailsPage() {
                   <DetailRow
                     label="Subtotal"
                     value={
-                      storedSubtotal
+                      subtotal
                     }
                   />
 
                   <DetailRow
                     label="VAT rate"
                     value={
-                      storedVatRate
+                      vatRate
                     }
                   />
 
                   <DetailRow
-                    label="VAT amount"
+                    label="VAT"
                     value={
-                      storedVatAmount
+                      vatAmount
                     }
                   />
 
                   <DetailRow
                     label="Total"
                     value={
-                      storedTotal
-                    }
-                  />
-
-                  <DetailRow
-                    label="Status"
-                    customValue={
-                      <StatusBadge
-                        status={
-                          invoice.status ||
-                          "Draft Invoice"
-                        }
-                      />
+                      totalAmount
                     }
                   />
 
                   <DetailRow
                     label="Due date"
-                    value={formatDate(
-                      invoice.due_date
-                    )}
-                  />
-
-                  <DetailRow
-                    label="Customer"
-                    customValue={
-                      invoice.customer_id ? (
-                        <Link
-                          href={`/customers/${invoice.customer_id}`}
-                          className={
-                            styles.customerLink
-                          }
-                        >
-                          Open linked customer
-                          <span>→</span>
-                        </Link>
-                      ) : (
-                        <strong
-                          className={
-                            styles.emptyValue
-                          }
-                        >
-                          Not linked
-                        </strong>
+                    value={
+                      formatDate(
+                        invoice.due_date
                       )
                     }
                   />
 
                   <DetailRow
-                    label="Project"
-                    customValue={
-                      invoice.project_id ? (
-                        <Link
-                          href={`/projects/${invoice.project_id}`}
-                          className={
-                            styles.projectLink
-                          }
-                        >
-                          Open linked project
-                          <span>→</span>
-                        </Link>
-                      ) : (
-                        <strong
-                          className={
-                            styles.emptyValue
-                          }
-                        >
-                          Not linked
-                        </strong>
-                      )
+                    label="Owner"
+                    value={
+                      invoice.owner
+                        ?.full_name ||
+                      "Unassigned"
                     }
                   />
                 </div>
-              )}
-            </section>
+              </section>
 
+              <section
+                style={
+                  detailStyles.panel
+                }
+              >
+                <div
+                  style={
+                    detailStyles.panelHeader
+                  }
+                >
+                  <h3>
+                    Payment status
+                  </h3>
+
+                  <p>
+                    Update invoice
+                    lifecycle status.
+                  </p>
+                </div>
+
+                <div
+                  style={
+                    detailStyles.statusPanel
+                  }
+                >
+                  <StatusBadge
+                    status={
+                      displayStatus
+                    }
+                  />
+
+                  <strong
+                    style={
+                      detailStyles.statusAmount
+                    }
+                  >
+                    {totalAmount}
+                  </strong>
+
+                  <p>
+                    Due{" "}
+                    {formatDate(
+                      invoice.due_date
+                    )}
+                  </p>
+
+                  {access.canEdit && (
+                    <div
+                      style={
+                        detailStyles.statusActions
+                      }
+                    >
+                      {normaliseStatus(
+                        invoice.status
+                      ) !==
+                        "paid" && (
+                        <button
+                          type="button"
+                          style={
+                            detailStyles.primaryButton
+                          }
+                          disabled={
+                            saving
+                          }
+                          onClick={() =>
+                            updateStatus(
+                              "Paid"
+                            )
+                          }
+                        >
+                          Mark paid
+                        </button>
+                      )}
+
+                      {normaliseStatus(
+                        invoice.status
+                      ) !==
+                        "partially paid" &&
+                        normaliseStatus(
+                          invoice.status
+                        ) !==
+                          "paid" && (
+                          <button
+                            type="button"
+                            style={
+                              detailStyles.secondaryButton
+                            }
+                            disabled={
+                              saving
+                            }
+                            onClick={() =>
+                              updateStatus(
+                                "Partially Paid"
+                              )
+                            }
+                          >
+                            Mark partially
+                            paid
+                          </button>
+                        )}
+
+                      {normaliseStatus(
+                        invoice.status
+                      ) !==
+                        "cancelled" &&
+                        normaliseStatus(
+                          invoice.status
+                        ) !==
+                          "paid" && (
+                          <button
+                            type="button"
+                            style={
+                              detailStyles.secondaryButton
+                            }
+                            disabled={
+                              saving
+                            }
+                            onClick={() =>
+                              updateStatus(
+                                "Cancelled"
+                              )
+                            }
+                          >
+                            Cancel invoice
+                          </button>
+                        )}
+                    </div>
+                  )}
+                </div>
+              </section>
+            </section>
+          )}
+
+          {/* DOCUMENT */}
+
+          {!editing && (
             <section
-              className={
-                styles.aiPanel
+              style={
+                detailStyles.documentCard
               }
             >
               <div
-                className={
-                  styles.aiHeader
+                style={
+                  detailStyles.documentToolbar
                 }
               >
-                <span
-                  className={
-                    styles.aiIcon
-                  }
-                >
-                  ✦
-                </span>
-
                 <div>
-                  <span>
-                    Payment intelligence
+                  <span
+                    style={
+                      detailStyles.eyebrow
+                    }
+                  >
+                    Customer document
                   </span>
 
                   <h3>
-                    Invoice risk overview
+                    Invoice preview
                   </h3>
                 </div>
-              </div>
-
-              <div
-                className={
-                  styles.riskGrid
-                }
-              >
-                <RiskMetric
-                  label="Payment risk"
-                  value={
-                    paymentRisk
-                  }
-                />
-
-                <RiskMetric
-                  label="Current status"
-                  value={
-                    visibleInvoice.status ||
-                    "Draft Invoice"
-                  }
-                />
-
-                <RiskMetric
-                  label="Due position"
-                  value={
-                    overdue
-                      ? "Overdue"
-                      : paid
-                        ? "Settled"
-                        : "Within terms"
-                  }
-                />
-
-                <RiskMetric
-                  label="Recipient"
-                  value={
-                    recipientEmail
-                      ? "Available"
-                      : "Missing"
-                  }
-                />
-              </div>
-
-              <div
-                className={
-                  styles.aiRecommendations
-                }
-              >
-                <span>
-                  Recommended actions
-                </span>
-
-                {recommendations.map(
-                  (
-                    recommendation,
-                    index
-                  ) => (
-                    <div
-                      key={`${recommendation}-${index}`}
-                      className={
-                        styles.recommendationItem
-                      }
-                    >
-                      <span>
-                        →
-                      </span>
-
-                      <p>
-                        {
-                          recommendation
-                        }
-                      </p>
-                    </div>
-                  )
-                )}
-              </div>
-            </section>
-          </section>
-
-          <section
-            className={
-              styles.panel
-            }
-          >
-            <div
-              className={
-                styles.panelHeader
-              }
-            >
-              <div>
-                <h3>
-                  Payment history
-                </h3>
-
-                <p>
-                  Invoice workflow and payment
-                  activity
-                </p>
-              </div>
-            </div>
-
-            <div
-              className={
-                styles.paymentHistory
-              }
-            >
-              <PaymentItem
-                title="Invoice created"
-                description={`Invoice ${
-                  invoice.invoice_number ||
-                  ""
-                } was created.`}
-                date={
-                  invoice.created_at
-                }
-              />
-
-              {normaliseStatus(
-                invoice.status
-              ) !== "draft" &&
-                normaliseStatus(
-                  invoice.status
-                ) !==
-                  "draft invoice" && (
-                  <PaymentItem
-                    title={`Invoice ${invoice.status}`}
-                    description={`The current invoice status is ${
-                      invoice.status
-                    }.`}
-                    date={
-                      invoice.updated_at ||
-                      invoice.created_at
-                    }
-                  />
-                )}
-
-              {paid && (
-                <PaymentItem
-                  title="Payment completed"
-                  description={`The invoice total of ${storedTotal} has been marked as paid.`}
-                  date={
-                    invoice.updated_at ||
-                    invoice.created_at
-                  }
-                />
-              )}
-
-              {overdue && !paid && (
-                <PaymentItem
-                  title="Payment overdue"
-                  description={`Payment was due on ${formatDate(
-                    invoice.due_date
-                  )}.`}
-                  date={
-                    invoice.due_date
-                  }
-                />
-              )}
-            </div>
-          </section>
-
-          <section
-            className={
-              styles.documentPanel
-            }
-          >
-            <div
-              className={`${styles.documentToolbar} ${styles.noPrint}`}
-            >
-              <div>
-                <span
-                  className={
-                    styles.eyebrow
-                  }
-                >
-                  Customer document
-                </span>
-
-                <h3>
-                  Invoice preview
-                </h3>
-              </div>
-
-              <div>
-                <button
-                  type="button"
-                  className={
-                    styles.secondaryButton
-                  }
-                  onClick={
-                    copyInvoiceSummary
-                  }
-                >
-                  Copy summary
-                </button>
 
                 <button
                   type="button"
-                  className={
-                    styles.primaryButton
+                  style={
+                    detailStyles.primaryButton
                   }
                   onClick={
                     downloadPDF
                   }
                 >
-                  Export PDF
+                  Print / PDF
                 </button>
               </div>
-            </div>
 
-            <article
-              className={
-                styles.invoiceDocument
-              }
-            >
-              <header
-                className={
-                  styles.invoiceHeader
+              <article
+                style={
+                  detailStyles.document
                 }
               >
-                <div
-                  className={
-                    styles.companyIdentity
+                <header
+                  style={
+                    detailStyles.documentHeader
                   }
                 >
-                  <span
-                    className={
-                      styles.companyMark
-                    }
-                  >
-                    SN
-                  </span>
-
                   <div>
-                    <h2>
+                    <strong
+                      style={
+                        detailStyles.companyName
+                      }
+                    >
                       {companyName}
-                    </h2>
+                    </strong>
 
                     <p>
-                      Digital Solutions &
-                      Automation
+                      {
+                        companyAddress
+                      }
                     </p>
 
-                    <p>
-                      {companyAddress}
-                    </p>
-
-                    <p>
-                      {companyWebsite}
-                    </p>
+                    {companyWebsite && (
+                      <p>
+                        {
+                          companyWebsite
+                        }
+                      </p>
+                    )}
 
                     {companyEmail && (
                       <p>
-                        Email:{" "}
-                        {companyEmail}
+                        {
+                          companyEmail
+                        }
                       </p>
                     )}
 
                     {companyPhone && (
                       <p>
-                        Phone:{" "}
-                        {companyPhone}
-                      </p>
-                    )}
-
-                    {companyRegistrationNumber && (
-                      <p>
-                        Company No:{" "}
                         {
-                          companyRegistrationNumber
+                          companyPhone
                         }
-                      </p>
-                    )}
-
-                    {vatNumber && (
-                      <p>
-                        VAT No:{" "}
-                        {vatNumber}
                       </p>
                     )}
                   </div>
-                </div>
 
-                <div
-                  className={
-                    styles.invoiceMeta
-                  }
-                >
-                  <h1>
-                    INVOICE
-                  </h1>
+                  <div
+                    style={{
+                      textAlign:
+                        "right",
+                    }}
+                  >
+                    <h2
+                      style={
+                        detailStyles.invoiceTitle
+                      }
+                    >
+                      INVOICE
+                    </h2>
 
-                  <p>
                     <strong>
-                      Invoice No:
-                    </strong>{" "}
-                    {invoice.invoice_number ||
-                      "Invoice"}
-                  </p>
+                      {invoice.invoice_number ||
+                        ""}
+                    </strong>
 
-                  <p>
-                    <strong>
-                      Date:
-                    </strong>{" "}
-                    {formatDate(
-                      invoice.created_at
-                    )}
-                  </p>
-
-                  <p>
-                    <strong>
-                      Due Date:
-                    </strong>{" "}
-                    {formatDate(
-                      visibleInvoice.due_date
-                    )}
-                  </p>
-
-                  <p>
-                    <strong>
-                      Status:
-                    </strong>{" "}
-                    {visibleInvoice.status ||
-                      "Draft Invoice"}
-                  </p>
-                </div>
-              </header>
-
-              <section
-                className={
-                  styles.billGrid
-                }
-              >
-                <div
-                  className={
-                    styles.billPanel
-                  }
-                >
-                  <span>
-                    Bill to
-                  </span>
-
-                  <strong>
-                    {visibleInvoice.client ||
-                      "Client"}
-                  </strong>
-
-                  {recipientEmail && (
                     <p>
-                      {recipientEmail}
+                      Issued{" "}
+                      {formatDate(
+                        invoice.created_at
+                      )}
                     </p>
-                  )}
-                </div>
+                  </div>
+                </header>
 
-                <div
-                  className={
-                    styles.billPanel
-                  }
-                >
-                  <span>
-                    Project / Service
-                  </span>
-
-                  <strong>
-                    {visibleInvoice.service ||
-                      "Professional services"}
-                  </strong>
-
-                  {invoice.project_id && (
-                    <p>
-                      Linked project
-                    </p>
-                  )}
-                </div>
-              </section>
-
-              <div
-                className={
-                  styles.invoiceItemsWrapper
-                }
-              >
-                <table
-                  className={
-                    styles.invoiceItemsTable
-                  }
-                >
-                  <thead>
-                    <tr>
-                      <th>
-                        Description
-                      </th>
-
-                      <th>
-                        Qty
-                      </th>
-
-                      <th>
-                        Subtotal
-                      </th>
-
-                      <th>
-                        VAT
-                      </th>
-
-                      <th>
-                        Total
-                      </th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    <tr>
-                      <td>
-                        {visibleInvoice.service ||
-                          "Professional services"}
-                      </td>
-
-                      <td>
-                        1
-                      </td>
-
-                      <td>
-                        {
-                          storedSubtotal
-                        }
-                      </td>
-
-                      <td>
-                        {storedVatAmount}{" "}
-                        ({storedVatRate})
-                      </td>
-
-                      <td>
-                        {
-                          storedTotal
-                        }
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-
-              <section
-                className={
-                  styles.invoiceBottomGrid
-                }
-              >
-                <div
-                  className={
-                    styles.paymentTerms
+                <section
+                  style={
+                    detailStyles.documentMeta
                   }
                 >
                   <div>
-                    <h3>
-                      Payment terms
-                    </h3>
-
-                    <p>
-                      {paymentTerms}
-                    </p>
-                  </div>
-
-                  {(bankName ||
-                    bankAccountName ||
-                    bankSortCode ||
-                    bankAccountNumber) && (
-                    <div
-                      className={
-                        styles.bankDetails
+                    <span
+                      style={
+                        detailStyles.docLabel
                       }
                     >
-                      <span>
-                        Bank details
-                      </span>
+                      Bill to
+                    </span>
 
-                      {bankName && (
-                        <p>
-                          Bank:{" "}
-                          {bankName}
-                        </p>
+                    <strong>
+                      {invoice.client ||
+                        "Customer"}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span
+                      style={
+                        detailStyles.docLabel
+                      }
+                    >
+                      Due date
+                    </span>
+
+                    <strong>
+                      {formatDate(
+                        invoice.due_date
                       )}
+                    </strong>
+                  </div>
+                </section>
 
-                      {bankAccountName && (
-                        <p>
-                          Account name:{" "}
-                          {
-                            bankAccountName
-                          }
-                        </p>
-                      )}
+                <section
+                  style={
+                    detailStyles.invoiceTable
+                  }
+                >
+                  <div
+                    style={
+                      detailStyles.invoiceTableHeader
+                    }
+                  >
+                    <strong>
+                      Service
+                    </strong>
 
-                      {bankSortCode && (
-                        <p>
-                          Sort code:{" "}
-                          {bankSortCode}
-                        </p>
-                      )}
+                    <strong>
+                      Amount
+                    </strong>
+                  </div>
 
-                      {bankAccountNumber && (
-                        <p>
-                          Account number:{" "}
-                          {
-                            bankAccountNumber
-                          }
-                        </p>
-                      )}
+                  <div
+                    style={
+                      detailStyles.invoiceTableRow
+                    }
+                  >
+                    <span>
+                      {invoice.service ||
+                        "Service"}
+                    </span>
 
-                      <p>
-                        Payment reference:{" "}
-                        {invoice.invoice_number ||
-                          "Invoice"}
-                      </p>
-                    </div>
-                  )}
+                    <span>
+                      {subtotal}
+                    </span>
+                  </div>
+                </section>
 
-                  <p>
-                    Thank you for your
-                    business.
-                  </p>
-                </div>
-
-                <div
-                  className={
-                    styles.totalsCard
+                <section
+                  style={
+                    detailStyles.totals
                   }
                 >
                   <TotalRow
                     label="Subtotal"
                     value={
-                      storedSubtotal
+                      subtotal
                     }
                   />
 
                   <TotalRow
-                    label={`VAT (${storedVatRate})`}
+                    label={`VAT ${
+                      vatRate ||
+                      ""
+                    }`}
                     value={
-                      storedVatAmount
+                      vatAmount
                     }
                   />
 
                   <TotalRow
-                    label="Total amount"
+                    label="Total"
                     value={
-                      storedTotal
+                      totalAmount
                     }
-                    grand
+                    strong
                   />
-                </div>
-              </section>
+                </section>
 
-              <footer
-                className={
-                  styles.invoiceFooter
-                }
-              >
-                <p>
-                  Generated by SaiNal One
-                </p>
+                <section
+                  style={
+                    detailStyles.documentSection
+                  }
+                >
+                  <h3>
+                    Payment terms
+                  </h3>
 
-                <p>
-                  AI-powered Business
-                  Operating System
-                </p>
-              </footer>
-            </article>
-          </section>
+                  <p>
+                    {paymentTerms}
+                  </p>
+                </section>
+
+                {(bankName ||
+                  bankAccountName ||
+                  bankSortCode ||
+                  bankAccountNumber) && (
+                  <section
+                    style={
+                      detailStyles.documentSection
+                    }
+                  >
+                    <h3>
+                      Bank details
+                    </h3>
+
+                    {bankName && (
+                      <p>
+                        Bank:{" "}
+                        {bankName}
+                      </p>
+                    )}
+
+                    {bankAccountName && (
+                      <p>
+                        Account name:{" "}
+                        {
+                          bankAccountName
+                        }
+                      </p>
+                    )}
+
+                    {bankSortCode && (
+                      <p>
+                        Sort code:{" "}
+                        {
+                          bankSortCode
+                        }
+                      </p>
+                    )}
+
+                    {bankAccountNumber && (
+                      <p>
+                        Account number:{" "}
+                        {
+                          bankAccountNumber
+                        }
+                      </p>
+                    )}
+                  </section>
+                )}
+
+                {(vatNumber ||
+                  registrationNumber) && (
+                  <footer
+                    style={
+                      detailStyles.documentFooter
+                    }
+                  >
+                    {registrationNumber && (
+                      <span>
+                        Company No:{" "}
+                        {
+                          registrationNumber
+                        }
+                      </span>
+                    )}
+
+                    {vatNumber && (
+                      <span>
+                        VAT No:{" "}
+                        {
+                          vatNumber
+                        }
+                      </span>
+                    )}
+                  </footer>
+                )}
+              </article>
+            </section>
+          )}
         </div>
       </AppLayout>
     </ProtectedRoute>
   );
 }
 
-function Field({
+// =========================================================
+// COMPONENTS
+// =========================================================
+
+function EditField({
   label,
   name,
   value,
   onChange,
   type = "text",
-  disabled = false,
 }) {
   return (
-    <div
-      className={
-        styles.field
+    <label
+      style={
+        detailStyles.field
       }
     >
-      <label
-        htmlFor={
-          name
-            ? `invoice-${name}`
-            : undefined
-        }
-      >
+      <span>
         {label}
-      </label>
+      </span>
 
       <input
-        id={
+        name={
           name
-            ? `invoice-${name}`
-            : undefined
         }
-        name={name}
-        type={type}
-        value={value || ""}
-        disabled={disabled}
-        onChange={onChange}
+        type={
+          type
+        }
+        value={
+          value ||
+          ""
+        }
+        onChange={
+          onChange
+        }
+        style={
+          detailStyles.input
+        }
       />
-    </div>
+    </label>
   );
 }
 
 function DetailRow({
   label,
   value,
-  href,
-  customValue,
 }) {
   return (
     <div
-      className={
-        styles.detailRow
-      }
-    >
-      <span>
-        {label}
-      </span>
-
-      {customValue ? (
-        customValue
-      ) : href && value ? (
-        <a href={href}>
-          {value}
-        </a>
-      ) : (
-        <strong
-          className={
-            value
-              ? ""
-              : styles.emptyValue
-          }
-        >
-          {value ||
-            "Not available"}
-        </strong>
-      )}
-    </div>
-  );
-}
-
-function HeroMetric({
-  label,
-  value,
-  paid = false,
-  warning = false,
-}) {
-  return (
-    <div
-      className={`${styles.heroMetric} ${
-        paid
-          ? styles.heroMetricPaid
-          : ""
-      } ${
-        warning
-          ? styles.heroMetricWarning
-          : ""
-      }`}
-    >
-      <span>
-        {label}
-      </span>
-
-      <strong>
-        {value}
-      </strong>
-    </div>
-  );
-}
-
-function CalculationItem({
-  label,
-  value,
-  total = false,
-}) {
-  return (
-    <div
-      className={`${styles.calculationItem} ${
-        total
-          ? styles.calculationTotal
-          : ""
-      }`}
-    >
-      <span>
-        {label}
-      </span>
-
-      <strong>
-        {value}
-      </strong>
-    </div>
-  );
-}
-
-function RiskMetric({
-  label,
-  value,
-}) {
-  return (
-    <div
-      className={
-        styles.riskMetric
+      style={
+        detailStyles.detailRow
       }
     >
       <span>
@@ -2073,42 +1860,9 @@ function RiskMetric({
       </span>
 
       <strong>
-        {value}
+        {value ||
+          "Not available"}
       </strong>
-    </div>
-  );
-}
-
-function PaymentItem({
-  title,
-  description,
-  date,
-}) {
-  return (
-    <div
-      className={
-        styles.paymentItem
-      }
-    >
-      <span
-        className={
-          styles.paymentDot
-        }
-      />
-
-      <div>
-        <strong>
-          {title}
-        </strong>
-
-        <p>
-          {description}
-        </p>
-      </div>
-
-      <time>
-        {formatDate(date)}
-      </time>
     </div>
   );
 }
@@ -2116,15 +1870,17 @@ function PaymentItem({
 function TotalRow({
   label,
   value,
-  grand = false,
+  strong = false,
 }) {
   return (
     <div
-      className={`${styles.totalRow} ${
-        grand
-          ? styles.grandTotal
-          : ""
-      }`}
+      style={{
+        ...detailStyles.totalRow,
+
+        ...(strong
+          ? detailStyles.grandTotal
+          : {}),
+      }}
     >
       <span>
         {label}
@@ -2140,81 +1896,51 @@ function TotalRow({
 function LoadingState() {
   return (
     <section
-      className={
-        styles.loadingPanel
+      style={
+        detailStyles.loading
       }
     >
       {Array.from({
         length: 6,
-      }).map((_, index) => (
-        <div
-          key={index}
-          className={
-            styles.loadingRow
-          }
-        />
-      ))}
+      }).map(
+        (
+          _,
+          index
+        ) => (
+          <div
+            key={
+              index
+            }
+            style={
+              detailStyles.loadingRow
+            }
+          />
+        )
+      )}
     </section>
   );
 }
 
-function parseMoney(value) {
-  if (
-    value === null ||
-    value === undefined ||
-    value === ""
-  ) {
-    return 0;
-  }
+// =========================================================
+// HELPERS
+// =========================================================
 
-  const cleanedValue = String(value)
-    .replace(/,/g, "")
-    .replace(/[^\d.-]/g, "");
-
-  const parsedValue =
-    Number.parseFloat(cleanedValue);
-
-  return Number.isFinite(parsedValue)
-    ? parsedValue
-    : 0;
+function normaliseStatus(
+  value
+) {
+  return String(
+    value ||
+      ""
+  )
+    .trim()
+    .toLowerCase();
 }
 
-function parseVatRate(value) {
-  if (
-    value === null ||
-    value === undefined ||
-    value === ""
-  ) {
-    return 0;
-  }
-
-  const cleanedValue = String(value)
-    .replace("%", "")
-    .trim();
-
-  const parsedValue =
-    Number.parseFloat(cleanedValue);
-
-  return Number.isFinite(parsedValue)
-    ? parsedValue
-    : 0;
-}
-
-function formatCurrency(value) {
-  return new Intl.NumberFormat(
-    "en-GB",
-    {
-      style: "currency",
-      currency: "GBP",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }
-  ).format(value || 0);
-}
-
-function formatDate(value) {
+function formatDate(
+  value
+) {
   if (!value) {
-    return "Not available";
+    return "Not set";
   }
 
   const date =
@@ -2225,163 +1951,566 @@ function formatDate(value) {
       date.getTime()
     )
   ) {
-    return "Not available";
+    return "Not set";
   }
 
   return date.toLocaleDateString(
     "en-GB",
     {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
+      day:
+        "2-digit",
+
+      month:
+        "short",
+
+      year:
+        "numeric",
     }
   );
 }
 
-function normaliseStatus(value) {
-  return String(value || "")
-    .trim()
-    .toLowerCase();
-}
-
-function isInvoiceOverdue(invoice) {
-  const status = normaliseStatus(
-    invoice.status
-  );
-
-  if (status === "overdue") {
-    return true;
+function toDateInput(
+  value
+) {
+  if (!value) {
+    return "";
   }
 
-  if (
-    ["paid", "cancelled"].includes(
-      status
-    )
-  ) {
-    return false;
-  }
-
-  if (!invoice.due_date) {
-    return false;
-  }
-
-  const dueDate =
-    new Date(invoice.due_date);
+  const date =
+    new Date(value);
 
   if (
     Number.isNaN(
-      dueDate.getTime()
+      date.getTime()
+    )
+  ) {
+    return String(
+      value
+    ).slice(
+      0,
+      10
+    );
+  }
+
+  return date
+    .toISOString()
+    .slice(
+      0,
+      10
+    );
+}
+
+function isOverdue(
+  dueDate
+) {
+  if (!dueDate) {
+    return false;
+  }
+
+  const date =
+    new Date(
+      dueDate
+    );
+
+  if (
+    Number.isNaN(
+      date.getTime()
     )
   ) {
     return false;
   }
 
-  dueDate.setHours(
-    23,
-    59,
-    59,
-    999
-  );
-
-  return dueDate < new Date();
-}
-
-function getStoredTotal(invoice) {
   return (
-    invoice.total_amount ||
-    invoice.amount ||
-    "£0.00"
+    date.getTime() <
+    Date.now()
   );
 }
 
-function getPaymentRisk({
-  invoice,
-  overdue,
-  paid,
-}) {
-  if (paid) {
-    return "No risk";
-  }
-
-  if (overdue) {
-    return "High";
-  }
-
-  const status = normaliseStatus(
-    invoice.status
-  );
-
-  if (
-    status === "partially paid"
-  ) {
-    return "Medium";
-  }
-
-  if (
-    status === "sent"
-  ) {
-    return "Low";
-  }
-
-  return "Not assessed";
-}
-
-function getInvoiceRecommendations({
-  invoice,
-  overdue,
-  paid,
-  recipientEmail,
-  bankDetailsAvailable,
-}) {
-  const recommendations = [];
-
-  if (paid) {
-    recommendations.push(
-      "No payment action is required. Keep the invoice for financial reporting and audit history."
-    );
-  } else if (overdue) {
-    recommendations.push(
-      "Send a payment reminder and confirm the expected payment date."
-    );
-  } else {
-    recommendations.push(
-      "Monitor the due date and follow up before the invoice becomes overdue."
-    );
-  }
-
-  if (!recipientEmail) {
-    recommendations.push(
-      "Add a recipient email before sending the invoice."
-    );
-  }
-
-  if (!invoice.due_date) {
-    recommendations.push(
-      "Add a due date so payment risk and overdue status can be tracked."
-    );
-  }
-
-  if (!bankDetailsAvailable) {
-    recommendations.push(
-      "Add bank details in Company Settings before sending the invoice."
-    );
-  }
-
-  if (
+function getDisplayStatus(
+  invoice
+) {
+  const status =
     normaliseStatus(
       invoice.status
-    ) === "draft" ||
-    normaliseStatus(
-      invoice.status
-    ) === "draft invoice"
-  ) {
-    recommendations.push(
-      "Review the invoice and mark it as Sent after delivery to the customer."
     );
+
+  if (
+    ![
+      "paid",
+      "cancelled",
+      "overdue",
+    ].includes(
+      status
+    ) &&
+    isOverdue(
+      invoice.due_date
+    )
+  ) {
+    return "Overdue";
   }
 
-  return recommendations.slice(
-    0,
-    5
+  return (
+    invoice.status ||
+    "Draft Invoice"
   );
 }
+
+// =========================================================
+// STYLES
+// =========================================================
+
+const detailStyles = {
+  page: {
+    display: "grid",
+    gap: "20px",
+    color: "#28251f",
+    fontSize: "13px",
+  },
+
+  header: {
+    display: "flex",
+    justifyContent:
+      "space-between",
+    alignItems:
+      "flex-start",
+    gap: "24px",
+  },
+
+  backLink: {
+    display:
+      "inline-block",
+    marginBottom:
+      "12px",
+    color: "#8d6b05",
+    fontSize: "11px",
+    fontWeight: 750,
+    textDecoration: "none",
+  },
+
+  eyebrow: {
+    display: "block",
+    marginBottom: "6px",
+    color: "#9b7507",
+    fontSize: "10px",
+    fontWeight: 800,
+    letterSpacing: "1px",
+    textTransform:
+      "uppercase",
+  },
+
+  heading: {
+    margin: 0,
+    fontSize: "27px",
+  },
+
+  description: {
+    margin: "6px 0 0",
+    color: "#7c786e",
+    fontSize: "13px",
+  },
+
+  actions: {
+    display: "flex",
+    flexWrap: "wrap",
+    justifyContent:
+      "flex-end",
+    gap: "9px",
+  },
+
+  primaryButton: {
+    minHeight: "39px",
+    padding: "0 15px",
+    border:
+      "1px solid #b78800",
+    borderRadius: "10px",
+    background: "#dca900",
+    color: "#17130a",
+    fontSize: "12px",
+    fontWeight: 750,
+    cursor: "pointer",
+  },
+
+  secondaryButton: {
+    minHeight: "39px",
+    padding: "0 15px",
+    border:
+      "1px solid #ddd9cf",
+    borderRadius: "10px",
+    background: "#ffffff",
+    color: "#413d36",
+    fontSize: "12px",
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+
+  dangerButton: {
+    minHeight: "39px",
+    padding: "0 15px",
+    border:
+      "1px solid #e1b9b9",
+    borderRadius: "10px",
+    background: "#fff7f7",
+    color: "#a13e3e",
+    fontSize: "12px",
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+
+  hero: {
+    display: "flex",
+    justifyContent:
+      "space-between",
+    alignItems: "center",
+    gap: "25px",
+    padding: "22px",
+    border:
+      "1px solid #dedbd2",
+    borderRadius: "16px",
+    background: "#ffffff",
+  },
+
+  identity: {
+    display: "flex",
+    alignItems: "center",
+    gap: "14px",
+  },
+
+  invoiceIcon: {
+    display: "grid",
+    width: "48px",
+    height: "48px",
+    placeItems: "center",
+    borderRadius: "12px",
+    background: "#29271f",
+    color: "#e2b83a",
+    fontSize: "20px",
+    fontWeight: 800,
+  },
+
+  smallLabel: {
+    color: "#9b7507",
+    fontSize: "10px",
+    fontWeight: 800,
+    textTransform:
+      "uppercase",
+  },
+
+  heroTitle: {
+    margin: "4px 0 8px",
+    fontSize: "20px",
+  },
+
+  meta: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "8px",
+    alignItems: "center",
+  },
+
+  metaBadge: {
+    padding: "5px 8px",
+    borderRadius: "999px",
+    background: "#f4f1ea",
+    color: "#686359",
+    fontSize: "10px",
+    fontWeight: 650,
+  },
+
+  totalBox: {
+    display: "grid",
+    minWidth: "190px",
+    gap: "5px",
+    padding: "15px 18px",
+    borderRadius: "12px",
+    background: "#f8efd4",
+    textAlign: "right",
+  },
+
+  panel: {
+    overflow: "hidden",
+    border:
+      "1px solid #dedbd2",
+    borderRadius: "15px",
+    background: "#ffffff",
+  },
+
+  panelHeader: {
+    padding: "18px 20px",
+    borderBottom:
+      "1px solid #ece9e2",
+  },
+
+  formGrid: {
+    display: "grid",
+    gridTemplateColumns:
+      "repeat(2, minmax(0, 1fr))",
+    gap: "15px",
+    padding: "20px",
+  },
+
+  field: {
+    display: "grid",
+    gap: "7px",
+    color: "#3e3a33",
+    fontSize: "12px",
+    fontWeight: 700,
+  },
+
+  input: {
+    minHeight: "42px",
+    padding: "0 11px",
+    border:
+      "1px solid #dcd8ce",
+    borderRadius: "9px",
+    background: "#ffffff",
+    fontSize: "13px",
+  },
+
+  textarea: {
+    padding: "11px",
+    border:
+      "1px solid #dcd8ce",
+    borderRadius: "9px",
+    resize: "vertical",
+    fontFamily: "inherit",
+    fontSize: "13px",
+  },
+
+  twoColumn: {
+    display: "grid",
+    gridTemplateColumns:
+      "repeat(2, minmax(0, 1fr))",
+    gap: "16px",
+  },
+
+  detailList: {
+    display: "grid",
+    padding: "5px 20px 15px",
+  },
+
+  detailRow: {
+    display: "flex",
+    justifyContent:
+      "space-between",
+    gap: "20px",
+    padding: "13px 0",
+    borderBottom:
+      "1px solid #efede7",
+    fontSize: "12px",
+  },
+
+  statusPanel: {
+    display: "grid",
+    justifyItems:
+      "start",
+    gap: "15px",
+    padding: "20px",
+  },
+
+  statusAmount: {
+    fontSize: "25px",
+  },
+
+  statusActions: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "8px",
+  },
+
+  documentCard: {
+    overflow: "hidden",
+    border:
+      "1px solid #dedbd2",
+    borderRadius: "16px",
+    background: "#f4f2ed",
+  },
+
+  documentToolbar: {
+    display: "flex",
+    justifyContent:
+      "space-between",
+    alignItems: "center",
+    padding: "17px 20px",
+    borderBottom:
+      "1px solid #dedbd2",
+    background: "#ffffff",
+  },
+
+  document: {
+    width:
+      "min(900px, calc(100% - 50px))",
+    minHeight: "950px",
+    margin: "28px auto",
+    padding: "45px",
+    border:
+      "1px solid #dedbd2",
+    background: "#ffffff",
+    boxShadow:
+      "0 16px 40px rgba(38,31,13,.08)",
+  },
+
+  documentHeader: {
+    display: "flex",
+    justifyContent:
+      "space-between",
+    gap: "30px",
+    paddingBottom: "24px",
+    borderBottom:
+      "3px solid #c99b17",
+  },
+
+  companyName: {
+    fontSize: "18px",
+  },
+
+  invoiceTitle: {
+    margin: 0,
+    color: "#936c00",
+    letterSpacing: "2px",
+  },
+
+  documentMeta: {
+    display: "grid",
+    gridTemplateColumns:
+      "1fr auto",
+    gap: "40px",
+    padding: "28px 0",
+  },
+
+  docLabel: {
+    display: "block",
+    marginBottom: "6px",
+    color: "#987100",
+    fontSize: "10px",
+    fontWeight: 800,
+    letterSpacing: ".6px",
+    textTransform:
+      "uppercase",
+  },
+
+  invoiceTable: {
+    border:
+      "1px solid #dfdcd3",
+    borderRadius: "10px",
+    overflow: "hidden",
+  },
+
+  invoiceTableHeader: {
+    display: "grid",
+    gridTemplateColumns:
+      "1fr auto",
+    gap: "20px",
+    padding: "12px 15px",
+    background: "#f5f2eb",
+  },
+
+  invoiceTableRow: {
+    display: "grid",
+    gridTemplateColumns:
+      "1fr auto",
+    gap: "20px",
+    padding: "15px",
+  },
+
+  totals: {
+    display: "grid",
+    width: "360px",
+    maxWidth: "100%",
+    margin:
+      "25px 0 25px auto",
+  },
+
+  totalRow: {
+    display: "flex",
+    justifyContent:
+      "space-between",
+    padding: "9px 0",
+    borderBottom:
+      "1px solid #ece9e1",
+  },
+
+  grandTotal: {
+    marginTop: "4px",
+    padding: "13px",
+    borderBottom: 0,
+    borderRadius: "9px",
+    background: "#f7efd5",
+    color: "#805f00",
+    fontSize: "16px",
+  },
+
+  documentSection: {
+    marginTop: "28px",
+    paddingTop: "18px",
+    borderTop:
+      "1px solid #ece9e1",
+    lineHeight: 1.7,
+  },
+
+  documentFooter: {
+    display: "flex",
+    justifyContent:
+      "space-between",
+    gap: "20px",
+    marginTop: "40px",
+    paddingTop: "16px",
+    borderTop:
+      "1px solid #dedbd2",
+    color: "#8f8a80",
+    fontSize: "10px",
+  },
+
+  error: {
+    display: "flex",
+    justifyContent:
+      "space-between",
+    gap: "20px",
+    padding: "20px",
+    border:
+      "1px solid #efcaca",
+    borderRadius: "14px",
+    background: "#fff7f7",
+    color: "#a13e3e",
+  },
+
+  notFound: {
+    display: "grid",
+    minHeight: "360px",
+    placeItems: "center",
+    alignContent: "center",
+    gap: "10px",
+    textAlign: "center",
+  },
+
+  bigIcon: {
+    display: "grid",
+    width: "55px",
+    height: "55px",
+    placeItems: "center",
+    borderRadius: "14px",
+    background: "#f5edcf",
+    color: "#987000",
+    fontSize: "22px",
+  },
+
+  primaryLink: {
+    padding: "11px 15px",
+    borderRadius: "9px",
+    background: "#dca900",
+    color: "#17130a",
+    fontSize: "12px",
+    fontWeight: 750,
+    textDecoration: "none",
+  },
+
+  loading: {
+    display: "grid",
+    gap: "11px",
+  },
+
+  loadingRow: {
+    height: "72px",
+    borderRadius: "12px",
+    background: "#eeece6",
+  },
+};
