@@ -1,505 +1,808 @@
-import { NextResponse } from "next/server";
-import { Resend } from "resend";
-import { supabase } from "../../../../../lib/supabase";
+import {
+  NextResponse,
+} from "next/server";
 
 import {
-  buildEmailLayout,
-  escapeHtml,
-  getCompanyContactBlock,
-  getCompanyDisplayName,
-} from "../../../../../lib/email/emailUtils";
+  Resend,
+} from "resend";
 
-import { createEmailLog } from "../../../../../lib/services/emailLogService";
+import {
+  getServerAccess,
+} from "../../../../../lib/serverAccess";
 
-const ORGANIZATION_ID =
-  "9d5bbb05-866b-4c38-b2ac-3019e7cf88e5";
+import {
+  createAdminSupabaseClient,
+} from "../../../../../lib/supabaseAdmin";
 
-function getResendClient() {
-  if (!process.env.RESEND_API_KEY) {
-    throw new Error(
-      "RESEND_API_KEY is not configured."
-    );
-  }
+import {
+  canViewOwnedRecord,
+  getRecordPermissions,
+} from "../../../../../lib/recordAccess";
 
-  return new Resend(
-    process.env.RESEND_API_KEY
+// =========================================================
+// HELPERS
+// =========================================================
+
+function cleanText(value) {
+  return typeof value ===
+    "string"
+    ? value.trim()
+    : "";
+}
+
+function isUuid(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    String(
+      value ||
+        ""
+    )
   );
 }
 
-function formatDate(value) {
-  if (!value) {
-    return "Not specified";
-  }
-
-  return new Date(value)
-    .toLocaleDateString("en-GB");
+function isEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+    String(
+      value ||
+        ""
+    )
+  );
 }
 
-export async function POST(request, context) {
-  try {
-    const { id } = await context.params;
-    const body = await request.json();
-
-    const [
-      invoiceResult,
-      settingsResult,
-    ] = await Promise.all([
-      supabase
-        .from("invoices")
-        .select("*")
-        .eq("id", id)
-        .eq(
-          "organization_id",
-          ORGANIZATION_ID
-        )
-        .single(),
-
-      supabase
-        .from("company_settings")
-        .select("*")
-        .eq(
-          "organization_id",
-          ORGANIZATION_ID
-        )
-        .limit(1),
-    ]);
-
-    if (
-      invoiceResult.error ||
-      !invoiceResult.data
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            invoiceResult.error?.message ||
-            "Invoice not found.",
-        },
-        {
-          status: 404,
-        }
-      );
+function forbidden(message) {
+  return NextResponse.json(
+    {
+      error:
+        message,
+    },
+    {
+      status:
+        403,
     }
+  );
+}
 
-    if (settingsResult.error) {
-      return NextResponse.json(
-        {
-          error:
-            settingsResult.error.message,
-        },
-        {
-          status: 500,
-        }
-      );
+function getPermissions(access) {
+  return getRecordPermissions(
+    access,
+    {
+      prefix:
+        "invoices",
+
+      module:
+        "Invoices",
     }
+  );
+}
 
-    const invoice = invoiceResult.data;
+function escapeHtml(value) {
+  return String(
+    value ||
+      ""
+  )
+    .replace(
+      /&/g,
+      "&amp;"
+    )
+    .replace(
+      /</g,
+      "&lt;"
+    )
+    .replace(
+      />/g,
+      "&gt;"
+    )
+    .replace(
+      /"/g,
+      "&quot;"
+    )
+    .replace(
+      /'/g,
+      "&#039;"
+    );
+}
 
-    const settings =
-      settingsResult.data?.[0] || null;
+function invoiceToHtml({
+  invoice,
+  settings,
+}) {
+  const companyName =
+    settings
+      ?.company_name ||
+    "SaiNal Technologies Ltd";
 
-    let relatedQuote = null;
+  const address =
+    settings
+      ?.address ||
+    "";
 
-    if (invoice.quote_id) {
-      const { data, error } =
-        await supabase
-          .from("quotes")
-          .select("*")
-          .eq(
-            "id",
-            invoice.quote_id
-          )
-          .eq(
-            "organization_id",
-            ORGANIZATION_ID
-          )
-          .maybeSingle();
+  const website =
+    settings
+      ?.website ||
+    "";
 
-      if (error) {
-        console.error(
-          "Related quote lookup error:",
-          error
-        );
-      }
+  const paymentTerms =
+    invoice.payment_terms ||
+    settings
+      ?.payment_terms ||
+    "";
 
-      relatedQuote = data || null;
-    }
+  const total =
+    invoice.total_amount ||
+    invoice.amount ||
+    "£0.00";
 
-    const recipientEmail = String(
-      body.to ||
-        relatedQuote?.email ||
-        ""
-    ).trim();
+  return `
+    <div style="font-family:Arial,sans-serif;line-height:1.6;color:#28251f;max-width:760px;margin:0 auto;">
+      <div style="display:flex;justify-content:space-between;border-bottom:3px solid #d5a51d;padding-bottom:20px;margin-bottom:28px;">
+        <div>
+          <div style="font-size:22px;font-weight:700;">
+            ${escapeHtml(companyName)}
+          </div>
 
-    if (!recipientEmail) {
-      return NextResponse.json(
-        {
-          error:
-            "No recipient email was found. Please enter the client's email address.",
-        },
-        {
-          status: 400,
-        }
-      );
-    }
+          ${
+            address
+              ? `<div style="color:#77736a;">${escapeHtml(address)}</div>`
+              : ""
+          }
 
-    const companyName =
-      getCompanyDisplayName(settings);
+          ${
+            website
+              ? `<div style="color:#77736a;">${escapeHtml(website)}</div>`
+              : ""
+          }
+        </div>
 
-    const subject =
-      String(body.subject || "").trim() ||
-      `Invoice ${invoice.invoice_number} from ${companyName}`;
+        <div style="text-align:right;">
+          <div style="font-size:24px;font-weight:700;color:#9a7100;">
+            INVOICE
+          </div>
 
-    const contactName =
-      relatedQuote?.contact ||
-      invoice.client ||
-      "Client";
+          <div>
+            ${escapeHtml(
+              invoice.invoice_number ||
+                ""
+            )}
+          </div>
+        </div>
+      </div>
 
-    const introductoryText =
-      String(body.message || "").trim() ||
-      `Dear ${contactName},
+      <p>
+        Hello,
+      </p>
 
-Please find the details of invoice ${invoice.invoice_number} below.
+      <p>
+        Please find the invoice details below.
+      </p>
 
-Please contact us if you have any questions regarding this invoice.`;
-
-    const amount =
-      invoice.total_amount ||
-      invoice.amount ||
-      "Not specified";
-
-    const contentHtml = `
-      <table
-        role="presentation"
-        width="100%"
-        cellspacing="0"
-        cellpadding="0"
-        style="
-          border-collapse: collapse;
-          background: #faf9f6;
-          border-radius: 10px;
-        "
-      >
+      <table style="width:100%;border-collapse:collapse;margin:28px 0;">
         <tr>
-          <td style="padding: 11px 14px; font-weight: 700;">
-            Invoice Number
+          <td style="padding:10px;border-bottom:1px solid #eee;">
+            <strong>Client</strong>
           </td>
 
-          <td style="padding: 11px 14px;">
-            ${escapeHtml(
-              invoice.invoice_number
-            )}
+          <td style="padding:10px;border-bottom:1px solid #eee;text-align:right;">
+            ${escapeHtml(invoice.client)}
           </td>
         </tr>
 
         <tr>
-          <td style="padding: 11px 14px; font-weight: 700;">
-            Client
+          <td style="padding:10px;border-bottom:1px solid #eee;">
+            <strong>Service</strong>
           </td>
 
-          <td style="padding: 11px 14px;">
-            ${escapeHtml(
-              invoice.client || "-"
-            )}
+          <td style="padding:10px;border-bottom:1px solid #eee;text-align:right;">
+            ${escapeHtml(invoice.service)}
           </td>
         </tr>
 
         <tr>
-          <td style="padding: 11px 14px; font-weight: 700;">
-            Service
+          <td style="padding:10px;border-bottom:1px solid #eee;">
+            <strong>Subtotal</strong>
           </td>
 
-          <td style="padding: 11px 14px;">
-            ${escapeHtml(
-              invoice.service || "-"
-            )}
-          </td>
-        </tr>
-
-        <tr>
-          <td style="padding: 11px 14px; font-weight: 700;">
-            Subtotal
-          </td>
-
-          <td style="padding: 11px 14px;">
+          <td style="padding:10px;border-bottom:1px solid #eee;text-align:right;">
             ${escapeHtml(
               invoice.subtotal ||
-                invoice.amount ||
-                "-"
+                invoice.amount
             )}
           </td>
         </tr>
 
         <tr>
-          <td style="padding: 11px 14px; font-weight: 700;">
-            VAT
+          <td style="padding:10px;border-bottom:1px solid #eee;">
+            <strong>VAT</strong>
           </td>
 
-          <td style="padding: 11px 14px;">
+          <td style="padding:10px;border-bottom:1px solid #eee;text-align:right;">
             ${escapeHtml(
               invoice.vat_amount ||
-                "£0"
+                "£0.00"
             )}
-
             ${
               invoice.vat_rate
-                ? ` (${escapeHtml(
-                    invoice.vat_rate
-                  )})`
+                ? ` (${escapeHtml(invoice.vat_rate)})`
                 : ""
             }
           </td>
         </tr>
 
         <tr>
-          <td style="padding: 11px 14px; font-weight: 700;">
-            Total Amount
+          <td style="padding:14px 10px;">
+            <strong>Total</strong>
           </td>
 
-          <td
-            style="
-              padding: 11px 14px;
-              font-weight: 700;
-              color: #9a7200;
-            "
-          >
-            ${escapeHtml(amount)}
-          </td>
-        </tr>
-
-        <tr>
-          <td style="padding: 11px 14px; font-weight: 700;">
-            Due Date
-          </td>
-
-          <td style="padding: 11px 14px;">
-            ${escapeHtml(
-              formatDate(
-                invoice.due_date
-              )
-            )}
-          </td>
-        </tr>
-
-        <tr>
-          <td style="padding: 11px 14px; font-weight: 700;">
-            Status
-          </td>
-
-          <td style="padding: 11px 14px;">
-            ${escapeHtml(
-              invoice.status || "-"
-            )}
-          </td>
-        </tr>
-
-        <tr>
-          <td style="padding: 11px 14px; font-weight: 700;">
-            Payment Terms
-          </td>
-
-          <td style="padding: 11px 14px;">
-            ${escapeHtml(
-              invoice.payment_terms ||
-                settings?.payment_terms ||
-                "-"
-            )}
+          <td style="padding:14px 10px;text-align:right;font-size:20px;font-weight:700;color:#9a7100;">
+            ${escapeHtml(total)}
           </td>
         </tr>
       </table>
 
-      <div
-        style="
-          margin-top: 24px;
-          padding: 18px;
-          background: #fff8dc;
-          border-radius: 8px;
-        "
-      >
-        <strong>Payment details</strong>
-        <br /><br />
+      ${
+        invoice.due_date
+          ? `
+            <p>
+              <strong>Due date:</strong>
+              ${escapeHtml(invoice.due_date)}
+            </p>
+          `
+          : ""
+      }
 
-        Bank:
-        ${escapeHtml(
-          settings?.bank_name || "-"
-        )}
-        <br />
+      ${
+        paymentTerms
+          ? `
+            <p>
+              <strong>Payment terms:</strong><br />
+              ${escapeHtml(paymentTerms)}
+            </p>
+          `
+          : ""
+      }
 
-        Account name:
-        ${escapeHtml(
-          settings?.bank_account_name ||
-            "-"
-        )}
-        <br />
+      <p style="margin-top:30px;">
+        Thank you for your business.
+      </p>
 
-        Sort code:
-        ${escapeHtml(
-          settings?.bank_sort_code || "-"
-        )}
-        <br />
+      <p>
+        Kind regards,<br />
+        ${escapeHtml(companyName)}
+      </p>
+    </div>
+  `;
+}
 
-        Account number:
-        ${escapeHtml(
-          settings?.bank_account_number ||
-            "-"
-        )}
-        <br /><br />
+// =========================================================
+// POST
+// =========================================================
 
-        Please use
-        <strong>
-          ${escapeHtml(
-            invoice.invoice_number
-          )}
-        </strong>
-        as the payment reference.
-      </div>
-    `;
+export async function POST(
+  request,
+  context
+) {
+  try {
+    const {
+      id,
+    } =
+      await context.params;
 
-    const html = buildEmailLayout({
-      companyName,
-
-      title:
-        `Invoice ${invoice.invoice_number}`,
-
-      introductoryText,
-
-      contentHtml,
-
-      footerText: `${getCompanyContactBlock(
-        settings
-      )}
-
-Invoice reference: ${
-        invoice.invoice_number
-      }`,
-    });
-
-    const fromAddress =
-      process.env.EMAIL_FROM ||
-      `${companyName} <onboarding@resend.dev>`;
-
-    const resend = getResendClient();
-
-    const { data, error } =
-      await resend.emails.send({
-        from: fromAddress,
-        to: [recipientEmail],
-        subject,
-        html,
-
-        replyTo:
-          settings?.company_email ||
-          undefined,
-      });
-
-    if (error) {
-      console.error(
-        "Resend invoice error:",
-        error
-      );
-
-      await createEmailLog({
-        organizationId:
-          ORGANIZATION_ID,
-
-        recipient: recipientEmail,
-        subject,
-        emailType: "Invoice",
-
-        relatedRecordId:
-          invoice.id,
-
-        relatedRecordNumber:
-          invoice.invoice_number,
-
-        status: "Failed",
-
-        errorMessage:
-          error.message ||
-          "Failed to send invoice email.",
-      });
-
+    if (
+      !isUuid(
+        id
+      )
+    ) {
       return NextResponse.json(
         {
           error:
-            error.message ||
-            "Failed to send invoice email.",
+            "A valid invoice ID is required.",
         },
         {
-          status: 500,
+          status:
+            400,
         }
       );
     }
 
-    let updatedInvoice = invoice;
+    // =====================================================
+    // ACCESS
+    // =====================================================
+
+    const access =
+      await getServerAccess();
 
     if (
-      String(
-        invoice.status || ""
-      ).toLowerCase() !== "paid"
+      !access.employee
     ) {
-      const {
-        data: invoiceUpdateData,
-        error: invoiceUpdateError,
-      } = await supabase
-        .from("invoices")
-        .update({
-          status: "Sent",
-        })
-        .eq("id", invoice.id)
+      return NextResponse.json(
+        {
+          error:
+            access.error,
+        },
+        {
+          status:
+            access.status,
+        }
+      );
+    }
+
+    const permissions =
+      getPermissions(
+        access
+      );
+
+    const canSend =
+      permissions.canSend ||
+      access.can(
+        "invoices.send"
+      ) ||
+      access.canModuleAction(
+        "Invoices",
+        "send"
+      );
+
+    if (
+      !canSend
+    ) {
+      return forbidden(
+        "You do not have permission to send invoices."
+      );
+    }
+
+    const supabase =
+      createAdminSupabaseClient();
+
+    const organizationId =
+      access.employee
+        .organization_id;
+
+    // =====================================================
+    // INVOICE
+    // =====================================================
+
+    const {
+      data:
+        invoice,
+      error:
+        invoiceError,
+    } =
+      await supabase
+        .from(
+          "invoices"
+        )
+        .select("*")
+        .eq(
+          "id",
+          id
+        )
         .eq(
           "organization_id",
-          ORGANIZATION_ID
+          organizationId
+        )
+        .maybeSingle();
+
+    if (
+      invoiceError
+    ) {
+      throw new Error(
+        invoiceError.message
+      );
+    }
+
+    if (
+      !invoice
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Invoice not found.",
+        },
+        {
+          status:
+            404,
+        }
+      );
+    }
+
+    const visible =
+      await canViewOwnedRecord({
+        supabase,
+        access,
+        permissions,
+
+        record:
+          invoice,
+      });
+
+    if (
+      !visible
+    ) {
+      return forbidden(
+        "You do not have permission to send this invoice."
+      );
+    }
+
+    // =====================================================
+    // REQUEST
+    // =====================================================
+
+    let body = {};
+
+    try {
+      body =
+        await request.json();
+    } catch {
+      body = {};
+    }
+
+    let recipientEmail =
+      cleanText(
+        body.email ||
+          body.to ||
+          invoice.email
+      )
+        .toLowerCase();
+
+    // =====================================================
+    // FALLBACK EMAIL FROM QUOTE / CUSTOMER
+    // =====================================================
+
+    if (
+      !recipientEmail &&
+      invoice.quote_id
+    ) {
+      const {
+        data:
+          quote,
+      } =
+        await supabase
+          .from(
+            "quotes"
+          )
+          .select(
+            "email"
+          )
+          .eq(
+            "id",
+            invoice.quote_id
+          )
+          .eq(
+            "organization_id",
+            organizationId
+          )
+          .maybeSingle();
+
+      recipientEmail =
+        cleanText(
+          quote?.email
+        )
+          .toLowerCase();
+    }
+
+    if (
+      !recipientEmail &&
+      invoice.customer_id
+    ) {
+      const {
+        data:
+          customer,
+      } =
+        await supabase
+          .from(
+            "customers"
+          )
+          .select(
+            "email"
+          )
+          .eq(
+            "id",
+            invoice.customer_id
+          )
+          .eq(
+            "organization_id",
+            organizationId
+          )
+          .maybeSingle();
+
+      recipientEmail =
+        cleanText(
+          customer?.email
+        )
+          .toLowerCase();
+    }
+
+    if (
+      !recipientEmail ||
+      !isEmail(
+        recipientEmail
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "A valid recipient email address is required.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
+    // =====================================================
+    // COMPANY SETTINGS
+    // =====================================================
+
+    const {
+      data:
+        companySettings,
+      error:
+        settingsError,
+    } =
+      await supabase
+        .from(
+          "company_settings"
+        )
+        .select("*")
+        .eq(
+          "organization_id",
+          organizationId
+        )
+        .maybeSingle();
+
+    if (
+      settingsError
+    ) {
+      throw new Error(
+        settingsError.message
+      );
+    }
+
+    const companyName =
+      companySettings
+        ?.company_name ||
+      "SaiNal Technologies Ltd";
+
+    const subject =
+      cleanText(
+        body.subject
+      ) ||
+      `Invoice ${
+        invoice.invoice_number ||
+        ""
+      } from ${companyName}`;
+
+    // =====================================================
+    // ENVIRONMENT
+    // =====================================================
+
+    const resendApiKey =
+      process.env
+        .RESEND_API_KEY;
+
+    const emailFrom =
+      process.env
+        .EMAIL_FROM;
+
+    if (
+      !resendApiKey
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Email service is not configured. RESEND_API_KEY is missing.",
+        },
+        {
+          status:
+            500,
+        }
+      );
+    }
+
+    if (
+      !emailFrom
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Email sender is not configured. EMAIL_FROM is missing.",
+        },
+        {
+          status:
+            500,
+        }
+      );
+    }
+
+    // =====================================================
+    // SEND
+    // =====================================================
+
+    const resend =
+      new Resend(
+        resendApiKey
+      );
+
+    const {
+      data:
+        emailResult,
+      error:
+        sendError,
+    } =
+      await resend.emails.send({
+        from:
+          emailFrom,
+
+        to: [
+          recipientEmail,
+        ],
+
+        subject,
+
+        html:
+          invoiceToHtml({
+            invoice,
+
+            settings:
+              companySettings,
+          }),
+      });
+
+    if (
+      sendError
+    ) {
+      console.error(
+        "Invoice email sending error:",
+        sendError
+      );
+
+      return NextResponse.json(
+        {
+          error:
+            sendError.message ||
+            "The invoice email could not be sent.",
+        },
+        {
+          status:
+            500,
+        }
+      );
+    }
+
+    // =====================================================
+    // UPDATE STATUS
+    // =====================================================
+
+    const currentStatus =
+      String(
+        invoice.status ||
+          ""
+      )
+        .trim()
+        .toLowerCase();
+
+    const nextStatus =
+      [
+        "paid",
+        "partially paid",
+      ].includes(
+        currentStatus
+      )
+        ? invoice.status
+        : "Sent";
+
+    const {
+      data:
+        updatedInvoice,
+      error:
+        updateError,
+    } =
+      await supabase
+        .from(
+          "invoices"
+        )
+        .update({
+          status:
+            nextStatus,
+        })
+        .eq(
+          "id",
+          id
+        )
+        .eq(
+          "organization_id",
+          organizationId
         )
         .select()
         .single();
 
-      if (invoiceUpdateError) {
-        console.error(
-          "Invoice sent but status update failed:",
-          invoiceUpdateError
-        );
-      } else {
-        updatedInvoice =
-          invoiceUpdateData;
-      }
+    if (
+      updateError
+    ) {
+      throw new Error(
+        updateError.message
+      );
     }
 
-    await createEmailLog({
-      organizationId:
-        ORGANIZATION_ID,
+    // =====================================================
+    // EMAIL LOG
+    // =====================================================
 
-      recipient: recipientEmail,
-      subject,
-      emailType: "Invoice",
+    const {
+      error:
+        logError,
+    } =
+      await supabase
+        .from(
+          "email_logs"
+        )
+        .insert([
+          {
+            organization_id:
+              organizationId,
 
-      relatedRecordId:
-        invoice.id,
+            record_type:
+              "invoice",
 
-      relatedRecordNumber:
-        invoice.invoice_number,
+            record_id:
+              id,
 
-      status: "Sent",
+            recipient_email:
+              recipientEmail,
 
-      providerEmailId:
-        data?.id || null,
-    });
+            subject,
+
+            status:
+              "Sent",
+
+            provider:
+              "Resend",
+
+            provider_message_id:
+              emailResult?.id ||
+              null,
+
+            sent_by_user_id:
+              access.user?.id ||
+              null,
+
+            sent_by_employee_id:
+              access.employee.id,
+
+            created_at:
+              new Date()
+                .toISOString(),
+          },
+        ]);
+
+    if (
+      logError
+    ) {
+      console.error(
+        "Invoice email log error:",
+        logError
+      );
+    }
 
     return NextResponse.json({
       message:
-        "Invoice email sent successfully.",
-
-      emailId:
-        data?.id || null,
-
-      recipient:
-        recipientEmail,
+        "Invoice sent successfully.",
 
       invoice:
         updatedInvoice,
+
+      email: {
+        id:
+          emailResult?.id ||
+          null,
+
+        to:
+          recipientEmail,
+
+        subject,
+      },
     });
   } catch (error) {
     console.error(
-      "Send invoice email error:",
+      "Invoice send error:",
       error
     );
 
@@ -507,10 +810,11 @@ Invoice reference: ${
       {
         error:
           error.message ||
-          "Failed to send invoice email.",
+          "Failed to send invoice.",
       },
       {
-        status: 500,
+        status:
+          500,
       }
     );
   }
