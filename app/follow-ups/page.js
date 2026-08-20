@@ -6,64 +6,51 @@ import {
   useState,
 } from "react";
 
-import Link from "next/link";
-
 import AppLayout from "../../components/layout/AppLayout";
 import ProtectedRoute from "../../components/ProtectedRoute";
 import StatusBadge from "../../components/StatusBadge";
 
-import styles from "./follow-ups.module.css";
-
 // =========================================================
-// FORM
+// CONSTANTS
 // =========================================================
 
-const EMPTY_FORM = {
-  related_type: "General",
-  title: "",
-  note: "",
-  due_date: "",
-  status: "Pending",
-};
+const STATUS_OPTIONS = [
+  "Pending",
+  "In Progress",
+  "Completed",
+  "Cancelled",
+];
 
-// =========================================================
-// OPTIONS
-// =========================================================
-
-const RELATED_TYPE_OPTIONS = [
+const RELATED_TYPES = [
   "General",
   "Lead",
-  "Quote",
   "Customer",
+  "Quote",
+  "Proposal",
   "Project",
   "Invoice",
 ];
 
-const FOLLOW_UP_STATUS_OPTIONS = [
-  "Pending",
-  "Completed",
-];
+const EMPTY_FORM = {
+  title: "",
+  note: "",
+  due_date: "",
+  status: "Pending",
+  related_type: "General",
+  related_id: "",
+  assigned_employee_id: "",
+};
 
-const TASK_STATUS_OPTIONS = [
-  "To Do",
-  "In Progress",
-  "Blocked",
-  "Completed",
-];
-
-const WORK_FILTERS = [
-  "All",
-  "Tasks",
-  "Follow-ups",
-];
-
-const PRIORITY_FILTERS = [
-  "All",
-  "Low",
-  "Medium",
-  "High",
-  "Urgent",
-];
+const EMPTY_ACCESS = {
+  isOwner: false,
+  canViewAll: false,
+  canViewTeam: false,
+  canViewOwn: false,
+  canCreate: false,
+  canEdit: false,
+  canDelete: false,
+  canAssign: false,
+};
 
 // =========================================================
 // PAGE
@@ -76,8 +63,8 @@ export default function FollowUpsPage() {
   ] = useState([]);
 
   const [
-    tasks,
-    setTasks,
+    employees,
+    setEmployees,
   ] = useState([]);
 
   const [
@@ -86,24 +73,16 @@ export default function FollowUpsPage() {
   ] = useState(null);
 
   const [
+    access,
+    setAccess,
+  ] = useState(
+    EMPTY_ACCESS
+  );
+
+  const [
     loading,
     setLoading,
   ] = useState(true);
-
-  const [
-    saving,
-    setSaving,
-  ] = useState(false);
-
-  const [
-    updatingWorkId,
-    setUpdatingWorkId,
-  ] = useState(null);
-
-  const [
-    deletingWorkId,
-    setDeletingWorkId,
-  ] = useState(null);
 
   const [
     errorMessage,
@@ -116,8 +95,32 @@ export default function FollowUpsPage() {
   ] = useState(false);
 
   const [
-    searchValue,
-    setSearchValue,
+    saving,
+    setSaving,
+  ] = useState(false);
+
+  const [
+    form,
+    setForm,
+  ] = useState(
+    EMPTY_FORM
+  );
+
+  const [
+    editingId,
+    setEditingId,
+  ] = useState(null);
+
+  const [
+    editForm,
+    setEditForm,
+  ] = useState(
+    EMPTY_FORM
+  );
+
+  const [
+    search,
+    setSearch,
   ] = useState("");
 
   const [
@@ -125,173 +128,152 @@ export default function FollowUpsPage() {
     setStatusFilter,
   ] = useState("All");
 
-  const [
-    typeFilter,
-    setTypeFilter,
-  ] = useState("All");
-
-  const [
-    workFilter,
-    setWorkFilter,
-  ] = useState("All");
-
-  const [
-    priorityFilter,
-    setPriorityFilter,
-  ] = useState("All");
-
-  const [
-    formData,
-    setFormData,
-  ] = useState(
-    EMPTY_FORM
-  );
-
   // =======================================================
-  // INITIAL LOAD
+  // LOAD
   // =======================================================
 
   useEffect(() => {
-    fetchWork();
+    loadFollowUps();
   }, []);
 
-  useEffect(() => {
+  async function loadFollowUps() {
     try {
-      const searchParams =
-        new URLSearchParams(
-          window.location.search
+      setLoading(true);
+      setErrorMessage("");
+
+      const response =
+        await fetch(
+          "/api/follow-ups",
+          {
+            cache:
+              "no-store",
+          }
         );
 
-      if (
-        searchParams.get(
-          "create"
-        ) === "true"
-      ) {
-        setShowForm(
-          true
-        );
+      const data =
+        await response.json();
 
-        window.history.replaceState(
-          {},
-          "",
-          window.location.pathname
-        );
-      }
-    } catch (error) {
-      console.error(
-        "Unable to read work parameters:",
-        error
-      );
-    }
-  }, []);
-
-  // =======================================================
-  // LOAD MY WORK
-  // =======================================================
-
-  async function fetchWork() {
-    try {
-      setLoading(
-        true
-      );
-
-      setErrorMessage(
-        ""
-      );
-
-      const [
-        followUpResponse,
-        taskResponse,
-      ] =
-        await Promise.all([
-          fetch(
-            "/api/follow-ups",
-            {
-              cache:
-                "no-store",
-            }
-          ),
-
-          fetch(
-            "/api/tasks",
-            {
-              cache:
-                "no-store",
-            }
-          ),
-        ]);
-
-      const [
-        followUpData,
-        taskData,
-      ] =
-        await Promise.all([
-          followUpResponse.json(),
-          taskResponse.json(),
-        ]);
-
-      if (
-        !followUpResponse.ok
-      ) {
+      if (!response.ok) {
         throw new Error(
-          followUpData.error ||
-            "Failed to load follow-ups."
-        );
-      }
-
-      if (
-        !taskResponse.ok
-      ) {
-        throw new Error(
-          taskData.error ||
-            "Failed to load tasks."
+          data.error ||
+            "Unable to load follow-ups."
         );
       }
 
       setFollowUps(
         Array.isArray(
-          followUpData
+          data.followUps
         )
-          ? followUpData
+          ? data.followUps
           : []
       );
 
-      setTasks(
-        extractTasksFromResponse(
-          taskData
+      setEmployees(
+        Array.isArray(
+          data.employees
         )
+          ? data.employees
+          : []
       );
 
       setCurrentEmployee(
-        !Array.isArray(
-          taskData
-        )
-          ? taskData?.currentEmployee ||
-              null
-          : null
+        data.currentEmployee ||
+          null
       );
+
+      setAccess({
+        isOwner:
+          Boolean(
+            data.access
+              ?.isOwner
+          ),
+
+        canViewAll:
+          Boolean(
+            data.access
+              ?.canViewAll
+          ),
+
+        canViewTeam:
+          Boolean(
+            data.access
+              ?.canViewTeam
+          ),
+
+        canViewOwn:
+          Boolean(
+            data.access
+              ?.canViewOwn
+          ),
+
+        canCreate:
+          Boolean(
+            data.access
+              ?.canCreate
+          ),
+
+        canEdit:
+          Boolean(
+            data.access
+              ?.canEdit
+          ),
+
+        canDelete:
+          Boolean(
+            data.access
+              ?.canDelete
+          ),
+
+        canAssign:
+          Boolean(
+            data.access
+              ?.canAssign
+          ),
+      });
     } catch (error) {
       console.error(
-        "My Work loading error:",
+        "Follow-up loading error:",
         error
       );
 
+      setFollowUps([]);
+
       setErrorMessage(
         error.message ||
-          "We could not load your work."
+          "Unable to load follow-ups."
       );
     } finally {
-      setLoading(
-        false
-      );
+      setLoading(false);
     }
   }
 
   // =======================================================
-  // FOLLOW-UP FORM
+  // CREATE
   // =======================================================
 
-  function handleChange(
+  function openCreateForm() {
+    setForm({
+      ...EMPTY_FORM,
+
+      assigned_employee_id:
+        access.canAssign
+          ? currentEmployee
+              ?.id || ""
+          : "",
+    });
+
+    setShowForm(true);
+  }
+
+  function closeCreateForm() {
+    setShowForm(false);
+
+    setForm(
+      EMPTY_FORM
+    );
+  }
+
+  function handleFormChange(
     event
   ) {
     const {
@@ -300,11 +282,9 @@ export default function FollowUpsPage() {
     } =
       event.target;
 
-    setFormData(
-      (
-        currentForm
-      ) => ({
-        ...currentForm,
+    setForm(
+      (current) => ({
+        ...current,
 
         [name]:
           value,
@@ -312,52 +292,53 @@ export default function FollowUpsPage() {
     );
   }
 
-  function openCreateForm() {
-    setFormData(
-      EMPTY_FORM
-    );
-
-    setShowForm(
-      true
-    );
-  }
-
-  function closeCreateForm() {
-    setFormData(
-      EMPTY_FORM
-    );
-
-    setShowForm(
-      false
-    );
-  }
-
-  // =======================================================
-  // CREATE FOLLOW-UP
-  // =======================================================
-
   async function createFollowUp(
     event
   ) {
     event.preventDefault();
 
-    const cleanTitle =
-      formData.title.trim();
-
     if (
-      !cleanTitle
+      !form.title.trim()
     ) {
       alert(
-        "Please enter a follow-up title."
+        "Follow-up title is required."
       );
 
       return;
     }
 
     try {
-      setSaving(
-        true
-      );
+      setSaving(true);
+
+      const payload = {
+        title:
+          form.title.trim(),
+
+        note:
+          form.note.trim(),
+
+        due_date:
+          form.due_date ||
+          null,
+
+        status:
+          form.status,
+
+        related_type:
+          form.related_type,
+
+        related_id:
+          form.related_id.trim() ||
+          null,
+      };
+
+      if (
+        access.canAssign &&
+        form.assigned_employee_id
+      ) {
+        payload.assigned_employee_id =
+          form.assigned_employee_id;
+      }
 
       const response =
         await fetch(
@@ -372,96 +353,140 @@ export default function FollowUpsPage() {
             },
 
             body:
-              JSON.stringify({
-                related_type:
-                  formData.related_type ||
-                  "General",
-
-                title:
-                  cleanTitle,
-
-                note:
-                  formData.note.trim(),
-
-                due_date:
-                  formData.due_date ||
-                  null,
-
-                status:
-                  formData.status ||
-                  "Pending",
-              }),
+              JSON.stringify(
+                payload
+              ),
           }
         );
 
       const data =
         await response.json();
 
-      if (
-        !response.ok
-      ) {
+      if (!response.ok) {
         throw new Error(
           data.error ||
-            "Failed to create follow-up."
+            "Unable to create follow-up."
         );
-      }
-
-      const created =
-        Array.isArray(
-          data
-        )
-          ? data[0]
-          : data;
-
-      if (
-        created
-      ) {
-        setFollowUps(
-          (
-            current
-          ) => [
-            created,
-            ...current,
-          ]
-        );
-      } else {
-        await fetchWork();
       }
 
       closeCreateForm();
 
-      alert(
-        "Follow-up created successfully."
-      );
+      await loadFollowUps();
     } catch (error) {
-      console.error(
-        "Follow-up creation error:",
-        error
-      );
-
       alert(
         error.message ||
-          "Error creating follow-up."
+          "Unable to create follow-up."
       );
     } finally {
-      setSaving(
-        false
-      );
+      setSaving(false);
     }
   }
 
   // =======================================================
-  // UPDATE FOLLOW-UP STATUS
+  // EDIT
   // =======================================================
 
-  async function updateFollowUpStatus(
-    id,
-    status
+  function startEdit(item) {
+    setEditingId(
+      item.id
+    );
+
+    setEditForm({
+      title:
+        item.title || "",
+
+      note:
+        item.note || "",
+
+      due_date:
+        normaliseDateInput(
+          item.due_date
+        ),
+
+      status:
+        item.status ||
+        "Pending",
+
+      related_type:
+        item.related_type ||
+        "General",
+
+      related_id:
+        item.related_id ||
+        "",
+
+      assigned_employee_id:
+        item.assigned_employee_id ||
+        "",
+    });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+
+    setEditForm(
+      EMPTY_FORM
+    );
+  }
+
+  function handleEditChange(
+    event
+  ) {
+    const {
+      name,
+      value,
+    } =
+      event.target;
+
+    setEditForm(
+      (current) => ({
+        ...current,
+
+        [name]:
+          value,
+      })
+    );
+  }
+
+  async function saveFollowUp(
+    id
   ) {
     try {
-      setUpdatingWorkId(
-        `Follow-up-${id}`
-      );
+      setSaving(true);
+
+      const payload = {};
+
+      if (
+        access.canEdit
+      ) {
+        payload.title =
+          editForm.title.trim();
+
+        payload.note =
+          editForm.note.trim();
+
+        payload.due_date =
+          editForm.due_date ||
+          null;
+
+        payload.status =
+          editForm.status;
+
+        payload.related_type =
+          editForm.related_type;
+
+        payload.related_id =
+          editForm.related_id.trim() ||
+          null;
+      }
+
+      if (
+        access.canAssign
+      ) {
+        payload.assigned_employee_id =
+          editForm.assigned_employee_id ||
+          "";
+      }
 
       const response =
         await fetch(
@@ -476,88 +501,52 @@ export default function FollowUpsPage() {
             },
 
             body:
-              JSON.stringify({
-                status,
-              }),
+              JSON.stringify(
+                payload
+              ),
           }
         );
 
       const data =
         await response.json();
 
-      if (
-        !response.ok
-      ) {
+      if (!response.ok) {
         throw new Error(
           data.error ||
-            "Failed to update follow-up."
+            "Unable to update follow-up."
         );
       }
 
-      const updated =
-        Array.isArray(
-          data
-        )
-          ? data[0]
-          : data;
+      cancelEdit();
 
-      setFollowUps(
-        (
-          current
-        ) =>
-          current.map(
-            (
-              followUp
-            ) =>
-              String(
-                followUp.id
-              ) ===
-              String(
-                id
-              )
-                ? {
-                    ...followUp,
-                    ...updated,
-                    status,
-                  }
-                : followUp
-          )
-      );
+      await loadFollowUps();
     } catch (error) {
-      console.error(
-        "Follow-up status error:",
-        error
-      );
-
       alert(
         error.message ||
-          "Error updating follow-up."
+          "Unable to update follow-up."
       );
-
-      await fetchWork();
     } finally {
-      setUpdatingWorkId(
-        null
-      );
+      setSaving(false);
     }
   }
 
   // =======================================================
-  // UPDATE TASK STATUS
+  // QUICK COMPLETE
   // =======================================================
 
-  async function updateTaskStatus(
-    id,
-    status
+  async function completeFollowUp(
+    item
   ) {
-    try {
-      setUpdatingWorkId(
-        `Task-${id}`
-      );
+    if (
+      !access.canEdit
+    ) {
+      return;
+    }
 
+    try {
       const response =
         await fetch(
-          `/api/tasks/${id}`,
+          `/api/follow-ups/${item.id}`,
           {
             method:
               "PATCH",
@@ -569,7 +558,8 @@ export default function FollowUpsPage() {
 
             body:
               JSON.stringify({
-                status,
+                status:
+                  "Completed",
               }),
           }
         );
@@ -577,94 +567,42 @@ export default function FollowUpsPage() {
       const data =
         await response.json();
 
-      if (
-        !response.ok
-      ) {
+      if (!response.ok) {
         throw new Error(
           data.error ||
-            "Failed to update task."
+            "Unable to complete follow-up."
         );
       }
 
-      const updatedTask =
-        extractTaskFromResponse(
-          data
-        );
-
-      if (
-        !updatedTask
-      ) {
-        await fetchWork();
-
-        return;
-      }
-
-      setTasks(
-        (
-          current
-        ) =>
-          current.map(
-            (
-              task
-            ) =>
-              String(
-                task.id
-              ) ===
-              String(
-                id
-              )
-                ? {
-                    ...task,
-                    ...updatedTask,
-                  }
-                : task
-          )
-      );
+      await loadFollowUps();
     } catch (error) {
-      console.error(
-        "Task status error:",
-        error
-      );
-
       alert(
         error.message ||
-          "Error updating task."
-      );
-
-      await fetchWork();
-    } finally {
-      setUpdatingWorkId(
-        null
+          "Unable to complete follow-up."
       );
     }
   }
 
   // =======================================================
-  // DELETE FOLLOW-UP
+  // DELETE
   // =======================================================
 
   async function deleteFollowUp(
-    id
+    item
   ) {
     const confirmed =
       window.confirm(
-        "Are you sure you want to delete this follow-up?"
+        `Delete "${item.title}"?`
       );
 
-    if (
-      !confirmed
-    ) {
+    if (!confirmed) {
       return;
     }
 
     try {
-      setDeletingWorkId(
-        `Follow-up-${id}`
-      );
-
       const response =
         await fetch(
-          `/api/follow-ups/${id}`,
+          `/api/follow-ups/${item.id}`,
           {
             method:
               "DELETE",
@@ -674,507 +612,107 @@ export default function FollowUpsPage() {
       const data =
         await response.json();
 
-      if (
-        !response.ok
-      ) {
+      if (!response.ok) {
         throw new Error(
           data.error ||
-            "Failed to delete follow-up."
+            "Unable to delete follow-up."
         );
       }
 
-      setFollowUps(
-        (
-          current
-        ) =>
-          current.filter(
-            (
-              followUp
-            ) =>
-              String(
-                followUp.id
-              ) !==
-              String(
-                id
-              )
-          )
-      );
+      await loadFollowUps();
     } catch (error) {
-      console.error(
-        "Follow-up deletion error:",
-        error
-      );
-
       alert(
         error.message ||
-          "Error deleting follow-up."
-      );
-    } finally {
-      setDeletingWorkId(
-        null
+          "Unable to delete follow-up."
       );
     }
   }
 
   // =======================================================
-  // DELETE TASK
+  // FILTERS
   // =======================================================
 
-  async function deleteTask(
-    id
-  ) {
-    const confirmed =
-      window.confirm(
-        "Are you sure you want to delete this task?"
-      );
-
-    if (
-      !confirmed
-    ) {
-      return;
-    }
-
-    try {
-      setDeletingWorkId(
-        `Task-${id}`
-      );
-
-      const response =
-        await fetch(
-          `/api/tasks/${id}`,
-          {
-            method:
-              "DELETE",
-          }
-        );
-
-      const data =
-        await response.json();
-
-      if (
-        !response.ok
-      ) {
-        throw new Error(
-          data.error ||
-            "Failed to delete task."
-        );
-      }
-
-      setTasks(
-        (
-          current
-        ) =>
-          current.filter(
-            (
-              task
-            ) =>
-              String(
-                task.id
-              ) !==
-              String(
-                id
-              )
-          )
-      );
-    } catch (error) {
-      console.error(
-        "Task deletion error:",
-        error
-      );
-
-      alert(
-        error.message ||
-          "Error deleting task."
-      );
-
-      await fetchWork();
-    } finally {
-      setDeletingWorkId(
-        null
-      );
-    }
-  }
-
-  // =======================================================
-  // BUILD UNIFIED WORK LIST
-  // =======================================================
-
-  const workItems =
+  const filtered =
     useMemo(() => {
-      const taskItems =
-        tasks.map(
-          (
-            task
-          ) => {
-            const assignee =
-              getTaskAssignee(
-                task
-              );
-
-            return {
-              id:
-                task.id,
-
-              itemType:
-                "Task",
-
-              title:
-                task.task_name ||
-                "Untitled task",
-
-              description:
-                task.description ||
-                "",
-
-              relatedType:
-                task.record_type
-                  ? formatRecordType(
-                      task.record_type
-                    )
-                  : task.project_id
-                    ? "Project"
-                    : "General",
-
-              status:
-                getTaskDisplayStatus(
-                  task.status
-                ),
-
-              rawStatus:
-                task.status,
-
-              dueDate:
-                task.due_date,
-
-              createdAt:
-                task.created_at,
-
-              priority:
-                task.priority ||
-                "Medium",
-
-              assignedEmployeeId:
-                task.assigned_employee_id,
-
-              assigneeName:
-                assignee.name,
-
-              assigneeRole:
-                assignee.role,
-
-              recordType:
-                task.record_type,
-
-              recordId:
-                task.record_id,
-
-              projectId:
-                task.project_id,
-
-              workflowRunId:
-                task.workflow_run_id,
-
-              automatic:
-                Boolean(
-                  task.workflow_run_id
-                ),
-
-              source:
-                task,
-            };
-          }
-        );
-
-      const followUpItems =
-        followUps.map(
-          (
-            followUp
-          ) => ({
-            id:
-              followUp.id,
-
-            itemType:
-              "Follow-up",
-
-            title:
-              followUp.title ||
-              "Untitled follow-up",
-
-            description:
-              followUp.note ||
-              "",
-
-            relatedType:
-              followUp.related_type ||
-              "General",
-
-            status:
-              followUp.status ||
-              "Pending",
-
-            rawStatus:
-              followUp.status,
-
-            dueDate:
-              followUp.due_date,
-
-            createdAt:
-              followUp.created_at,
-
-            priority:
-              null,
-
-            assignedEmployeeId:
-              null,
-
-            assigneeName:
-              "Personal follow-up",
-
-            assigneeRole:
-              null,
-
-            recordType:
-              null,
-
-            recordId:
-              null,
-
-            projectId:
-              null,
-
-            workflowRunId:
-              null,
-
-            automatic:
-              false,
-
-            source:
-              followUp,
-          })
-        );
-
-      return [
-        ...taskItems,
-        ...followUpItems,
-      ];
-    }, [
-      tasks,
-      followUps,
-    ]);
-
-  // =======================================================
-  // FILTERING
-  // =======================================================
-
-  const filteredWork =
-    useMemo(() => {
-      const search =
-        searchValue
+      const query =
+        search
           .trim()
           .toLowerCase();
 
-      return workItems
-        .filter(
-          (
-            item
-          ) => {
-            const matchesSearch =
-              !search ||
-              [
-                item.title,
-                item.description,
-                item.relatedType,
-                item.status,
-                item.priority,
-                item.itemType,
-                item.assigneeName,
-              ].some(
-                (
-                  value
-                ) =>
-                  String(
-                    value ||
-                      ""
+      return followUps.filter(
+        (item) => {
+          const matchesSearch =
+            !query ||
+            [
+              item.title,
+              item.note,
+              item.related_type,
+              item.status,
+              item.assigned_employee
+                ?.full_name,
+            ].some(
+              (value) =>
+                String(
+                  value || ""
+                )
+                  .toLowerCase()
+                  .includes(
+                    query
                   )
-                    .toLowerCase()
-                    .includes(
-                      search
-                    )
-              );
-
-            const matchesWorkType =
-              workFilter ===
-                "All" ||
-              (
-                workFilter ===
-                  "Tasks" &&
-                item.itemType ===
-                  "Task"
-              ) ||
-              (
-                workFilter ===
-                  "Follow-ups" &&
-                item.itemType ===
-                  "Follow-up"
-              );
-
-            const matchesStatus =
-              statusFilter ===
-                "All" ||
-              normaliseStatus(
-                item.status
-              ) ===
-                normaliseStatus(
-                  statusFilter
-                );
-
-            const matchesType =
-              typeFilter ===
-                "All" ||
-              normaliseStatus(
-                item.relatedType
-              ) ===
-                normaliseStatus(
-                  typeFilter
-                );
-
-            const matchesPriority =
-              priorityFilter ===
-                "All" ||
-              (
-                item.itemType ===
-                  "Task" &&
-                normaliseStatus(
-                  item.priority
-                ) ===
-                  normaliseStatus(
-                    priorityFilter
-                  )
-              );
-
-            return (
-              matchesSearch &&
-              matchesWorkType &&
-              matchesStatus &&
-              matchesType &&
-              matchesPriority
             );
-          }
-        )
-        .sort(
-          sortWorkItems
-        );
+
+          const matchesStatus =
+            statusFilter ===
+              "All" ||
+            normalise(
+              item.status
+            ) ===
+              normalise(
+                statusFilter
+              );
+
+          return (
+            matchesSearch &&
+            matchesStatus
+          );
+        }
+      );
     }, [
-      workItems,
-      searchValue,
-      workFilter,
+      followUps,
+      search,
       statusFilter,
-      typeFilter,
-      priorityFilter,
     ]);
 
   // =======================================================
-  // SUMMARY
+  // METRICS
   // =======================================================
 
-  const openCount =
-    workItems.filter(
-      (
-        item
-      ) =>
-        !isCompleted(
-          item.status
+  const pendingCount =
+    followUps.filter(
+      (item) =>
+        [
+          "pending",
+          "in progress",
+        ].includes(
+          normalise(
+            item.status
+          )
         )
     ).length;
 
   const completedCount =
-    workItems.filter(
-      (
-        item
-      ) =>
-        isCompleted(
+    followUps.filter(
+      (item) =>
+        normalise(
           item.status
-        )
+        ) ===
+        "completed"
     ).length;
 
   const overdueCount =
-    workItems.filter(
-      isWorkItemOverdue
+    followUps.filter(
+      isOverdue
     ).length;
-
-  const todayCount =
-    workItems.filter(
-      (
-        item
-      ) =>
-        !isCompleted(
-          item.status
-        ) &&
-        isToday(
-          item.dueDate
-        )
-    ).length;
-
-  const workflowTaskCount =
-    workItems.filter(
-      (
-        item
-      ) =>
-        item.itemType ===
-          "Task" &&
-        item.automatic
-    ).length;
-
-  const urgentCount =
-    workItems.filter(
-      (
-        item
-      ) =>
-        item.itemType ===
-          "Task" &&
-        !isCompleted(
-          item.status
-        ) &&
-        normaliseStatus(
-          item.priority
-        ) ===
-          "urgent"
-    ).length;
-
-  const filtersActive =
-    Boolean(
-      searchValue
-    ) ||
-    statusFilter !==
-      "All" ||
-    typeFilter !==
-      "All" ||
-    workFilter !==
-      "All" ||
-    priorityFilter !==
-      "All";
-
-  function clearFilters() {
-    setSearchValue(
-      ""
-    );
-
-    setStatusFilter(
-      "All"
-    );
-
-    setTypeFilter(
-      "All"
-    );
-
-    setWorkFilter(
-      "All"
-    );
-
-    setPriorityFilter(
-      "All"
-    );
-  }
 
   // =======================================================
   // PAGE
@@ -1183,643 +721,383 @@ export default function FollowUpsPage() {
   return (
     <ProtectedRoute>
       <AppLayout
-        title="My Work"
-        description="Manage tasks, follow-ups and workflow-generated actions from one workspace."
+        title="Follow-ups"
+        description="Manage customer and operational follow-up activity."
       >
         <div
-          className={
+          style={
             styles.page
           }
         >
-          {/* =================================================
-              HEADER
-          ================================================= */}
-
           <section
-            className={
-              styles.pageHeader
+            style={
+              styles.header
             }
           >
-            <div
-              className={
-                styles.pageHeaderCopy
-              }
-            >
+            <div>
               <span
-                className={
+                style={
                   styles.eyebrow
                 }
               >
-                Action workspace
+                Delivery workspace
               </span>
 
-              <h2>
-                My Work
+              <h2
+                style={
+                  styles.heading
+                }
+              >
+                Follow-up centre
               </h2>
 
-              <p>
-                Review your assigned
-                tasks, customer
-                follow-ups and actions
-                generated automatically
-                by SaiNal One workflows.
+              <p
+                style={
+                  styles.description
+                }
+              >
+                Track actions,
+                reminders and
+                customer follow-ups
+                assigned across your
+                organisation.
               </p>
-
-              {currentEmployee && (
-                <small
-                  className={
-                    styles.employeeContext
-                  }
-                >
-                  Showing tasks assigned
-                  to{" "}
-                  <strong>
-                    {currentEmployee.full_name ||
-                      currentEmployee.email ||
-                      "you"}
-                  </strong>
-                </small>
-              )}
             </div>
 
-            <button
-              type="button"
-              className={
-                styles.primaryButton
-              }
-              onClick={
-                showForm
-                  ? closeCreateForm
-                  : openCreateForm
-              }
-            >
-              <span>
+            {access.canCreate && (
+              <button
+                type="button"
+                style={
+                  styles.primaryButton
+                }
+                onClick={
+                  showForm
+                    ? closeCreateForm
+                    : openCreateForm
+                }
+              >
                 {showForm
-                  ? "×"
-                  : "+"}
-              </span>
-
-              {showForm
-                ? "Close form"
-                : "Create follow-up"}
-            </button>
+                  ? "Close form"
+                  : "+ Add follow-up"}
+              </button>
+            )}
           </section>
 
-          {/* =================================================
-              FOLLOW-UP FORM
-          ================================================= */}
-
-          {showForm && (
-            <section
-              className={
-                styles.formPanel
-              }
-            >
-              <div
-                className={
-                  styles.formHeading
+          {showForm &&
+            access.canCreate && (
+              <section
+                style={
+                  styles.panel
                 }
               >
                 <h3>
-                  Create a new
-                  follow-up
+                  Create follow-up
                 </h3>
 
-                <p>
-                  Add a customer
-                  action, reminder,
-                  note and due date.
-                </p>
-              </div>
-
-              <form
-                className={
-                  styles.followUpForm
-                }
-                onSubmit={
-                  createFollowUp
-                }
-              >
-                <div
-                  className={
-                    styles.formGrid
+                <form
+                  onSubmit={
+                    createFollowUp
                   }
                 >
                   <div
-                    className={
-                      styles.field
+                    style={
+                      styles.formGrid
                     }
                   >
-                    <label
-                      htmlFor="follow-up-type"
-                    >
-                      Related area
-                    </label>
-
-                    <select
-                      id="follow-up-type"
-                      name="related_type"
+                    <Field
+                      label="Title"
+                      name="title"
                       value={
-                        formData.related_type
+                        form.title
                       }
                       onChange={
-                        handleChange
+                        handleFormChange
                       }
-                      disabled={
-                        saving
+                    />
+
+                    <Field
+                      label="Due date"
+                      name="due_date"
+                      type="date"
+                      value={
+                        form.due_date
                       }
-                    >
-                      {RELATED_TYPE_OPTIONS.map(
-                        (
-                          option
-                        ) => (
-                          <option
-                            key={
-                              option
-                            }
-                            value={
-                              option
-                            }
-                          >
-                            {
-                              option
-                            }
-                          </option>
-                        )
-                      )}
-                    </select>
-                  </div>
+                      onChange={
+                        handleFormChange
+                      }
+                    />
 
-                  <div
-                    className={
-                      styles.field
-                    }
-                  >
-                    <label
-                      htmlFor="follow-up-status"
-                    >
-                      Status
-                    </label>
-
-                    <select
-                      id="follow-up-status"
+                    <SelectField
+                      label="Status"
                       name="status"
                       value={
-                        formData.status
+                        form.status
                       }
                       onChange={
-                        handleChange
+                        handleFormChange
                       }
-                      disabled={
-                        saving
+                      options={
+                        STATUS_OPTIONS
                       }
-                    >
-                      {FOLLOW_UP_STATUS_OPTIONS.map(
-                        (
-                          status
-                        ) => (
-                          <option
-                            key={
-                              status
-                            }
-                            value={
-                              status
-                            }
-                          >
-                            {
-                              status
-                            }
-                          </option>
-                        )
-                      )}
-                    </select>
-                  </div>
-
-                  <div
-                    className={`${styles.field} ${styles.fieldFull}`}
-                  >
-                    <label
-                      htmlFor="follow-up-title"
-                    >
-                      Follow-up title *
-                    </label>
-
-                    <input
-                      id="follow-up-title"
-                      name="title"
-                      type="text"
-                      value={
-                        formData.title
-                      }
-                      onChange={
-                        handleChange
-                      }
-                      placeholder="Example: Call customer about proposal approval"
-                      disabled={
-                        saving
-                      }
-                      required
                     />
+
+                    <SelectField
+                      label="Related type"
+                      name="related_type"
+                      value={
+                        form.related_type
+                      }
+                      onChange={
+                        handleFormChange
+                      }
+                      options={
+                        RELATED_TYPES
+                      }
+                    />
+
+                    <Field
+                      label="Related record ID"
+                      name="related_id"
+                      value={
+                        form.related_id
+                      }
+                      onChange={
+                        handleFormChange
+                      }
+                    />
+
+                    {access.canAssign && (
+                      <label
+                        style={
+                          styles.field
+                        }
+                      >
+                        <span>
+                          Assigned employee
+                        </span>
+
+                        <select
+                          name="assigned_employee_id"
+                          value={
+                            form.assigned_employee_id
+                          }
+                          onChange={
+                            handleFormChange
+                          }
+                          style={
+                            styles.input
+                          }
+                        >
+                          <option value="">
+                            Assign to me
+                          </option>
+
+                          {employees.map(
+                            (employee) => (
+                              <option
+                                key={
+                                  employee.id
+                                }
+                                value={
+                                  employee.id
+                                }
+                              >
+                                {
+                                  employee.full_name
+                                }
+                              </option>
+                            )
+                          )}
+                        </select>
+                      </label>
+                    )}
                   </div>
 
-                  <div
-                    className={`${styles.field} ${styles.fieldFull}`}
+                  <label
+                    style={{
+                      ...styles.field,
+                      marginTop:
+                        "14px",
+                    }}
                   >
-                    <label
-                      htmlFor="follow-up-note"
-                    >
+                    <span>
                       Notes
-                    </label>
+                    </span>
 
                     <textarea
-                      id="follow-up-note"
                       name="note"
+                      rows={4}
                       value={
-                        formData.note
+                        form.note
                       }
                       onChange={
-                        handleChange
+                        handleFormChange
                       }
-                      placeholder="Add context or the expected next action."
-                      rows={
-                        5
-                      }
-                      disabled={
-                        saving
+                      style={
+                        styles.textarea
                       }
                     />
-                  </div>
+                  </label>
 
                   <div
-                    className={
-                      styles.field
+                    style={
+                      styles.actions
                     }
                   >
-                    <label
-                      htmlFor="follow-up-due-date"
-                    >
-                      Due date
-                    </label>
-
-                    <input
-                      id="follow-up-due-date"
-                      type="date"
-                      name="due_date"
-                      value={
-                        formData.due_date
+                    <button
+                      type="button"
+                      style={
+                        styles.secondaryButton
                       }
-                      onChange={
-                        handleChange
+                      onClick={
+                        closeCreateForm
+                      }
+                    >
+                      Cancel
+                    </button>
+
+                    <button
+                      type="submit"
+                      style={
+                        styles.primaryButton
                       }
                       disabled={
                         saving
                       }
-                    />
+                    >
+                      {saving
+                        ? "Saving..."
+                        : "Save follow-up"}
+                    </button>
                   </div>
-                </div>
-
-                <div
-                  className={
-                    styles.formActions
-                  }
-                >
-                  <button
-                    type="button"
-                    className={
-                      styles.secondaryButton
-                    }
-                    onClick={
-                      closeCreateForm
-                    }
-                    disabled={
-                      saving
-                    }
-                  >
-                    Cancel
-                  </button>
-
-                  <button
-                    type="submit"
-                    className={
-                      styles.primaryButton
-                    }
-                    disabled={
-                      saving
-                    }
-                  >
-                    {saving
-                      ? "Saving follow-up..."
-                      : "Save follow-up"}
-                  </button>
-                </div>
-              </form>
-            </section>
-          )}
-
-          {/* =================================================
-              SUMMARY
-          ================================================= */}
+                </form>
+              </section>
+            )}
 
           <section
-            className={
+            style={
               styles.summaryGrid
             }
           >
-            <SummaryCard
-              icon="◷"
-              label="Open work"
+            <Summary
+              label="Visible follow-ups"
               value={
-                openCount
+                followUps.length
               }
-              detail="Tasks and follow-ups"
-              tone="Gold"
             />
 
-            <SummaryCard
-              icon="!"
+            <Summary
+              label="Pending"
+              value={
+                pendingCount
+              }
+            />
+
+            <Summary
               label="Overdue"
               value={
                 overdueCount
               }
-              detail="Require attention"
-              tone="Red"
             />
 
-            <SummaryCard
-              icon="○"
-              label="Due today"
-              value={
-                todayCount
-              }
-              detail={
-                urgentCount >
-                0
-                  ? `${urgentCount} urgent task${
-                      urgentCount ===
-                      1
-                        ? ""
-                        : "s"
-                    }`
-                  : "Today's commitments"
-              }
-              tone="Blue"
-            />
-
-            <SummaryCard
-              icon="✓"
+            <Summary
               label="Completed"
               value={
                 completedCount
               }
-              detail={`${workflowTaskCount} workflow task${
-                workflowTaskCount ===
-                1
-                  ? ""
-                  : "s"
-              } created`}
-              tone="Green"
             />
           </section>
 
-          {/* =================================================
-              FILTERS
-          ================================================= */}
-
           <section
-            className={
-              styles.toolbarPanel
+            style={
+              styles.toolbar
             }
           >
-            <label
-              className={
-                styles.searchBox
+            <input
+              type="search"
+              placeholder="Search follow-ups, assignee, status or related record..."
+              value={
+                search
+              }
+              onChange={(
+                event
+              ) =>
+                setSearch(
+                  event.target.value
+                )
+              }
+              style={
+                styles.search
+              }
+            />
+
+            <select
+              value={
+                statusFilter
+              }
+              onChange={(
+                event
+              ) =>
+                setStatusFilter(
+                  event.target.value
+                )
+              }
+              style={
+                styles.filter
               }
             >
-              <span
-                aria-hidden="true"
-              >
-                ⌕
-              </span>
+              <option value="All">
+                All statuses
+              </option>
 
-              <input
-                type="search"
-                placeholder="Search work, assignee, priority, records or status..."
-                value={
-                  searchValue
-                }
-                onChange={(
-                  event
-                ) =>
-                  setSearchValue(
-                    event.target.value
-                  )
-                }
-              />
-            </label>
-
-            <div
-              className={
-                styles.filters
-              }
-            >
-              <select
-                className={
-                  styles.filterSelect
-                }
-                value={
-                  workFilter
-                }
-                onChange={(
-                  event
-                ) =>
-                  setWorkFilter(
-                    event.target.value
-                  )
-                }
-              >
-                {WORK_FILTERS.map(
-                  (
-                    option
-                  ) => (
-                    <option
-                      key={
-                        option
-                      }
-                      value={
-                        option
-                      }
-                    >
-                      {
-                        option
-                      }
-                    </option>
-                  )
-                )}
-              </select>
-
-              <select
-                className={
-                  styles.filterSelect
-                }
-                value={
-                  statusFilter
-                }
-                onChange={(
-                  event
-                ) =>
-                  setStatusFilter(
-                    event.target.value
-                  )
-                }
-              >
-                <option value="All">
-                  All statuses
-                </option>
-
-                <option value="To Do">
-                  To Do
-                </option>
-
-                <option value="Pending">
-                  Pending
-                </option>
-
-                <option value="In Progress">
-                  In Progress
-                </option>
-
-                <option value="Blocked">
-                  Blocked
-                </option>
-
-                <option value="Completed">
-                  Completed
-                </option>
-              </select>
-
-              <select
-                className={
-                  styles.filterSelect
-                }
-                value={
-                  priorityFilter
-                }
-                onChange={(
-                  event
-                ) =>
-                  setPriorityFilter(
-                    event.target.value
-                  )
-                }
-              >
-                {PRIORITY_FILTERS.map(
-                  (
-                    option
-                  ) => (
-                    <option
-                      key={
-                        option
-                      }
-                      value={
-                        option
-                      }
-                    >
-                      {option ===
-                      "All"
-                        ? "All priorities"
-                        : option}
-                    </option>
-                  )
-                )}
-              </select>
-
-              <select
-                className={
-                  styles.filterSelect
-                }
-                value={
-                  typeFilter
-                }
-                onChange={(
-                  event
-                ) =>
-                  setTypeFilter(
-                    event.target.value
-                  )
-                }
-              >
-                <option value="All">
-                  All related areas
-                </option>
-
-                {RELATED_TYPE_OPTIONS.map(
-                  (
-                    option
-                  ) => (
-                    <option
-                      key={
-                        option
-                      }
-                      value={
-                        option
-                      }
-                    >
-                      {
-                        option
-                      }
-                    </option>
-                  )
-                )}
-              </select>
-
-              {filtersActive && (
-                <button
-                  type="button"
-                  className={
-                    styles.clearButton
-                  }
-                  onClick={
-                    clearFilters
-                  }
-                >
-                  Clear filters
-                </button>
+              {STATUS_OPTIONS.map(
+                (status) => (
+                  <option
+                    key={
+                      status
+                    }
+                    value={
+                      status
+                    }
+                  >
+                    {status}
+                  </option>
+                )
               )}
-            </div>
+            </select>
           </section>
 
-          {/* =================================================
-              CONTENT
-          ================================================= */}
-
           {loading ? (
-            <LoadingState />
+            <div
+              style={
+                styles.panel
+              }
+            >
+              Loading follow-ups...
+            </div>
           ) : errorMessage ? (
             <section
-              className={
-                styles.errorPanel
+              style={
+                styles.error
               }
             >
               <div>
                 <strong>
-                  Unable to load
-                  My Work
+                  Unable to load follow-ups
                 </strong>
 
                 <p>
-                  {
-                    errorMessage
-                  }
+                  {errorMessage}
                 </p>
               </div>
 
               <button
                 type="button"
-                className={
+                style={
                   styles.secondaryButton
                 }
                 onClick={
-                  fetchWork
+                  loadFollowUps
                 }
               >
                 Try again
@@ -1827,471 +1105,407 @@ export default function FollowUpsPage() {
             </section>
           ) : (
             <section
-              className={
-                styles.tablePanel
+              style={
+                styles.panel
               }
             >
               <div
-                className={
-                  styles.tableHeading
+                style={
+                  styles.panelHeader
                 }
               >
                 <div>
                   <h3>
-                    Work items
+                    Follow-up records
                   </h3>
 
                   <p>
-                    Assigned tasks,
-                    manual follow-ups
-                    and workflow
-                    actions in one
-                    operational view.
+                    {
+                      filtered.length
+                    }{" "}
+                    visible record
+                    {filtered.length ===
+                    1
+                      ? ""
+                      : "s"}
                   </p>
                 </div>
-
-                <span
-                  className={
-                    styles.resultCount
-                  }
-                >
-                  {
-                    filteredWork.length
-                  }{" "}
-                  result
-                  {filteredWork.length ===
-                  1
-                    ? ""
-                    : "s"}
-                </span>
               </div>
 
-              {filteredWork.length ===
+              {filtered.length ===
               0 ? (
-                <EmptyState
-                  hasFilters={
-                    filtersActive
-                  }
-                  onClearFilters={
-                    clearFilters
-                  }
-                  onCreateFollowUp={
-                    openCreateForm
-                  }
-                />
-              ) : (
                 <div
-                  className={
-                    styles.tableWrapper
+                  style={
+                    styles.empty
                   }
                 >
+                  No follow-ups found.
+                </div>
+              ) : (
+                <div
+                  style={{
+                    overflowX:
+                      "auto",
+                  }}
+                >
                   <table
-                    className={
-                      styles.followUpTable
+                    style={
+                      styles.table
                     }
                   >
                     <thead>
                       <tr>
-                        <th>
-                          Work item
-                        </th>
-
-                        <th>
-                          Related
-                        </th>
-
-                        <th>
-                          Assigned to
-                        </th>
-
-                        <th>
-                          Priority
-                        </th>
-
-                        <th>
-                          Due date
-                        </th>
-
-                        <th>
-                          Status
-                        </th>
-
-                        <th>
-                          Action
+                        <th
+                          style={
+                            styles.th
+                          }
+                        >
+                          Follow-up
                         </th>
 
                         <th
-                          aria-label="Open"
-                        />
+                          style={
+                            styles.th
+                          }
+                        >
+                          Related
+                        </th>
+
+                        <th
+                          style={
+                            styles.th
+                          }
+                        >
+                          Assignee
+                        </th>
+
+                        <th
+                          style={
+                            styles.th
+                          }
+                        >
+                          Due
+                        </th>
+
+                        <th
+                          style={
+                            styles.th
+                          }
+                        >
+                          Status
+                        </th>
+
+                        <th
+                          style={
+                            styles.th
+                          }
+                        >
+                          Actions
+                        </th>
                       </tr>
                     </thead>
 
                     <tbody>
-                      {filteredWork.map(
-                        (
-                          item
-                        ) => {
-                          const overdue =
-                            isWorkItemOverdue(
-                              item
-                            );
-
-                          const dueToday =
-                            !isCompleted(
-                              item.status
-                            ) &&
-                            isToday(
-                              item.dueDate
-                            );
-
-                          const recordHref =
-                            getWorkRecordHref(
-                              item
-                            );
-
-                          const workKey =
-                            `${item.itemType}-${item.id}`;
-
-                          const updating =
-                            updatingWorkId ===
-                            workKey;
-
-                          const deleting =
-                            deletingWorkId ===
-                            workKey;
+                      {filtered.map(
+                        (item) => {
+                          const editing =
+                            editingId ===
+                            item.id;
 
                           return (
                             <tr
                               key={
-                                workKey
+                                item.id
                               }
                             >
-                              {/* WORK ITEM */}
-
-                              <td>
-                                <div
-                                  className={
-                                    styles.followUpIdentity
-                                  }
-                                >
-                                  <span
-                                    className={`${styles.followUpIcon} ${
-                                      item.itemType ===
-                                      "Task"
-                                        ? styles.taskWorkIcon
-                                        : styles.followUpWorkIcon
-                                    }`}
-                                  >
-                                    {item.itemType ===
-                                    "Task"
-                                      ? "☑"
-                                      : "◷"}
-                                  </span>
-
-                                  <div
-                                    className={
-                                      styles.followUpIdentityCopy
-                                    }
-                                  >
-                                    <Link
-                                      href={
-                                        item.itemType ===
-                                        "Task"
-                                          ? `/tasks/${item.id}`
-                                          : `/follow-ups/${item.id}`
+                              <td
+                                style={
+                                  styles.td
+                                }
+                              >
+                                {editing &&
+                                access.canEdit ? (
+                                  <>
+                                    <input
+                                      name="title"
+                                      value={
+                                        editForm.title
                                       }
-                                      className={
-                                        styles.followUpLink
+                                      onChange={
+                                        handleEditChange
                                       }
-                                    >
+                                      style={
+                                        styles.input
+                                      }
+                                    />
+
+                                    <textarea
+                                      name="note"
+                                      value={
+                                        editForm.note
+                                      }
+                                      onChange={
+                                        handleEditChange
+                                      }
+                                      style={{
+                                        ...styles.textarea,
+                                        marginTop:
+                                          "7px",
+                                      }}
+                                    />
+                                  </>
+                                ) : (
+                                  <>
+                                    <strong>
                                       {
                                         item.title
                                       }
-                                    </Link>
+                                    </strong>
 
-                                    <small>
-                                      {
-                                        item.itemType
-                                      }
-
-                                      {item.automatic
-                                        ? " · Workflow generated"
-                                        : item.itemType ===
-                                            "Task" &&
-                                          item.projectId
-                                          ? " · Project task"
-                                          : ""}
-                                    </small>
-                                  </div>
-                                </div>
+                                    {item.note && (
+                                      <small
+                                        style={
+                                          styles.note
+                                        }
+                                      >
+                                        {item.note}
+                                      </small>
+                                    )}
+                                  </>
+                                )}
                               </td>
 
-                              {/* RELATED */}
-
-                              <td>
-                                <span
-                                  className={
-                                    styles.typeBadge
-                                  }
-                                >
-                                  {
-                                    item.relatedType
-                                  }
-                                </span>
-                              </td>
-
-                              {/* ASSIGNEE */}
-
-                              <td>
-                                <div
-                                  className={
-                                    styles.assigneeCell
-                                  }
-                                >
-                                  <strong>
-                                    {
-                                      item.assigneeName
+                              <td
+                                style={
+                                  styles.td
+                                }
+                              >
+                                {editing &&
+                                access.canEdit ? (
+                                  <SelectFieldInline
+                                    name="related_type"
+                                    value={
+                                      editForm.related_type
                                     }
-                                  </strong>
-
-                                  {item.assigneeRole && (
-                                    <small>
-                                      {
-                                        item.assigneeRole
-                                      }
-                                    </small>
-                                  )}
-                                </div>
+                                    onChange={
+                                      handleEditChange
+                                    }
+                                    options={
+                                      RELATED_TYPES
+                                    }
+                                  />
+                                ) : (
+                                  item.related_type ||
+                                  "General"
+                                )}
                               </td>
 
-                              {/* PRIORITY */}
+                              <td
+                                style={
+                                  styles.td
+                                }
+                              >
+                                {editing &&
+                                access.canAssign ? (
+                                  <select
+                                    name="assigned_employee_id"
+                                    value={
+                                      editForm.assigned_employee_id
+                                    }
+                                    onChange={
+                                      handleEditChange
+                                    }
+                                    style={
+                                      styles.input
+                                    }
+                                  >
+                                    <option value="">
+                                      Unassigned
+                                    </option>
 
-                              <td>
-                                {item.itemType ===
-                                "Task" ? (
-                                  <PriorityBadge
-                                    priority={
-                                      item.priority
+                                    {employees.map(
+                                      (employee) => (
+                                        <option
+                                          key={
+                                            employee.id
+                                          }
+                                          value={
+                                            employee.id
+                                          }
+                                        >
+                                          {
+                                            employee.full_name
+                                          }
+                                        </option>
+                                      )
+                                    )}
+                                  </select>
+                                ) : (
+                                  item.assigned_employee
+                                    ?.full_name ||
+                                  "Unassigned"
+                                )}
+                              </td>
+
+                              <td
+                                style={
+                                  styles.td
+                                }
+                              >
+                                {editing &&
+                                access.canEdit ? (
+                                  <input
+                                    type="date"
+                                    name="due_date"
+                                    value={
+                                      editForm.due_date
+                                    }
+                                    onChange={
+                                      handleEditChange
+                                    }
+                                    style={
+                                      styles.input
                                     }
                                   />
                                 ) : (
                                   <span
-                                    className={
-                                      styles.notApplicable
+                                    style={
+                                      isOverdue(
+                                        item
+                                      )
+                                        ? styles.overdue
+                                        : {}
                                     }
                                   >
-                                    —
+                                    {formatDate(
+                                      item.due_date
+                                    )}
                                   </span>
                                 )}
                               </td>
 
-                              {/* DUE DATE */}
+                              <td
+                                style={
+                                  styles.td
+                                }
+                              >
+                                {editing &&
+                                access.canEdit ? (
+                                  <SelectFieldInline
+                                    name="status"
+                                    value={
+                                      editForm.status
+                                    }
+                                    onChange={
+                                      handleEditChange
+                                    }
+                                    options={
+                                      STATUS_OPTIONS
+                                    }
+                                  />
+                                ) : (
+                                  <StatusBadge
+                                    status={
+                                      item.status ||
+                                      "Pending"
+                                    }
+                                  />
+                                )}
+                              </td>
 
-                              <td>
+                              <td
+                                style={
+                                  styles.td
+                                }
+                              >
                                 <div
-                                  className={
-                                    styles.dueDateCell
+                                  style={
+                                    styles.rowActions
                                   }
                                 >
-                                  <span
-                                    className={`${styles.dateText} ${
-                                      overdue
-                                        ? styles.dateTextOverdue
-                                        : ""
-                                    }`}
-                                  >
-                                    {formatDate(
-                                      item.dueDate
-                                    )}
-                                  </span>
-
-                                  {overdue && (
-                                    <span
-                                      className={
-                                        styles.overdueLabel
-                                      }
-                                    >
-                                      Overdue
-                                    </span>
-                                  )}
-
-                                  {!overdue &&
-                                    dueToday && (
-                                      <span
-                                        className={
-                                          styles.todayLabel
+                                  {editing ? (
+                                    <>
+                                      <button
+                                        type="button"
+                                        style={
+                                          styles.primaryButtonSmall
+                                        }
+                                        onClick={() =>
+                                          saveFollowUp(
+                                            item.id
+                                          )
                                         }
                                       >
-                                        Today
-                                      </span>
-                                    )}
-                                </div>
-                              </td>
+                                        Save
+                                      </button>
 
-                              {/* STATUS */}
-
-                              <td>
-                                <StatusBadge
-                                  status={
-                                    item.status
-                                  }
-                                />
-                              </td>
-
-                              {/* ACTION */}
-
-                              <td>
-                                <div
-                                  className={
-                                    styles.actionCell
-                                  }
-                                >
-                                  {item.itemType ===
-                                  "Task" ? (
-                                    <select
-                                      className={
-                                        styles.statusSelect
-                                      }
-                                      value={
-                                        item.status
-                                      }
-                                      disabled={
-                                        updating ||
-                                        deleting
-                                      }
-                                      onChange={(
-                                        event
-                                      ) =>
-                                        updateTaskStatus(
-                                          item.id,
-                                          event.target.value
-                                        )
-                                      }
-                                    >
-                                      {TASK_STATUS_OPTIONS.map(
-                                        (
-                                          status
-                                        ) => (
-                                          <option
-                                            key={
-                                              status
-                                            }
-                                            value={
-                                              status
-                                            }
-                                          >
-                                            {
-                                              status
-                                            }
-                                          </option>
-                                        )
-                                      )}
-                                    </select>
+                                      <button
+                                        type="button"
+                                        style={
+                                          styles.secondaryButtonSmall
+                                        }
+                                        onClick={
+                                          cancelEdit
+                                        }
+                                      >
+                                        Cancel
+                                      </button>
+                                    </>
                                   ) : (
-                                    <select
-                                      className={
-                                        styles.statusSelect
-                                      }
-                                      value={
-                                        item.status
-                                      }
-                                      disabled={
-                                        updating ||
-                                        deleting
-                                      }
-                                      onChange={(
-                                        event
-                                      ) =>
-                                        updateFollowUpStatus(
-                                          item.id,
-                                          event.target.value
-                                        )
-                                      }
-                                    >
-                                      {FOLLOW_UP_STATUS_OPTIONS.map(
-                                        (
-                                          status
-                                        ) => (
-                                          <option
-                                            key={
-                                              status
+                                    <>
+                                      {(access.canEdit ||
+                                        access.canAssign) && (
+                                        <button
+                                          type="button"
+                                          style={
+                                            styles.secondaryButtonSmall
+                                          }
+                                          onClick={() =>
+                                            startEdit(
+                                              item
+                                            )
+                                          }
+                                        >
+                                          Edit
+                                        </button>
+                                      )}
+
+                                      {access.canEdit &&
+                                        normalise(
+                                          item.status
+                                        ) !==
+                                          "completed" && (
+                                          <button
+                                            type="button"
+                                            style={
+                                              styles.secondaryButtonSmall
                                             }
-                                            value={
-                                              status
+                                            onClick={() =>
+                                              completeFollowUp(
+                                                item
+                                              )
                                             }
                                           >
-                                            {
-                                              status
-                                            }
-                                          </option>
-                                        )
+                                            Complete
+                                          </button>
+                                        )}
+
+                                      {access.canDelete && (
+                                        <button
+                                          type="button"
+                                          style={
+                                            styles.dangerButtonSmall
+                                          }
+                                          onClick={() =>
+                                            deleteFollowUp(
+                                              item
+                                            )
+                                          }
+                                        >
+                                          Delete
+                                        </button>
                                       )}
-                                    </select>
-                                  )}
-
-                                  <button
-                                    type="button"
-                                    className={
-                                      styles.deleteButton
-                                    }
-                                    disabled={
-                                      updating ||
-                                      deleting
-                                    }
-                                    onClick={() =>
-                                      item.itemType ===
-                                      "Task"
-                                        ? deleteTask(
-                                            item.id
-                                          )
-                                        : deleteFollowUp(
-                                            item.id
-                                          )
-                                    }
-                                  >
-                                    {deleting
-                                      ? "Deleting..."
-                                      : "Delete"}
-                                  </button>
-                                </div>
-                              </td>
-
-                              {/* OPEN */}
-
-                              <td>
-                                <div
-                                  className={
-                                    styles.openCell
-                                  }
-                                >
-                                  <Link
-                                    href={
-                                      item.itemType ===
-                                      "Task"
-                                        ? `/tasks/${item.id}`
-                                        : `/follow-ups/${item.id}`
-                                    }
-                                    className={
-                                      styles.openButton
-                                    }
-                                  >
-                                    {item.itemType ===
-                                    "Task"
-                                      ? "Open task →"
-                                      : "Open →"}
-                                  </Link>
-
-                                  {recordHref && (
-                                    <Link
-                                      href={
-                                        recordHref
-                                      }
-                                      className={
-                                        styles.sourceLink
-                                      }
-                                    >
-                                      Open source
-                                    </Link>
+                                    </>
                                   )}
                                 </div>
                               </td>
@@ -2312,517 +1526,178 @@ export default function FollowUpsPage() {
 }
 
 // =========================================================
-// SUMMARY CARD
+// COMPONENTS
 // =========================================================
 
-function SummaryCard({
-  icon,
+function Field({
   label,
+  name,
   value,
-  detail,
-  tone,
+  onChange,
+  type = "text",
 }) {
   return (
-    <div
-      className={`${styles.summaryCard} ${
-        styles[
-          `summary${tone}`
-        ] ||
-        ""
-      }`}
+    <label
+      style={
+        styles.field
+      }
     >
-      <span
-        className={
-          styles.summaryIcon
-        }
-      >
-        {icon}
+      <span>
+        {label}
       </span>
 
-      <span
-        className={
-          styles.summaryLabel
+      <input
+        name={
+          name
         }
-      >
+        type={
+          type
+        }
+        value={
+          value
+        }
+        onChange={
+          onChange
+        }
+        style={
+          styles.input
+        }
+      />
+    </label>
+  );
+}
+
+function SelectField({
+  label,
+  name,
+  value,
+  onChange,
+  options,
+}) {
+  return (
+    <label
+      style={
+        styles.field
+      }
+    >
+      <span>
+        {label}
+      </span>
+
+      <SelectFieldInline
+        name={
+          name
+        }
+        value={
+          value
+        }
+        onChange={
+          onChange
+        }
+        options={
+          options
+        }
+      />
+    </label>
+  );
+}
+
+function SelectFieldInline({
+  name,
+  value,
+  onChange,
+  options,
+}) {
+  return (
+    <select
+      name={
+        name
+      }
+      value={
+        value
+      }
+      onChange={
+        onChange
+      }
+      style={
+        styles.input
+      }
+    >
+      {options.map(
+        (option) => (
+          <option
+            key={
+              option
+            }
+            value={
+              option
+            }
+          >
+            {option}
+          </option>
+        )
+      )}
+    </select>
+  );
+}
+
+function Summary({
+  label,
+  value,
+}) {
+  return (
+    <article
+      style={
+        styles.summary
+      }
+    >
+      <span>
         {label}
       </span>
 
       <strong>
         {value}
       </strong>
-
-      <small>
-        {detail}
-      </small>
-    </div>
+    </article>
   );
 }
 
 // =========================================================
-// PRIORITY BADGE
+// HELPERS
 // =========================================================
 
-function PriorityBadge({
-  priority,
-}) {
-  const clean =
-    normaliseStatus(
-      priority
-    );
-
-  const className =
-    clean ===
-    "urgent"
-      ? styles.priorityUrgent
-      : clean ===
-          "high"
-        ? styles.priorityHigh
-        : clean ===
-            "low"
-          ? styles.priorityLow
-          : styles.priorityMedium;
-
-  return (
-    <span
-      className={`${styles.priorityBadge} ${className}`}
-    >
-      {priority ||
-        "Medium"}
-    </span>
-  );
-}
-
-// =========================================================
-// EMPTY STATE
-// =========================================================
-
-function EmptyState({
-  hasFilters,
-  onClearFilters,
-  onCreateFollowUp,
-}) {
-  return (
-    <div
-      className={
-        styles.emptyState
-      }
-    >
-      <span
-        className={
-          styles.emptyIcon
-        }
-      >
-        ◷
-      </span>
-
-      <h3>
-        {hasFilters
-          ? "No matching work"
-          : "No work items yet"}
-      </h3>
-
-      <p>
-        {hasFilters
-          ? "Try changing or clearing the current filters."
-          : "Assigned tasks, workflow actions and manual follow-ups will appear here."}
-      </p>
-
-      <button
-        type="button"
-        className={
-          styles.primaryButton
-        }
-        onClick={
-          hasFilters
-            ? onClearFilters
-            : onCreateFollowUp
-        }
-      >
-        {hasFilters
-          ? "Clear filters"
-          : "Create follow-up"}
-      </button>
-    </div>
-  );
-}
-
-// =========================================================
-// LOADING
-// =========================================================
-
-function LoadingState() {
-  return (
-    <section
-      className={
-        styles.loadingPanel
-      }
-    >
-      {Array.from({
-        length: 5,
-      }).map(
-        (
-          _,
-          index
-        ) => (
-          <div
-            key={
-              index
-            }
-            className={
-              styles.loadingRow
-            }
-          />
-        )
-      )}
-    </section>
-  );
-}
-
-// =========================================================
-// API RESPONSE HELPERS
-// =========================================================
-
-function extractTasksFromResponse(
-  data
-) {
-  if (
-    Array.isArray(
-      data
-    )
-  ) {
-    return data;
-  }
-
-  if (
-    Array.isArray(
-      data?.tasks
-    )
-  ) {
-    return data.tasks;
-  }
-
-  return [];
-}
-
-function extractTaskFromResponse(
-  data
-) {
-  if (
-    !data
-  ) {
-    return null;
-  }
-
-  if (
-    data.task &&
-    typeof data.task ===
-      "object"
-  ) {
-    return data.task;
-  }
-
-  if (
-    Array.isArray(
-      data
-    )
-  ) {
-    return (
-      data[0] ||
-      null
-    );
-  }
-
-  if (
-    typeof data ===
-      "object" &&
-    data.id
-  ) {
-    return data;
-  }
-
-  return null;
-}
-
-// =========================================================
-// ASSIGNEE
-// =========================================================
-
-function getTaskAssignee(
-  task
-) {
-  if (
-    task?.assigned_employee
-  ) {
-    return {
-      name:
-        task.assigned_employee
-          .full_name ||
-        task.assigned_employee
-          .email ||
-        "Assigned employee",
-
-      role:
-        task.assigned_employee
-          .job_title ||
-        null,
-    };
-  }
-
-  if (
-    task?.assigned_employee_id
-  ) {
-    return {
-      name:
-        "Assigned employee",
-
-      role:
-        null,
-    };
-  }
-
-  return {
-    name:
-      "Unassigned",
-
-    role:
-      null,
-  };
-}
-
-// =========================================================
-// TASK STATUS COMPATIBILITY
-// =========================================================
-
-function getTaskDisplayStatus(
-  value
-) {
-  const clean =
-    normaliseStatus(
-      value
-    );
-
-  /*
-   * Older task records may still contain "Open".
-   * We display them as To Do so My Work stays
-   * consistent with Project and Task Workspace.
-   */
-
-  if (
-    clean ===
-    "open"
-  ) {
-    return "To Do";
-  }
-
-  if (
-    clean ===
-    "to do"
-  ) {
-    return "To Do";
-  }
-
-  if (
-    clean ===
-    "in progress"
-  ) {
-    return "In Progress";
-  }
-
-  if (
-    clean ===
-    "blocked"
-  ) {
-    return "Blocked";
-  }
-
-  if (
-    clean ===
-      "completed" ||
-    clean ===
-      "complete" ||
-    clean ===
-      "done"
-  ) {
-    return "Completed";
-  }
-
-  return "To Do";
-}
-
-// =========================================================
-// SORTING
-// =========================================================
-
-function sortWorkItems(
-  first,
-  second
-) {
-  const firstCompleted =
-    isCompleted(
-      first.status
-    );
-
-  const secondCompleted =
-    isCompleted(
-      second.status
-    );
-
-  if (
-    firstCompleted !==
-    secondCompleted
-  ) {
-    return firstCompleted
-      ? 1
-      : -1;
-  }
-
-  const firstOverdue =
-    isWorkItemOverdue(
-      first
-    );
-
-  const secondOverdue =
-    isWorkItemOverdue(
-      second
-    );
-
-  if (
-    firstOverdue !==
-    secondOverdue
-  ) {
-    return firstOverdue
-      ? -1
-      : 1;
-  }
-
-  const priorityDifference =
-    getPriorityRank(
-      second.priority
-    ) -
-    getPriorityRank(
-      first.priority
-    );
-
-  if (
-    priorityDifference !==
-    0
-  ) {
-    return priorityDifference;
-  }
-
-  const firstDate =
-    first.dueDate ||
-    "9999-12-31";
-
-  const secondDate =
-    second.dueDate ||
-    "9999-12-31";
-
-  return firstDate.localeCompare(
-    secondDate
-  );
-}
-
-function getPriorityRank(
-  priority
-) {
-  switch (
-    normaliseStatus(
-      priority
-    )
-  ) {
-    case "urgent":
-      return 4;
-
-    case "high":
-      return 3;
-
-    case "medium":
-      return 2;
-
-    case "low":
-      return 1;
-
-    default:
-      return 0;
-  }
-}
-
-// =========================================================
-// STATUS HELPERS
-// =========================================================
-
-function normaliseStatus(
-  value
-) {
+function normalise(value) {
   return String(
-    value ||
-      ""
+    value || ""
   )
     .trim()
     .toLowerCase();
 }
 
-function isCompleted(
-  value
-) {
-  return [
-    "completed",
-    "complete",
-    "done",
-  ].includes(
-    normaliseStatus(
-      value
-    )
-  );
-}
-
-// =========================================================
-// DATES
-// =========================================================
-
-function isWorkItemOverdue(
-  item
-) {
-  if (
-    !item.dueDate ||
-    isCompleted(
-      item.status
-    )
-  ) {
-    return false;
+function normaliseDateInput(value) {
+  if (!value) {
+    return "";
   }
 
-  const dueDate =
-    new Date(
-      `${String(
-        item.dueDate
-      ).split("T")[0]}T23:59:59`
-    );
-
-  return (
-    !Number.isNaN(
-      dueDate.getTime()
-    ) &&
-    dueDate <
-      new Date()
+  return String(
+    value
+  ).slice(
+    0,
+    10
   );
 }
 
-function isToday(
-  value
-) {
-  if (
-    !value
-  ) {
-    return false;
+function formatDate(value) {
+  if (!value) {
+    return "Not set";
   }
 
   const date =
     new Date(
-      `${String(
-        value
-      ).split("T")[0]}T12:00:00`
+      `${String(value).slice(
+        0,
+        10
+      )}T12:00:00`
     );
 
   if (
@@ -2830,44 +1705,7 @@ function isToday(
       date.getTime()
     )
   ) {
-    return false;
-  }
-
-  const today =
-    new Date();
-
-  return (
-    date.getFullYear() ===
-      today.getFullYear() &&
-    date.getMonth() ===
-      today.getMonth() &&
-    date.getDate() ===
-      today.getDate()
-  );
-}
-
-function formatDate(
-  value
-) {
-  if (
-    !value
-  ) {
-    return "Not scheduled";
-  }
-
-  const date =
-    new Date(
-      `${String(
-        value
-      ).split("T")[0]}T12:00:00`
-    );
-
-  if (
-    Number.isNaN(
-      date.getTime()
-    )
-  ) {
-    return "Not scheduled";
+    return "Not set";
   }
 
   return date.toLocaleDateString(
@@ -2885,104 +1723,436 @@ function formatDate(
   );
 }
 
-// =========================================================
-// RECORD TYPE
-// =========================================================
-
-function formatRecordType(
-  value
-) {
-  const clean =
-    String(
-      value ||
-        ""
-    )
-      .trim()
-      .toLowerCase();
-
+function isOverdue(item) {
   if (
-    !clean
+    !item.due_date ||
+    [
+      "completed",
+      "cancelled",
+    ].includes(
+      normalise(
+        item.status
+      )
+    )
   ) {
-    return "General";
+    return false;
   }
 
+  const due =
+    new Date(
+      `${String(
+        item.due_date
+      ).slice(
+        0,
+        10
+      )}T23:59:59`
+    );
+
   return (
-    clean
-      .charAt(0)
-      .toUpperCase() +
-    clean.slice(1)
+    !Number.isNaN(
+      due.getTime()
+    ) &&
+    due <
+      new Date()
   );
 }
 
 // =========================================================
-// RECORD LINKS
+// SELF-CONTAINED STYLES
 // =========================================================
 
-function getWorkRecordHref(
-  item
-) {
-  const directHref =
-    getRecordHref(
-      item.recordType,
-      item.recordId
-    );
+const styles = {
+  page: {
+    display:
+      "grid",
+    gap:
+      "20px",
+    color:
+      "#27241f",
+    fontSize:
+      "13px",
+  },
 
-  if (
-    directHref
-  ) {
-    return directHref;
-  }
+  header: {
+    display:
+      "flex",
+    justifyContent:
+      "space-between",
+    alignItems:
+      "flex-start",
+    gap:
+      "20px",
+  },
 
-  if (
-    item.projectId
-  ) {
-    return `/projects/${item.projectId}`;
-  }
+  eyebrow: {
+    display:
+      "block",
+    marginBottom:
+      "7px",
+    color:
+      "#9a7300",
+    fontSize:
+      "10px",
+    fontWeight:
+      800,
+    letterSpacing:
+      "1px",
+    textTransform:
+      "uppercase",
+  },
 
-  return null;
-}
+  heading: {
+    margin:
+      0,
+    fontSize:
+      "27px",
+  },
 
-function getRecordHref(
-  recordType,
-  recordId
-) {
-  if (
-    !recordType ||
-    !recordId
-  ) {
-    return null;
-  }
+  description: {
+    maxWidth:
+      "720px",
+    margin:
+      "7px 0 0",
+    color:
+      "#7d786e",
+    fontSize:
+      "13px",
+    lineHeight:
+      1.6,
+  },
 
-  switch (
-    normaliseStatus(
-      recordType
-    )
-  ) {
-    case "quote":
-    case "quotes":
-      return `/quotes/${recordId}`;
+  panel: {
+    padding:
+      "20px",
+    border:
+      "1px solid #dfdbd1",
+    borderRadius:
+      "15px",
+    background:
+      "#ffffff",
+  },
 
-    case "lead":
-    case "leads":
-      return `/leads/${recordId}`;
+  panelHeader: {
+    display:
+      "flex",
+    justifyContent:
+      "space-between",
+    marginBottom:
+      "15px",
+  },
 
-    case "customer":
-    case "customers":
-      return `/customers/${recordId}`;
+  formGrid: {
+    display:
+      "grid",
+    gridTemplateColumns:
+      "repeat(auto-fit, minmax(220px, 1fr))",
+    gap:
+      "14px",
+  },
 
-    case "project":
-    case "projects":
-      return `/projects/${recordId}`;
+  field: {
+    display:
+      "grid",
+    gap:
+      "7px",
+    fontSize:
+      "12px",
+    fontWeight:
+      700,
+  },
 
-    case "proposal":
-    case "proposals":
-      return `/proposals/${recordId}`;
+  input: {
+    width:
+      "100%",
+    minHeight:
+      "40px",
+    padding:
+      "8px 10px",
+    border:
+      "1px solid #d9d5cc",
+    borderRadius:
+      "8px",
+    background:
+      "#ffffff",
+    fontFamily:
+      "inherit",
+    fontSize:
+      "13px",
+  },
 
-    case "invoice":
-    case "invoices":
-      return `/invoices/${recordId}`;
+  textarea: {
+    width:
+      "100%",
+    minHeight:
+      "90px",
+    padding:
+      "9px 10px",
+    border:
+      "1px solid #d9d5cc",
+    borderRadius:
+      "8px",
+    resize:
+      "vertical",
+    fontFamily:
+      "inherit",
+    fontSize:
+      "13px",
+  },
 
-    default:
-      return null;
-  }
-}
+  actions: {
+    display:
+      "flex",
+    justifyContent:
+      "flex-end",
+    gap:
+      "8px",
+    marginTop:
+      "18px",
+  },
+
+  primaryButton: {
+    minHeight:
+      "40px",
+    padding:
+      "0 15px",
+    border:
+      "1px solid #b88800",
+    borderRadius:
+      "9px",
+    background:
+      "#dca900",
+    color:
+      "#17130a",
+    fontWeight:
+      750,
+    cursor:
+      "pointer",
+  },
+
+  secondaryButton: {
+    minHeight:
+      "40px",
+    padding:
+      "0 15px",
+    border:
+      "1px solid #ddd8cf",
+    borderRadius:
+      "9px",
+    background:
+      "#ffffff",
+    fontWeight:
+      700,
+    cursor:
+      "pointer",
+  },
+
+  summaryGrid: {
+    display:
+      "grid",
+    gridTemplateColumns:
+      "repeat(4, minmax(0, 1fr))",
+    gap:
+      "14px",
+  },
+
+  summary: {
+    display:
+      "grid",
+    gap:
+      "10px",
+    minHeight:
+      "115px",
+    padding:
+      "17px",
+    border:
+      "1px solid #dfdbd1",
+    borderRadius:
+      "14px",
+    background:
+      "#ffffff",
+  },
+
+  toolbar: {
+    display:
+      "flex",
+    justifyContent:
+      "space-between",
+    gap:
+      "12px",
+    padding:
+      "12px",
+    border:
+      "1px solid #dfdbd1",
+    borderRadius:
+      "13px",
+    background:
+      "#ffffff",
+  },
+
+  search: {
+    width:
+      "520px",
+    maxWidth:
+      "100%",
+    minHeight:
+      "40px",
+    padding:
+      "0 11px",
+    border:
+      "1px solid #ddd8cf",
+    borderRadius:
+      "9px",
+  },
+
+  filter: {
+    minHeight:
+      "40px",
+    padding:
+      "0 11px",
+    border:
+      "1px solid #ddd8cf",
+    borderRadius:
+      "9px",
+    background:
+      "#ffffff",
+  },
+
+  table: {
+    width:
+      "100%",
+    borderCollapse:
+      "collapse",
+    fontSize:
+      "12px",
+  },
+
+  th: {
+    padding:
+      "11px 12px",
+    borderBottom:
+      "1px solid #e7e3dc",
+    textAlign:
+      "left",
+    fontSize:
+      "10px",
+    textTransform:
+      "uppercase",
+  },
+
+  td: {
+    padding:
+      "13px 12px",
+    borderBottom:
+      "1px solid #efede7",
+    verticalAlign:
+      "top",
+  },
+
+  note: {
+    display:
+      "block",
+    maxWidth:
+      "360px",
+    marginTop:
+      "4px",
+    color:
+      "#858078",
+  },
+
+  rowActions: {
+    display:
+      "flex",
+    flexWrap:
+      "wrap",
+    gap:
+      "6px",
+  },
+
+  primaryButtonSmall: {
+    padding:
+      "7px 10px",
+    border:
+      "1px solid #b88800",
+    borderRadius:
+      "7px",
+    background:
+      "#dca900",
+    fontSize:
+      "11px",
+    fontWeight:
+      700,
+    cursor:
+      "pointer",
+  },
+
+  secondaryButtonSmall: {
+    padding:
+      "7px 10px",
+    border:
+      "1px solid #ddd8cf",
+    borderRadius:
+      "7px",
+    background:
+      "#ffffff",
+    fontSize:
+      "11px",
+    fontWeight:
+      700,
+    cursor:
+      "pointer",
+  },
+
+  dangerButtonSmall: {
+    padding:
+      "7px 10px",
+    border:
+      "1px solid #e2baba",
+    borderRadius:
+      "7px",
+    background:
+      "#fff7f7",
+    color:
+      "#a23f3f",
+    fontSize:
+      "11px",
+    fontWeight:
+      700,
+    cursor:
+      "pointer",
+  },
+
+  overdue: {
+    color:
+      "#b43b3b",
+    fontWeight:
+      800,
+  },
+
+  empty: {
+    padding:
+      "35px 20px",
+    textAlign:
+      "center",
+    color:
+      "#817d74",
+  },
+
+  error: {
+    display:
+      "flex",
+    justifyContent:
+      "space-between",
+    gap:
+      "20px",
+    padding:
+      "20px",
+    border:
+      "1px solid #efcaca",
+    borderRadius:
+      "14px",
+    background:
+      "#fff7f7",
+    color:
+      "#9f3c3c",
+  },
+};
