@@ -31,6 +31,21 @@ const PROJECT_STATUS_OPTIONS = [
   "Cancelled",
 ];
 
+const TASK_STATUS_OPTIONS = [
+  "To Do",
+  "In Progress",
+  "Completed",
+  "Blocked",
+  "Cancelled",
+];
+
+const TASK_PRIORITY_OPTIONS = [
+  "Low",
+  "Medium",
+  "High",
+  "Critical",
+];
+
 const COMPLETED_TASK_STATUSES = [
   "completed",
   "complete",
@@ -56,6 +71,15 @@ const EMPTY_EDIT_FORM = {
   start_date: "",
   due_date: "",
   owner_employee_id: "",
+};
+
+const EMPTY_TASK_FORM = {
+  task_name: "",
+  description: "",
+  status: "To Do",
+  priority: "Medium",
+  due_date: "",
+  assigned_employee_id: "",
 };
 
 // =========================================================
@@ -103,6 +127,11 @@ export default function ProjectDetailsPage() {
   ] = useState([]);
 
   const [
+    taskEmployees,
+    setTaskEmployees,
+  ] = useState([]);
+
+  const [
     currentEmployee,
     setCurrentEmployee,
   ] = useState(null);
@@ -110,6 +139,13 @@ export default function ProjectDetailsPage() {
   const [
     access,
     setAccess,
+  ] = useState(
+    EMPTY_ACCESS
+  );
+
+  const [
+    taskAccess,
+    setTaskAccess,
   ] = useState(
     EMPTY_ACCESS
   );
@@ -151,15 +187,48 @@ export default function ProjectDetailsPage() {
     setGeneratingInvoice,
   ] = useState(false);
 
+  const [
+    showTaskForm,
+    setShowTaskForm,
+  ] = useState(false);
+
+  const [
+    taskForm,
+    setTaskForm,
+  ] = useState(
+    EMPTY_TASK_FORM
+  );
+
+  const [
+    savingTask,
+    setSavingTask,
+  ] = useState(false);
+
+  const [
+    editingTaskId,
+    setEditingTaskId,
+  ] = useState(null);
+
+  const [
+    taskEditForm,
+    setTaskEditForm,
+  ] = useState(
+    EMPTY_TASK_FORM
+  );
+
   // =======================================================
   // LOAD
   // =======================================================
 
   useEffect(() => {
-    if (projectId) {
+    if (
+      projectId
+    ) {
       fetchProjectDetails();
     }
-  }, [projectId]);
+  }, [
+    projectId,
+  ]);
 
   async function fetchProjectDetails() {
     try {
@@ -180,7 +249,9 @@ export default function ProjectDetailsPage() {
       const data =
         await response.json();
 
-      if (!response.ok) {
+      if (
+        !response.ok
+      ) {
         throw new Error(
           data.error ||
             "Failed to load project."
@@ -209,7 +280,9 @@ export default function ProjectDetailsPage() {
         Array.isArray(
           data.tasks
         )
-          ? [...data.tasks].sort(
+          ? [
+              ...data.tasks,
+            ].sort(
               sortTasks
             )
           : []
@@ -228,6 +301,14 @@ export default function ProjectDetailsPage() {
           data.employees
         )
           ? data.employees
+          : []
+      );
+
+      setTaskEmployees(
+        Array.isArray(
+          data.taskEmployees
+        )
+          ? data.taskEmployees
           : []
       );
 
@@ -286,7 +367,59 @@ export default function ProjectDetailsPage() {
           ),
       });
 
-      if (nextProject) {
+      setTaskAccess({
+        isOwner:
+          Boolean(
+            data.taskAccess
+              ?.isOwner
+          ),
+
+        canViewAll:
+          Boolean(
+            data.taskAccess
+              ?.canViewAll
+          ),
+
+        canViewTeam:
+          Boolean(
+            data.taskAccess
+              ?.canViewTeam
+          ),
+
+        canViewOwn:
+          Boolean(
+            data.taskAccess
+              ?.canViewOwn
+          ),
+
+        canCreate:
+          Boolean(
+            data.taskAccess
+              ?.canCreate
+          ),
+
+        canEdit:
+          Boolean(
+            data.taskAccess
+              ?.canEdit
+          ),
+
+        canDelete:
+          Boolean(
+            data.taskAccess
+              ?.canDelete
+          ),
+
+        canAssign:
+          Boolean(
+            data.taskAccess
+              ?.canAssign
+          ),
+      });
+
+      if (
+        nextProject
+      ) {
         populateEditForm(
           nextProject
         );
@@ -297,19 +430,23 @@ export default function ProjectDetailsPage() {
         error
       );
 
-      setProject(null);
+      setProject(
+        null
+      );
 
       setErrorMessage(
         error.message ||
           "We could not load this project."
       );
     } finally {
-      setLoading(false);
+      setLoading(
+        false
+      );
     }
   }
 
   // =======================================================
-  // EDIT FORM
+  // PROJECT EDIT
   // =======================================================
 
   function populateEditForm(
@@ -369,7 +506,6 @@ export default function ProjectDetailsPage() {
         current
       ) => ({
         ...current,
-
         [name]:
           value,
       })
@@ -407,10 +543,6 @@ export default function ProjectDetailsPage() {
     );
   }
 
-  // =======================================================
-  // SAVE PROJECT
-  // =======================================================
-
   async function saveProject(
     event
   ) {
@@ -427,22 +559,11 @@ export default function ProjectDetailsPage() {
       editForm.project_name
         .trim();
 
-    if (!projectName) {
-      alert(
-        "Project name is required."
-      );
-
-      return;
-    }
-
     if (
-      editForm.start_date &&
-      editForm.due_date &&
-      editForm.due_date <
-        editForm.start_date
+      !projectName
     ) {
       alert(
-        "Project due date cannot be before the start date."
+        "Project name is required."
       );
 
       return;
@@ -509,7 +630,9 @@ export default function ProjectDetailsPage() {
       const data =
         await response.json();
 
-      if (!response.ok) {
+      if (
+        !response.ok
+      ) {
         throw new Error(
           data.error ||
             "Failed to update project."
@@ -537,11 +660,6 @@ export default function ProjectDetailsPage() {
           "Project updated successfully."
       );
     } catch (error) {
-      console.error(
-        "Project update error:",
-        error
-      );
-
       alert(
         error.message ||
           "Error updating project."
@@ -554,21 +672,582 @@ export default function ProjectDetailsPage() {
   }
 
   // =======================================================
-  // DELETE PROJECT
+  // TASK CREATE
   // =======================================================
 
-  async function deleteProject() {
+  function openTaskForm() {
     if (
-      !project ||
-      !access.canDelete ||
-      deletingProject
+      !taskAccess.canCreate
+    ) {
+      return;
+    }
+
+    setTaskForm({
+      ...EMPTY_TASK_FORM,
+
+      assigned_employee_id:
+        taskAccess.canAssign
+          ? project.owner_employee_id ||
+            currentEmployee
+              ?.id ||
+            ""
+          : "",
+    });
+
+    setShowTaskForm(
+      true
+    );
+  }
+
+  function closeTaskForm() {
+    setTaskForm(
+      EMPTY_TASK_FORM
+    );
+
+    setShowTaskForm(
+      false
+    );
+  }
+
+  function handleTaskFormChange(
+    event
+  ) {
+    const {
+      name,
+      value,
+    } =
+      event.target;
+
+    setTaskForm(
+      (
+        current
+      ) => ({
+        ...current,
+        [name]:
+          value,
+      })
+    );
+  }
+
+  async function createTask(
+    event
+  ) {
+    event.preventDefault();
+
+    if (
+      !taskAccess.canCreate
+    ) {
+      return;
+    }
+
+    if (
+      !taskForm.task_name
+        .trim()
+    ) {
+      alert(
+        "Task name is required."
+      );
+
+      return;
+    }
+
+    try {
+      setSavingTask(
+        true
+      );
+
+      const payload = {
+        project_id:
+          project.id,
+
+        task_name:
+          taskForm.task_name
+            .trim(),
+
+        description:
+          taskForm.description
+            .trim(),
+
+        status:
+          taskForm.status,
+
+        priority:
+          taskForm.priority,
+
+        due_date:
+          taskForm.due_date ||
+          null,
+      };
+
+      if (
+        taskAccess.canAssign &&
+        taskForm
+          .assigned_employee_id
+      ) {
+        payload.assigned_employee_id =
+          taskForm.assigned_employee_id;
+      }
+
+      const response =
+        await fetch(
+          "/api/tasks",
+          {
+            method:
+              "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify(
+                payload
+              ),
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (
+        !response.ok
+      ) {
+        throw new Error(
+          data.error ||
+            "Failed to create task."
+        );
+      }
+
+      closeTaskForm();
+
+      await fetchProjectDetails();
+
+      alert(
+        data.message ||
+          "Task created successfully."
+      );
+    } catch (error) {
+      alert(
+        error.message ||
+          "Unable to create task."
+      );
+    } finally {
+      setSavingTask(
+        false
+      );
+    }
+  }
+
+  // =======================================================
+  // DEFAULT TASKS
+  // =======================================================
+
+  async function generateDefaultTasks() {
+    if (
+      !taskAccess.canCreate
+    ) {
+      return;
+    }
+
+    const defaults = [
+      {
+        task_name:
+          "Kick-off meeting",
+
+        description:
+          "Confirm project scope, delivery expectations and stakeholders.",
+
+        priority:
+          "High",
+      },
+      {
+        task_name:
+          "Confirm delivery plan",
+
+        description:
+          "Agree milestones, delivery dates and responsibilities.",
+
+        priority:
+          "High",
+      },
+      {
+        task_name:
+          "Complete implementation",
+
+        description:
+          "Deliver the agreed project scope.",
+
+        priority:
+          "Medium",
+      },
+      {
+        task_name:
+          "Customer review",
+
+        description:
+          "Complete customer review and resolve outstanding items.",
+
+        priority:
+          "Medium",
+      },
+      {
+        task_name:
+          "Project handover",
+
+        description:
+          "Complete final handover and confirm closure.",
+
+        priority:
+          "Medium",
+      },
+    ];
+
+    try {
+      setSavingTask(
+        true
+      );
+
+      for (
+        const item of defaults
+      ) {
+        const response =
+          await fetch(
+            "/api/tasks",
+            {
+              method:
+                "POST",
+
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+
+              body:
+                JSON.stringify({
+                  project_id:
+                    project.id,
+
+                  ...item,
+
+                  status:
+                    "To Do",
+
+                  due_date:
+                    null,
+                }),
+            }
+          );
+
+        const data =
+          await response.json();
+
+        if (
+          !response.ok
+        ) {
+          throw new Error(
+            data.error ||
+              "Failed to generate default tasks."
+          );
+        }
+      }
+
+      await fetchProjectDetails();
+
+      alert(
+        "Default project tasks created successfully."
+      );
+    } catch (error) {
+      alert(
+        error.message ||
+          "Unable to generate default tasks."
+      );
+    } finally {
+      setSavingTask(
+        false
+      );
+    }
+  }
+
+  // =======================================================
+  // TASK EDIT
+  // =======================================================
+
+  function startTaskEdit(
+    task
+  ) {
+    if (
+      !taskAccess.canEdit &&
+      !taskAccess.canAssign
+    ) {
+      return;
+    }
+
+    setEditingTaskId(
+      task.id
+    );
+
+    setTaskEditForm({
+      task_name:
+        task.task_name ||
+        "",
+
+      description:
+        task.description ||
+        "",
+
+      status:
+        task.status ||
+        "To Do",
+
+      priority:
+        task.priority ||
+        "Medium",
+
+      due_date:
+        normaliseDateInput(
+          task.due_date
+        ),
+
+      assigned_employee_id:
+        task.assigned_employee_id ||
+        "",
+    });
+  }
+
+  function cancelTaskEdit() {
+    setEditingTaskId(
+      null
+    );
+
+    setTaskEditForm(
+      EMPTY_TASK_FORM
+    );
+  }
+
+  function handleTaskEditChange(
+    event
+  ) {
+    const {
+      name,
+      value,
+    } =
+      event.target;
+
+    setTaskEditForm(
+      (
+        current
+      ) => ({
+        ...current,
+        [name]:
+          value,
+      })
+    );
+  }
+
+  async function saveTask(
+    taskId
+  ) {
+    const payload = {};
+
+    if (
+      taskAccess.canEdit
+    ) {
+      payload.task_name =
+        taskEditForm.task_name
+          .trim();
+
+      payload.description =
+        taskEditForm.description
+          .trim();
+
+      payload.status =
+        taskEditForm.status;
+
+      payload.priority =
+        taskEditForm.priority;
+
+      payload.due_date =
+        taskEditForm.due_date ||
+        null;
+    }
+
+    if (
+      taskAccess.canAssign
+    ) {
+      payload.assigned_employee_id =
+        taskEditForm.assigned_employee_id ||
+        "";
+    }
+
+    try {
+      setSavingTask(
+        true
+      );
+
+      const response =
+        await fetch(
+          `/api/tasks/${taskId}`,
+          {
+            method:
+              "PATCH",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify(
+                payload
+              ),
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (
+        !response.ok
+      ) {
+        throw new Error(
+          data.error ||
+            "Failed to update task."
+        );
+      }
+
+      cancelTaskEdit();
+
+      await fetchProjectDetails();
+    } catch (error) {
+      alert(
+        error.message ||
+          "Unable to update task."
+      );
+    } finally {
+      setSavingTask(
+        false
+      );
+    }
+  }
+
+  async function quickTaskStatus(
+    taskId,
+    status
+  ) {
+    if (
+      !taskAccess.canEdit
+    ) {
+      return;
+    }
+
+    try {
+      const response =
+        await fetch(
+          `/api/tasks/${taskId}`,
+          {
+            method:
+              "PATCH",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify({
+                status,
+              }),
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (
+        !response.ok
+      ) {
+        throw new Error(
+          data.error ||
+            "Failed to update task."
+        );
+      }
+
+      await fetchProjectDetails();
+    } catch (error) {
+      alert(
+        error.message ||
+          "Unable to update task."
+      );
+    }
+  }
+
+  async function deleteTask(
+    task
+  ) {
+    if (
+      !taskAccess.canDelete
     ) {
       return;
     }
 
     const confirmed =
       window.confirm(
-        "Are you sure you want to delete this project? Projects with linked tasks or invoices cannot be deleted."
+        `Delete "${task.task_name}"?`
+      );
+
+    if (
+      !confirmed
+    ) {
+      return;
+    }
+
+    try {
+      const response =
+        await fetch(
+          `/api/tasks/${task.id}`,
+          {
+            method:
+              "DELETE",
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (
+        !response.ok
+      ) {
+        throw new Error(
+          data.error ||
+            "Failed to delete task."
+        );
+      }
+
+      await fetchProjectDetails();
+    } catch (error) {
+      alert(
+        error.message ||
+          "Unable to delete task."
+      );
+    }
+  }
+
+  // =======================================================
+  // DELETE PROJECT
+  // =======================================================
+
+  async function deleteProject() {
+    if (
+      !project ||
+      !access.canDelete
+    ) {
+      return;
+    }
+
+    const confirmed =
+      window.confirm(
+        "Delete this project? Projects with linked tasks or invoices cannot be deleted."
       );
 
     if (!confirmed) {
@@ -582,9 +1261,7 @@ export default function ProjectDetailsPage() {
 
       const response =
         await fetch(
-          `/api/projects/${encodeURIComponent(
-            project.id
-          )}`,
+          `/api/projects/${project.id}`,
           {
             method:
               "DELETE",
@@ -594,17 +1271,14 @@ export default function ProjectDetailsPage() {
       const data =
         await response.json();
 
-      if (!response.ok) {
+      if (
+        !response.ok
+      ) {
         throw new Error(
           data.error ||
             "Failed to delete project."
         );
       }
-
-      alert(
-        data.message ||
-          "Project deleted successfully."
-      );
 
       router.push(
         "/projects"
@@ -612,14 +1286,9 @@ export default function ProjectDetailsPage() {
 
       router.refresh();
     } catch (error) {
-      console.error(
-        "Project deletion error:",
-        error
-      );
-
       alert(
         error.message ||
-          "Error deleting project."
+          "Unable to delete project."
       );
     } finally {
       setDeletingProject(
@@ -633,13 +1302,6 @@ export default function ProjectDetailsPage() {
   // =======================================================
 
   async function generateInvoice() {
-    if (
-      !project ||
-      generatingInvoice
-    ) {
-      return;
-    }
-
     try {
       setGeneratingInvoice(
         true
@@ -671,10 +1333,8 @@ export default function ProjectDetailsPage() {
                   null,
 
                 client:
-                  customer
-                    ?.company ||
-                  customer
-                    ?.customer_name ||
+                  customer?.company ||
+                  customer?.customer_name ||
                   project.project_name,
 
                 service:
@@ -682,32 +1342,18 @@ export default function ProjectDetailsPage() {
                   project.description ||
                   "Project Service",
 
-                amount:
-                  project.amount ||
-                  "£0.00",
-
                 subtotal:
                   project.amount ||
-                  "£0.00",
+                  "0",
 
                 vat_rate:
-                  "0%",
-
-                vat_amount:
-                  "£0.00",
-
-                total_amount:
-                  project.amount ||
-                  "£0.00",
-
-                status:
-                  "Draft Invoice",
+                  "0",
 
                 due_date:
                   null,
 
-                payment_terms:
-                  "Payment due within 14 days of invoice date.",
+                status:
+                  "Draft Invoice",
               }),
           }
         );
@@ -715,44 +1361,26 @@ export default function ProjectDetailsPage() {
       const data =
         await response.json();
 
-      if (!response.ok) {
+      if (
+        !response.ok
+      ) {
         throw new Error(
           data.error ||
             "Failed to create invoice."
         );
       }
 
-      const createdInvoice =
-        Array.isArray(
-          data
-        )
-          ? data[0]
-          : data?.invoice ||
-            data;
-
-      alert(
-        data.message ||
-          "Invoice generated successfully."
-      );
-
       if (
-        createdInvoice?.id
+        data.invoice?.id
       ) {
         router.push(
-          `/invoices/${createdInvoice.id}`
+          `/invoices/${data.invoice.id}`
         );
-      } else {
-        await fetchProjectDetails();
       }
     } catch (error) {
-      console.error(
-        "Invoice generation error:",
-        error
-      );
-
       alert(
         error.message ||
-          "Error generating invoice."
+          "Unable to generate invoice."
       );
     } finally {
       setGeneratingInvoice(
@@ -765,102 +1393,72 @@ export default function ProjectDetailsPage() {
   // METRICS
   // =======================================================
 
-  const projectMetrics =
-    useMemo(() => {
-      const totalTasks =
-        tasks.length;
+  const metrics =
+    useMemo(
+      () => {
+        const total =
+          tasks.length;
 
-      const completedTasks =
-        tasks.filter(
-          (
-            task
-          ) =>
-            COMPLETED_TASK_STATUSES.includes(
+        const completed =
+          tasks.filter(
+            (
+              task
+            ) =>
+              COMPLETED_TASK_STATUSES.includes(
+                normaliseStatus(
+                  task.status
+                )
+              )
+          ).length;
+
+        const blocked =
+          tasks.filter(
+            (
+              task
+            ) =>
               normaliseStatus(
                 task.status
-              )
-            )
-        ).length;
+              ) ===
+              "blocked"
+          ).length;
 
-      const blockedTasks =
-        tasks.filter(
-          (
-            task
-          ) =>
-            normaliseStatus(
-              task.status
-            ) ===
-            "blocked"
-        ).length;
+        const overdue =
+          tasks.filter(
+            isTaskOverdue
+          ).length;
 
-      const overdueTasks =
-        tasks.filter(
-          (
-            task
-          ) =>
-            isTaskOverdue(
-              task
-            )
-        ).length;
+        const progress =
+          total ===
+          0
+            ? 0
+            : Math.round(
+                (
+                  completed /
+                  total
+                ) *
+                  100
+              );
 
-      const inProgressTasks =
-        tasks.filter(
-          (
-            task
-          ) =>
-            normaliseStatus(
-              task.status
-            ) ===
-            "in progress"
-        ).length;
-
-      const progress =
-        totalTasks === 0
-          ? 0
-          : Math.round(
-              (
-                completedTasks /
-                totalTasks
-              ) *
-                100
-            );
-
-      const delayed =
-        normaliseStatus(
-          project?.status
-        ) !==
-          "completed" &&
-        normaliseStatus(
-          project?.status
-        ) !==
-          "cancelled" &&
-        (
-          isDateOverdue(
-            project?.due_date
-          ) ||
-          overdueTasks >
-            0
-        );
-
-      return {
-        totalTasks,
-        completedTasks,
-        blockedTasks,
-        overdueTasks,
-        inProgressTasks,
-        progress,
-        delayed,
-      };
-    }, [
-      tasks,
-      project,
-    ]);
+        return {
+          total,
+          completed,
+          blocked,
+          overdue,
+          progress,
+        };
+      },
+      [
+        tasks,
+      ]
+    );
 
   // =======================================================
-  // LOADING
+  // STATES
   // =======================================================
 
-  if (loading) {
+  if (
+    loading
+  ) {
     return (
       <ProtectedRoute>
         <AppLayout
@@ -873,11 +1471,9 @@ export default function ProjectDetailsPage() {
     );
   }
 
-  // =======================================================
-  // ERROR
-  // =======================================================
-
-  if (errorMessage) {
+  if (
+    errorMessage
+  ) {
     return (
       <ProtectedRoute>
         <AppLayout
@@ -899,43 +1495,26 @@ export default function ProjectDetailsPage() {
               </p>
             </div>
 
-            <div
+            <button
+              type="button"
               className={
-                styles.headerActions
+                styles.primaryButton
+              }
+              onClick={
+                fetchProjectDetails
               }
             >
-              <Link
-                href="/projects"
-                className={
-                  styles.secondaryButton
-                }
-              >
-                Back to projects
-              </Link>
-
-              <button
-                type="button"
-                className={
-                  styles.primaryButton
-                }
-                onClick={
-                  fetchProjectDetails
-                }
-              >
-                Try again
-              </button>
-            </div>
+              Try again
+            </button>
           </section>
         </AppLayout>
       </ProtectedRoute>
     );
   }
 
-  // =======================================================
-  // NOT FOUND
-  // =======================================================
-
-  if (!project) {
+  if (
+    !project
+  ) {
     return (
       <ProtectedRoute>
         <AppLayout
@@ -947,23 +1526,9 @@ export default function ProjectDetailsPage() {
               styles.notFound
             }
           >
-            <span
-              className={
-                styles.notFoundIcon
-              }
-            >
-              ▰
-            </span>
-
             <h2>
               Project not found
             </h2>
-
-            <p>
-              This project may have
-              been deleted or you may
-              not have access to it.
-            </p>
 
             <Link
               href="/projects"
@@ -980,38 +1545,6 @@ export default function ProjectDetailsPage() {
   }
 
   // =======================================================
-  // DERIVED DATA
-  // =======================================================
-
-  const recommendations =
-    buildProjectRecommendations(
-      project,
-      projectMetrics
-    );
-
-  const deliveryRisk =
-    getDeliveryRisk(
-      project,
-      projectMetrics
-    );
-
-  const ownerName =
-    project.owner
-      ?.full_name ||
-    "Unassigned";
-
-  const customerName =
-    customer?.company ||
-    customer
-      ?.customer_name ||
-    "Not linked";
-
-  const quoteName =
-    quote?.quote_number ||
-    quote?.service ||
-    "Linked quote";
-
-  // =======================================================
   // PAGE
   // =======================================================
 
@@ -1022,17 +1555,13 @@ export default function ProjectDetailsPage() {
           project.project_name ||
           "Project Workspace"
         }
-        description="Manage project delivery, ownership, progress and invoicing."
+        description="Manage delivery, ownership, project tasks and invoicing."
       >
         <div
           className={
             styles.page
           }
         >
-          {/* ===============================================
-              HEADER
-          =============================================== */}
-
           <section
             className={
               styles.pageHeader
@@ -1061,15 +1590,14 @@ export default function ProjectDetailsPage() {
               </span>
 
               <h2>
-                {project.project_name ||
-                  "Unnamed project"}
+                {
+                  project.project_name
+                }
               </h2>
 
               <p>
-                Manage project
-                ownership, delivery
-                progress, commercial
-                links and invoicing.
+                {project.description ||
+                  "Manage project delivery and tasks."}
               </p>
             </div>
 
@@ -1078,11 +1606,46 @@ export default function ProjectDetailsPage() {
                 styles.headerActions
               }
             >
-              {access.canEdit && (
+              {taskAccess.canCreate && (
                 <button
                   type="button"
                   className={
                     styles.primaryButton
+                  }
+                  onClick={
+                    showTaskForm
+                      ? closeTaskForm
+                      : openTaskForm
+                  }
+                >
+                  {showTaskForm
+                    ? "Close task form"
+                    : "+ Add task"}
+                </button>
+              )}
+
+              {taskAccess.canCreate && (
+                <button
+                  type="button"
+                  className={
+                    styles.secondaryButton
+                  }
+                  disabled={
+                    savingTask
+                  }
+                  onClick={
+                    generateDefaultTasks
+                  }
+                >
+                  Generate default tasks
+                </button>
+              )}
+
+              {access.canEdit && (
+                <button
+                  type="button"
+                  className={
+                    styles.secondaryButton
                   }
                   onClick={
                     showEditForm
@@ -1113,7 +1676,7 @@ export default function ProjectDetailsPage() {
                   }
                 >
                   {generatingInvoice
-                    ? "Generating invoice..."
+                    ? "Generating..."
                     : "Generate invoice"}
                 </button>
               )}
@@ -1131,17 +1694,209 @@ export default function ProjectDetailsPage() {
                     deleteProject
                   }
                 >
-                  {deletingProject
-                    ? "Deleting..."
-                    : "Delete project"}
+                  Delete project
                 </button>
               )}
             </div>
           </section>
 
-          {/* ===============================================
-              EDIT PROJECT
-          =============================================== */}
+          {showTaskForm &&
+            taskAccess.canCreate && (
+              <section
+                className={
+                  styles.panel
+                }
+              >
+                <div
+                  className={
+                    styles.panelHeader
+                  }
+                >
+                  <div>
+                    <h3>
+                      Add task
+                    </h3>
+
+                    <p>
+                      Create a delivery task for this project.
+                    </p>
+                  </div>
+                </div>
+
+                <form
+                  onSubmit={
+                    createTask
+                  }
+                >
+                  <div
+                    style={
+                      formGridStyle
+                    }
+                  >
+                    <TaskField
+                      label="Task name"
+                      name="task_name"
+                      value={
+                        taskForm.task_name
+                      }
+                      onChange={
+                        handleTaskFormChange
+                      }
+                    />
+
+                    <TaskField
+                      label="Due date"
+                      name="due_date"
+                      type="date"
+                      value={
+                        taskForm.due_date
+                      }
+                      onChange={
+                        handleTaskFormChange
+                      }
+                    />
+
+                    <TaskSelect
+                      label="Status"
+                      name="status"
+                      value={
+                        taskForm.status
+                      }
+                      onChange={
+                        handleTaskFormChange
+                      }
+                      options={
+                        TASK_STATUS_OPTIONS
+                      }
+                    />
+
+                    <TaskSelect
+                      label="Priority"
+                      name="priority"
+                      value={
+                        taskForm.priority
+                      }
+                      onChange={
+                        handleTaskFormChange
+                      }
+                      options={
+                        TASK_PRIORITY_OPTIONS
+                      }
+                    />
+
+                    {taskAccess.canAssign && (
+                      <label
+                        style={
+                          fieldStyle
+                        }
+                      >
+                        <span>
+                          Assigned employee
+                        </span>
+
+                        <select
+                          name="assigned_employee_id"
+                          value={
+                            taskForm.assigned_employee_id
+                          }
+                          onChange={
+                            handleTaskFormChange
+                          }
+                          style={
+                            inputStyle
+                          }
+                        >
+                          <option value="">
+                            Default project owner
+                          </option>
+
+                          {taskEmployees.map(
+                            (
+                              employee
+                            ) => (
+                              <option
+                                key={
+                                  employee.id
+                                }
+                                value={
+                                  employee.id
+                                }
+                              >
+                                {
+                                  employee.full_name
+                                }
+                              </option>
+                            )
+                          )}
+                        </select>
+                      </label>
+                    )}
+                  </div>
+
+                  <label
+                    style={{
+                      ...fieldStyle,
+                      marginTop:
+                        "14px",
+                    }}
+                  >
+                    <span>
+                      Description
+                    </span>
+
+                    <textarea
+                      name="description"
+                      rows={4}
+                      value={
+                        taskForm.description
+                      }
+                      onChange={
+                        handleTaskFormChange
+                      }
+                      style={
+                        textareaStyle
+                      }
+                    />
+                  </label>
+
+                  <div
+                    className={
+                      styles.headerActions
+                    }
+                    style={{
+                      marginTop:
+                        "18px",
+                    }}
+                  >
+                    <button
+                      type="button"
+                      className={
+                        styles.secondaryButton
+                      }
+                      onClick={
+                        closeTaskForm
+                      }
+                    >
+                      Cancel
+                    </button>
+
+                    <button
+                      type="submit"
+                      className={
+                        styles.primaryButton
+                      }
+                      disabled={
+                        savingTask
+                      }
+                    >
+                      {savingTask
+                        ? "Saving..."
+                        : "Save task"}
+                    </button>
+                  </div>
+                </form>
+              </section>
+            )}
 
           {showEditForm &&
             access.canEdit && (
@@ -1155,17 +1910,9 @@ export default function ProjectDetailsPage() {
                     styles.panelHeader
                   }
                 >
-                  <div>
-                    <h3>
-                      Edit project
-                    </h3>
-
-                    <p>
-                      Update delivery
-                      information and
-                      project ownership.
-                    </p>
-                  </div>
+                  <h3>
+                    Edit project
+                  </h3>
                 </div>
 
                 <form
@@ -1174,21 +1921,11 @@ export default function ProjectDetailsPage() {
                   }
                 >
                   <div
-                    style={{
-                      display:
-                        "grid",
-
-                      gridTemplateColumns:
-                        "repeat(auto-fit, minmax(220px, 1fr))",
-
-                      gap:
-                        "16px",
-
-                      marginBottom:
-                        "16px",
-                    }}
+                    style={
+                      formGridStyle
+                    }
                   >
-                    <ProjectField
+                    <TaskField
                       label="Project name"
                       name="project_name"
                       value={
@@ -1197,10 +1934,9 @@ export default function ProjectDetailsPage() {
                       onChange={
                         handleEditChange
                       }
-                      required
                     />
 
-                    <ProjectField
+                    <TaskField
                       label="Amount"
                       name="amount"
                       value={
@@ -1211,7 +1947,7 @@ export default function ProjectDetailsPage() {
                       }
                     />
 
-                    <ProjectField
+                    <TaskField
                       label="Start date"
                       name="start_date"
                       type="date"
@@ -1223,7 +1959,7 @@ export default function ProjectDetailsPage() {
                       }
                     />
 
-                    <ProjectField
+                    <TaskField
                       label="Due date"
                       name="due_date"
                       type="date"
@@ -1234,152 +1970,21 @@ export default function ProjectDetailsPage() {
                         handleEditChange
                       }
                     />
-
-                    <label
-                      style={
-                        fieldStyle
-                      }
-                    >
-                      <span
-                        style={
-                          fieldLabelStyle
-                        }
-                      >
-                        Status
-                      </span>
-
-                      <select
-                        name="status"
-                        value={
-                          editForm.status
-                        }
-                        onChange={
-                          handleEditChange
-                        }
-                        style={
-                          inputStyle
-                        }
-                      >
-                        {PROJECT_STATUS_OPTIONS.map(
-                          (
-                            status
-                          ) => (
-                            <option
-                              key={
-                                status
-                              }
-                              value={
-                                status
-                              }
-                            >
-                              {status}
-                            </option>
-                          )
-                        )}
-                      </select>
-                    </label>
-
-                    {access.canAssign && (
-                      <label
-                        style={
-                          fieldStyle
-                        }
-                      >
-                        <span
-                          style={
-                            fieldLabelStyle
-                          }
-                        >
-                          Project owner
-                        </span>
-
-                        <select
-                          name="owner_employee_id"
-                          value={
-                            editForm.owner_employee_id
-                          }
-                          onChange={
-                            handleEditChange
-                          }
-                          style={
-                            inputStyle
-                          }
-                        >
-                          <option value="">
-                            Unassigned
-                          </option>
-
-                          {employees.map(
-                            (
-                              employee
-                            ) => (
-                              <option
-                                key={
-                                  employee.id
-                                }
-                                value={
-                                  employee.id
-                                }
-                              >
-                                {employee.full_name}
-
-                                {employee.job_title
-                                  ? ` — ${employee.job_title}`
-                                  : ""}
-                              </option>
-                            )
-                          )}
-                        </select>
-                      </label>
-                    )}
                   </div>
-
-                  <label
-                    style={{
-                      ...fieldStyle,
-
-                      marginBottom:
-                        "18px",
-                    }}
-                  >
-                    <span
-                      style={
-                        fieldLabelStyle
-                      }
-                    >
-                      Description
-                    </span>
-
-                    <textarea
-                      name="description"
-                      value={
-                        editForm.description
-                      }
-                      onChange={
-                        handleEditChange
-                      }
-                      rows={5}
-                      style={{
-                        ...inputStyle,
-
-                        resize:
-                          "vertical",
-                      }}
-                    />
-                  </label>
 
                   <div
                     className={
                       styles.headerActions
                     }
+                    style={{
+                      marginTop:
+                        "18px",
+                    }}
                   >
                     <button
                       type="button"
                       className={
                         styles.secondaryButton
-                      }
-                      disabled={
-                        savingProject
                       }
                       onClick={
                         closeEditForm
@@ -1397,18 +2002,12 @@ export default function ProjectDetailsPage() {
                         savingProject
                       }
                     >
-                      {savingProject
-                        ? "Saving..."
-                        : "Save changes"}
+                      Save project
                     </button>
                   </div>
                 </form>
               </section>
             )}
-
-          {/* ===============================================
-              HERO
-          =============================================== */}
 
           <section
             className={
@@ -1433,70 +2032,23 @@ export default function ProjectDetailsPage() {
                   styles.identityCopy
                 }
               >
-                <span
-                  className={
-                    styles.identityLabel
+                <StatusBadge
+                  status={
+                    project.status ||
+                    "Planning"
                   }
-                >
-                  Project delivery
-                </span>
+                />
 
                 <h3>
-                  {project.project_name ||
-                    "Unnamed project"}
+                  {
+                    project.project_name
+                  }
                 </h3>
 
                 <p>
                   {project.description ||
-                    "No project description has been added."}
+                    "No description"}
                 </p>
-
-                <div
-                  className={
-                    styles.identityMeta
-                  }
-                >
-                  <StatusBadge
-                    status={
-                      project.status ||
-                      "Planning"
-                    }
-                  />
-
-                  <span
-                    className={
-                      styles.metaBadge
-                    }
-                  >
-                    Owner:{" "}
-                    {ownerName}
-                  </span>
-
-                  <span
-                    className={
-                      styles.metaBadge
-                    }
-                  >
-                    Start{" "}
-                    {formatDate(
-                      project.start_date
-                    )}
-                  </span>
-
-                  <span
-                    className={
-                      projectMetrics.delayed
-                        ? styles.overdueBadge
-                        : styles.metaBadge
-                    }
-                  >
-                    {projectMetrics.delayed
-                      ? "Delivery delayed"
-                      : `Due ${formatDate(
-                          project.due_date
-                        )}`}
-                  </span>
-                </div>
               </div>
             </div>
 
@@ -1506,399 +2058,25 @@ export default function ProjectDetailsPage() {
               }
             >
               <HeroMetric
-                label="Project value"
-                value={
-                  formatProjectAmount(
-                    project.amount
-                  )
-                }
-              />
-
-              <HeroMetric
                 label="Progress"
-                value={`${projectMetrics.progress}%`}
-                success={
-                  projectMetrics.progress ===
-                  100
+                value={`${metrics.progress}%`}
+              />
+
+              <HeroMetric
+                label="Tasks"
+                value={
+                  metrics.total
                 }
               />
 
               <HeroMetric
-                label="Delivery risk"
+                label="Overdue"
                 value={
-                  deliveryRisk
-                }
-                warning={
-                  deliveryRisk ===
-                  "High"
+                  metrics.overdue
                 }
               />
             </div>
           </section>
-
-          {/* ===============================================
-              INFORMATION / INTELLIGENCE
-          =============================================== */}
-
-          <section
-            className={
-              styles.workspaceGrid
-            }
-          >
-            <section
-              className={
-                styles.panel
-              }
-            >
-              <div
-                className={
-                  styles.panelHeader
-                }
-              >
-                <div>
-                  <h3>
-                    Project information
-                  </h3>
-
-                  <p>
-                    Scope, ownership,
-                    dates, value and
-                    business links
-                  </p>
-                </div>
-              </div>
-
-              <div
-                className={
-                  styles.detailList
-                }
-              >
-                <DetailRow
-                  label="Project name"
-                  value={
-                    project.project_name
-                  }
-                />
-
-                <DetailRow
-                  label="Owner"
-                  value={
-                    ownerName
-                  }
-                />
-
-                <DetailRow
-                  label="Description"
-                  value={
-                    project.description
-                  }
-                />
-
-                <DetailRow
-                  label="Status"
-                  customValue={
-                    <StatusBadge
-                      status={
-                        project.status ||
-                        "Planning"
-                      }
-                    />
-                  }
-                />
-
-                <DetailRow
-                  label="Project value"
-                  value={
-                    formatProjectAmount(
-                      project.amount
-                    )
-                  }
-                />
-
-                <DetailRow
-                  label="Start date"
-                  value={
-                    formatDate(
-                      project.start_date
-                    )
-                  }
-                />
-
-                <DetailRow
-                  label="Due date"
-                  value={
-                    formatDate(
-                      project.due_date
-                    )
-                  }
-                />
-
-                <DetailRow
-                  label="Created"
-                  value={
-                    formatDate(
-                      project.created_at
-                    )
-                  }
-                />
-
-                <DetailRow
-                  label="Customer"
-                  customValue={
-                    customer ? (
-                      <Link
-                        href={`/customers/${customer.id}`}
-                      >
-                        {customerName} →
-                      </Link>
-                    ) : (
-                      <strong
-                        className={
-                          styles.emptyValue
-                        }
-                      >
-                        Not linked
-                      </strong>
-                    )
-                  }
-                />
-
-                <DetailRow
-                  label="Source quote"
-                  customValue={
-                    quote ? (
-                      <Link
-                        href={`/quotes/${quote.id}`}
-                      >
-                        {quoteName} →
-                      </Link>
-                    ) : (
-                      <strong
-                        className={
-                          styles.emptyValue
-                        }
-                      >
-                        Not linked
-                      </strong>
-                    )
-                  }
-                />
-              </div>
-            </section>
-
-            <section
-              className={
-                styles.aiPanel
-              }
-            >
-              <div
-                className={
-                  styles.aiHeader
-                }
-              >
-                <span
-                  className={
-                    styles.aiIcon
-                  }
-                >
-                  ✦
-                </span>
-
-                <div>
-                  <span>
-                    Delivery intelligence
-                  </span>
-
-                  <h3>
-                    Project risk overview
-                  </h3>
-                </div>
-              </div>
-
-              <div
-                className={
-                  styles.riskGrid
-                }
-              >
-                <RiskMetric
-                  label="Delivery risk"
-                  value={
-                    deliveryRisk
-                  }
-                />
-
-                <RiskMetric
-                  label="Progress"
-                  value={`${projectMetrics.progress}%`}
-                />
-
-                <RiskMetric
-                  label="Blocked tasks"
-                  value={
-                    projectMetrics.blockedTasks
-                  }
-                />
-
-                <RiskMetric
-                  label="Overdue tasks"
-                  value={
-                    projectMetrics.overdueTasks
-                  }
-                />
-              </div>
-
-              <div
-                className={
-                  styles.aiRecommendations
-                }
-              >
-                <span>
-                  Recommended actions
-                </span>
-
-                {recommendations.map(
-                  (
-                    recommendation,
-                    index
-                  ) => (
-                    <div
-                      key={`${recommendation}-${index}`}
-                      className={
-                        styles.recommendationItem
-                      }
-                    >
-                      <span>
-                        →
-                      </span>
-
-                      <p>
-                        {recommendation}
-                      </p>
-                    </div>
-                  )
-                )}
-              </div>
-            </section>
-          </section>
-
-          {/* ===============================================
-              PROGRESS
-          =============================================== */}
-
-          <section
-            className={
-              styles.panel
-            }
-          >
-            <div
-              className={
-                styles.panelHeader
-              }
-            >
-              <div>
-                <h3>
-                  Project progress
-                </h3>
-
-                <p>
-                  Delivery completion
-                  based on currently
-                  linked project tasks.
-                </p>
-              </div>
-            </div>
-
-            <div
-              className={
-                styles.progressOverview
-              }
-            >
-              <div
-                className={
-                  styles.progressHeader
-                }
-              >
-                <strong>
-                  {projectMetrics.progress}%
-                </strong>
-
-                <span>
-                  {projectMetrics.completedTasks}{" "}
-                  of{" "}
-                  {projectMetrics.totalTasks}{" "}
-                  tasks completed
-                </span>
-              </div>
-
-              <div
-                className={
-                  styles.progressTrack
-                }
-              >
-                <div
-                  className={
-                    styles.progressFill
-                  }
-                  style={{
-                    width: `${Math.max(
-                      0,
-                      Math.min(
-                        100,
-                        projectMetrics.progress
-                      )
-                    )}%`,
-                  }}
-                />
-              </div>
-
-              <div
-                className={
-                  styles.progressMetrics
-                }
-              >
-                <ProgressMetric
-                  label="Total tasks"
-                  value={
-                    projectMetrics.totalTasks
-                  }
-                />
-
-                <ProgressMetric
-                  label="Completed"
-                  value={
-                    projectMetrics.completedTasks
-                  }
-                />
-
-                <ProgressMetric
-                  label="In progress"
-                  value={
-                    projectMetrics.inProgressTasks
-                  }
-                />
-
-                <ProgressMetric
-                  label="Blocked"
-                  value={
-                    projectMetrics.blockedTasks
-                  }
-                  warning
-                />
-
-                <ProgressMetric
-                  label="Overdue"
-                  value={
-                    projectMetrics.overdueTasks
-                  }
-                  danger
-                />
-              </div>
-            </div>
-          </section>
-
-          {/* ===============================================
-              TASKS - READ ONLY UNTIL BATCH 4C
-          =============================================== */}
 
           <section
             className={
@@ -1916,10 +2094,7 @@ export default function ProjectDetailsPage() {
                 </h3>
 
                 <p>
-                  Task management will
-                  become permission-aware
-                  in the next security
-                  batch.
+                  Only tasks within your Task access are shown.
                 </p>
               </div>
 
@@ -1944,12 +2119,11 @@ export default function ProjectDetailsPage() {
                 }
               >
                 <strong>
-                  No project tasks
+                  No visible tasks
                 </strong>
 
                 <p>
-                  No tasks are currently
-                  linked to this project.
+                  There are no tasks available within your current Task permissions.
                 </p>
               </div>
             ) : (
@@ -1979,6 +2153,14 @@ export default function ProjectDetailsPage() {
                           tableHeaderStyle
                         }
                       >
+                        Assignee
+                      </th>
+
+                      <th
+                        style={
+                          tableHeaderStyle
+                        }
+                      >
                         Status
                       </th>
 
@@ -1995,7 +2177,15 @@ export default function ProjectDetailsPage() {
                           tableHeaderStyle
                         }
                       >
-                        Due date
+                        Due
+                      </th>
+
+                      <th
+                        style={
+                          tableHeaderStyle
+                        }
+                      >
+                        Actions
                       </th>
                     </tr>
                   </thead>
@@ -2004,86 +2194,332 @@ export default function ProjectDetailsPage() {
                     {tasks.map(
                       (
                         task
-                      ) => (
-                        <tr
-                          key={
-                            task.id
-                          }
-                        >
-                          <td
-                            style={
-                              tableCellStyle
+                      ) => {
+                        const editing =
+                          editingTaskId ===
+                          task.id;
+
+                        return (
+                          <tr
+                            key={
+                              task.id
                             }
                           >
-                            <strong>
-                              {task.task_name ||
-                                "Unnamed task"}
-                            </strong>
-
-                            {task.description && (
-                              <div
-                                style={
-                                  tableDescriptionStyle
-                                }
-                              >
-                                {task.description}
-                              </div>
-                            )}
-                          </td>
-
-                          <td
-                            style={
-                              tableCellStyle
-                            }
-                          >
-                            <StatusBadge
-                              status={
-                                task.status ||
-                                "To Do"
-                              }
-                            />
-                          </td>
-
-                          <td
-                            style={
-                              tableCellStyle
-                            }
-                          >
-                            {task.priority ||
-                              "Medium"}
-                          </td>
-
-                          <td
-                            style={
-                              tableCellStyle
-                            }
-                          >
-                            <span
+                            <td
                               style={
-                                isTaskOverdue(
-                                  task
-                                )
-                                  ? overdueTextStyle
-                                  : undefined
+                                tableCellStyle
                               }
                             >
-                              {formatDate(
-                                task.due_date
+                              {editing ? (
+                                <input
+                                  name="task_name"
+                                  value={
+                                    taskEditForm.task_name
+                                  }
+                                  onChange={
+                                    handleTaskEditChange
+                                  }
+                                  style={
+                                    inputStyle
+                                  }
+                                />
+                              ) : (
+                                <>
+                                  <strong>
+                                    {
+                                      task.task_name
+                                    }
+                                  </strong>
+
+                                  {task.description && (
+                                    <div
+                                      style={
+                                        tableDescriptionStyle
+                                      }
+                                    >
+                                      {
+                                        task.description
+                                      }
+                                    </div>
+                                  )}
+                                </>
                               )}
-                            </span>
-                          </td>
-                        </tr>
-                      )
+                            </td>
+
+                            <td
+                              style={
+                                tableCellStyle
+                              }
+                            >
+                              {editing &&
+                              taskAccess.canAssign ? (
+                                <select
+                                  name="assigned_employee_id"
+                                  value={
+                                    taskEditForm.assigned_employee_id
+                                  }
+                                  onChange={
+                                    handleTaskEditChange
+                                  }
+                                  style={
+                                    inputStyle
+                                  }
+                                >
+                                  <option value="">
+                                    Unassigned
+                                  </option>
+
+                                  {taskEmployees.map(
+                                    (
+                                      employee
+                                    ) => (
+                                      <option
+                                        key={
+                                          employee.id
+                                        }
+                                        value={
+                                          employee.id
+                                        }
+                                      >
+                                        {
+                                          employee.full_name
+                                        }
+                                      </option>
+                                    )
+                                  )}
+                                </select>
+                              ) : (
+                                task.assigned_employee
+                                  ?.full_name ||
+                                "Unassigned"
+                              )}
+                            </td>
+
+                            <td
+                              style={
+                                tableCellStyle
+                              }
+                            >
+                              {editing &&
+                              taskAccess.canEdit ? (
+                                <select
+                                  name="status"
+                                  value={
+                                    taskEditForm.status
+                                  }
+                                  onChange={
+                                    handleTaskEditChange
+                                  }
+                                  style={
+                                    inputStyle
+                                  }
+                                >
+                                  {TASK_STATUS_OPTIONS.map(
+                                    (
+                                      status
+                                    ) => (
+                                      <option
+                                        key={
+                                          status
+                                        }
+                                        value={
+                                          status
+                                        }
+                                      >
+                                        {
+                                          status
+                                        }
+                                      </option>
+                                    )
+                                  )}
+                                </select>
+                              ) : (
+                                <StatusBadge
+                                  status={
+                                    task.status ||
+                                    "To Do"
+                                  }
+                                />
+                              )}
+                            </td>
+
+                            <td
+                              style={
+                                tableCellStyle
+                              }
+                            >
+                              {editing &&
+                              taskAccess.canEdit ? (
+                                <select
+                                  name="priority"
+                                  value={
+                                    taskEditForm.priority
+                                  }
+                                  onChange={
+                                    handleTaskEditChange
+                                  }
+                                  style={
+                                    inputStyle
+                                  }
+                                >
+                                  {TASK_PRIORITY_OPTIONS.map(
+                                    (
+                                      priority
+                                    ) => (
+                                      <option
+                                        key={
+                                          priority
+                                        }
+                                        value={
+                                          priority
+                                        }
+                                      >
+                                        {
+                                          priority
+                                        }
+                                      </option>
+                                    )
+                                  )}
+                                </select>
+                              ) : (
+                                task.priority ||
+                                "Medium"
+                              )}
+                            </td>
+
+                            <td
+                              style={
+                                tableCellStyle
+                              }
+                            >
+                              {editing &&
+                              taskAccess.canEdit ? (
+                                <input
+                                  type="date"
+                                  name="due_date"
+                                  value={
+                                    taskEditForm.due_date
+                                  }
+                                  onChange={
+                                    handleTaskEditChange
+                                  }
+                                  style={
+                                    inputStyle
+                                  }
+                                />
+                              ) : (
+                                formatDate(
+                                  task.due_date
+                                )
+                              )}
+                            </td>
+
+                            <td
+                              style={
+                                tableCellStyle
+                              }
+                            >
+                              <div
+                                style={
+                                  actionRowStyle
+                                }
+                              >
+                                {editing ? (
+                                  <>
+                                    <button
+                                      type="button"
+                                      className={
+                                        styles.primaryButton
+                                      }
+                                      onClick={() =>
+                                        saveTask(
+                                          task.id
+                                        )
+                                      }
+                                    >
+                                      Save
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      className={
+                                        styles.secondaryButton
+                                      }
+                                      onClick={
+                                        cancelTaskEdit
+                                      }
+                                    >
+                                      Cancel
+                                    </button>
+                                  </>
+                                ) : (
+                                  <>
+                                    {(taskAccess.canEdit ||
+                                      taskAccess.canAssign) && (
+                                      <button
+                                        type="button"
+                                        className={
+                                          styles.secondaryButton
+                                        }
+                                        onClick={() =>
+                                          startTaskEdit(
+                                            task
+                                          )
+                                        }
+                                      >
+                                        Edit
+                                      </button>
+                                    )}
+
+                                    {taskAccess.canEdit &&
+                                      normaliseStatus(
+                                        task.status
+                                      ) !==
+                                        "completed" && (
+                                        <button
+                                          type="button"
+                                          className={
+                                            styles.secondaryButton
+                                          }
+                                          onClick={() =>
+                                            quickTaskStatus(
+                                              task.id,
+                                              "Completed"
+                                            )
+                                          }
+                                        >
+                                          Complete
+                                        </button>
+                                      )}
+
+                                    {taskAccess.canDelete && (
+                                      <button
+                                        type="button"
+                                        className={
+                                          styles.secondaryButton
+                                        }
+                                        onClick={() =>
+                                          deleteTask(
+                                            task
+                                          )
+                                        }
+                                      >
+                                        Delete
+                                      </button>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      }
                     )}
                   </tbody>
                 </table>
               </div>
             )}
           </section>
-
-          {/* ===============================================
-              INVOICES
-          =============================================== */}
 
           <section
             className={
@@ -2095,28 +2531,76 @@ export default function ProjectDetailsPage() {
                 styles.panelHeader
               }
             >
-              <div>
-                <h3>
-                  Project invoices
-                </h3>
+              <h3>
+                Project information
+              </h3>
+            </div>
 
-                <p>
-                  Invoices linked to
-                  this delivery project.
-                </p>
-              </div>
-
-              <span
-                className={
-                  styles.taskCount
+            <div
+              className={
+                styles.detailList
+              }
+            >
+              <DetailRow
+                label="Owner"
+                value={
+                  project.owner
+                    ?.full_name ||
+                  "Unassigned"
                 }
-              >
-                {invoices.length} invoice
-                {invoices.length ===
-                1
-                  ? ""
-                  : "s"}
-              </span>
+              />
+
+              <DetailRow
+                label="Customer"
+                value={
+                  customer?.company ||
+                  customer?.customer_name ||
+                  "Not linked"
+                }
+              />
+
+              <DetailRow
+                label="Project value"
+                value={
+                  formatProjectAmount(
+                    project.amount
+                  )
+                }
+              />
+
+              <DetailRow
+                label="Start date"
+                value={
+                  formatDate(
+                    project.start_date
+                  )
+                }
+              />
+
+              <DetailRow
+                label="Due date"
+                value={
+                  formatDate(
+                    project.due_date
+                  )
+                }
+              />
+            </div>
+          </section>
+
+          <section
+            className={
+              styles.panel
+            }
+          >
+            <div
+              className={
+                styles.panelHeader
+              }
+            >
+              <h3>
+                Linked invoices
+              </h3>
             </div>
 
             {invoices.length ===
@@ -2126,15 +2610,7 @@ export default function ProjectDetailsPage() {
                   emptyStateStyle
                 }
               >
-                <strong>
-                  No project invoices
-                </strong>
-
-                <p>
-                  No invoices are
-                  currently linked to
-                  this project.
-                </p>
+                No linked invoices.
               </div>
             ) : (
               <div
@@ -2148,50 +2624,6 @@ export default function ProjectDetailsPage() {
                     tableStyle
                   }
                 >
-                  <thead>
-                    <tr>
-                      <th
-                        style={
-                          tableHeaderStyle
-                        }
-                      >
-                        Invoice
-                      </th>
-
-                      <th
-                        style={
-                          tableHeaderStyle
-                        }
-                      >
-                        Service
-                      </th>
-
-                      <th
-                        style={
-                          tableHeaderStyle
-                        }
-                      >
-                        Amount
-                      </th>
-
-                      <th
-                        style={
-                          tableHeaderStyle
-                        }
-                      >
-                        Status
-                      </th>
-
-                      <th
-                        style={
-                          tableHeaderStyle
-                        }
-                      >
-                        Due date
-                      </th>
-                    </tr>
-                  </thead>
-
                   <tbody>
                     {invoices.map(
                       (
@@ -2211,18 +2643,9 @@ export default function ProjectDetailsPage() {
                               href={`/invoices/${invoice.id}`}
                             >
                               {invoice.invoice_number ||
-                                "Open invoice"}{" "}
+                                "Invoice"}{" "}
                               →
                             </Link>
-                          </td>
-
-                          <td
-                            style={
-                              tableCellStyle
-                            }
-                          >
-                            {invoice.service ||
-                              "Not set"}
                           </td>
 
                           <td
@@ -2247,16 +2670,6 @@ export default function ProjectDetailsPage() {
                               }
                             />
                           </td>
-
-                          <td
-                            style={
-                              tableCellStyle
-                            }
-                          >
-                            {formatDate(
-                              invoice.due_date
-                            )}
-                          </td>
                         </tr>
                       )
                     )}
@@ -2265,85 +2678,6 @@ export default function ProjectDetailsPage() {
               </div>
             )}
           </section>
-
-          {/* ===============================================
-              ACCESS
-          =============================================== */}
-
-          <section
-            className={
-              styles.panel
-            }
-          >
-            <div
-              className={
-                styles.panelHeader
-              }
-            >
-              <div>
-                <h3>
-                  Record access
-                </h3>
-
-                <p>
-                  Ownership and access
-                  information for this
-                  project.
-                </p>
-              </div>
-            </div>
-
-            <div
-              className={
-                styles.detailList
-              }
-            >
-              <DetailRow
-                label="Project owner"
-                value={
-                  ownerName
-                }
-              />
-
-              <DetailRow
-                label="Signed-in employee"
-                value={
-                  currentEmployee
-                    ?.full_name ||
-                  currentEmployee
-                    ?.email ||
-                  "Current user"
-                }
-              />
-
-              <DetailRow
-                label="Visibility"
-                value={
-                  getVisibilityLabel(
-                    access
-                  )
-                }
-              />
-
-              <DetailRow
-                label="Can edit"
-                value={
-                  access.canEdit
-                    ? "Yes"
-                    : "No"
-                }
-              />
-
-              <DetailRow
-                label="Can reassign"
-                value={
-                  access.canAssign
-                    ? "Yes"
-                    : "No"
-                }
-              />
-            </div>
-          </section>
         </div>
       </AppLayout>
     </ProtectedRoute>
@@ -2351,16 +2685,15 @@ export default function ProjectDetailsPage() {
 }
 
 // =========================================================
-// FORM FIELD
+// COMPONENTS
 // =========================================================
 
-function ProjectField({
+function TaskField({
   label,
   name,
   value,
   onChange,
   type = "text",
-  required = false,
 }) {
   return (
     <label
@@ -2368,15 +2701,8 @@ function ProjectField({
         fieldStyle
       }
     >
-      <span
-        style={
-          fieldLabelStyle
-        }
-      >
+      <span>
         {label}
-        {required
-          ? " *"
-          : ""}
       </span>
 
       <input
@@ -2392,9 +2718,6 @@ function ProjectField({
         onChange={
           onChange
         }
-        required={
-          required
-        }
         style={
           inputStyle
         }
@@ -2403,14 +2726,82 @@ function ProjectField({
   );
 }
 
-// =========================================================
-// DETAIL ROW
-// =========================================================
+function TaskSelect({
+  label,
+  name,
+  value,
+  onChange,
+  options,
+}) {
+  return (
+    <label
+      style={
+        fieldStyle
+      }
+    >
+      <span>
+        {label}
+      </span>
+
+      <select
+        name={
+          name
+        }
+        value={
+          value
+        }
+        onChange={
+          onChange
+        }
+        style={
+          inputStyle
+        }
+      >
+        {options.map(
+          (
+            option
+          ) => (
+            <option
+              key={
+                option
+              }
+              value={
+                option
+              }
+            >
+              {option}
+            </option>
+          )
+        )}
+      </select>
+    </label>
+  );
+}
+
+function HeroMetric({
+  label,
+  value,
+}) {
+  return (
+    <div
+      className={
+        styles.heroMetric
+      }
+    >
+      <span>
+        {label}
+      </span>
+
+      <strong>
+        {value}
+      </strong>
+    </div>
+  );
+}
 
 function DetailRow({
   label,
   value,
-  customValue,
 }) {
   return (
     <div
@@ -2422,118 +2813,13 @@ function DetailRow({
         {label}
       </span>
 
-      {customValue ? (
-        customValue
-      ) : (
-        <strong
-          className={
-            value
-              ? ""
-              : styles.emptyValue
-          }
-        >
-          {value ||
-            "Not available"}
-        </strong>
-      )}
-    </div>
-  );
-}
-
-// =========================================================
-// HERO METRIC
-// =========================================================
-
-function HeroMetric({
-  label,
-  value,
-  success = false,
-  warning = false,
-}) {
-  return (
-    <div
-      className={`${styles.heroMetric} ${
-        success
-          ? styles.heroMetricSuccess
-          : ""
-      } ${
-        warning
-          ? styles.heroMetricWarning
-          : ""
-      }`}
-    >
-      <span>
-        {label}
-      </span>
-
       <strong>
-        {value}
+        {value ||
+          "Not available"}
       </strong>
     </div>
   );
 }
-
-// =========================================================
-// PROGRESS METRIC
-// =========================================================
-
-function ProgressMetric({
-  label,
-  value,
-  warning = false,
-  danger = false,
-}) {
-  return (
-    <div
-      className={`${styles.progressMetric} ${
-        warning
-          ? styles.progressMetricWarning
-          : ""
-      } ${
-        danger
-          ? styles.progressMetricDanger
-          : ""
-      }`}
-    >
-      <span>
-        {label}
-      </span>
-
-      <strong>
-        {value}
-      </strong>
-    </div>
-  );
-}
-
-// =========================================================
-// RISK METRIC
-// =========================================================
-
-function RiskMetric({
-  label,
-  value,
-}) {
-  return (
-    <div
-      className={
-        styles.riskMetric
-      }
-    >
-      <span>
-        {label}
-      </span>
-
-      <strong>
-        {value}
-      </strong>
-    </div>
-  );
-}
-
-// =========================================================
-// LOADING
-// =========================================================
 
 function LoadingState() {
   return (
@@ -2543,7 +2829,8 @@ function LoadingState() {
       }
     >
       {Array.from({
-        length: 6,
+        length:
+          6,
       }).map(
         (
           _,
@@ -2593,99 +2880,30 @@ function normaliseDateInput(
   );
 }
 
-function getMoneyValue(
-  value
-) {
-  if (
-    value === null ||
-    value === undefined ||
-    value === ""
-  ) {
-    return 0;
-  }
-
-  const cleanedValue =
-    String(value)
-      .replace(
-        /,/g,
-        ""
-      )
-      .replace(
-        /[^\d.-]/g,
-        ""
-      );
-
-  const parsedValue =
-    Number.parseFloat(
-      cleanedValue
-    );
-
-  return Number.isFinite(
-    parsedValue
-  )
-    ? parsedValue
-    : 0;
-}
-
-function formatProjectAmount(
-  value
-) {
-  if (
-    value === null ||
-    value === undefined ||
-    value === ""
-  ) {
-    return "Not set";
-  }
-
-  return new Intl.NumberFormat(
-    "en-GB",
-    {
-      style:
-        "currency",
-
-      currency:
-        "GBP",
-
-      minimumFractionDigits:
-        0,
-
-      maximumFractionDigits:
-        0,
-    }
-  ).format(
-    getMoneyValue(
-      value
-    )
-  );
-}
-
 function formatDate(
   value
 ) {
   if (!value) {
-    return "Not available";
+    return "Not set";
   }
 
   const date =
-    String(
-      value
-    ).includes(
-      "T"
-    )
-      ? new Date(
-          value
-        )
-      : new Date(
-          `${value}T12:00:00`
-        );
+    new Date(
+      String(
+        value
+      ).includes(
+        "T"
+      )
+        ? value
+        : `${value}T12:00:00`
+    );
 
   if (
     Number.isNaN(
       date.getTime()
     )
   ) {
-    return "Not available";
+    return "Not set";
   }
 
   return date.toLocaleDateString(
@@ -2703,40 +2921,6 @@ function formatDate(
   );
 }
 
-function isDateOverdue(
-  value
-) {
-  if (!value) {
-    return false;
-  }
-
-  const date =
-    String(
-      value
-    ).includes(
-      "T"
-    )
-      ? new Date(
-          value
-        )
-      : new Date(
-          `${value}T23:59:59`
-        );
-
-  if (
-    Number.isNaN(
-      date.getTime()
-    )
-  ) {
-    return false;
-  }
-
-  return (
-    date <
-    new Date()
-  );
-}
-
 function isTaskOverdue(
   task
 ) {
@@ -2751,283 +2935,215 @@ function isTaskOverdue(
     return false;
   }
 
-  return isDateOverdue(
-    task.due_date
+  const date =
+    new Date(
+      `${String(
+        task.due_date
+      ).slice(
+        0,
+        10
+      )}T23:59:59`
+    );
+
+  return (
+    !Number.isNaN(
+      date.getTime()
+    ) &&
+    date <
+      new Date()
   );
 }
 
 function sortTasks(
-  firstTask,
-  secondTask
+  first,
+  second
 ) {
-  const firstCompleted =
+  const firstDone =
     COMPLETED_TASK_STATUSES.includes(
       normaliseStatus(
-        firstTask.status
+        first.status
       )
     );
 
-  const secondCompleted =
+  const secondDone =
     COMPLETED_TASK_STATUSES.includes(
       normaliseStatus(
-        secondTask.status
+        second.status
       )
     );
 
   if (
-    firstCompleted !==
-    secondCompleted
+    firstDone !==
+    secondDone
   ) {
-    return firstCompleted
+    return firstDone
       ? 1
       : -1;
   }
 
-  const firstDate =
-    firstTask.due_date ||
-    "9999-12-31";
-
-  const secondDate =
-    secondTask.due_date ||
-    "9999-12-31";
-
-  return firstDate.localeCompare(
-    secondDate
+  return String(
+    first.due_date ||
+      "9999"
+  ).localeCompare(
+    String(
+      second.due_date ||
+        "9999"
+    )
   );
 }
 
-function getDeliveryRisk(
-  project,
-  metrics
+function getMoneyValue(
+  value
 ) {
-  if (
-    normaliseStatus(
-      project.status
-    ) ===
-    "completed"
-  ) {
-    return "No risk";
-  }
+  const parsed =
+    Number(
+      String(
+        value ||
+          ""
+      ).replace(
+        /[^0-9.-]/g,
+        ""
+      )
+    );
 
-  if (
-    metrics.overdueTasks >
-      0 ||
-    metrics.blockedTasks >
-      1 ||
-    isDateOverdue(
-      project.due_date
-    )
-  ) {
-    return "High";
-  }
-
-  if (
-    metrics.blockedTasks ===
-      1 ||
-    (
-      metrics.totalTasks >
-        0 &&
-      metrics.progress <
-        30
-    )
-  ) {
-    return "Medium";
-  }
-
-  if (
-    metrics.totalTasks ===
-    0
-  ) {
-    return "Not assessed";
-  }
-
-  return "Low";
+  return Number.isFinite(
+    parsed
+  )
+    ? parsed
+    : 0;
 }
 
-function buildProjectRecommendations(
-  project,
-  metrics
+function formatProjectAmount(
+  value
 ) {
-  const recommendations =
-    [];
-
-  if (
-    metrics.totalTasks ===
-    0
-  ) {
-    recommendations.push(
-      "No delivery tasks are currently linked to this project."
-    );
+  if (!value) {
+    return "Not set";
   }
 
-  if (
-    metrics.overdueTasks >
-    0
-  ) {
-    recommendations.push(
-      `Review the ${metrics.overdueTasks} overdue task${
-        metrics.overdueTasks ===
-        1
-          ? ""
-          : "s"
-      } and confirm the delivery dates.`
-    );
-  }
+  return new Intl.NumberFormat(
+    "en-GB",
+    {
+      style:
+        "currency",
 
-  if (
-    metrics.blockedTasks >
-    0
-  ) {
-    recommendations.push(
-      `Review the ${metrics.blockedTasks} blocked task${
-        metrics.blockedTasks ===
-        1
-          ? ""
-          : "s"
-      } affecting delivery.`
-    );
-  }
+      currency:
+        "GBP",
 
-  if (
-    !project.due_date
-  ) {
-    recommendations.push(
-      "Add a project due date so delivery risk can be tracked."
-    );
-  }
-
-  if (
-    !project.customer_id
-  ) {
-    recommendations.push(
-      "Link the project to a customer for a complete business history."
-    );
-  }
-
-  if (
-    metrics.progress ===
-      100 &&
-    normaliseStatus(
-      project.status
-    ) ===
-      "completed"
-  ) {
-    recommendations.push(
-      "The project is complete and ready for invoicing and customer handover."
-    );
-  }
-
-  if (
-    recommendations.length ===
-    0
-  ) {
-    recommendations.push(
-      "The project is progressing normally. Continue monitoring delivery dates."
-    );
-  }
-
-  return recommendations.slice(
-    0,
-    5
+      maximumFractionDigits:
+        0,
+    }
+  ).format(
+    getMoneyValue(
+      value
+    )
   );
-}
-
-function getVisibilityLabel(
-  access
-) {
-  if (
-    access.canViewAll
-  ) {
-    return "All organisation projects";
-  }
-
-  if (
-    access.canViewTeam
-  ) {
-    return "Team projects";
-  }
-
-  if (
-    access.canViewOwn
-  ) {
-    return "Own projects";
-  }
-
-  return "Restricted";
 }
 
 // =========================================================
-// INLINE FORM / TABLE STYLES
-//
-// These deliberately use the same restrained font sizing
-// as the rest of the SaiNal One workspace. We can move
-// them into the CSS module during the final UI sweep.
+// SMALL INLINE STYLES
 // =========================================================
 
 const fieldStyle = {
-  display: "flex",
-  flexDirection: "column",
-  gap: "7px",
-};
-
-const fieldLabelStyle = {
-  fontSize: "13px",
-  fontWeight: 700,
+  display:
+    "grid",
+  gap:
+    "7px",
+  fontSize:
+    "13px",
+  fontWeight:
+    700,
 };
 
 const inputStyle = {
-  width: "100%",
-  minHeight: "42px",
+  width:
+    "100%",
+  minHeight:
+    "40px",
+  padding:
+    "8px 10px",
   border:
     "1px solid #d8dee8",
-  borderRadius: "8px",
-  padding:
-    "9px 11px",
-  fontSize: "14px",
-  fontFamily: "inherit",
+  borderRadius:
+    "8px",
   background:
     "#ffffff",
+  fontFamily:
+    "inherit",
+  fontSize:
+    "13px",
 };
 
-const emptyStateStyle = {
-  padding: "30px 20px",
-  textAlign: "center",
-  fontSize: "14px",
+const textareaStyle = {
+  ...inputStyle,
+  minHeight:
+    "90px",
+  resize:
+    "vertical",
+};
+
+const formGridStyle = {
+  display:
+    "grid",
+  gridTemplateColumns:
+    "repeat(auto-fit, minmax(220px, 1fr))",
+  gap:
+    "14px",
 };
 
 const tableStyle = {
-  width: "100%",
+  width:
+    "100%",
   borderCollapse:
     "collapse",
-  fontSize: "14px",
+  fontSize:
+    "13px",
 };
 
 const tableHeaderStyle = {
   padding:
-    "12px 14px",
-  textAlign: "left",
-  fontSize: "12px",
-  fontWeight: 700,
+    "11px 12px",
+  textAlign:
+    "left",
   borderBottom:
     "1px solid #e5e7eb",
+  fontSize:
+    "11px",
 };
 
 const tableCellStyle = {
   padding:
-    "14px",
-  verticalAlign:
-    "top",
+    "12px",
   borderBottom:
     "1px solid #eef1f5",
+  verticalAlign:
+    "top",
 };
 
 const tableDescriptionStyle = {
-  marginTop: "4px",
-  fontSize: "12px",
-  opacity: 0.72,
-  maxWidth: "420px",
+  marginTop:
+    "4px",
+  maxWidth:
+    "420px",
+  opacity:
+    0.7,
+  fontSize:
+    "11px",
 };
 
-const overdueTextStyle = {
-  fontWeight: 700,
+const actionRowStyle = {
+  display:
+    "flex",
+  flexWrap:
+    "wrap",
+  gap:
+    "6px",
+};
+
+const emptyStateStyle = {
+  padding:
+    "28px 20px",
+  textAlign:
+    "center",
+  fontSize:
+    "13px",
 };
