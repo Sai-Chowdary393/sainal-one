@@ -1,12 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import Link from "next/link";
 
 import AppLayout from "../../components/layout/AppLayout";
 import StatusBadge from "../../components/StatusBadge";
 import ProtectedRoute from "../../components/ProtectedRoute";
+
 import styles from "./customers.module.css";
+
+// =========================================================
+// FORM
+// =========================================================
 
 const INITIAL_FORM_DATA = {
   customer_name: "",
@@ -14,6 +24,7 @@ const INITIAL_FORM_DATA = {
   email: "",
   phone: "",
   status: "Active",
+  owner_employee_id: "",
 };
 
 const STATUS_OPTIONS = [
@@ -32,26 +43,99 @@ const COMPLETED_PROJECT_STATUSES = [
 const PAID_INVOICE_STATUSES = [
   "paid",
   "cancelled",
+  "canceled",
+  "void",
 ];
 
+// =========================================================
+// PAGE
+// =========================================================
+
 export default function CustomersPage() {
-  const [customers, setCustomers] = useState([]);
-  const [projects, setProjects] = useState([]);
-  const [invoices, setInvoices] = useState([]);
+  const [
+    customers,
+    setCustomers,
+  ] = useState([]);
 
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [
+    employees,
+    setEmployees,
+  ] = useState([]);
 
-  const [showForm, setShowForm] = useState(false);
+  const [
+    projects,
+    setProjects,
+  ] = useState([]);
 
-  const [searchValue, setSearchValue] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
-  const [healthFilter, setHealthFilter] = useState("All");
+  const [
+    invoices,
+    setInvoices,
+  ] = useState([]);
 
-  const [formData, setFormData] = useState(
+  const [
+    currentEmployee,
+    setCurrentEmployee,
+  ] = useState(null);
+
+  const [
+    access,
+    setAccess,
+  ] = useState({
+    isOwner: false,
+    canViewAll: false,
+    canViewTeam: false,
+    canViewOwn: false,
+    canCreate: false,
+    canEdit: false,
+    canDelete: false,
+    canAssign: false,
+  });
+
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
+
+  const [
+    saving,
+    setSaving,
+  ] = useState(false);
+
+  const [
+    errorMessage,
+    setErrorMessage,
+  ] = useState("");
+
+  const [
+    showForm,
+    setShowForm,
+  ] = useState(false);
+
+  const [
+    searchValue,
+    setSearchValue,
+  ] = useState("");
+
+  const [
+    statusFilter,
+    setStatusFilter,
+  ] = useState("All");
+
+  const [
+    healthFilter,
+    setHealthFilter,
+  ] = useState("All");
+
+  const [
+    formData,
+    setFormData,
+  ] = useState(
     INITIAL_FORM_DATA
   );
+
+  // =======================================================
+  // LOAD
+  // =======================================================
 
   useEffect(() => {
     fetchCustomerWorkspace();
@@ -59,13 +143,20 @@ export default function CustomersPage() {
 
   useEffect(() => {
     try {
-      const searchParams = new URLSearchParams(
-        window.location.search
-      );
+      const searchParams =
+        new URLSearchParams(
+          window.location.search
+        );
 
-      if (searchParams.get("create") === "true") {
-        setShowForm(true);
-
+      /*
+       * We wait for API permissions before actually
+       * opening the create form.
+       */
+      if (
+        searchParams.get(
+          "create"
+        ) === "true"
+      ) {
         window.history.replaceState(
           {},
           "",
@@ -82,65 +173,214 @@ export default function CustomersPage() {
 
   async function fetchCustomerWorkspace() {
     try {
-      setLoading(true);
-      setErrorMessage("");
+      setLoading(
+        true
+      );
+
+      setErrorMessage(
+        ""
+      );
 
       const [
         customersResponse,
         projectsResponse,
         invoicesResponse,
-      ] = await Promise.all([
-        fetch("/api/customers", {
-          cache: "no-store",
-        }),
+      ] =
+        await Promise.all([
+          fetch(
+            "/api/customers",
+            {
+              cache:
+                "no-store",
+            }
+          ),
 
-        fetch("/api/projects", {
-          cache: "no-store",
-        }),
+          fetch(
+            "/api/projects",
+            {
+              cache:
+                "no-store",
+            }
+          ),
 
-        fetch("/api/invoices", {
-          cache: "no-store",
-        }),
-      ]);
+          fetch(
+            "/api/invoices",
+            {
+              cache:
+                "no-store",
+            }
+          ),
+        ]);
 
-      const [
-        customersData,
-        projectsData,
-        invoicesData,
-      ] = await Promise.all([
-        customersResponse.json(),
+      const customersData =
+        await customersResponse.json();
+
+      let projectsData = [];
+      let invoicesData = [];
+
+      if (
         projectsResponse.ok
-          ? projectsResponse.json()
-          : Promise.resolve([]),
-        invoicesResponse.ok
-          ? invoicesResponse.json()
-          : Promise.resolve([]),
-      ]);
+      ) {
+        projectsData =
+          await projectsResponse.json();
+      }
 
-      if (!customersResponse.ok) {
+      if (
+        invoicesResponse.ok
+      ) {
+        invoicesData =
+          await invoicesResponse.json();
+      }
+
+      if (
+        !customersResponse.ok
+      ) {
         throw new Error(
           customersData.error ||
             "Failed to load customers."
         );
       }
 
+      // ===================================================
+      // CUSTOMERS
+      // ===================================================
+
       setCustomers(
-        Array.isArray(customersData)
-          ? customersData
+        Array.isArray(
+          customersData.customers
+        )
+          ? customersData.customers
           : []
       );
+
+      setEmployees(
+        Array.isArray(
+          customersData.employees
+        )
+          ? customersData.employees
+          : []
+      );
+
+      setCurrentEmployee(
+        customersData.currentEmployee ||
+          null
+      );
+
+      const nextAccess = {
+        isOwner:
+          Boolean(
+            customersData.access
+              ?.isOwner
+          ),
+
+        canViewAll:
+          Boolean(
+            customersData.access
+              ?.canViewAll
+          ),
+
+        canViewTeam:
+          Boolean(
+            customersData.access
+              ?.canViewTeam
+          ),
+
+        canViewOwn:
+          Boolean(
+            customersData.access
+              ?.canViewOwn
+          ),
+
+        canCreate:
+          Boolean(
+            customersData.access
+              ?.canCreate
+          ),
+
+        canEdit:
+          Boolean(
+            customersData.access
+              ?.canEdit
+          ),
+
+        canDelete:
+          Boolean(
+            customersData.access
+              ?.canDelete
+          ),
+
+        canAssign:
+          Boolean(
+            customersData.access
+              ?.canAssign
+          ),
+      };
+
+      setAccess(
+        nextAccess
+      );
+
+      // ===================================================
+      // PROJECTS
+      // SUPPORT CURRENT + FUTURE STRUCTURED RESPONSES
+      // ===================================================
 
       setProjects(
-        Array.isArray(projectsData)
+        Array.isArray(
+          projectsData
+        )
           ? projectsData
-          : []
+          : Array.isArray(
+                projectsData.projects
+              )
+            ? projectsData.projects
+            : []
       );
 
+      // ===================================================
+      // INVOICES
+      // ===================================================
+
       setInvoices(
-        Array.isArray(invoicesData)
+        Array.isArray(
+          invoicesData
+        )
           ? invoicesData
-          : []
+          : Array.isArray(
+                invoicesData.invoices
+              )
+            ? invoicesData.invoices
+            : []
       );
+
+      // ===================================================
+      // ?create=true
+      // ===================================================
+
+      try {
+        const searchParams =
+          new URLSearchParams(
+            window.location.search
+          );
+
+        if (
+          searchParams.get(
+            "create"
+          ) ===
+            "true" &&
+          nextAccess.canCreate
+        ) {
+          openCreateFormWithAccess({
+            currentEmployee:
+              customersData.currentEmployee,
+
+            canAssign:
+              nextAccess.canAssign,
+          });
+        }
+      } catch {
+        // Ignore URL helper errors.
+      }
     } catch (error) {
       console.error(
         "Customer workspace loading error:",
@@ -151,89 +391,196 @@ export default function CustomersPage() {
         error.message ||
           "We could not load the customer workspace."
       );
+
+      setCustomers(
+        []
+      );
     } finally {
-      setLoading(false);
+      setLoading(
+        false
+      );
     }
   }
 
-  function handleChange(event) {
-    const { name, value } = event.target;
+  // =======================================================
+  // FORM
+  // =======================================================
 
-    setFormData((currentData) => ({
-      ...currentData,
-      [name]: value,
-    }));
+  function handleChange(
+    event
+  ) {
+    const {
+      name,
+      value,
+    } =
+      event.target;
+
+    setFormData(
+      (
+        currentData
+      ) => ({
+        ...currentData,
+
+        [name]:
+          value,
+      })
+    );
+  }
+
+  function openCreateFormWithAccess({
+    currentEmployee:
+      selectedEmployee,
+    canAssign:
+      userCanAssign,
+  }) {
+    setFormData({
+      ...INITIAL_FORM_DATA,
+
+      owner_employee_id:
+        userCanAssign
+          ? selectedEmployee
+              ?.id ||
+            ""
+          : "",
+    });
+
+    setShowForm(
+      true
+    );
   }
 
   function openCreateForm() {
-    setFormData(INITIAL_FORM_DATA);
-    setShowForm(true);
+    if (
+      !access.canCreate
+    ) {
+      return;
+    }
+
+    openCreateFormWithAccess({
+      currentEmployee,
+      canAssign:
+        access.canAssign,
+    });
+
+    window.scrollTo({
+      top: 0,
+      behavior:
+        "smooth",
+    });
   }
 
   function closeCreateForm() {
-    setFormData(INITIAL_FORM_DATA);
-    setShowForm(false);
+    setFormData(
+      INITIAL_FORM_DATA
+    );
+
+    setShowForm(
+      false
+    );
   }
 
-  async function handleSubmit(event) {
+  // =======================================================
+  // CREATE
+  // =======================================================
+
+  async function handleSubmit(
+    event
+  ) {
     event.preventDefault();
+
+    if (
+      !access.canCreate
+    ) {
+      alert(
+        "You do not have permission to create customers."
+      );
+
+      return;
+    }
 
     const cleanCustomerName =
       formData.customer_name.trim();
 
-    if (!cleanCustomerName) {
-      alert("Please enter a customer name.");
+    if (
+      !cleanCustomerName
+    ) {
+      alert(
+        "Please enter a customer name."
+      );
+
       return;
     }
 
     try {
-      setSaving(true);
-
-      const response = await fetch(
-        "/api/customers",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          body: JSON.stringify({
-            customer_name:
-              cleanCustomerName,
-
-            company:
-              formData.company.trim(),
-
-            email:
-              formData.email.trim(),
-
-            phone:
-              formData.phone.trim(),
-
-            status:
-              formData.status || "Active",
-          }),
-        }
+      setSaving(
+        true
       );
 
-      const data = await response.json();
+      const payload = {
+        customer_name:
+          cleanCustomerName,
 
-      if (!response.ok) {
+        company:
+          formData.company.trim(),
+
+        email:
+          formData.email.trim(),
+
+        phone:
+          formData.phone.trim(),
+
+        status:
+          formData.status ||
+          "Active",
+      };
+
+      if (
+        access.canAssign &&
+        formData.owner_employee_id
+      ) {
+        payload.owner_employee_id =
+          formData.owner_employee_id;
+      }
+
+      const response =
+        await fetch(
+          "/api/customers",
+          {
+            method:
+              "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify(
+                payload
+              ),
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (
+        !response.ok
+      ) {
         throw new Error(
           data.error ||
             "Failed to create customer."
         );
       }
 
-      const createdCustomer =
-        Array.isArray(data)
-          ? data[0]
-          : data;
-
-      if (createdCustomer) {
+      if (
+        data.customer
+      ) {
         setCustomers(
-          (currentCustomers) => [
-            createdCustomer,
+          (
+            currentCustomers
+          ) => [
+            data.customer,
             ...currentCustomers,
           ]
         );
@@ -242,6 +589,11 @@ export default function CustomersPage() {
       }
 
       closeCreateForm();
+
+      alert(
+        data.message ||
+          "Customer created successfully."
+      );
     } catch (error) {
       console.error(
         "Customer creation error:",
@@ -253,61 +605,83 @@ export default function CustomersPage() {
           "Error creating customer."
       );
     } finally {
-      setSaving(false);
+      setSaving(
+        false
+      );
     }
   }
 
-  function normaliseStatus(value) {
-    return String(value || "")
+  // =======================================================
+  // NORMALISE
+  // =======================================================
+
+  function normaliseStatus(
+    value
+  ) {
+    return String(
+      value ||
+        ""
+    )
       .trim()
       .toLowerCase();
   }
 
-  function getMoneyValue(value) {
-    if (
-      value === null ||
-      value === undefined ||
-      value === ""
-    ) {
-      return 0;
-    }
+  // =======================================================
+  // CUSTOMER METRICS
+  // =======================================================
 
-    return (
-      Number(
-        String(value).replace(
-          /[^0-9.-]/g,
-          ""
-        )
-      ) || 0
-    );
-  }
-
-  function getCustomerProjects(customerId) {
+  function getCustomerProjects(
+    customer
+  ) {
     return projects.filter(
-      (project) =>
-        String(project.customer_id) ===
-        String(customerId)
+      (
+        project
+      ) =>
+        String(
+          project.customer_id ||
+            ""
+        ) ===
+        String(
+          customer.id
+        )
     );
   }
 
-  function getCustomerInvoices(customerId) {
+  function getCustomerInvoices(
+    customer
+  ) {
     return invoices.filter(
-      (invoice) =>
-        String(invoice.customer_id) ===
-        String(customerId)
+      (
+        invoice
+      ) =>
+        String(
+          invoice.customer_id ||
+            ""
+        ) ===
+        String(
+          customer.id
+        )
     );
   }
 
-  function getCustomerMetrics(customer) {
+  function getCustomerHealth(
+    customer
+  ) {
     const customerProjects =
-      getCustomerProjects(customer.id);
+      getCustomerProjects(
+        customer
+      );
 
     const customerInvoices =
-      getCustomerInvoices(customer.id);
+      getCustomerInvoices(
+        customer
+      );
 
     const activeProjects =
       customerProjects.filter(
-        (project) =>
+        (
+          project
+        ) =>
           !COMPLETED_PROJECT_STATUSES.includes(
             normaliseStatus(
               project.status
@@ -315,9 +689,26 @@ export default function CustomersPage() {
           )
       );
 
-    const openInvoices =
+    const overdueInvoices =
       customerInvoices.filter(
-        (invoice) =>
+        (
+          invoice
+        ) =>
+          [
+            "overdue",
+            "late",
+          ].includes(
+            normaliseStatus(
+              invoice.status
+            )
+          )
+      );
+
+    const unpaidInvoices =
+      customerInvoices.filter(
+        (
+          invoice
+        ) =>
           !PAID_INVOICE_STATUSES.includes(
             normaliseStatus(
               invoice.status
@@ -325,159 +716,262 @@ export default function CustomersPage() {
           )
       );
 
-    const overdueInvoices =
-      customerInvoices.filter(
-        (invoice) =>
-          normaliseStatus(
-            invoice.status
-          ) === "overdue"
-      );
+    if (
+      overdueInvoices.length >
+      0
+    ) {
+      return {
+        label:
+          "Needs attention",
 
-    const outstandingValue =
-      openInvoices.reduce(
-        (total, invoice) =>
-          total +
-          getMoneyValue(
-            invoice.total_amount ||
-              invoice.amount
-          ),
-        0
-      );
+        tone:
+          "risk",
 
-    const health = getCustomerHealth({
-      customer,
-      activeProjects:
-        activeProjects.length,
-      openInvoices:
-        openInvoices.length,
-      overdueInvoices:
-        overdueInvoices.length,
-    });
+        detail:
+          `${overdueInvoices.length} overdue invoice${
+            overdueInvoices.length ===
+            1
+              ? ""
+              : "s"
+          }`,
+      };
+    }
+
+    if (
+      activeProjects.length >
+      0
+    ) {
+      return {
+        label:
+          "Active",
+
+        tone:
+          "healthy",
+
+        detail:
+          `${activeProjects.length} active project${
+            activeProjects.length ===
+            1
+              ? ""
+              : "s"
+          }`,
+      };
+    }
+
+    if (
+      unpaidInvoices.length >
+      0
+    ) {
+      return {
+        label:
+          "Payment pending",
+
+        tone:
+          "watch",
+
+        detail:
+          `${unpaidInvoices.length} open invoice${
+            unpaidInvoices.length ===
+            1
+              ? ""
+              : "s"
+          }`,
+      };
+    }
 
     return {
-      totalProjects:
-        customerProjects.length,
+      label:
+        "Stable",
 
-      activeProjects:
-        activeProjects.length,
+      tone:
+        "neutral",
 
-      totalInvoices:
-        customerInvoices.length,
-
-      openInvoices:
-        openInvoices.length,
-
-      overdueInvoices:
-        overdueInvoices.length,
-
-      outstandingValue,
-
-      health,
+      detail:
+        customerProjects.length >
+        0
+          ? "No current delivery risks"
+          : "No active delivery",
     };
   }
 
-  const customerRecords = useMemo(() => {
-    return customers.map((customer) => ({
-      ...customer,
-      metrics:
-        getCustomerMetrics(customer),
-    }));
-  }, [customers, projects, invoices]);
+  // =======================================================
+  // FILTER
+  // =======================================================
 
-  const filteredCustomers = useMemo(() => {
-    const normalisedSearchValue =
-      searchValue
-        .trim()
-        .toLowerCase();
+  const filteredCustomers =
+    useMemo(
+      () => {
+        const search =
+          searchValue
+            .trim()
+            .toLowerCase();
 
-    return customerRecords.filter(
-      (customer) => {
-        const matchesSearch =
-          !normalisedSearchValue ||
-          [
-            customer.customer_name,
-            customer.company,
-            customer.status,
-          ].some((value) =>
-            String(value || "")
-              .toLowerCase()
-              .includes(
-                normalisedSearchValue
-              )
-          );
+        return customers.filter(
+          (
+            customer
+          ) => {
+            const health =
+              getCustomerHealth(
+                customer
+              );
 
-        const matchesStatus =
-          statusFilter === "All" ||
-          normaliseStatus(
-            customer.status
-          ) ===
-            normaliseStatus(
-              statusFilter
+            const matchesSearch =
+              !search ||
+              [
+                customer.customer_name,
+                customer.company,
+                customer.email,
+                customer.phone,
+                customer.status,
+                customer.owner
+                  ?.full_name,
+              ].some(
+                (
+                  value
+                ) =>
+                  String(
+                    value ||
+                      ""
+                  )
+                    .toLowerCase()
+                    .includes(
+                      search
+                    )
+              );
+
+            const matchesStatus =
+              statusFilter ===
+                "All" ||
+              normaliseStatus(
+                customer.status
+              ) ===
+                normaliseStatus(
+                  statusFilter
+                );
+
+            const matchesHealth =
+              healthFilter ===
+                "All" ||
+              health.label ===
+                healthFilter;
+
+            return (
+              matchesSearch &&
+              matchesStatus &&
+              matchesHealth
             );
-
-        const matchesHealth =
-          healthFilter === "All" ||
-          customer.metrics.health.label ===
-            healthFilter;
-
-        return (
-          matchesSearch &&
-          matchesStatus &&
-          matchesHealth
+          }
         );
-      }
+      },
+      [
+        customers,
+        projects,
+        invoices,
+        searchValue,
+        statusFilter,
+        healthFilter,
+      ]
     );
-  }, [
-    customerRecords,
-    searchValue,
-    statusFilter,
-    healthFilter,
-  ]);
+
+  // =======================================================
+  // SUMMARY
+  // =======================================================
 
   const activeCustomers =
-    customerRecords.filter(
-      (customer) =>
+    customers.filter(
+      (
+        customer
+      ) =>
         normaliseStatus(
           customer.status
-        ) === "active"
+        ) ===
+        "active"
     ).length;
 
-  const totalActiveProjects =
-    customerRecords.reduce(
-      (total, customer) =>
-        total +
-        customer.metrics.activeProjects,
-      0
-    );
+  const customersWithProjects =
+    customers.filter(
+      (
+        customer
+      ) =>
+        getCustomerProjects(
+          customer
+        ).some(
+          (
+            project
+          ) =>
+            !COMPLETED_PROJECT_STATUSES.includes(
+              normaliseStatus(
+                project.status
+              )
+            )
+        )
+    ).length;
 
-  const totalOutstanding =
-    customerRecords.reduce(
-      (total, customer) =>
-        total +
-        customer.metrics.outstandingValue,
-      0
-    );
+  const customersAtRisk =
+    customers.filter(
+      (
+        customer
+      ) =>
+        getCustomerHealth(
+          customer
+        ).tone ===
+        "risk"
+    ).length;
+
+  // =======================================================
+  // CLEAR FILTERS
+  // =======================================================
 
   function clearFilters() {
-    setSearchValue("");
-    setStatusFilter("All");
-    setHealthFilter("All");
+    setSearchValue(
+      ""
+    );
+
+    setStatusFilter(
+      "All"
+    );
+
+    setHealthFilter(
+      "All"
+    );
   }
 
-  const filtersActive =
-    Boolean(searchValue) ||
-    statusFilter !== "All" ||
-    healthFilter !== "All";
+  // =======================================================
+  // VISIBILITY
+  // =======================================================
+
+  const visibilityLabel =
+    access.canViewAll
+      ? "All organisation customers"
+      : access.canViewTeam
+        ? "Team customers"
+        : access.canViewOwn
+          ? "My customers"
+          : "Customer access";
+
+  // =======================================================
+  // PAGE
+  // =======================================================
 
   return (
     <ProtectedRoute>
       <AppLayout
         title="Customers"
-        description="Manage customer relationships, delivery and account health."
+        description="Manage customer relationships, delivery activity and account health."
       >
-        <div className={styles.page}>
+        <div
+          className={
+            styles.page
+          }
+        >
+          {/* =================================================
+              HEADER
+          ================================================= */}
+
           <section
-            className={styles.pageHeader}
+            className={
+              styles.pageHeader
+            }
           >
             <div
               className={
@@ -493,225 +987,362 @@ export default function CustomersPage() {
               </span>
 
               <h2>
-                Customer relationships
+                Customer portfolio
               </h2>
 
               <p>
-                Review customer accounts,
-                active delivery and account
-                health. Sensitive contact and
-                financial details remain inside
-                each customer record.
+                Review customer relationships,
+                active delivery, invoices and
+                account health from one place.
               </p>
             </div>
 
-            <button
-              type="button"
-              className={
-                styles.primaryButton
-              }
-              onClick={
-                showForm
-                  ? closeCreateForm
-                  : openCreateForm
-              }
-            >
-              <span>
-                {showForm ? "×" : "+"}
-              </span>
-
-              {showForm
-                ? "Close form"
-                : "Add customer"}
-            </button>
-          </section>
-
-          {showForm && (
-            <section
-              className={
-                styles.formPanel
-              }
-            >
-              <div
+            {access.canCreate && (
+              <button
+                type="button"
                 className={
-                  styles.formHeading
+                  styles.primaryButton
+                }
+                onClick={
+                  showForm
+                    ? closeCreateForm
+                    : openCreateForm
                 }
               >
-                <div>
-                  <h3>
-                    Create a new customer
-                  </h3>
+                <span>
+                  {showForm
+                    ? "×"
+                    : "+"}
+                </span>
 
-                  <p>
-                    Contact details will remain
-                    inside the secure customer
-                    record.
-                  </p>
-                </div>
-              </div>
+                {showForm
+                  ? "Close form"
+                  : "Add customer"}
+              </button>
+            )}
+          </section>
 
-              <form
+          {/* =================================================
+              FORM
+          ================================================= */}
+
+          {showForm &&
+            access.canCreate && (
+              <section
                 className={
-                  styles.customerForm
+                  styles.formPanel
                 }
-                onSubmit={handleSubmit}
               >
                 <div
                   className={
-                    styles.formGrid
+                    styles.formHeading
                   }
                 >
-                  <FormField
-                    label="Customer name"
-                    name="customer_name"
-                    value={
-                      formData.customer_name
-                    }
-                    onChange={handleChange}
-                    placeholder="Example: James Smith"
-                    required
-                  />
+                  <div>
+                    <h3>
+                      Create a customer
+                    </h3>
 
-                  <FormField
-                    label="Company"
-                    name="company"
-                    value={
-                      formData.company
-                    }
-                    onChange={handleChange}
-                    placeholder="Example: NorthStar Logistics"
-                  />
-
-                  <FormField
-                    label="Email"
-                    name="email"
-                    type="email"
-                    value={
-                      formData.email
-                    }
-                    onChange={handleChange}
-                    placeholder="name@company.com"
-                  />
-
-                  <FormField
-                    label="Phone"
-                    name="phone"
-                    type="tel"
-                    value={
-                      formData.phone
-                    }
-                    onChange={handleChange}
-                    placeholder="Telephone number"
-                  />
-
-                  <div
-                    className={
-                      styles.field
-                    }
-                  >
-                    <label
-                      htmlFor="customer-status"
-                    >
-                      Status
-                    </label>
-
-                    <select
-                      id="customer-status"
-                      name="status"
-                      value={
-                        formData.status
-                      }
-                      onChange={
-                        handleChange
-                      }
-                    >
-                      {STATUS_OPTIONS.map(
-                        (status) => (
-                          <option
-                            key={status}
-                            value={status}
-                          >
-                            {status}
-                          </option>
-                        )
-                      )}
-                    </select>
+                    <p>
+                      Create a customer record
+                      and optionally assign an
+                      account owner.
+                    </p>
                   </div>
                 </div>
 
-                <div
+                <form
                   className={
-                    styles.formActions
+                    styles.customerForm
+                  }
+                  onSubmit={
+                    handleSubmit
                   }
                 >
-                  <button
-                    type="button"
+                  <div
                     className={
-                      styles.secondaryButton
+                      styles.formGrid
                     }
-                    onClick={
-                      closeCreateForm
-                    }
-                    disabled={saving}
                   >
-                    Cancel
-                  </button>
+                    <div
+                      className={
+                        styles.field
+                      }
+                    >
+                      <label
+                        htmlFor="customer-name"
+                      >
+                        Customer name *
+                      </label>
 
-                  <button
-                    type="submit"
+                      <input
+                        id="customer-name"
+                        name="customer_name"
+                        value={
+                          formData.customer_name
+                        }
+                        onChange={
+                          handleChange
+                        }
+                        placeholder="Example: James Smith"
+                        required
+                      />
+                    </div>
+
+                    <div
+                      className={
+                        styles.field
+                      }
+                    >
+                      <label
+                        htmlFor="customer-company"
+                      >
+                        Company
+                      </label>
+
+                      <input
+                        id="customer-company"
+                        name="company"
+                        value={
+                          formData.company
+                        }
+                        onChange={
+                          handleChange
+                        }
+                        placeholder="Example: NorthStar Logistics"
+                      />
+                    </div>
+
+                    <div
+                      className={
+                        styles.field
+                      }
+                    >
+                      <label
+                        htmlFor="customer-email"
+                      >
+                        Email
+                      </label>
+
+                      <input
+                        id="customer-email"
+                        name="email"
+                        type="email"
+                        value={
+                          formData.email
+                        }
+                        onChange={
+                          handleChange
+                        }
+                        placeholder="name@company.com"
+                      />
+                    </div>
+
+                    <div
+                      className={
+                        styles.field
+                      }
+                    >
+                      <label
+                        htmlFor="customer-phone"
+                      >
+                        Phone
+                      </label>
+
+                      <input
+                        id="customer-phone"
+                        name="phone"
+                        type="tel"
+                        value={
+                          formData.phone
+                        }
+                        onChange={
+                          handleChange
+                        }
+                        placeholder="Telephone number"
+                      />
+                    </div>
+
+                    <div
+                      className={
+                        styles.field
+                      }
+                    >
+                      <label
+                        htmlFor="customer-status"
+                      >
+                        Status
+                      </label>
+
+                      <select
+                        id="customer-status"
+                        name="status"
+                        value={
+                          formData.status
+                        }
+                        onChange={
+                          handleChange
+                        }
+                      >
+                        {STATUS_OPTIONS.map(
+                          (
+                            status
+                          ) => (
+                            <option
+                              key={
+                                status
+                              }
+                              value={
+                                status
+                              }
+                            >
+                              {
+                                status
+                              }
+                            </option>
+                          )
+                        )}
+                      </select>
+                    </div>
+
+                    {access.canAssign && (
+                      <div
+                        className={
+                          styles.field
+                        }
+                      >
+                        <label
+                          htmlFor="customer-owner"
+                        >
+                          Account owner
+                        </label>
+
+                        <select
+                          id="customer-owner"
+                          name="owner_employee_id"
+                          value={
+                            formData.owner_employee_id
+                          }
+                          onChange={
+                            handleChange
+                          }
+                        >
+                          <option value="">
+                            Assign to me
+                          </option>
+
+                          {employees.map(
+                            (
+                              employee
+                            ) => (
+                              <option
+                                key={
+                                  employee.id
+                                }
+                                value={
+                                  employee.id
+                                }
+                              >
+                                {
+                                  employee.full_name
+                                }
+
+                                {employee.job_title
+                                  ? ` — ${employee.job_title}`
+                                  : ""}
+                              </option>
+                            )
+                          )}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+
+                  <div
                     className={
-                      styles.primaryButton
+                      styles.formActions
                     }
-                    disabled={saving}
                   >
-                    {saving
-                      ? "Saving customer..."
-                      : "Save customer"}
-                  </button>
-                </div>
-              </form>
-            </section>
-          )}
+                    <button
+                      type="button"
+                      className={
+                        styles.secondaryButton
+                      }
+                      onClick={
+                        closeCreateForm
+                      }
+                      disabled={
+                        saving
+                      }
+                    >
+                      Cancel
+                    </button>
+
+                    <button
+                      type="submit"
+                      className={
+                        styles.primaryButton
+                      }
+                      disabled={
+                        saving
+                      }
+                    >
+                      {saving
+                        ? "Creating customer..."
+                        : "Create customer"}
+                    </button>
+                  </div>
+                </form>
+              </section>
+            )}
+
+          {/* =================================================
+              SUMMARY
+          ================================================= */}
 
           <section
             className={
-              styles.summaryGrid
+              styles.summaryRow
             }
           >
             <SummaryCard
-              icon="▣"
-              label="Total customers"
-              value={customers.length}
-              detail="All customer records"
-              tone="gold"
+              label="Customers"
+              value={
+                customers.length
+              }
+              detail={
+                visibilityLabel
+              }
             />
 
             <SummaryCard
-              icon="●"
-              label="Active customers"
-              value={activeCustomers}
-              detail="Currently active accounts"
-              tone="green"
+              label="Active"
+              value={
+                activeCustomers
+              }
+              detail="Active customer accounts"
             />
 
             <SummaryCard
-              icon="▰"
-              label="Active projects"
-              value={totalActiveProjects}
-              detail="Delivery currently running"
-              tone="blue"
+              label="Active delivery"
+              value={
+                customersWithProjects
+              }
+              detail="Customers with active projects"
             />
 
             <SummaryCard
-              icon="£"
-              label="Outstanding"
-              value={formatCurrency(
-                totalOutstanding
-              )}
-              detail="Open invoice value"
-              tone="purple"
+              label="Needs attention"
+              value={
+                customersAtRisk
+              }
+              detail="Accounts with overdue invoices"
             />
           </section>
+
+          {/* =================================================
+              FILTERS
+          ================================================= */}
 
           <section
             className={
@@ -723,19 +1354,25 @@ export default function CustomersPage() {
                 styles.searchBox
               }
             >
-              <span aria-hidden="true">
+              <span
+                aria-hidden="true"
+              >
                 ⌕
               </span>
 
               <input
                 type="search"
-                placeholder="Search by customer, company or status..."
-                value={searchValue}
-                onChange={(event) =>
+                value={
+                  searchValue
+                }
+                onChange={(
+                  event
+                ) =>
                   setSearchValue(
                     event.target.value
                   )
                 }
+                placeholder="Search customer, company, owner or email..."
                 aria-label="Search customers"
               />
             </label>
@@ -749,25 +1386,36 @@ export default function CustomersPage() {
                 className={
                   styles.filterSelect
                 }
-                value={statusFilter}
-                onChange={(event) =>
+                value={
+                  statusFilter
+                }
+                onChange={(
+                  event
+                ) =>
                   setStatusFilter(
                     event.target.value
                   )
                 }
-                aria-label="Filter customers by status"
               >
                 <option value="All">
                   All statuses
                 </option>
 
                 {STATUS_OPTIONS.map(
-                  (status) => (
+                  (
+                    status
+                  ) => (
                     <option
-                      key={status}
-                      value={status}
+                      key={
+                        status
+                      }
+                      value={
+                        status
+                      }
                     >
-                      {status}
+                      {
+                        status
+                      }
                     </option>
                   )
                 )}
@@ -777,44 +1425,61 @@ export default function CustomersPage() {
                 className={
                   styles.filterSelect
                 }
-                value={healthFilter}
-                onChange={(event) =>
+                value={
+                  healthFilter
+                }
+                onChange={(
+                  event
+                ) =>
                   setHealthFilter(
                     event.target.value
                   )
                 }
-                aria-label="Filter customers by health"
               >
                 <option value="All">
-                  All health levels
+                  All account health
                 </option>
 
-                <option value="Excellent">
-                  Excellent
+                <option value="Active">
+                  Active
                 </option>
 
-                <option value="Attention">
-                  Attention
+                <option value="Needs attention">
+                  Needs attention
                 </option>
 
-                <option value="At Risk">
-                  At Risk
+                <option value="Payment pending">
+                  Payment pending
+                </option>
+
+                <option value="Stable">
+                  Stable
                 </option>
               </select>
 
-              {filtersActive && (
+              {(searchValue ||
+                statusFilter !==
+                  "All" ||
+                healthFilter !==
+                  "All") && (
                 <button
                   type="button"
                   className={
                     styles.clearButton
                   }
-                  onClick={clearFilters}
+                  onClick={
+                    clearFilters
+                  }
                 >
                   Clear filters
                 </button>
               )}
             </div>
           </section>
+
+          {/* =================================================
+              CONTENT
+          ================================================= */}
 
           {loading ? (
             <LoadingState />
@@ -829,7 +1494,11 @@ export default function CustomersPage() {
                   Unable to load customers
                 </strong>
 
-                <p>{errorMessage}</p>
+                <p>
+                  {
+                    errorMessage
+                  }
+                </p>
               </div>
 
               <button
@@ -857,14 +1526,13 @@ export default function CustomersPage() {
               >
                 <div>
                   <h3>
-                    Customer accounts
+                    Customer records
                   </h3>
 
                   <p>
-                    Contact information and
-                    detailed financial records
-                    are visible only inside each
-                    customer workspace.
+                    Open a customer to review
+                    quotes, projects, invoices
+                    and related work.
                   </p>
                 </div>
 
@@ -873,7 +1541,9 @@ export default function CustomersPage() {
                     styles.resultCount
                   }
                 >
-                  {filteredCustomers.length}{" "}
+                  {
+                    filteredCustomers.length
+                  }{" "}
                   result
                   {filteredCustomers.length ===
                   1
@@ -886,7 +1556,16 @@ export default function CustomersPage() {
               0 ? (
                 <EmptyState
                   hasFilters={
-                    filtersActive
+                    Boolean(
+                      searchValue
+                    ) ||
+                    statusFilter !==
+                      "All" ||
+                    healthFilter !==
+                      "All"
+                  }
+                  canCreate={
+                    access.canCreate
                   }
                   onClearFilters={
                     clearFilters
@@ -908,17 +1587,34 @@ export default function CustomersPage() {
                   >
                     <thead>
                       <tr>
-                        <th>Customer</th>
-                        <th>Company</th>
-                        <th>Status</th>
                         <th>
-                          Active projects
+                          Customer
                         </th>
+
                         <th>
-                          Open invoices
+                          Company
                         </th>
-                        <th>Health</th>
-                        <th>Created</th>
+
+                        <th>
+                          Owner
+                        </th>
+
+                        <th>
+                          Status
+                        </th>
+
+                        <th>
+                          Account health
+                        </th>
+
+                        <th>
+                          Projects
+                        </th>
+
+                        <th>
+                          Invoices
+                        </th>
+
                         <th
                           aria-label="Actions"
                         />
@@ -927,143 +1623,150 @@ export default function CustomersPage() {
 
                     <tbody>
                       {filteredCustomers.map(
-                        (customer) => (
-                          <tr
-                            key={
-                              customer.id
-                            }
-                          >
-                            <td>
-                              <div
-                                className={
-                                  styles.customerIdentity
-                                }
-                              >
-                                <span
-                                  className={
-                                    styles.customerAvatar
-                                  }
-                                >
-                                  {getInitials(
-                                    customer.customer_name ||
-                                      customer.company
-                                  )}
-                                </span>
+                        (
+                          customer
+                        ) => {
+                          const health =
+                            getCustomerHealth(
+                              customer
+                            );
 
-                                <div
-                                  className={
-                                    styles.customerIdentityCopy
-                                  }
-                                >
-                                  <Link
-                                    href={`/customers/${customer.id}`}
-                                    className={
-                                      styles.customerLink
-                                    }
-                                  >
-                                    {customer.customer_name ||
-                                      "Unnamed customer"}
-                                  </Link>
+                          const customerProjects =
+                            getCustomerProjects(
+                              customer
+                            );
 
-                                  <small>
-                                    Open customer
-                                    workspace
-                                  </small>
-                                </div>
-                              </div>
-                            </td>
+                          const customerInvoices =
+                            getCustomerInvoices(
+                              customer
+                            );
 
-                            <td>
-                              <span
-                                className={
-                                  styles.companyName
-                                }
-                              >
-                                {customer.company ||
-                                  "Individual customer"}
-                              </span>
-                            </td>
-
-                            <td
-                              className={
-                                styles.statusCell
+                          return (
+                            <tr
+                              key={
+                                customer.id
                               }
                             >
-                              <StatusBadge
-                                status={
-                                  customer.status ||
-                                  "Active"
-                                }
-                              />
-                            </td>
+                              <td>
+                                <div
+                                  className={
+                                    styles.customerIdentity
+                                  }
+                                >
+                                  <span
+                                    className={
+                                      styles.customerAvatar
+                                    }
+                                  >
+                                    {getInitials(
+                                      customer.customer_name ||
+                                        customer.company
+                                    )}
+                                  </span>
 
-                            <td>
-                              <span
-                                className={
-                                  styles.relationshipCount
-                                }
-                              >
-                                {
-                                  customer
-                                    .metrics
-                                    .activeProjects
-                                }
-                              </span>
-                            </td>
+                                  <div
+                                    className={
+                                      styles.customerIdentityCopy
+                                    }
+                                  >
+                                    <Link
+                                      href={`/customers/${customer.id}`}
+                                      className={
+                                        styles.customerLink
+                                      }
+                                    >
+                                      {customer.customer_name ||
+                                        "Unnamed customer"}
+                                    </Link>
 
-                            <td>
-                              <span
-                                className={
-                                  styles.relationshipCount
-                                }
-                              >
-                                {
-                                  customer
-                                    .metrics
-                                    .openInvoices
-                                }
-                              </span>
-                            </td>
+                                    <small>
+                                      {customer.email ||
+                                        "No email"}
+                                    </small>
+                                  </div>
+                                </div>
+                              </td>
 
-                            <td>
-                              <HealthBadge
-                                health={
-                                  customer
-                                    .metrics
-                                    .health
-                                }
-                              />
-                            </td>
+                              <td>
+                                <span
+                                  className={
+                                    styles.companyName
+                                  }
+                                >
+                                  {customer.company ||
+                                    "No company"}
+                                </span>
+                              </td>
 
-                            <td>
-                              <span
-                                className={
-                                  styles.createdDate
-                                }
-                              >
-                                {formatDate(
-                                  customer.created_at
-                                )}
-                              </span>
-                            </td>
+                              <td>
+                                <span
+                                  className={
+                                    styles.companyName
+                                  }
+                                >
+                                  {customer.owner
+                                    ?.full_name ||
+                                    "Unassigned"}
+                                </span>
+                              </td>
 
-                            <td>
-                              <Link
-                                href={`/customers/${customer.id}`}
-                                className={
-                                  styles.openButton
-                                }
-                                aria-label={`Open ${
-                                  customer.customer_name ||
-                                  "customer"
-                                }`}
-                              >
-                                Open
-                                <span>→</span>
-                              </Link>
-                            </td>
-                          </tr>
-                        )
+                              <td>
+                                <StatusBadge
+                                  status={
+                                    customer.status ||
+                                    "Active"
+                                  }
+                                />
+                              </td>
+
+                              <td>
+                                <HealthBadge
+                                  health={
+                                    health
+                                  }
+                                />
+                              </td>
+
+                              <td>
+                                <span
+                                  className={
+                                    styles.metricValue
+                                  }
+                                >
+                                  {
+                                    customerProjects.length
+                                  }
+                                </span>
+                              </td>
+
+                              <td>
+                                <span
+                                  className={
+                                    styles.metricValue
+                                  }
+                                >
+                                  {
+                                    customerInvoices.length
+                                  }
+                                </span>
+                              </td>
+
+                              <td>
+                                <Link
+                                  href={`/customers/${customer.id}`}
+                                  className={
+                                    styles.openButton
+                                  }
+                                >
+                                  Open
+                                  <span>
+                                    →
+                                  </span>
+                                </Link>
+                              </td>
+                            </tr>
+                          );
+                        }
                       )}
                     </tbody>
                   </table>
@@ -1077,103 +1780,89 @@ export default function CustomersPage() {
   );
 }
 
-function FormField({
-  label,
-  name,
-  value,
-  onChange,
-  placeholder,
-  type = "text",
-  required = false,
-}) {
-  return (
-    <div className={styles.field}>
-      <label
-        htmlFor={`customer-${name}`}
-      >
-        {label}
-        {required ? " *" : ""}
-      </label>
-
-      <input
-        id={`customer-${name}`}
-        name={name}
-        type={type}
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        required={required}
-      />
-    </div>
-  );
-}
+// =========================================================
+// SUMMARY
+// =========================================================
 
 function SummaryCard({
-  icon,
   label,
   value,
   detail,
-  tone,
 }) {
   return (
     <div
-      className={`${styles.summaryCard} ${
-        styles[
-          `summary${capitalise(tone)}`
-        ] || ""
-      }`}
+      className={
+        styles.summaryCard
+      }
     >
-      <div
-        className={styles.summaryTop}
-      >
-        <span
-          className={styles.summaryIcon}
-          aria-hidden="true"
-        >
-          {icon}
-        </span>
-      </div>
+      <span>
+        {label}
+      </span>
 
-      <span>{label}</span>
-      <strong>{value}</strong>
-      <small>{detail}</small>
+      <strong>
+        {value}
+      </strong>
+
+      <small>
+        {detail}
+      </small>
     </div>
   );
 }
 
-function HealthBadge({ health }) {
-  const className =
-    health.tone === "excellent"
-      ? styles.healthExcellent
-      : health.tone === "attention"
-        ? styles.healthAttention
-        : health.tone === "risk"
-          ? styles.healthRisk
+// =========================================================
+// HEALTH
+// =========================================================
+
+function HealthBadge({
+  health,
+}) {
+  const toneClass =
+    health.tone ===
+    "healthy"
+      ? styles.healthHealthy
+      : health.tone ===
+          "risk"
+        ? styles.healthRisk
+        : health.tone ===
+            "watch"
+          ? styles.healthWatch
           : styles.healthNeutral;
 
   return (
     <span
-      className={`${styles.healthBadge} ${className}`}
+      className={`${styles.healthBadge} ${toneClass}`}
+      title={
+        health.detail
+      }
     >
-      <span
-        className={styles.healthDot}
-        aria-hidden="true"
-      />
-
-      {health.label}
+      {
+        health.label
+      }
     </span>
   );
 }
 
+// =========================================================
+// EMPTY
+// =========================================================
+
 function EmptyState({
   hasFilters,
+  canCreate,
   onClearFilters,
   onAddCustomer,
 }) {
   return (
-    <div className={styles.emptyState}>
+    <div
+      className={
+        styles.emptyState
+      }
+    >
       <span
-        className={styles.emptyIcon}
+        className={
+          styles.emptyIcon
+        }
       >
         ▣
       </span>
@@ -1181,156 +1870,116 @@ function EmptyState({
       <h3>
         {hasFilters
           ? "No matching customers"
-          : "No customers yet"}
+          : "No customers found"}
       </h3>
 
       <p>
         {hasFilters
-          ? "Try changing or clearing the current search and filters."
-          : "Create your first customer to begin managing relationships, projects and invoices."}
+          ? "Try changing or clearing the current filters."
+          : canCreate
+            ? "Create your first customer to begin managing the customer lifecycle."
+            : "There are no customer records available within your current access."}
       </p>
 
-      <button
-        type="button"
-        className={styles.primaryButton}
-        onClick={
-          hasFilters
-            ? onClearFilters
-            : onAddCustomer
-        }
-      >
-        {hasFilters
-          ? "Clear filters"
-          : "Add customer"}
-      </button>
+      {hasFilters ? (
+        <button
+          type="button"
+          className={
+            styles.primaryButton
+          }
+          onClick={
+            onClearFilters
+          }
+        >
+          Clear filters
+        </button>
+      ) : canCreate ? (
+        <button
+          type="button"
+          className={
+            styles.primaryButton
+          }
+          onClick={
+            onAddCustomer
+          }
+        >
+          Add customer
+        </button>
+      ) : null}
     </div>
   );
 }
 
+// =========================================================
+// LOADING
+// =========================================================
+
 function LoadingState() {
   return (
     <section
-      className={styles.loadingPanel}
+      className={
+        styles.loadingPanel
+      }
     >
       {Array.from({
-        length: 5,
-      }).map((_, index) => (
-        <div
-          key={index}
-          className={styles.loadingRow}
-        />
-      ))}
+        length: 6,
+      }).map(
+        (
+          _,
+          index
+        ) => (
+          <div
+            key={
+              index
+            }
+            className={
+              styles.loadingRow
+            }
+          />
+        )
+      )}
     </section>
   );
 }
 
-function getCustomerHealth({
-  customer,
-  activeProjects,
-  openInvoices,
-  overdueInvoices,
-}) {
-  const customerStatus =
-    String(customer.status || "")
+// =========================================================
+// INITIALS
+// =========================================================
+
+function getInitials(
+  value = ""
+) {
+  const words =
+    String(
+      value
+    )
       .trim()
-      .toLowerCase();
+      .split(/\s+/)
+      .filter(Boolean);
 
   if (
-    customerStatus === "inactive" ||
-    overdueInvoices > 1
+    words.length ===
+    0
   ) {
-    return {
-      label: "At Risk",
-      tone: "risk",
-    };
-  }
-
-  if (
-    customerStatus === "on hold" ||
-    overdueInvoices === 1 ||
-    openInvoices > 2
-  ) {
-    return {
-      label: "Attention",
-      tone: "attention",
-    };
-  }
-
-  if (
-    customerStatus === "active" ||
-    activeProjects > 0
-  ) {
-    return {
-      label: "Excellent",
-      tone: "excellent",
-    };
-  }
-
-  return {
-    label: "Attention",
-    tone: "attention",
-  };
-}
-
-function getInitials(value = "") {
-  const words = String(value)
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
-
-  if (words.length === 0) {
     return "CU";
   }
 
-  if (words.length === 1) {
+  if (
+    words.length ===
+    1
+  ) {
     return words[0]
-      .slice(0, 2)
+      .slice(
+        0,
+        2
+      )
       .toUpperCase();
   }
 
   return `${words[0][0]}${
-    words[words.length - 1][0]
+    words[
+      words.length -
+        1
+    ][0]
   }`.toUpperCase();
-}
-
-function formatCurrency(value) {
-  return Number(value || 0).toLocaleString(
-    "en-GB",
-    {
-      style: "currency",
-      currency: "GBP",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }
-  );
-}
-
-function formatDate(value) {
-  if (!value) {
-    return "Not available";
-  }
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "Not available";
-  }
-
-  return date.toLocaleDateString(
-    "en-GB",
-    {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    }
-  );
-}
-
-function capitalise(value) {
-  const text = String(value || "");
-
-  return (
-    text.charAt(0).toUpperCase() +
-    text.slice(1)
-  );
 }
