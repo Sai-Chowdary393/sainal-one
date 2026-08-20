@@ -1,6 +1,14 @@
 import { NextResponse } from "next/server";
-import { supabase } from "../../../lib/supabase";
 import OpenAI from "openai";
+
+import {
+  getServerAccess,
+} from "../../../lib/serverAccess";
+
+import {
+  getRecordPermissions,
+  getTeamEmployeeIds,
+} from "../../../lib/recordAccess";
 
 import {
   getBusinessProfile,
@@ -12,33 +20,358 @@ import {
   executeWorkflow,
 } from "../../../lib/ai/workflowEngine";
 
-import { createLeadFromPrompt } from "../../../lib/services/leadService";
+import {
+  createLeadFromPrompt,
+} from "../../../lib/services/leadService";
 
-import { createFollowUpFromPrompt } from "../../../lib/services/followUpService";
+import {
+  createFollowUpFromPrompt,
+} from "../../../lib/services/followUpService";
 
-import { createTaskFromPrompt } from "../../../lib/services/taskService";
+import {
+  createTaskFromPrompt,
+} from "../../../lib/services/taskService";
 
-import { createQuoteFromPrompt } from "../../../lib/services/quoteService";
+import {
+  createQuoteFromPrompt,
+} from "../../../lib/services/quoteService";
 
 import {
   markInvoiceAsPaid,
   convertQuoteToInvoice,
 } from "../../../lib/services/invoiceService";
 
-import { convertLeadToCustomerAndProject } from "../../../lib/services/customerProjectService";
+import {
+  convertLeadToCustomerAndProject,
+} from "../../../lib/services/customerProjectService";
 
-import { createProposalFromPrompt } from "../../../lib/services/proposalService";
+import {
+  createProposalFromPrompt,
+} from "../../../lib/services/proposalService";
 
-const ORGANIZATION_ID =
-  "9d5bbb05-866b-4c38-b2ac-3019e7cf88e5";
+// =========================================================
+// OPENAI
+// =========================================================
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey:
+    process.env.OPENAI_API_KEY,
 });
 
-async function loadBusinessData() {
+// =========================================================
+// MODULE CONFIGURATION
+// =========================================================
+
+const MODULES = {
+  leads: {
+    table:
+      "leads",
+
+    prefix:
+      "leads",
+
+    module:
+      "Leads",
+
+    ownerField:
+      "owner_employee_id",
+  },
+
+  quotes: {
+    table:
+      "quotes",
+
+    prefix:
+      "quotes",
+
+    module:
+      "Quotes",
+
+    ownerField:
+      "owner_employee_id",
+  },
+
+  proposals: {
+    table:
+      "proposals",
+
+    prefix:
+      "proposals",
+
+    module:
+      "Proposals",
+
+    ownerField:
+      "owner_employee_id",
+  },
+
+  customers: {
+    table:
+      "customers",
+
+    prefix:
+      "customers",
+
+    module:
+      "Customers",
+
+    ownerField:
+      "owner_employee_id",
+  },
+
+  projects: {
+    table:
+      "projects",
+
+    prefix:
+      "projects",
+
+    module:
+      "Projects",
+
+    ownerField:
+      "owner_employee_id",
+  },
+
+  tasks: {
+    table:
+      "tasks",
+
+    prefix:
+      "tasks",
+
+    module:
+      "Tasks",
+
+    ownerField:
+      "assigned_employee_id",
+  },
+
+  invoices: {
+    table:
+      "invoices",
+
+    prefix:
+      "invoices",
+
+    module:
+      "Invoices",
+
+    ownerField:
+      "owner_employee_id",
+  },
+
+  followUps: {
+    table:
+      "follow_ups",
+
+    prefix:
+      "followups",
+
+    module:
+      "Follow-ups",
+
+    ownerField:
+      "assigned_employee_id",
+  },
+};
+
+// =========================================================
+// HELPERS
+// =========================================================
+
+function forbidden(message) {
+  return NextResponse.json(
+    {
+      error:
+        message,
+    },
+    {
+      status: 403,
+    }
+  );
+}
+
+function getPermissions(
+  access,
+  config
+) {
+  return getRecordPermissions(
+    access,
+    {
+      prefix:
+        config.prefix,
+
+      module:
+        config.module,
+    }
+  );
+}
+
+function canView(
+  permissions
+) {
+  return Boolean(
+    permissions.canViewAll ||
+      permissions.canViewTeam ||
+      permissions.canViewOwn
+  );
+}
+
+// =========================================================
+// LOAD ONE MODULE USING RBAC
+// =========================================================
+
+async function loadModuleRecords({
+  access,
+  config,
+}) {
+  const permissions =
+    getPermissions(
+      access,
+      config
+    );
+
+  if (
+    !canView(
+      permissions
+    )
+  ) {
+    return {
+      records: [],
+      permissions,
+    };
+  }
+
+  const supabase =
+    access.supabase;
+
+  const organizationId =
+    access.employee
+      .organization_id;
+
+  let query =
+    supabase
+      .from(
+        config.table
+      )
+      .select("*")
+      .eq(
+        "organization_id",
+        organizationId
+      );
+
+  // =======================================================
+  // TEAM ACCESS
+  // =======================================================
+
+  if (
+    !permissions.canViewAll &&
+    permissions.canViewTeam
+  ) {
+    const teamEmployeeIds =
+      await getTeamEmployeeIds({
+        supabase,
+
+        employee:
+          access.employee,
+      });
+
+    query =
+      query.in(
+        config.ownerField,
+        teamEmployeeIds
+      );
+  }
+
+  // =======================================================
+  // OWN ACCESS
+  // =======================================================
+
+  else if (
+    !permissions.canViewAll &&
+    permissions.canViewOwn
+  ) {
+    query =
+      query.eq(
+        config.ownerField,
+        access.employee.id
+      );
+  }
+
+  const {
+    data,
+    error,
+  } =
+    await query.order(
+      "created_at",
+      {
+        ascending:
+          false,
+      }
+    );
+
+  if (error) {
+    throw new Error(
+      error.message
+    );
+  }
+
+  return {
+    records:
+      data || [],
+
+    permissions,
+  };
+}
+
+// =========================================================
+// LOAD COMPANY PROFILE
+// =========================================================
+
+async function loadBusinessProfile({
+  access,
+}) {
+  const {
+    data,
+    error,
+  } =
+    await access.supabase
+      .from(
+        "company_settings"
+      )
+      .select("*")
+      .eq(
+        "organization_id",
+        access.employee
+          .organization_id
+      )
+      .limit(1);
+
+  if (error) {
+    throw new Error(
+      error.message
+    );
+  }
+
+  const settings =
+    data?.[0] ||
+    null;
+
+  return getBusinessProfile(
+    settings
+  );
+}
+
+// =========================================================
+// LOAD ALL AI BUSINESS DATA
+// =========================================================
+
+async function loadBusinessData({
+  access,
+}) {
   const [
-    settingsResult,
+    profile,
     leadsResult,
     quotesResult,
     proposalsResult,
@@ -47,83 +380,119 @@ async function loadBusinessData() {
     tasksResult,
     invoicesResult,
     followUpsResult,
-  ] = await Promise.all([
-    supabase
-      .from("company_settings")
-      .select("*")
-      .eq("organization_id", ORGANIZATION_ID)
-      .limit(1),
+  ] =
+    await Promise.all([
+      loadBusinessProfile({
+        access,
+      }),
 
-    supabase
-      .from("leads")
-      .select("*")
-      .eq("organization_id", ORGANIZATION_ID),
+      loadModuleRecords({
+        access,
+        config:
+          MODULES.leads,
+      }),
 
-    supabase
-      .from("quotes")
-      .select("*")
-      .eq("organization_id", ORGANIZATION_ID),
+      loadModuleRecords({
+        access,
+        config:
+          MODULES.quotes,
+      }),
 
-    supabase
-      .from("proposals")
-      .select("*")
-      .eq("organization_id", ORGANIZATION_ID),
+      loadModuleRecords({
+        access,
+        config:
+          MODULES.proposals,
+      }),
 
-    supabase
-      .from("customers")
-      .select("*")
-      .eq("organization_id", ORGANIZATION_ID),
+      loadModuleRecords({
+        access,
+        config:
+          MODULES.customers,
+      }),
 
-    supabase
-      .from("projects")
-      .select("*")
-      .eq("organization_id", ORGANIZATION_ID),
+      loadModuleRecords({
+        access,
+        config:
+          MODULES.projects,
+      }),
 
-    supabase
-      .from("tasks")
-      .select("*")
-      .eq("organization_id", ORGANIZATION_ID),
+      loadModuleRecords({
+        access,
+        config:
+          MODULES.tasks,
+      }),
 
-    supabase
-      .from("invoices")
-      .select("*")
-      .eq("organization_id", ORGANIZATION_ID),
+      loadModuleRecords({
+        access,
+        config:
+          MODULES.invoices,
+      }),
 
-    supabase
-      .from("follow_ups")
-      .select("*")
-      .eq("organization_id", ORGANIZATION_ID),
-  ]);
-
-  const databaseError =
-    settingsResult.error ||
-    leadsResult.error ||
-    quotesResult.error ||
-    proposalsResult.error ||
-    customersResult.error ||
-    projectsResult.error ||
-    tasksResult.error ||
-    invoicesResult.error ||
-    followUpsResult.error;
-
-  if (databaseError) {
-    throw new Error(databaseError.message);
-  }
-
-  const settings = settingsResult.data?.[0] || null;
+      loadModuleRecords({
+        access,
+        config:
+          MODULES.followUps,
+      }),
+    ]);
 
   return {
-    profile: getBusinessProfile(settings),
-    leads: leadsResult.data || [],
-    quotes: quotesResult.data || [],
-    proposals: proposalsResult.data || [],
-    customers: customersResult.data || [],
-    projects: projectsResult.data || [],
-    tasks: tasksResult.data || [],
-    invoices: invoicesResult.data || [],
-    followUps: followUpsResult.data || [],
+    profile,
+
+    leads:
+      leadsResult.records,
+
+    quotes:
+      quotesResult.records,
+
+    proposals:
+      proposalsResult.records,
+
+    customers:
+      customersResult.records,
+
+    projects:
+      projectsResult.records,
+
+    tasks:
+      tasksResult.records,
+
+    invoices:
+      invoicesResult.records,
+
+    followUps:
+      followUpsResult.records,
+
+    permissions: {
+      leads:
+        leadsResult.permissions,
+
+      quotes:
+        quotesResult.permissions,
+
+      proposals:
+        proposalsResult.permissions,
+
+      customers:
+        customersResult.permissions,
+
+      projects:
+        projectsResult.permissions,
+
+      tasks:
+        tasksResult.permissions,
+
+      invoices:
+        invoicesResult.permissions,
+
+      followUps:
+        followUpsResult.permissions,
+    },
   };
 }
+
+// =========================================================
+// GENERAL AI QUESTION
+// =========================================================
 
 async function answerGeneralQuestion({
   prompt,
@@ -137,18 +506,30 @@ async function answerGeneralQuestion({
   invoices,
   followUps,
 }) {
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4.1-mini",
+  const completion =
+    await openai.chat.completions.create({
+      model:
+        "gpt-4.1-mini",
 
-    messages: [
-      {
-        role: "system",
-        content: `
+      messages: [
+        {
+          role:
+            "system",
+
+          content: `
 You are SaiNal One AI Operations Manager.
 
 You work for this specific business:
 
 ${businessProfilePrompt(profile)}
+
+You may only use the business records supplied below.
+
+Important security rules:
+- The supplied records have already been filtered according to the signed-in employee's permissions.
+- Never imply that other hidden records exist.
+- Never invent inaccessible records.
+- Never reveal information that is not present in the supplied business data.
 
 You can analyse:
 - Leads
@@ -172,13 +553,15 @@ Instructions:
 - Use professional UK business language.
 - Do not invent records.
 - Follow the company's custom AI instructions.
-        `,
-      },
+          `,
+        },
 
-      {
-        role: "user",
-        content: `
-Business Data:
+        {
+          role:
+            "user",
+
+          content: `
+Business Data available to this employee:
 
 Leads:
 ${JSON.stringify(leads)}
@@ -206,25 +589,79 @@ ${JSON.stringify(followUps)}
 
 User Question:
 ${prompt}
-        `,
-      },
-    ],
-  });
+          `,
+        },
+      ],
+    });
 
   return (
-    completion.choices?.[0]?.message?.content ||
+    completion
+      .choices?.[0]
+      ?.message
+      ?.content ||
     "No response was generated."
   );
 }
 
-export async function POST(request) {
-  try {
-    const body = await request.json();
+// =========================================================
+// POST
+// =========================================================
 
-    if (!body.prompt?.trim()) {
+export async function POST(
+  request
+) {
+  try {
+    // =====================================================
+    // AUTHENTICATION
+    // =====================================================
+
+    const access =
+      await getServerAccess();
+
+    if (
+      !access.employee
+    ) {
       return NextResponse.json(
         {
-          error: "Prompt is required",
+          error:
+            access.error,
+        },
+        {
+          status:
+            access.status,
+        }
+      );
+    }
+
+    // =====================================================
+    // OPENAI CONFIGURATION
+    // =====================================================
+
+    if (
+      !process.env
+        .OPENAI_API_KEY
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "AI service is not configured.",
+        },
+        {
+          status: 500,
+        }
+      );
+    }
+
+    const body =
+      await request.json();
+
+    if (
+      !body.prompt?.trim()
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Prompt is required",
         },
         {
           status: 400,
@@ -232,8 +669,23 @@ export async function POST(request) {
       );
     }
 
-    const originalPrompt = body.prompt.trim();
-    const prompt = originalPrompt.toLowerCase();
+    const originalPrompt =
+      body.prompt.trim();
+
+    const prompt =
+      originalPrompt
+        .toLowerCase();
+
+    const organizationId =
+      access.employee
+        .organization_id;
+
+    const employeeId =
+      access.employee.id;
+
+    // =====================================================
+    // LOAD ONLY DATA THIS EMPLOYEE CAN ACCESS
+    // =====================================================
 
     const {
       profile,
@@ -245,41 +697,69 @@ export async function POST(request) {
       tasks,
       invoices,
       followUps,
-    } = await loadBusinessData();
-
-    /*
-     * Proposal creation runs before workflow detection.
-     *
-     * This is important because a request such as:
-     *
-     * "Create a proposal for Robert based on the accepted quote"
-     *
-     * contains the words "accepted quote", which could otherwise
-     * incorrectly trigger the multi-step workflow engine.
-     */
-    if (
-      prompt.includes("create proposal") ||
-      prompt.includes("generate proposal") ||
-      prompt.includes("prepare proposal")
-    ) {
-      const result = await createProposalFromPrompt({
-        prompt: originalPrompt,
-        profile,
-        leads,
-        customers,
-        quotes,
-        openai,
-        organizationId: ORGANIZATION_ID,
+      permissions,
+    } =
+      await loadBusinessData({
+        access,
       });
 
-      if (result.notFound) {
+    // =====================================================
+    // CREATE PROPOSAL
+    // =====================================================
+
+    if (
+      prompt.includes(
+        "create proposal"
+      ) ||
+      prompt.includes(
+        "generate proposal"
+      ) ||
+      prompt.includes(
+        "prepare proposal"
+      )
+    ) {
+      if (
+        !permissions
+          .proposals
+          .canCreate
+      ) {
+        return forbidden(
+          "You do not have permission to create proposals."
+        );
+      }
+
+      const result =
+        await createProposalFromPrompt({
+          prompt:
+            originalPrompt,
+
+          profile,
+
+          leads,
+
+          customers,
+
+          quotes,
+
+          openai,
+
+          organizationId,
+
+          employeeId,
+        });
+
+      if (
+        result.notFound
+      ) {
         return NextResponse.json({
           answer:
-            "⚠️ I could not find that lead, customer or quote. Please mention the exact client, contact, company or quote number.",
+            "⚠️ I could not find an accessible lead, customer or quote matching that request. Please mention the exact client, contact, company or quote number.",
         });
       }
 
-      if (result.alreadyExists) {
+      if (
+        result.alreadyExists
+      ) {
         return NextResponse.json({
           answer: `⚠️ Draft proposal already exists.
 
@@ -305,61 +785,131 @@ Status: ${result.created.status}`,
       });
     }
 
-    /*
-     * Workflow detection must run before individual action checks.
-     * Otherwise, a multi-action request may execute only one action.
-     */
-    if (isWorkflowRequest(originalPrompt)) {
-      const workflowResult = await executeWorkflow({
-        prompt: originalPrompt,
-        profile,
-        leads,
-        quotes,
-        projects,
-        invoices,
-        organizationId: ORGANIZATION_ID,
-      });
+    // =====================================================
+    // MULTI-STEP WORKFLOW
+    //
+    // The existing workflow engine can perform several
+    // mutations internally. Until we add per-step RBAC to
+    // workflowEngine itself, only the Organisation Owner
+    // may start an AI multi-action workflow.
+    // =====================================================
+
+    if (
+      isWorkflowRequest(
+        originalPrompt
+      )
+    ) {
+      if (
+        !access.employee
+          .is_organization_owner
+      ) {
+        return forbidden(
+          "AI multi-step workflows currently require Organisation Owner access."
+        );
+      }
+
+      const workflowResult =
+        await executeWorkflow({
+          prompt:
+            originalPrompt,
+
+          profile,
+
+          leads,
+
+          quotes,
+
+          projects,
+
+          invoices,
+
+          organizationId,
+
+          employeeId,
+        });
 
       return NextResponse.json({
-        answer: workflowResult.answer,
-        workflow: true,
-        success: workflowResult.success,
-        data: workflowResult.data || null,
+        answer:
+          workflowResult.answer,
+
+        workflow:
+          true,
+
+        success:
+          workflowResult.success,
+
+        data:
+          workflowResult.data ||
+          null,
       });
     }
 
-    /*
-     * Mark an invoice as paid.
-     */
-    if (
-      (prompt.includes("mark") ||
-        prompt.includes("update")) &&
-      prompt.includes("invoice") &&
-      prompt.includes("paid")
-    ) {
-      const result = await markInvoiceAsPaid({
-        prompt: originalPrompt,
-        invoices,
-        quotes,
-        organizationId: ORGANIZATION_ID,
-      });
+    // =====================================================
+    // MARK INVOICE PAID
+    // =====================================================
 
-      if (result.notFound) {
+    if (
+      (
+        prompt.includes(
+          "mark"
+        ) ||
+        prompt.includes(
+          "update"
+        )
+      ) &&
+      prompt.includes(
+        "invoice"
+      ) &&
+      prompt.includes(
+        "paid"
+      )
+    ) {
+      if (
+        !permissions
+          .invoices
+          .canEdit
+      ) {
+        return forbidden(
+          "You do not have permission to update invoices."
+        );
+      }
+
+      const result =
+        await markInvoiceAsPaid({
+          prompt:
+            originalPrompt,
+
+          invoices,
+
+          quotes,
+
+          organizationId,
+
+          employeeId,
+        });
+
+      if (
+        result.notFound
+      ) {
         return NextResponse.json({
           answer:
-            "⚠️ I could not find that invoice. Please mention the invoice number, client name or contact name.",
+            "⚠️ I could not find an accessible invoice matching that request. Please mention the invoice number, client name or contact name.",
         });
       }
 
-      if (result.alreadyPaid) {
+      if (
+        result.alreadyPaid
+      ) {
         return NextResponse.json({
           answer: `⚠️ Invoice is already marked as paid.
 
 Invoice Number: ${result.invoice.invoice_number}
 Client: ${result.invoice.client}
 Amount: ${
-            result.invoice.total_amount ||
-            result.invoice.amount
+            result.invoice
+              .total_amount ||
+            result.invoice
+              .amount
           }
 Status: ${result.invoice.status}`,
         });
@@ -371,46 +921,95 @@ Status: ${result.invoice.status}`,
 Invoice Number: ${result.invoice.invoice_number}
 Client: ${result.invoice.client}
 Amount: ${
-          result.invoice.total_amount ||
-          result.invoice.amount
+          result.invoice
+            .total_amount ||
+          result.invoice
+            .amount
         }
 Status: ${result.invoice.status}`,
       });
     }
 
-    /*
-     * Convert a quote into an invoice.
-     */
-    if (
-      (prompt.includes("convert") ||
-        prompt.includes("create invoice")) &&
-      (prompt.includes("quote") ||
-        prompt.includes("invoice"))
-    ) {
-      const result = await convertQuoteToInvoice({
-        prompt: originalPrompt,
-        quotes,
-        invoices,
-        profile,
-        organizationId: ORGANIZATION_ID,
-      });
+    // =====================================================
+    // QUOTE -> INVOICE
+    // =====================================================
 
-      if (result.notFound) {
+    if (
+      (
+        prompt.includes(
+          "convert"
+        ) ||
+        prompt.includes(
+          "create invoice"
+        )
+      ) &&
+      (
+        prompt.includes(
+          "quote"
+        ) ||
+        prompt.includes(
+          "invoice"
+        )
+      )
+    ) {
+      if (
+        !permissions
+          .invoices
+          .canCreate
+      ) {
+        return forbidden(
+          "You do not have permission to create invoices."
+        );
+      }
+
+      if (
+        !permissions
+          .quotes
+          .canEdit
+      ) {
+        return forbidden(
+          "You do not have permission to update the source quote."
+        );
+      }
+
+      const result =
+        await convertQuoteToInvoice({
+          prompt:
+            originalPrompt,
+
+          quotes,
+
+          invoices,
+
+          profile,
+
+          organizationId,
+
+          employeeId,
+        });
+
+      if (
+        result.notFound
+      ) {
         return NextResponse.json({
           answer:
-            "⚠️ I could not find that quote. Please mention the quote number, client name or contact name.",
+            "⚠️ I could not find an accessible quote matching that request. Please mention the quote number, client name or contact name.",
         });
       }
 
-      if (result.alreadyExists) {
+      if (
+        result.alreadyExists
+      ) {
         return NextResponse.json({
           answer: `⚠️ Invoice already exists.
 
 Invoice Number: ${result.existing.invoice_number}
 Client: ${result.existing.client}
 Amount: ${
-            result.existing.total_amount ||
-            result.existing.amount
+            result.existing
+              .total_amount ||
+            result.existing
+              .amount
           }
 Status: ${result.existing.status}
 
@@ -426,8 +1025,10 @@ Invoice Number: ${result.created.invoice_number}
 Client: ${result.created.client}
 Service: ${result.created.service}
 Amount: ${
-          result.created.total_amount ||
-          result.created.amount
+          result.created
+            .total_amount ||
+          result.created
+            .amount
         }
 Invoice Status: ${result.created.status}
 
@@ -435,31 +1036,63 @@ Quote status updated to Accepted.`,
       });
     }
 
-    /*
-     * Create a quote.
-     */
-    if (
-      (prompt.includes("create quote") ||
-        prompt.includes("add quote")) &&
-      !prompt.includes("convert")
-    ) {
-      const result = await createQuoteFromPrompt({
-        prompt: originalPrompt,
-        leads,
-        customers,
-        quotes,
-        profile,
-        organizationId: ORGANIZATION_ID,
-      });
+    // =====================================================
+    // CREATE QUOTE
+    // =====================================================
 
-      if (result.notFound) {
+    if (
+      (
+        prompt.includes(
+          "create quote"
+        ) ||
+        prompt.includes(
+          "add quote"
+        )
+      ) &&
+      !prompt.includes(
+        "convert"
+      )
+    ) {
+      if (
+        !permissions
+          .quotes
+          .canCreate
+      ) {
+        return forbidden(
+          "You do not have permission to create quotes."
+        );
+      }
+
+      const result =
+        await createQuoteFromPrompt({
+          prompt:
+            originalPrompt,
+
+          leads,
+
+          customers,
+
+          quotes,
+
+          profile,
+
+          organizationId,
+
+          employeeId,
+        });
+
+      if (
+        result.notFound
+      ) {
         return NextResponse.json({
           answer:
-            "⚠️ I could not find that lead or customer. Please mention the exact lead or customer name.",
+            "⚠️ I could not find an accessible lead or customer matching that request. Please mention the exact lead or customer name.",
         });
       }
 
-      if (result.alreadyExists) {
+      if (
+        result.alreadyExists
+      ) {
         return NextResponse.json({
           answer: `⚠️ Draft quote already exists.
 
@@ -480,34 +1113,86 @@ Client: ${result.created.client}
 Contact: ${result.created.contact}
 Service: ${result.created.service}
 Amount: ${
-          result.created.amount ||
+          result.created
+            .amount ||
           "To be confirmed"
         }
 Status: ${result.created.status}`,
       });
     }
 
-    /*
-     * Convert a lead into a customer and project.
-     */
+    // =====================================================
+    // LEAD -> CUSTOMER + PROJECT
+    // =====================================================
+
     if (
-      prompt.includes("convert") &&
-      prompt.includes("lead") &&
-      (prompt.includes("customer") ||
-        prompt.includes("project"))
+      prompt.includes(
+        "convert"
+      ) &&
+      prompt.includes(
+        "lead"
+      ) &&
+      (
+        prompt.includes(
+          "customer"
+        ) ||
+        prompt.includes(
+          "project"
+        )
+      )
     ) {
+      if (
+        !permissions
+          .leads
+          .canEdit
+      ) {
+        return forbidden(
+          "You do not have permission to update leads."
+        );
+      }
+
+      if (
+        !permissions
+          .customers
+          .canCreate
+      ) {
+        return forbidden(
+          "You do not have permission to create customers."
+        );
+      }
+
+      if (
+        !permissions
+          .projects
+          .canCreate
+      ) {
+        return forbidden(
+          "You do not have permission to create projects."
+        );
+      }
+
       const result =
         await convertLeadToCustomerAndProject({
-          prompt: originalPrompt,
+          prompt:
+            originalPrompt,
+
           leads,
+
+          customers,
+
           projects,
-          organizationId: ORGANIZATION_ID,
+
+          organizationId,
+
+          employeeId,
         });
 
-      if (result.notFound) {
+      if (
+        result.notFound
+      ) {
         return NextResponse.json({
           answer:
-            "⚠️ I could not find that lead. Please mention the exact lead name.",
+            "⚠️ I could not find an accessible lead matching that request. Please mention the exact lead name.",
         });
       }
 
@@ -521,46 +1206,80 @@ Project: ${result.project.project_name}
 Project Status: ${result.project.status}
 
 Customer already existed: ${
-          result.customerAlreadyExists ? "Yes" : "No"
+          result.customerAlreadyExists
+            ? "Yes"
+            : "No"
         }
 Project already existed: ${
-          result.projectAlreadyExists ? "Yes" : "No"
+          result.projectAlreadyExists
+            ? "Yes"
+            : "No"
         }
 
 Lead status updated to Won.`,
       });
     }
 
-    /*
-     * Create a follow-up.
-     */
-    if (
-      prompt.includes("create follow-up") ||
-      prompt.includes("create follow up") ||
-      prompt.includes("add follow-up") ||
-      prompt.includes("add follow up")
-    ) {
-      const result = await createFollowUpFromPrompt({
-        prompt: originalPrompt,
-        leads,
-        organizationId: ORGANIZATION_ID,
-      });
+    // =====================================================
+    // CREATE FOLLOW-UP
+    // =====================================================
 
-      if (result.notFound) {
+    if (
+      prompt.includes(
+        "create follow-up"
+      ) ||
+      prompt.includes(
+        "create follow up"
+      ) ||
+      prompt.includes(
+        "add follow-up"
+      ) ||
+      prompt.includes(
+        "add follow up"
+      )
+    ) {
+      if (
+        !permissions
+          .followUps
+          .canCreate
+      ) {
+        return forbidden(
+          "You do not have permission to create follow-ups."
+        );
+      }
+
+      const result =
+        await createFollowUpFromPrompt({
+          prompt:
+            originalPrompt,
+
+          leads,
+
+          organizationId,
+
+          employeeId,
+        });
+
+      if (
+        result.notFound
+      ) {
         return NextResponse.json({
           answer:
-            "⚠️ I could not find that lead. Please mention the exact lead name, company or email address.",
+            "⚠️ I could not find an accessible lead matching that request. Please mention the exact lead name, company or email address.",
         });
       }
 
-      if (result.alreadyExists) {
+      if (
+        result.alreadyExists
+      ) {
         return NextResponse.json({
           answer: `⚠️ Follow-up already exists.
 
 Title: ${result.existing.title}
 Status: ${result.existing.status}
 Due Date: ${
-            result.existing.due_date ||
+            result.existing
+              .due_date ||
             "No date"
           }
 
@@ -574,34 +1293,68 @@ No duplicate was created.`,
 Title: ${result.created.title}
 Status: ${result.created.status}
 Due Date: ${
-          result.created.due_date ||
+          result.created
+            .due_date ||
           "No date"
         }
 Note: ${result.created.note}`,
       });
     }
 
-    /*
-     * Create a project task.
-     */
-    if (
-      prompt.includes("create task") ||
-      prompt.includes("add task")
-    ) {
-      const result = await createTaskFromPrompt({
-        prompt: originalPrompt,
-        projects,
-        organizationId: ORGANIZATION_ID,
-      });
+    // =====================================================
+    // CREATE TASK
+    // =====================================================
 
-      if (result.alreadyExists) {
+    if (
+      prompt.includes(
+        "create task"
+      ) ||
+      prompt.includes(
+        "add task"
+      )
+    ) {
+      if (
+        !permissions
+          .tasks
+          .canCreate
+      ) {
+        return forbidden(
+          "You do not have permission to create tasks."
+        );
+      }
+
+      const result =
+        await createTaskFromPrompt({
+          prompt:
+            originalPrompt,
+
+          projects,
+
+          organizationId,
+
+          employeeId,
+        });
+
+      if (
+        result.notFound
+      ) {
+        return NextResponse.json({
+          answer:
+            "⚠️ I could not find an accessible project matching that request.",
+        });
+      }
+
+      if (
+        result.alreadyExists
+      ) {
         return NextResponse.json({
           answer: `⚠️ Task already exists.
 
 Task: ${result.existing.task_name}
 Status: ${result.existing.status}
 Due Date: ${
-            result.existing.due_date ||
+            result.existing
+              .due_date ||
             "No date"
           }
 
@@ -614,39 +1367,66 @@ No duplicate was created.`,
 
 Task: ${result.created.task_name}
 Project: ${
-          result.project?.project_name ||
+          result.project
+            ?.project_name ||
           "No project linked"
         }
 Status: ${result.created.status}
 Due Date: ${
-          result.created.due_date ||
+          result.created
+            .due_date ||
           "No date"
         }`,
       });
     }
 
-    /*
-     * Create a lead.
-     */
-    if (
-      prompt.includes("create lead") ||
-      prompt.includes("add lead")
-    ) {
-      const result = await createLeadFromPrompt({
-        prompt: originalPrompt,
-        profile,
-        organizationId: ORGANIZATION_ID,
-        openai,
-      });
+    // =====================================================
+    // CREATE LEAD
+    // =====================================================
 
-      if (result.alreadyExists) {
+    if (
+      prompt.includes(
+        "create lead"
+      ) ||
+      prompt.includes(
+        "add lead"
+      )
+    ) {
+      if (
+        !permissions
+          .leads
+          .canCreate
+      ) {
+        return forbidden(
+          "You do not have permission to create leads."
+        );
+      }
+
+      const result =
+        await createLeadFromPrompt({
+          prompt:
+            originalPrompt,
+
+          profile,
+
+          organizationId,
+
+          employeeId,
+
+          openai,
+        });
+
+      if (
+        result.alreadyExists
+      ) {
         return NextResponse.json({
           answer: `⚠️ Lead already exists.
 
 Name: ${result.existing.name}
 Company: ${result.existing.company}
 Email: ${
-            result.existing.email ||
+            result.existing
+              .email ||
             "Not provided"
           }
 
@@ -660,15 +1440,18 @@ No duplicate was created.`,
 Name: ${result.created.name}
 Company: ${result.created.company}
 Email: ${
-          result.created.email ||
+          result.created
+            .email ||
           "Not provided"
         }
 Phone: ${
-          result.created.phone ||
+          result.created
+            .phone ||
           "Not provided"
         }
 Value: ${
-          result.created.value ||
+          result.created
+            .value ||
           "Not provided"
         }
 Status: ${result.created.status}
@@ -678,31 +1461,48 @@ Next Action: ${result.created.ai_next_action}`,
       });
     }
 
-    /*
-     * General AI question or business analysis.
-     */
-    const answer = await answerGeneralQuestion({
-      prompt: originalPrompt,
-      profile,
-      leads,
-      quotes,
-      proposals,
-      customers,
-      projects,
-      tasks,
-      invoices,
-      followUps,
-    });
+    // =====================================================
+    // GENERAL AI ANALYSIS
+    // =====================================================
+
+    const answer =
+      await answerGeneralQuestion({
+        prompt:
+          originalPrompt,
+
+        profile,
+
+        leads,
+
+        quotes,
+
+        proposals,
+
+        customers,
+
+        projects,
+
+        tasks,
+
+        invoices,
+
+        followUps,
+      });
 
     return NextResponse.json({
       answer,
     });
   } catch (error) {
-    console.error("AI Assistant error:", error);
+    console.error(
+      "AI Assistant error:",
+      error
+    );
 
     return NextResponse.json(
       {
-        error: "AI Assistant failed",
+        error:
+          error.message ||
+          "AI Assistant failed",
       },
       {
         status: 500,
