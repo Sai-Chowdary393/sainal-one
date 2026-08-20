@@ -6,6 +6,19 @@ import {
   getServerAccess,
 } from "../../../../lib/serverAccess";
 
+import {
+  createAdminSupabaseClient,
+} from "../../../../lib/supabaseAdmin";
+
+import {
+  attachRecordOwner,
+  buildClientAccess,
+  canViewOwnedRecord,
+  getRecordPermissions,
+  loadAssignableEmployees,
+  validateRecordOwner,
+} from "../../../../lib/recordAccess";
+
 // =========================================================
 // HELPERS
 // =========================================================
@@ -16,17 +29,107 @@ function isUuid(value) {
   );
 }
 
+function cleanText(value) {
+  return typeof value === "string"
+    ? value.trim()
+    : "";
+}
+
+function cleanNullableText(value) {
+  const cleaned =
+    cleanText(value);
+
+  return cleaned || null;
+}
+
 function normalise(value) {
-  return String(value || "")
+  return String(
+    value ||
+      ""
+  )
     .trim()
     .toLowerCase();
 }
+
+function forbidden(message) {
+  return NextResponse.json(
+    {
+      error: message,
+    },
+    {
+      status: 403,
+    }
+  );
+}
+
+function getPermissions(access) {
+  return getRecordPermissions(
+    access,
+    {
+      prefix:
+        "customers",
+
+      module:
+        "Customers",
+    }
+  );
+}
+
+// =========================================================
+// MONEY
+// =========================================================
+
+function parseMoney(value) {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+    return 0;
+  }
+
+  if (
+    typeof value ===
+    "number"
+  ) {
+    return Number.isFinite(
+      value
+    )
+      ? value
+      : 0;
+  }
+
+  const cleaned =
+    String(value)
+      .replace(
+        /[^0-9.-]/g,
+        ""
+      );
+
+  const number =
+    Number(
+      cleaned
+    );
+
+  return Number.isFinite(
+    number
+  )
+    ? number
+    : 0;
+}
+
+// =========================================================
+// RELATIONSHIP HELPERS
+// =========================================================
 
 function sameId(
   first,
   second
 ) {
-  if (!first || !second) {
+  if (
+    !first ||
+    !second
+  ) {
     return false;
   }
 
@@ -36,166 +139,192 @@ function sameId(
   );
 }
 
-function sameEmail(
+function matchesEmail(
   first,
   second
 ) {
-  if (!first || !second) {
+  const a =
+    normalise(first);
+
+  const b =
+    normalise(second);
+
+  return Boolean(
+    a &&
+    b &&
+    a === b
+  );
+}
+
+function matchesCompany(
+  first,
+  second
+) {
+  const a =
+    normalise(first);
+
+  const b =
+    normalise(second);
+
+  return Boolean(
+    a &&
+    b &&
+    a === b
+  );
+}
+
+function recordMatchesCustomer({
+  record,
+  customer,
+}) {
+  if (
+    !record ||
+    !customer
+  ) {
     return false;
   }
 
-  return (
-    normalise(first) ===
-    normalise(second)
-  );
-}
-
-function uniqueRecords(
-  records = []
-) {
-  const map =
-    new Map();
-
-  records.forEach(
-    (record) => {
-      if (!record?.id) {
-        return;
-      }
-
-      map.set(
-        String(
-          record.id
-        ),
-        record
-      );
-    }
-  );
-
-  return [
-    ...map.values(),
-  ];
-}
-
-function getMoneyValue(
-  value
-) {
   if (
-    value === null ||
-    value === undefined ||
-    value === ""
+    sameId(
+      record.customer_id,
+      customer.id
+    )
   ) {
-    return 0;
+    return true;
   }
 
-  return (
-    Number(
+  if (
+    customer.lead_id &&
+    sameId(
+      record.lead_id,
+      customer.lead_id
+    )
+  ) {
+    return true;
+  }
+
+  if (
+    matchesEmail(
+      record.email,
+      customer.email
+    )
+  ) {
+    return true;
+  }
+
+  if (
+    matchesCompany(
+      record.company,
+      customer.company
+    )
+  ) {
+    return true;
+  }
+
+  if (
+    matchesCompany(
+      record.client,
+      customer.company
+    )
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function taskMatchesCustomer({
+  task,
+  customer,
+  relatedProjectIds,
+  relatedQuoteIds,
+}) {
+  if (
+    !task
+  ) {
+    return false;
+  }
+
+  if (
+    sameId(
+      task.customer_id,
+      customer.id
+    )
+  ) {
+    return true;
+  }
+
+  const relatedType =
+    normalise(
+      task.related_type ||
+        task.record_type
+    );
+
+  const relatedId =
+    task.related_id ||
+    task.record_id;
+
+  if (
+    relatedType ===
+      "customer" &&
+    sameId(
+      relatedId,
+      customer.id
+    )
+  ) {
+    return true;
+  }
+
+  if (
+    relatedType ===
+      "project" &&
+    relatedProjectIds.has(
       String(
-        value
-      ).replace(
-        /[^0-9.-]/g,
-        ""
+        relatedId ||
+          ""
       )
-    ) || 0
-  );
-}
-
-function formatCurrency(
-  value
-) {
-  return Number(
-    value || 0
-  ).toLocaleString(
-    "en-GB",
-    {
-      style:
-        "currency",
-
-      currency:
-        "GBP",
-
-      minimumFractionDigits:
-        0,
-
-      maximumFractionDigits:
-        0,
-    }
-  );
-}
-
-function isPaidStatus(
-  status
-) {
-  return [
-    "paid",
-    "settled",
-  ].includes(
-    normalise(
-      status
     )
-  );
-}
+  ) {
+    return true;
+  }
 
-function isCompletedStatus(
-  status
-) {
-  return [
-    "completed",
-    "complete",
-    "done",
-    "closed",
-  ].includes(
-    normalise(
-      status
+  if (
+    relatedType ===
+      "quote" &&
+    relatedQuoteIds.has(
+      String(
+        relatedId ||
+          ""
+      )
     )
-  );
-}
+  ) {
+    return true;
+  }
 
-function isOverdueStatus(
-  status
-) {
-  return [
-    "overdue",
-    "late",
-  ].includes(
-    normalise(
-      status
-    )
-  );
-}
-
-function recordTypeMatches(
-  value,
-  aliases = []
-) {
-  const recordType =
-    normalise(
-      value
-    );
-
-  return aliases
-    .map(
-      normalise
-    )
-    .includes(
-      recordType
-    );
+  return false;
 }
 
 // =========================================================
-// TASK EMPLOYEE ENRICHMENT
+// EMPLOYEE ENRICHMENT
 // =========================================================
 
-async function enrichTasksWithEmployees({
+async function attachTaskEmployees({
   supabase,
   organizationId,
   tasks,
 }) {
   const employeeIds = [
     ...new Set(
-      (tasks || [])
+      (
+        tasks ||
+        []
+      )
         .map(
-          (task) =>
-            task.assigned_employee_id
+          (
+            task
+          ) =>
+            task.assigned_employee_id ||
+            task.owner_employee_id
         )
         .filter(Boolean)
     ),
@@ -206,9 +335,12 @@ async function enrichTasksWithEmployees({
     0
   ) {
     return (
-      tasks || []
+      tasks ||
+      []
     ).map(
-      (task) => ({
+      (
+        task
+      ) => ({
         ...task,
 
         assigned_employee:
@@ -242,20 +374,8 @@ async function enrichTasksWithEmployees({
       );
 
   if (error) {
-    console.error(
-      "Customer task employee lookup error:",
-      error
-    );
-
-    return (
-      tasks || []
-    ).map(
-      (task) => ({
-        ...task,
-
-        assigned_employee:
-          null,
-      })
+    throw new Error(
+      error.message
     );
   }
 
@@ -268,29 +388,27 @@ async function enrichTasksWithEmployees({
         (
           employee
         ) => [
-          String(
-            employee.id
-          ),
+          employee.id,
           employee,
         ]
       )
     );
 
   return (
-    tasks || []
+    tasks ||
+    []
   ).map(
-    (task) => ({
+    (
+      task
+    ) => ({
       ...task,
 
       assigned_employee:
-        task.assigned_employee_id
-          ? employeeMap.get(
-              String(
-                task.assigned_employee_id
-              )
-            ) ||
-            null
-          : null,
+        employeeMap.get(
+          task.assigned_employee_id ||
+            task.owner_employee_id
+        ) ||
+        null,
     })
   );
 }
@@ -299,7 +417,7 @@ async function enrichTasksWithEmployees({
 // CUSTOMER SUMMARY
 // =========================================================
 
-function buildCustomerSummary({
+function buildSummary({
   customer,
   quotes,
   projects,
@@ -307,66 +425,90 @@ function buildCustomerSummary({
   invoices,
   followUps,
 }) {
-  const pendingTasks =
-    tasks.filter(
-      (task) =>
-        !isCompletedStatus(
-          task.status
-        )
-    );
-
   const activeProjects =
-    projects.filter(
-      (project) =>
-        !isCompletedStatus(
-          project.status
-        )
+    (
+      projects ||
+      []
+    ).filter(
+      (
+        project
+      ) => {
+        const status =
+          normalise(
+            project.status
+          );
+
+        return ![
+          "completed",
+          "complete",
+          "done",
+          "cancelled",
+          "canceled",
+          "closed",
+        ].includes(
+          status
+        );
+      }
     );
 
-  const overdueInvoices =
-    invoices.filter(
-      (invoice) =>
-        isOverdueStatus(
-          invoice.status
-        )
+  const pendingTasks =
+    (
+      tasks ||
+      []
+    ).filter(
+      (
+        task
+      ) => {
+        const status =
+          normalise(
+            task.status
+          );
+
+        return ![
+          "completed",
+          "complete",
+          "done",
+          "cancelled",
+          "canceled",
+          "closed",
+        ].includes(
+          status
+        );
+      }
     );
 
   const outstandingInvoices =
-    invoices.filter(
-      (invoice) =>
-        !isPaidStatus(
-          invoice.status
-        )
+    (
+      invoices ||
+      []
+    ).filter(
+      (
+        invoice
+      ) => {
+        const status =
+          normalise(
+            invoice.status
+          );
+
+        return ![
+          "paid",
+          "cancelled",
+          "canceled",
+          "void",
+        ].includes(
+          status
+        );
+      }
     );
 
-  const recommendations =
-    [];
+  const recommendations = [];
 
   if (
-    overdueInvoices.length >
+    quotes.length ===
     0
   ) {
     recommendations.push(
-      `${overdueInvoices.length} overdue invoice${
-        overdueInvoices.length ===
-        1
-          ? " requires"
-          : "s require"
-      } attention.`
-    );
-  }
-
-  if (
-    pendingTasks.length >
-    0
-  ) {
-    recommendations.push(
-      `${pendingTasks.length} open task${
-        pendingTasks.length ===
-        1
-          ? " is"
-          : "s are"
-      } currently associated with this customer.`
+      "Create a quote for this customer when a new commercial opportunity is identified."
     );
   }
 
@@ -375,34 +517,25 @@ function buildCustomerSummary({
     0
   ) {
     recommendations.push(
-      `Review progress across ${activeProjects.length} active project${
-        activeProjects.length ===
-        1
-          ? ""
-          : "s"
-      }.`
+      "Review active project delivery and outstanding work."
     );
   }
 
   if (
-    followUps.length ===
-      0 &&
-    pendingTasks.length ===
-      0
+    pendingTasks.length >
+    0
   ) {
     recommendations.push(
-      "Consider scheduling the next customer follow-up."
+      "Review open tasks and follow-up activity."
     );
   }
 
   if (
     outstandingInvoices.length >
-      0 &&
-    overdueInvoices.length ===
-      0
+    0
   ) {
     recommendations.push(
-      "Monitor outstanding invoices and upcoming payment dates."
+      "Review outstanding invoice balances and payment status."
     );
   }
 
@@ -411,20 +544,14 @@ function buildCustomerSummary({
     0
   ) {
     recommendations.push(
-      "No immediate customer actions require attention."
+      "Customer activity is currently up to date."
     );
   }
 
-  const customerName =
-    customer.customer_name ||
-    customer.company ||
-    "This customer";
-
   return {
-    overview:
-      `${customerName} currently has ${quotes.length} quote${
-        quotes.length ===
-        1
+    headline:
+      `${customer.customer_name || "Customer"} has ${quotes.length} quote${
+        quotes.length === 1
           ? ""
           : "s"
       }, ${activeProjects.length} active project${
@@ -449,7 +576,7 @@ function buildCustomerSummary({
 }
 
 // =========================================================
-// GET CUSTOMER WORKSPACE
+// GET CUSTOMER
 // =========================================================
 
 export async function GET(
@@ -457,7 +584,9 @@ export async function GET(
   context
 ) {
   try {
-    const { id } =
+    const {
+      id,
+    } =
       await context.params;
 
     if (
@@ -475,7 +604,7 @@ export async function GET(
     }
 
     // =====================================================
-    // AUTHENTICATED ACCESS
+    // ACCESS
     // =====================================================
 
     const access =
@@ -496,8 +625,23 @@ export async function GET(
       );
     }
 
+    const permissions =
+      getPermissions(
+        access
+      );
+
+    if (
+      !permissions.canViewAll &&
+      !permissions.canViewTeam &&
+      !permissions.canViewOwn
+    ) {
+      return forbidden(
+        "You do not have permission to view customers."
+      );
+    }
+
     const supabase =
-      access.supabase;
+      createAdminSupabaseClient();
 
     const organizationId =
       access.employee
@@ -536,7 +680,9 @@ export async function GET(
       );
     }
 
-    if (!customer) {
+    if (
+      !customer
+    ) {
       return NextResponse.json(
         {
           error:
@@ -549,16 +695,36 @@ export async function GET(
     }
 
     // =====================================================
-    // LOAD ORGANISATION DATA
+    // RECORD VISIBILITY
     // =====================================================
-    //
-    // We intentionally load each organisation-scoped
-    // business area and build the relationship in this
-    // endpoint.
-    //
-    // This supports both the older records and the newer
-    // explicit record_id / customer_id relationships.
-    //
+
+    const visible =
+      await canViewOwnedRecord({
+        supabase,
+        access,
+        permissions,
+        record:
+          customer,
+      });
+
+    if (
+      !visible
+    ) {
+      return forbidden(
+        "You do not have permission to view this customer."
+      );
+    }
+
+    const formattedCustomer =
+      await attachRecordOwner({
+        supabase,
+        organizationId,
+        record:
+          customer,
+      });
+
+    // =====================================================
+    // ORGANISATION DATA
     // =====================================================
 
     const [
@@ -636,20 +802,29 @@ export async function GET(
           ),
       ]);
 
-    const businessDataError =
-      leadsResult.error ||
-      quotesResult.error ||
-      proposalsResult.error ||
-      projectsResult.error ||
-      tasksResult.error ||
-      invoicesResult.error ||
-      followUpsResult.error;
+    const results = [
+      leadsResult,
+      quotesResult,
+      proposalsResult,
+      projectsResult,
+      tasksResult,
+      invoicesResult,
+      followUpsResult,
+    ];
+
+    const firstError =
+      results.find(
+        (
+          result
+        ) =>
+          result.error
+      );
 
     if (
-      businessDataError
+      firstError?.error
     ) {
       throw new Error(
-        businessDataError.message
+        firstError.error.message
       );
     }
 
@@ -682,100 +857,63 @@ export async function GET(
       [];
 
     // =====================================================
-    // ORIGINAL LEAD
+    // LEAD
     // =====================================================
 
-    let lead =
-      null;
-
-    if (
+    const lead =
       customer.lead_id
-    ) {
-      lead =
-        allLeads.find(
-          (item) =>
-            sameId(
-              item.id,
-              customer.lead_id
-            )
-        ) ||
-        null;
-    }
-
-    if (
-      !lead &&
-      customer.email
-    ) {
-      lead =
-        allLeads.find(
-          (item) =>
-            sameEmail(
-              item.email,
-              customer.email
-            )
-        ) ||
-        null;
-    }
+        ? allLeads.find(
+            (
+              item
+            ) =>
+              sameId(
+                item.id,
+                customer.lead_id
+              )
+          ) ||
+          null
+        : allLeads.find(
+            (
+              item
+            ) =>
+              matchesEmail(
+                item.email,
+                customer.email
+              ) ||
+              matchesCompany(
+                item.company,
+                customer.company
+              )
+          ) ||
+          null;
 
     // =====================================================
     // QUOTES
     // =====================================================
-    //
-    // Preferred:
-    // quote.customer_id === customer.id
-    //
-    // Older converted records can also be resolved from
-    // lead_id or email.
-    //
-    // =====================================================
 
     const quotes =
-      uniqueRecords(
-        allQuotes.filter(
-          (quote) => {
-            if (
-              sameId(
-                quote.customer_id,
-                customer.id
-              )
-            ) {
-              return true;
-            }
+      allQuotes.filter(
+        (
+          quote
+        ) =>
+          recordMatchesCustomer({
+            record:
+              quote,
 
-            if (
-              lead?.id &&
-              sameId(
-                quote.lead_id,
-                lead.id
-              )
-            ) {
-              return true;
-            }
-
-            if (
-              customer.email &&
-              sameEmail(
-                quote.email,
-                customer.email
-              )
-            ) {
-              return true;
-            }
-
-            return false;
-          }
-        )
+            customer,
+          })
       );
 
     const quoteIds =
       new Set(
-        quotes
-          .map(
-            (quote) =>
+        quotes.map(
+          (
+            quote
+          ) =>
+            String(
               quote.id
-          )
-          .filter(Boolean)
-          .map(String)
+            )
+        )
       );
 
     // =====================================================
@@ -783,52 +921,30 @@ export async function GET(
     // =====================================================
 
     const proposals =
-      uniqueRecords(
-        allProposals.filter(
-          (proposal) => {
-            if (
-              sameId(
-                proposal.customer_id,
-                customer.id
-              )
-            ) {
-              return true;
-            }
+      allProposals.filter(
+        (
+          proposal
+        ) => {
+          if (
+            recordMatchesCustomer({
+              record:
+                proposal,
 
-            if (
-              proposal.quote_id &&
-              quoteIds.has(
-                String(
-                  proposal.quote_id
-                )
-              )
-            ) {
-              return true;
-            }
-
-            if (
-              lead?.id &&
-              sameId(
-                proposal.lead_id,
-                lead.id
-              )
-            ) {
-              return true;
-            }
-
-            if (
-              customer.email &&
-              sameEmail(
-                proposal.email,
-                customer.email
-              )
-            ) {
-              return true;
-            }
-
-            return false;
+              customer,
+            })
+          ) {
+            return true;
           }
-        )
+
+          return (
+            proposal.quote_id &&
+            quoteIds.has(
+              String(
+                proposal.quote_id
+              )
+            )
+          );
+        }
       );
 
     // =====================================================
@@ -836,158 +952,55 @@ export async function GET(
     // =====================================================
 
     const projects =
-      uniqueRecords(
-        allProjects.filter(
-          (project) => {
-            if (
-              sameId(
-                project.customer_id,
-                customer.id
-              )
-            ) {
-              return true;
-            }
+      allProjects.filter(
+        (
+          project
+        ) =>
+          recordMatchesCustomer({
+            record:
+              project,
 
-            if (
-              project.quote_id &&
-              quoteIds.has(
-                String(
-                  project.quote_id
-                )
-              )
-            ) {
-              return true;
-            }
-
-            return false;
-          }
-        )
+            customer,
+          })
       );
 
     const projectIds =
       new Set(
-        projects
-          .map(
-            (project) =>
+        projects.map(
+          (
+            project
+          ) =>
+            String(
               project.id
-          )
-          .filter(Boolean)
-          .map(String)
+            )
+        )
       );
 
     // =====================================================
     // TASKS
     // =====================================================
-    //
-    // IMPORTANT:
-    //
-    // A customer now receives tasks through ALL of these:
-    //
-    // 1. Customer → direct Task
-    // 2. Customer → Quote → Workflow Task
-    // 3. Customer → Project → Task
-    // 4. Customer → Project record-linked Task
-    //
-    // This is the relationship that was missing previously.
-    //
-    // =====================================================
 
-    const customerTasks =
-      uniqueRecords(
-        allTasks.filter(
-          (task) => {
-            // ---------------------------------------------
-            // DIRECT CUSTOMER TASK
-            // ---------------------------------------------
-
-            if (
-              recordTypeMatches(
-                task.record_type,
-                [
-                  "customer",
-                  "customers",
-                ]
-              ) &&
-              sameId(
-                task.record_id,
-                customer.id
-              )
-            ) {
-              return true;
-            }
-
-            // ---------------------------------------------
-            // QUOTE / WORKFLOW TASK
-            // ---------------------------------------------
-
-            if (
-              recordTypeMatches(
-                task.record_type,
-                [
-                  "quote",
-                  "quotes",
-                ]
-              ) &&
-              task.record_id &&
-              quoteIds.has(
-                String(
-                  task.record_id
-                )
-              )
-            ) {
-              return true;
-            }
-
-            // ---------------------------------------------
-            // PROJECT TASK
-            // ---------------------------------------------
-
-            if (
-              task.project_id &&
-              projectIds.has(
-                String(
-                  task.project_id
-                )
-              )
-            ) {
-              return true;
-            }
-
-            // ---------------------------------------------
-            // PROJECT RECORD TASK
-            // ---------------------------------------------
-
-            if (
-              recordTypeMatches(
-                task.record_type,
-                [
-                  "project",
-                  "projects",
-                ]
-              ) &&
-              task.record_id &&
-              projectIds.has(
-                String(
-                  task.record_id
-                )
-              )
-            ) {
-              return true;
-            }
-
-            return false;
-          }
-        )
+    const rawTasks =
+      allTasks.filter(
+        (
+          task
+        ) =>
+          taskMatchesCustomer({
+            task,
+            customer,
+            relatedProjectIds:
+              projectIds,
+            relatedQuoteIds:
+              quoteIds,
+          })
       );
 
     const tasks =
-      await enrichTasksWithEmployees({
+      await attachTaskEmployees({
         supabase,
-
         organizationId,
-
         tasks:
-          customerTasks,
+          rawTasks,
       });
 
     // =====================================================
@@ -995,53 +1008,41 @@ export async function GET(
     // =====================================================
 
     const invoices =
-      uniqueRecords(
-        allInvoices.filter(
-          (invoice) => {
-            if (
-              sameId(
-                invoice.customer_id,
-                customer.id
-              )
-            ) {
-              return true;
-            }
+      allInvoices.filter(
+        (
+          invoice
+        ) => {
+          if (
+            recordMatchesCustomer({
+              record:
+                invoice,
 
-            if (
-              invoice.project_id &&
-              projectIds.has(
-                String(
-                  invoice.project_id
-                )
-              )
-            ) {
-              return true;
-            }
-
-            if (
-              invoice.quote_id &&
-              quoteIds.has(
-                String(
-                  invoice.quote_id
-                )
-              )
-            ) {
-              return true;
-            }
-
-            if (
-              customer.email &&
-              sameEmail(
-                invoice.email,
-                customer.email
-              )
-            ) {
-              return true;
-            }
-
-            return false;
+              customer,
+            })
+          ) {
+            return true;
           }
-        )
+
+          if (
+            invoice.project_id &&
+            projectIds.has(
+              String(
+                invoice.project_id
+              )
+            )
+          ) {
+            return true;
+          }
+
+          return (
+            invoice.quote_id &&
+            quoteIds.has(
+              String(
+                invoice.quote_id
+              )
+            )
+          );
+        }
       );
 
     // =====================================================
@@ -1049,74 +1050,86 @@ export async function GET(
     // =====================================================
 
     const followUps =
-      uniqueRecords(
-        allFollowUps.filter(
-          (followUp) => {
-            const relatedType =
-              normalise(
-                followUp.related_type
-              );
-
-            const relatedId =
-              followUp.related_id;
-
-            if (
-              [
-                "customer",
-                "customers",
-              ].includes(
-                relatedType
-              ) &&
-              sameId(
-                relatedId,
-                customer.id
-              )
-            ) {
-              return true;
-            }
-
-            if (
-              [
-                "quote",
-                "quotes",
-              ].includes(
-                relatedType
-              ) &&
-              relatedId &&
-              quoteIds.has(
-                String(
-                  relatedId
-                )
-              )
-            ) {
-              return true;
-            }
-
-            if (
-              [
-                "project",
-                "projects",
-              ].includes(
-                relatedType
-              ) &&
-              relatedId &&
-              projectIds.has(
-                String(
-                  relatedId
-                )
-              )
-            ) {
-              return true;
-            }
-
-            return false;
+      allFollowUps.filter(
+        (
+          followUp
+        ) => {
+          if (
+            sameId(
+              followUp.customer_id,
+              customer.id
+            )
+          ) {
+            return true;
           }
-        )
+
+          const relatedType =
+            normalise(
+              followUp.related_type
+            );
+
+          const relatedId =
+            followUp.related_id;
+
+          if (
+            relatedType ===
+              "customer" &&
+            sameId(
+              relatedId,
+              customer.id
+            )
+          ) {
+            return true;
+          }
+
+          if (
+            relatedType ===
+              "project" &&
+            projectIds.has(
+              String(
+                relatedId ||
+                  ""
+              )
+            )
+          ) {
+            return true;
+          }
+
+          if (
+            relatedType ===
+              "quote" &&
+            quoteIds.has(
+              String(
+                relatedId ||
+                  ""
+              )
+            )
+          ) {
+            return true;
+          }
+
+          return false;
+        }
       );
 
     // =====================================================
     // FINANCIAL SUMMARY
     // =====================================================
+
+    const totalQuoted =
+      quotes.reduce(
+        (
+          total,
+          quote
+        ) =>
+          total +
+          parseMoney(
+            quote.amount ||
+              quote.value ||
+              quote.total
+          ),
+        0
+      );
 
     const totalInvoiced =
       invoices.reduce(
@@ -1125,20 +1138,24 @@ export async function GET(
           invoice
         ) =>
           total +
-          getMoneyValue(
-            invoice.total_amount ??
-              invoice.amount
+          parseMoney(
+            invoice.amount ||
+              invoice.total ||
+              invoice.total_amount
           ),
         0
       );
 
-    const totalPaid =
+    const paidAmount =
       invoices
         .filter(
-          (invoice) =>
-            isPaidStatus(
+          (
+            invoice
+          ) =>
+            normalise(
               invoice.status
-            )
+            ) ===
+            "paid"
         )
         .reduce(
           (
@@ -1146,55 +1163,26 @@ export async function GET(
             invoice
           ) =>
             total +
-            getMoneyValue(
-              invoice.total_amount ??
-                invoice.amount
+            parseMoney(
+              invoice.amount ||
+                invoice.total ||
+                invoice.total_amount
             ),
           0
         );
 
-    const outstanding =
-      invoices
-        .filter(
-          (invoice) =>
-            !isPaidStatus(
-              invoice.status
-            )
-        )
-        .reduce(
-          (
-            total,
-            invoice
-          ) =>
-            total +
-            getMoneyValue(
-              invoice.total_amount ??
-                invoice.amount
-            ),
-          0
-        );
+    const outstandingAmount =
+      Math.max(
+        0,
+        totalInvoiced -
+          paidAmount
+      );
 
     const financialSummary = {
+      totalQuoted,
       totalInvoiced,
-
-      totalPaid,
-
-      outstanding,
-
-      totalInvoicedFormatted:
-        formatCurrency(
-          totalInvoiced
-        ),
-
-      totalPaidFormatted:
-        formatCurrency(
-          totalPaid
-        ),
-
-      outstandingFormatted:
-        formatCurrency(
-          outstanding
-        ),
+      paidAmount,
+      outstandingAmount,
     };
 
     // =====================================================
@@ -1222,30 +1210,44 @@ export async function GET(
     };
 
     // =====================================================
-    // CUSTOMER INTELLIGENCE SUMMARY
+    // SUMMARY
     // =====================================================
 
     const summary =
-      buildCustomerSummary({
-        customer,
+      buildSummary({
+        customer:
+          formattedCustomer,
 
         quotes,
-
         projects,
-
         tasks,
-
         invoices,
-
         followUps,
       });
+
+    // =====================================================
+    // ASSIGNABLE EMPLOYEES
+    // =====================================================
+
+    let employees = [];
+
+    if (
+      permissions.canAssign
+    ) {
+      employees =
+        await loadAssignableEmployees({
+          supabase,
+          organizationId,
+        });
+    }
 
     // =====================================================
     // RESPONSE
     // =====================================================
 
     return NextResponse.json({
-      customer,
+      customer:
+        formattedCustomer,
 
       lead,
 
@@ -1266,6 +1268,17 @@ export async function GET(
       recordCounts,
 
       summary,
+
+      employees,
+
+      currentEmployee:
+        access.employee,
+
+      access:
+        buildClientAccess({
+          access,
+          permissions,
+        }),
     });
   } catch (error) {
     console.error(
@@ -1287,7 +1300,7 @@ export async function GET(
 }
 
 // =========================================================
-// UPDATE CUSTOMER
+// PATCH CUSTOMER
 // =========================================================
 
 export async function PATCH(
@@ -1295,7 +1308,9 @@ export async function PATCH(
   context
 ) {
   try {
-    const { id } =
+    const {
+      id,
+    } =
       await context.params;
 
     if (
@@ -1330,145 +1345,53 @@ export async function PATCH(
       );
     }
 
-    const body =
-      await request.json();
-
-    const customerName =
-      body.customer_name !==
-      undefined
-        ? String(
-            body.customer_name ||
-              ""
-          ).trim()
-        : undefined;
-
-    if (
-      customerName !==
-        undefined &&
-      !customerName
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "Customer name is required.",
-        },
-        {
-          status: 400,
-        }
+    const permissions =
+      getPermissions(
+        access
       );
-    }
+
+    const supabase =
+      createAdminSupabaseClient();
+
+    const organizationId =
+      access.employee
+        .organization_id;
 
     // =====================================================
-    // WHITELIST EDITABLE CUSTOMER FIELDS
-    // =====================================================
-
-    const updateValues = {};
-
-    if (
-      body.customer_name !==
-      undefined
-    ) {
-      updateValues.customer_name =
-        customerName;
-    }
-
-    if (
-      body.company !==
-      undefined
-    ) {
-      updateValues.company =
-        String(
-          body.company ||
-            ""
-        ).trim();
-    }
-
-    if (
-      body.email !==
-      undefined
-    ) {
-      updateValues.email =
-        String(
-          body.email ||
-            ""
-        ).trim();
-    }
-
-    if (
-      body.phone !==
-      undefined
-    ) {
-      updateValues.phone =
-        String(
-          body.phone ||
-            ""
-        ).trim();
-    }
-
-    if (
-      body.status !==
-      undefined
-    ) {
-      updateValues.status =
-        String(
-          body.status ||
-            "Active"
-        ).trim();
-    }
-
-    if (
-      Object.keys(
-        updateValues
-      ).length ===
-      0
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "No editable customer fields were provided.",
-        },
-        {
-          status: 400,
-        }
-      );
-    }
-
-    // =====================================================
-    // UPDATE WITH ORGANISATION SCOPE
+    // EXISTING CUSTOMER
     // =====================================================
 
     const {
       data:
-        updatedCustomer,
-      error,
+        existingCustomer,
+      error:
+        existingError,
     } =
-      await access.supabase
+      await supabase
         .from(
           "customers"
         )
-        .update(
-          updateValues
-        )
+        .select("*")
         .eq(
           "id",
           id
         )
         .eq(
           "organization_id",
-          access.employee
-            .organization_id
+          organizationId
         )
-        .select()
         .maybeSingle();
 
-    if (error) {
+    if (
+      existingError
+    ) {
       throw new Error(
-        error.message
+        existingError.message
       );
     }
 
     if (
-      !updatedCustomer
+      !existingCustomer
     ) {
       return NextResponse.json(
         {
@@ -1481,19 +1404,281 @@ export async function PATCH(
       );
     }
 
-    /*
-     * Important:
-     *
-     * Your current customer page expects the PATCH response
-     * itself to be the customer object, so we deliberately
-     * return updatedCustomer directly rather than:
-     *
-     * { customer: updatedCustomer }
-     */
+    const visible =
+      await canViewOwnedRecord({
+        supabase,
+        access,
+        permissions,
+        record:
+          existingCustomer,
+      });
 
-    return NextResponse.json(
-      updatedCustomer
-    );
+    if (
+      !visible
+    ) {
+      return forbidden(
+        "You do not have permission to update this customer."
+      );
+    }
+
+    const body =
+      await request.json();
+
+    const wantsOwnerChange =
+      Object.prototype.hasOwnProperty.call(
+        body,
+        "owner_employee_id"
+      );
+
+    const editableFields = [
+      "customer_name",
+      "company",
+      "email",
+      "phone",
+      "status",
+    ];
+
+    const wantsCustomerEdit =
+      editableFields.some(
+        (
+          field
+        ) =>
+          Object.prototype.hasOwnProperty.call(
+            body,
+            field
+          )
+      );
+
+    if (
+      wantsCustomerEdit &&
+      !permissions.canEdit
+    ) {
+      return forbidden(
+        "You do not have permission to edit customers."
+      );
+    }
+
+    if (
+      wantsOwnerChange &&
+      !permissions.canAssign
+    ) {
+      return forbidden(
+        "You do not have permission to assign customers."
+      );
+    }
+
+    if (
+      !wantsCustomerEdit &&
+      !wantsOwnerChange
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "No supported customer changes were provided.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
+    const updateValues = {};
+
+    // =====================================================
+    // NORMAL FIELDS
+    // =====================================================
+
+    if (
+      Object.prototype.hasOwnProperty.call(
+        body,
+        "customer_name"
+      )
+    ) {
+      const customerName =
+        cleanText(
+          body.customer_name
+        );
+
+      if (
+        !customerName
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Customer name is required.",
+          },
+          {
+            status: 400,
+          }
+        );
+      }
+
+      updateValues.customer_name =
+        customerName;
+    }
+
+    if (
+      Object.prototype.hasOwnProperty.call(
+        body,
+        "company"
+      )
+    ) {
+      updateValues.company =
+        cleanNullableText(
+          body.company
+        );
+    }
+
+    if (
+      Object.prototype.hasOwnProperty.call(
+        body,
+        "email"
+      )
+    ) {
+      updateValues.email =
+        cleanNullableText(
+          body.email
+        );
+    }
+
+    if (
+      Object.prototype.hasOwnProperty.call(
+        body,
+        "phone"
+      )
+    ) {
+      updateValues.phone =
+        cleanNullableText(
+          body.phone
+        );
+    }
+
+    if (
+      Object.prototype.hasOwnProperty.call(
+        body,
+        "status"
+      )
+    ) {
+      updateValues.status =
+        cleanText(
+          body.status
+        ) ||
+        "Active";
+    }
+
+    // =====================================================
+    // OWNER
+    // =====================================================
+
+    if (
+      wantsOwnerChange
+    ) {
+      const requestedOwnerId =
+        cleanText(
+          body.owner_employee_id
+        );
+
+      if (
+        !requestedOwnerId
+      ) {
+        updateValues.owner_employee_id =
+          null;
+      } else {
+        if (
+          !isUuid(
+            requestedOwnerId
+          )
+        ) {
+          return NextResponse.json(
+            {
+              error:
+                "The selected customer owner is not valid.",
+            },
+            {
+              status: 400,
+            }
+          );
+        }
+
+        const validOwner =
+          await validateRecordOwner({
+            supabase,
+            organizationId,
+
+            employeeId:
+              requestedOwnerId,
+          });
+
+        if (
+          !validOwner
+        ) {
+          return NextResponse.json(
+            {
+              error:
+                "The selected customer owner is not valid.",
+            },
+            {
+              status: 400,
+            }
+          );
+        }
+
+        updateValues.owner_employee_id =
+          requestedOwnerId;
+      }
+    }
+
+    // =====================================================
+    // UPDATE
+    // =====================================================
+
+    const {
+      data:
+        updatedCustomer,
+      error:
+        updateError,
+    } =
+      await supabase
+        .from(
+          "customers"
+        )
+        .update(
+          updateValues
+        )
+        .eq(
+          "id",
+          id
+        )
+        .eq(
+          "organization_id",
+          organizationId
+        )
+        .select()
+        .single();
+
+    if (
+      updateError
+    ) {
+      throw new Error(
+        updateError.message
+      );
+    }
+
+    const formattedCustomer =
+      await attachRecordOwner({
+        supabase,
+        organizationId,
+        record:
+          updatedCustomer,
+      });
+
+    return NextResponse.json({
+      customer:
+        formattedCustomer,
+
+      message:
+        "Customer updated successfully.",
+    });
   } catch (error) {
     console.error(
       "Customer PATCH error:",
@@ -1505,6 +1690,305 @@ export async function PATCH(
         error:
           error.message ||
           "Unable to update customer.",
+      },
+      {
+        status: 500,
+      }
+    );
+  }
+}
+
+// =========================================================
+// DELETE CUSTOMER
+// =========================================================
+
+export async function DELETE(
+  request,
+  context
+) {
+  try {
+    const {
+      id,
+    } =
+      await context.params;
+
+    if (
+      !isUuid(id)
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "A valid customer ID is required.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
+    const access =
+      await getServerAccess();
+
+    if (
+      !access.employee
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            access.error,
+        },
+        {
+          status:
+            access.status,
+        }
+      );
+    }
+
+    const permissions =
+      getPermissions(
+        access
+      );
+
+    if (
+      !permissions.canDelete
+    ) {
+      return forbidden(
+        "You do not have permission to delete customers."
+      );
+    }
+
+    const supabase =
+      createAdminSupabaseClient();
+
+    const organizationId =
+      access.employee
+        .organization_id;
+
+    const {
+      data:
+        customer,
+      error:
+        customerError,
+    } =
+      await supabase
+        .from(
+          "customers"
+        )
+        .select("*")
+        .eq(
+          "id",
+          id
+        )
+        .eq(
+          "organization_id",
+          organizationId
+        )
+        .maybeSingle();
+
+    if (
+      customerError
+    ) {
+      throw new Error(
+        customerError.message
+      );
+    }
+
+    if (
+      !customer
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Customer not found.",
+        },
+        {
+          status: 404,
+        }
+      );
+    }
+
+    const visible =
+      await canViewOwnedRecord({
+        supabase,
+        access,
+        permissions,
+        record:
+          customer,
+      });
+
+    if (
+      !visible
+    ) {
+      return forbidden(
+        "You do not have permission to delete this customer."
+      );
+    }
+
+    // =====================================================
+    // PROTECT CUSTOMER WITH RELATED BUSINESS RECORDS
+    // =====================================================
+
+    const [
+      quotesResult,
+      projectsResult,
+      invoicesResult,
+    ] =
+      await Promise.all([
+        supabase
+          .from("quotes")
+          .select(
+            "id",
+            {
+              count:
+                "exact",
+              head:
+                true,
+            }
+          )
+          .eq(
+            "organization_id",
+            organizationId
+          )
+          .eq(
+            "customer_id",
+            id
+          ),
+
+        supabase
+          .from("projects")
+          .select(
+            "id",
+            {
+              count:
+                "exact",
+              head:
+                true,
+            }
+          )
+          .eq(
+            "organization_id",
+            organizationId
+          )
+          .eq(
+            "customer_id",
+            id
+          ),
+
+        supabase
+          .from("invoices")
+          .select(
+            "id",
+            {
+              count:
+                "exact",
+              head:
+                true,
+            }
+          )
+          .eq(
+            "organization_id",
+            organizationId
+          )
+          .eq(
+            "customer_id",
+            id
+          ),
+      ]);
+
+    const relationError =
+      [
+        quotesResult,
+        projectsResult,
+        invoicesResult,
+      ].find(
+        (
+          result
+        ) =>
+          result.error
+      );
+
+    if (
+      relationError?.error
+    ) {
+      throw new Error(
+        relationError.error.message
+      );
+    }
+
+    const relatedCount =
+      Number(
+        quotesResult.count ||
+          0
+      ) +
+      Number(
+        projectsResult.count ||
+          0
+      ) +
+      Number(
+        invoicesResult.count ||
+          0
+      );
+
+    if (
+      relatedCount >
+      0
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "This customer cannot be deleted because quotes, projects or invoices are linked to the record. Set the customer to Inactive instead.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
+    // =====================================================
+    // DELETE
+    // =====================================================
+
+    const {
+      error:
+        deleteError,
+    } =
+      await supabase
+        .from(
+          "customers"
+        )
+        .delete()
+        .eq(
+          "id",
+          id
+        )
+        .eq(
+          "organization_id",
+          organizationId
+        );
+
+    if (
+      deleteError
+    ) {
+      throw new Error(
+        deleteError.message
+      );
+    }
+
+    return NextResponse.json({
+      message:
+        "Customer deleted successfully.",
+    });
+  } catch (error) {
+    console.error(
+      "Customer DELETE error:",
+      error
+    );
+
+    return NextResponse.json(
+      {
+        error:
+          error.message ||
+          "Unable to delete customer.",
       },
       {
         status: 500,
