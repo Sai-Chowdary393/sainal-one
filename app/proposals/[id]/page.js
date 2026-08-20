@@ -1,8 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import {
+  use,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import Link from "next/link";
-import { useParams } from "next/navigation";
+
+import {
+  useRouter,
+} from "next/navigation";
 
 import AppLayout from "../../../components/layout/AppLayout";
 import ProtectedRoute from "../../../components/ProtectedRoute";
@@ -11,187 +20,416 @@ import StatusBadge from "../../../components/StatusBadge";
 
 import styles from "./proposal-details.module.css";
 
-const STATUS_OPTIONS = [
+// =========================================================
+// CONSTANTS
+// =========================================================
+
+const STATUSES = [
   "Draft",
   "Sent",
   "Accepted",
   "Rejected",
 ];
 
-export default function ProposalDetailsPage() {
-  const params = useParams();
-  const proposalId = params?.id;
+// =========================================================
+// PAGE
+// =========================================================
 
-  const [proposal, setProposal] = useState(null);
-  const [draftProposal, setDraftProposal] =
-    useState(null);
+export default function ProposalDetailsPage({
+  params,
+}) {
+  const {
+    id,
+  } =
+    use(
+      params
+    );
 
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [editing, setEditing] = useState(false);
+  const router =
+    useRouter();
 
-  const [errorMessage, setErrorMessage] =
-    useState("");
+  const [
+    proposal,
+    setProposal,
+  ] = useState(null);
+
+  const [
+    draft,
+    setDraft,
+  ] = useState(null);
+
+  const [
+    employees,
+    setEmployees,
+  ] = useState([]);
+
+  const [
+    access,
+    setAccess,
+  ] = useState({
+    isOwner: false,
+    canEdit: false,
+    canDelete: false,
+    canAssign: false,
+    canSend: false,
+    permissions: [],
+  });
+
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
+
+  const [
+    saving,
+    setSaving,
+  ] = useState(false);
+
+  const [
+    deleting,
+    setDeleting,
+  ] = useState(false);
+
+  const [
+    editing,
+    setEditing,
+  ] = useState(false);
+
+  const [
+    error,
+    setError,
+  ] = useState("");
+
+  // =======================================================
+  // LOAD
+  // =======================================================
 
   useEffect(() => {
-    if (proposalId) {
-      fetchProposal();
+    if (
+      id
+    ) {
+      load();
     }
-  }, [proposalId]);
+  }, [
+    id,
+  ]);
 
-  async function fetchProposal() {
+  async function load() {
     try {
-      setLoading(true);
-      setErrorMessage("");
-
-      const response = await fetch(
-        `/api/proposals/${proposalId}`,
-        {
-          cache: "no-store",
-        }
+      setLoading(
+        true
       );
 
-      const data = await readJsonResponse(response);
+      setError(
+        ""
+      );
 
-      if (!response.ok) {
+      const response =
+        await fetch(
+          `/api/proposals/${id}`,
+          {
+            cache:
+              "no-store",
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (
+        !response.ok
+      ) {
         throw new Error(
           data.error ||
             "Failed to load proposal."
         );
       }
 
-      const selectedProposal = Array.isArray(data)
-        ? data[0]
-        : data;
+      setProposal(
+        data.proposal ||
+          null
+      );
 
-      setProposal(selectedProposal || null);
-      setDraftProposal(selectedProposal || null);
+      setDraft(
+        data.proposal ||
+          null
+      );
+
+      setEmployees(
+        Array.isArray(
+          data.employees
+        )
+          ? data.employees
+          : []
+      );
+
+      setAccess({
+        isOwner:
+          Boolean(
+            data.access
+              ?.isOwner
+          ),
+
+        canEdit:
+          Boolean(
+            data.access
+              ?.canEdit
+          ),
+
+        canDelete:
+          Boolean(
+            data.access
+              ?.canDelete
+          ),
+
+        canAssign:
+          Boolean(
+            data.access
+              ?.canAssign
+          ),
+
+        canSend:
+          Boolean(
+            data.access
+              ?.canSend
+          ),
+
+        permissions:
+          Array.isArray(
+            data.access
+              ?.permissions
+          )
+            ? data.access
+                .permissions
+            : [],
+      });
     } catch (error) {
       console.error(
         "Proposal loading error:",
         error
       );
 
-      setErrorMessage(
+      setProposal(
+        null
+      );
+
+      setDraft(
+        null
+      );
+
+      setError(
         error.message ||
-          "We could not load this proposal."
+          "Unable to load proposal."
       );
     } finally {
-      setLoading(false);
+      setLoading(
+        false
+      );
     }
   }
 
-  function handleFieldChange(event) {
-    const { name, value } = event.target;
+  // =======================================================
+  // EDIT
+  // =======================================================
 
-    setDraftProposal((currentProposal) => ({
-      ...currentProposal,
-      [name]: value,
-    }));
+  function change(
+    event
+  ) {
+    const {
+      name,
+      value,
+    } =
+      event.target;
+
+    setDraft(
+      (
+        current
+      ) => ({
+        ...current,
+
+        [name]:
+          value,
+      })
+    );
   }
 
-  function startEditing() {
-    setDraftProposal({
+  function startEdit() {
+    if (
+      !access.canEdit &&
+      !access.canAssign
+    ) {
+      return;
+    }
+
+    setDraft({
       ...proposal,
     });
 
-    setEditing(true);
+    setEditing(
+      true
+    );
   }
 
-  function cancelEditing() {
-    setDraftProposal({
+  function cancelEdit() {
+    setDraft({
       ...proposal,
     });
 
-    setEditing(false);
+    setEditing(
+      false
+    );
   }
 
-  async function saveProposal() {
-    if (!draftProposal) {
+  // =======================================================
+  // PATCH
+  // =======================================================
+
+  async function patch(
+    body
+  ) {
+    const response =
+      await fetch(
+        `/api/proposals/${id}`,
+        {
+          method:
+            "PATCH",
+
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+
+          body:
+            JSON.stringify(
+              body
+            ),
+        }
+      );
+
+    const data =
+      await response.json();
+
+    if (
+      !response.ok
+    ) {
+      throw new Error(
+        data.error ||
+          "Failed to update proposal."
+      );
+    }
+
+    return (
+      data.proposal ||
+      null
+    );
+  }
+
+  // =======================================================
+  // SAVE
+  // =======================================================
+
+  async function save() {
+    if (
+      !draft
+    ) {
       return;
     }
 
-    if (!draftProposal.title?.trim()) {
-      alert("Proposal title is required.");
-      return;
-    }
+    if (
+      access.canEdit &&
+      (
+        !draft.title?.trim() ||
+        !draft.client?.trim() ||
+        !draft.service?.trim() ||
+        !draft.proposal_text?.trim()
+      )
+    ) {
+      alert(
+        "Title, client, service and proposal content are required."
+      );
 
-    if (!draftProposal.client?.trim()) {
-      alert("Client name is required.");
-      return;
-    }
-
-    if (!draftProposal.service?.trim()) {
-      alert("Service is required.");
-      return;
-    }
-
-    if (!draftProposal.proposal_text?.trim()) {
-      alert("Proposal content is required.");
       return;
     }
 
     try {
-      setSaving(true);
-
-      const response = await fetch(
-        `/api/proposals/${proposalId}`,
-        {
-          method: "PATCH",
-
-          headers: {
-            "Content-Type": "application/json",
-          },
-
-          body: JSON.stringify({
-            title: draftProposal.title.trim(),
-
-            client: draftProposal.client.trim(),
-
-            contact: String(
-              draftProposal.contact || ""
-            ).trim(),
-
-            email: String(
-              draftProposal.email || ""
-            ).trim(),
-
-            service: draftProposal.service.trim(),
-
-            amount: String(
-              draftProposal.amount || ""
-            ).trim(),
-
-            status:
-              draftProposal.status || "Draft",
-
-            proposal_text:
-              draftProposal.proposal_text.trim(),
-          }),
-        }
+      setSaving(
+        true
       );
 
-      const data = await readJsonResponse(response);
+      const payload = {};
 
-      if (!response.ok) {
-        throw new Error(
-          data.error ||
-            "Failed to update proposal."
-        );
+      if (
+        access.canEdit
+      ) {
+        payload.title =
+          draft.title.trim();
+
+        payload.client =
+          draft.client.trim();
+
+        payload.contact =
+          String(
+            draft.contact ||
+              ""
+          ).trim();
+
+        payload.email =
+          String(
+            draft.email ||
+              ""
+          ).trim();
+
+        payload.service =
+          draft.service.trim();
+
+        payload.amount =
+          String(
+            draft.amount ||
+              ""
+          ).trim();
+
+        payload.status =
+          draft.status ||
+          "Draft";
+
+        payload.proposal_text =
+          draft.proposal_text.trim();
       }
 
-      const updatedProposal = Array.isArray(data)
-        ? data[0]
-        : data;
+      if (
+        access.canAssign
+      ) {
+        payload.owner_employee_id =
+          draft.owner_employee_id ||
+          "";
+      }
 
-      const finalProposal =
-        updatedProposal || draftProposal;
+      const updated =
+        await patch(
+          payload
+        );
 
-      setProposal(finalProposal);
-      setDraftProposal(finalProposal);
-      setEditing(false);
+      if (
+        updated
+      ) {
+        setProposal(
+          updated
+        );
 
-      alert("Proposal updated successfully.");
+        setDraft(
+          updated
+        );
+      } else {
+        await load();
+      }
+
+      setEditing(
+        false
+      );
+
+      alert(
+        "Proposal updated successfully."
+      );
     } catch (error) {
       console.error(
         "Proposal update error:",
@@ -203,53 +441,47 @@ export default function ProposalDetailsPage() {
           "Error updating proposal."
       );
     } finally {
-      setSaving(false);
+      setSaving(
+        false
+      );
     }
   }
 
-  async function updateStatus(status) {
+  // =======================================================
+  // STATUS
+  // =======================================================
+
+  async function changeStatus(
+    nextStatus
+  ) {
+    if (
+      !access.canEdit
+    ) {
+      return;
+    }
+
     try {
-      setSaving(true);
-
-      const response = await fetch(
-        `/api/proposals/${proposalId}`,
-        {
-          method: "PATCH",
-
-          headers: {
-            "Content-Type": "application/json",
-          },
-
-          body: JSON.stringify({
-            status,
-          }),
-        }
+      setSaving(
+        true
       );
 
-      const data = await readJsonResponse(response);
+      const updated =
+        await patch({
+          status:
+            nextStatus,
+        });
 
-      if (!response.ok) {
-        throw new Error(
-          data.error ||
-            "Failed to update proposal status."
+      if (
+        updated
+      ) {
+        setProposal(
+          updated
+        );
+
+        setDraft(
+          updated
         );
       }
-
-      const updatedProposal = Array.isArray(data)
-        ? data[0]
-        : data;
-
-      setProposal((currentProposal) => ({
-        ...currentProposal,
-        ...(updatedProposal || {}),
-        status,
-      }));
-
-      setDraftProposal((currentProposal) => ({
-        ...currentProposal,
-        ...(updatedProposal || {}),
-        status,
-      }));
     } catch (error) {
       console.error(
         "Proposal status update error:",
@@ -258,71 +490,167 @@ export default function ProposalDetailsPage() {
 
       alert(
         error.message ||
-          "Error updating proposal status."
+          "Unable to update proposal status."
       );
     } finally {
-      setSaving(false);
+      setSaving(
+        false
+      );
     }
   }
 
-  async function copyProposal() {
-    const proposalContent =
-      proposal?.proposal_text || "";
+  // =======================================================
+  // DELETE
+  // =======================================================
 
-    if (!proposalContent) {
-      alert("No proposal content is available.");
+  async function deleteProposal() {
+    if (
+      !access.canDelete ||
+      !proposal
+    ) {
+      return;
+    }
+
+    const confirmed =
+      window.confirm(
+        `Delete ${
+          proposal.proposal_number ||
+          proposal.title ||
+          "this proposal"
+        }? This action cannot be undone.`
+      );
+
+    if (
+      !confirmed
+    ) {
       return;
     }
 
     try {
-      await navigator.clipboard.writeText(
-        proposalContent
+      setDeleting(
+        true
       );
 
-      alert("Proposal copied successfully.");
+      const response =
+        await fetch(
+          `/api/proposals/${id}`,
+          {
+            method:
+              "DELETE",
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (
+        !response.ok
+      ) {
+        throw new Error(
+          data.error ||
+            "Failed to delete proposal."
+        );
+      }
+
+      alert(
+        data.message ||
+          "Proposal deleted successfully."
+      );
+
+      router.push(
+        "/proposals"
+      );
+
+      router.refresh();
     } catch (error) {
       console.error(
-        "Proposal copy error:",
+        "Proposal deletion error:",
         error
       );
 
-      alert("Unable to copy the proposal.");
+      alert(
+        error.message ||
+          "Unable to delete proposal."
+      );
+    } finally {
+      setDeleting(
+        false
+      );
     }
   }
 
-  if (loading) {
+  // =======================================================
+  // COPY
+  // =======================================================
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(
+        proposal?.proposal_text ||
+          ""
+      );
+
+      alert(
+        "Proposal copied successfully."
+      );
+    } catch {
+      alert(
+        "Unable to copy proposal."
+      );
+    }
+  }
+
+  // =======================================================
+  // STATES
+  // =======================================================
+
+  if (
+    loading
+  ) {
     return (
       <ProtectedRoute>
         <AppLayout
           title="Proposal Studio"
           description="Loading proposal information."
         >
-          <LoadingState />
+          <Loading />
         </AppLayout>
       </ProtectedRoute>
     );
   }
 
-  if (errorMessage) {
+  if (
+    error
+  ) {
     return (
       <ProtectedRoute>
         <AppLayout
           title="Proposal Studio"
           description="Review and manage a customer proposal."
         >
-          <section className={styles.errorPanel}>
+          <section
+            className={
+              styles.error
+            }
+          >
             <div>
               <strong>
                 Unable to load proposal
               </strong>
 
-              <p>{errorMessage}</p>
+              <p>
+                {error}
+              </p>
             </div>
 
             <button
               type="button"
-              className={styles.secondaryButton}
-              onClick={fetchProposal}
+              className={
+                styles.secondary
+              }
+              onClick={
+                load
+              }
             >
               Try again
             </button>
@@ -332,28 +660,40 @@ export default function ProposalDetailsPage() {
     );
   }
 
-  if (!proposal || !draftProposal) {
+  if (
+    !proposal ||
+    !draft
+  ) {
     return (
       <ProtectedRoute>
         <AppLayout
           title="Proposal Studio"
           description="Review and manage a customer proposal."
         >
-          <section className={styles.notFound}>
-            <span className={styles.notFoundIcon}>
+          <section
+            className={
+              styles.notFound
+            }
+          >
+            <b>
               ▤
-            </span>
+            </b>
 
-            <h2>Proposal not found</h2>
+            <h2>
+              Proposal not found
+            </h2>
 
             <p>
-              This proposal may have been deleted
-              or you may not have access to it.
+              This proposal may have been
+              deleted or you may not have
+              access to it.
             </p>
 
             <Link
+              className={
+                styles.primary
+              }
               href="/proposals"
-              className={styles.primaryButton}
             >
               Return to proposals
             </Link>
@@ -363,477 +703,706 @@ export default function ProposalDetailsPage() {
     );
   }
 
-  const visibleProposal = editing
-    ? draftProposal
-    : proposal;
+  // =======================================================
+  // DERIVED
+  // =======================================================
 
-  /*
-   * These are normal calculations rather than hooks.
-   * This prevents the React hook-order crash.
-   */
-  const sections = parseProposalSections(
-    visibleProposal.proposal_text || ""
-  );
+  const visible =
+    editing
+      ? draft
+      : proposal;
+
+  const sections =
+    parseSections(
+      visible.proposal_text ||
+        ""
+    );
 
   const recommendations =
     buildRecommendations(
-      visibleProposal,
+      proposal,
       sections
     );
+
+  const canSend =
+    Boolean(
+      access.isOwner ||
+      access.canSend
+    );
+
+  // =======================================================
+  // PAGE
+  // =======================================================
 
   return (
     <ProtectedRoute>
       <AppLayout
         title={
-          visibleProposal.title ||
+          visible.title ||
           "Proposal Studio"
         }
-        description="Proposal document, client information, pricing and approval workflow."
+        description="Proposal document, customer information, pricing and response tracking."
       >
-        <div className={styles.page}>
+        <div
+          className={
+            styles.page
+          }
+        >
+          {/* ===============================================
+              HEADER
+          =============================================== */}
+
           <section
-            className={`${styles.pageHeader} ${styles.noPrint}`}
+            className={
+              styles.header
+            }
           >
-            <div className={styles.headerCopy}>
+            <div>
               <Link
                 href="/proposals"
-                className={styles.backLink}
+                className={
+                  styles.back
+                }
               >
                 ← Back to proposals
               </Link>
 
-              <span className={styles.eyebrow}>
-                Proposal Studio
+              <span
+                className={
+                  styles.eyebrow
+                }
+              >
+                Proposal workspace
               </span>
 
               <h2>
-                {visibleProposal.title ||
-                  "Untitled proposal"}
+                {visible.title ||
+                  "Proposal"}
               </h2>
 
               <p>
-                {proposal.proposal_number ||
-                  "Proposal"}
+                {visible.proposal_number ||
+                  "Proposal record"}
               </p>
             </div>
 
-            <div className={styles.headerActions}>
-              <SendRecordEmail
-                endpoint={`/api/proposals/${proposal.id}/send`}
-                defaultEmail={proposal.email || ""}
-                defaultSubject={`${proposal.title || "Proposal"} – ${
-                  proposal.proposal_number ||
-                  "SaiNal One"
-                }`}
-                recordLabel="proposal"
-                onSent={(data) => {
-                  if (data?.proposal) {
-                    setProposal(data.proposal);
-                    setDraftProposal(
-                      data.proposal
-                    );
-                  }
-                }}
-              />
+            <div
+              className={
+                styles.actions
+              }
+            >
+              {!editing &&
+                canSend && (
+                  <SendRecordEmail
+                    endpoint={`/api/proposals/${proposal.id}/send`}
+                    defaultEmail={
+                      proposal.email ||
+                      ""
+                    }
+                    defaultSubject={`${proposal.title || "Proposal"} – ${
+                      proposal.proposal_number ||
+                      ""
+                    }`}
+                    recordLabel="proposal"
+                    onSent={(
+                      data
+                    ) => {
+                      if (
+                        data.proposal
+                      ) {
+                        setProposal(
+                          data.proposal
+                        );
 
-              {!editing ? (
-                <button
-                  type="button"
-                  className={styles.secondaryButton}
-                  onClick={startEditing}
-                >
-                  Edit proposal
-                </button>
-              ) : (
+                        setDraft(
+                          data.proposal
+                        );
+                      } else {
+                        load();
+                      }
+                    }}
+                  />
+                )}
+
+              {!editing &&
+                (
+                  access.canEdit ||
+                  access.canAssign
+                ) && (
+                  <button
+                    type="button"
+                    className={
+                      styles.secondary
+                    }
+                    onClick={
+                      startEdit
+                    }
+                  >
+                    Edit proposal
+                  </button>
+                )}
+
+              {editing && (
                 <>
                   <button
                     type="button"
-                    className={styles.secondaryButton}
-                    disabled={saving}
-                    onClick={cancelEditing}
-                  >
-                    Cancel
-                  </button>
-
-                  <button
-                    type="button"
-                    className={styles.primaryButton}
-                    disabled={saving}
-                    onClick={saveProposal}
+                    className={
+                      styles.primary
+                    }
+                    onClick={
+                      save
+                    }
+                    disabled={
+                      saving
+                    }
                   >
                     {saving
                       ? "Saving..."
                       : "Save changes"}
                   </button>
+
+                  <button
+                    type="button"
+                    className={
+                      styles.secondary
+                    }
+                    onClick={
+                      cancelEdit
+                    }
+                    disabled={
+                      saving
+                    }
+                  >
+                    Cancel
+                  </button>
                 </>
               )}
 
-              <button
-                type="button"
-                className={styles.secondaryButton}
-                onClick={copyProposal}
-              >
-                Copy proposal
-              </button>
-
-              <button
-                type="button"
-                className={styles.primaryButton}
-                onClick={() => window.print()}
-              >
-                Print / Save PDF
-              </button>
+              {!editing &&
+                access.canDelete && (
+                  <button
+                    type="button"
+                    className={
+                      styles.secondary
+                    }
+                    onClick={
+                      deleteProposal
+                    }
+                    disabled={
+                      deleting
+                    }
+                  >
+                    {deleting
+                      ? "Deleting..."
+                      : "Delete"}
+                  </button>
+                )}
             </div>
           </section>
 
-          <section className={styles.heroCard}>
-            <div className={styles.proposalIdentity}>
-              <span className={styles.proposalIcon}>
+          {/* ===============================================
+              HERO
+          =============================================== */}
+
+          <section
+            className={
+              styles.hero
+            }
+          >
+            <div
+              className={
+                styles.identity
+              }
+            >
+              <span>
                 ▤
               </span>
 
-              <div className={styles.identityCopy}>
-                <span className={styles.heroLabel}>
-                  Customer proposal
-                </span>
+              <div>
+                <small>
+                  Proposal
+                </small>
 
                 <h3>
-                  {visibleProposal.client ||
-                    "Unnamed client"}
+                  {visible.proposal_number ||
+                    "Proposal"}
                 </h3>
 
                 <p>
-                  {visibleProposal.service ||
-                    "Professional services"}
+                  {visible.client ||
+                    "No client"}
                 </p>
 
-                <div className={styles.identityMeta}>
+                <div
+                  className={
+                    styles.meta
+                  }
+                >
                   <StatusBadge
                     status={
-                      visibleProposal.status ||
+                      visible.status ||
                       "Draft"
                     }
                   />
 
-                  <span className={styles.metaBadge}>
-                    Created{" "}
+                  <b>
+                    Owner:{" "}
+                    {proposal.owner
+                      ?.full_name ||
+                      "Unassigned"}
+                  </b>
+
+                  <b>
                     {formatDate(
                       proposal.created_at
                     )}
-                  </span>
-
-                  <span className={styles.metaBadge}>
-                    {proposal.proposal_number ||
-                      "No proposal number"}
-                  </span>
+                  </b>
                 </div>
               </div>
             </div>
 
-            <div className={styles.amountCard}>
-              <span>Proposal value</span>
+            <div
+              className={
+                styles.value
+              }
+            >
+              <span>
+                Proposal value
+              </span>
 
               <strong>
-                {formatProposalAmount(
-                  visibleProposal.amount
+                {formatAmount(
+                  visible.amount
                 )}
               </strong>
 
               <small>
-                {visibleProposal.status || "Draft"}
+                {
+                  visible.status ||
+                  "Draft"
+                }
               </small>
             </div>
           </section>
 
-          <section className={styles.workspaceGrid}>
-            <section className={styles.panel}>
-              <div className={styles.panelHeader}>
-                <div>
-                  <h3>Proposal information</h3>
+          {/* ===============================================
+              EDITOR
+          =============================================== */}
 
-                  <p>
-                    Client, service, pricing and
-                    status
-                  </p>
-                </div>
+          {editing && (
+            <section
+              className={
+                styles.editor
+              }
+            >
+              <div
+                className={
+                  styles.panelHead
+                }
+              >
+                <h3>
+                  Edit proposal
+                </h3>
+
+                <p>
+                  Update document details,
+                  status and ownership.
+                </p>
               </div>
 
-              {editing ? (
-                <div className={styles.formGrid}>
-                  <Field
-                    label="Proposal title"
-                    name="title"
-                    value={draftProposal.title}
-                    onChange={handleFieldChange}
-                    full
-                  />
-
-                  <Field
-                    label="Client"
-                    name="client"
-                    value={draftProposal.client}
-                    onChange={handleFieldChange}
-                  />
-
-                  <Field
-                    label="Contact"
-                    name="contact"
-                    value={draftProposal.contact}
-                    onChange={handleFieldChange}
-                  />
-
-                  <Field
-                    label="Email"
-                    name="email"
-                    type="email"
-                    value={draftProposal.email}
-                    onChange={handleFieldChange}
-                  />
-
-                  <Field
-                    label="Service"
-                    name="service"
-                    value={draftProposal.service}
-                    onChange={handleFieldChange}
-                  />
-
-                  <Field
-                    label="Amount"
-                    name="amount"
-                    value={draftProposal.amount}
-                    onChange={handleFieldChange}
-                  />
-
-                  <div className={styles.field}>
-                    <label htmlFor="proposal-status">
-                      Status
-                    </label>
-
-                    <select
-                      id="proposal-status"
-                      name="status"
-                      value={
-                        draftProposal.status ||
-                        "Draft"
-                      }
-                      disabled={saving}
-                      onChange={handleFieldChange}
-                    >
-                      {STATUS_OPTIONS.map(
-                        (status) => (
-                          <option
-                            key={status}
-                            value={status}
-                          >
-                            {status}
-                          </option>
-                        )
-                      )}
-                    </select>
-                  </div>
-                </div>
-              ) : (
-                <div className={styles.detailList}>
-                  <DetailRow
-                    label="Proposal title"
-                    value={proposal.title}
-                  />
-
-                  <DetailRow
-                    label="Client"
-                    value={proposal.client}
-                  />
-
-                  <DetailRow
-                    label="Contact"
-                    value={proposal.contact}
-                  />
-
-                  <DetailRow
-                    label="Email"
-                    value={proposal.email}
-                    href={
-                      proposal.email
-                        ? `mailto:${proposal.email}`
-                        : null
-                    }
-                  />
-
-                  <DetailRow
-                    label="Service"
-                    value={proposal.service}
-                  />
-
-                  <DetailRow
-                    label="Amount"
-                    value={formatProposalAmount(
-                      proposal.amount
-                    )}
-                  />
-
-                  <DetailRow
-                    label="Status"
-                    customValue={
-                      <select
-                        className={
-                          styles.inlineStatusSelect
-                        }
+              <div
+                className={
+                  styles.grid
+                }
+              >
+                <div
+                  className={
+                    styles.panel
+                  }
+                >
+                  {access.canEdit && (
+                    <>
+                      <EditField
+                        label="Title"
+                        name="title"
                         value={
-                          proposal.status || "Draft"
+                          visible.title
                         }
-                        disabled={saving}
-                        onChange={(event) =>
-                          updateStatus(
-                            event.target.value
-                          )
+                        onChange={
+                          change
+                        }
+                      />
+
+                      <EditField
+                        label="Client"
+                        name="client"
+                        value={
+                          visible.client
+                        }
+                        onChange={
+                          change
+                        }
+                      />
+
+                      <EditField
+                        label="Contact"
+                        name="contact"
+                        value={
+                          visible.contact
+                        }
+                        onChange={
+                          change
+                        }
+                      />
+
+                      <EditField
+                        label="Email"
+                        name="email"
+                        type="email"
+                        value={
+                          visible.email
+                        }
+                        onChange={
+                          change
+                        }
+                      />
+
+                      <EditField
+                        label="Service"
+                        name="service"
+                        value={
+                          visible.service
+                        }
+                        onChange={
+                          change
+                        }
+                      />
+
+                      <EditField
+                        label="Amount"
+                        name="amount"
+                        value={
+                          visible.amount
+                        }
+                        onChange={
+                          change
+                        }
+                      />
+
+                      <label
+                        className={
+                          styles.field
                         }
                       >
-                        {STATUS_OPTIONS.map(
-                          (status) => (
+                        Status
+
+                        <select
+                          name="status"
+                          value={
+                            visible.status ||
+                            "Draft"
+                          }
+                          onChange={
+                            change
+                          }
+                        >
+                          {STATUSES.map(
+                            (
+                              item
+                            ) => (
+                              <option
+                                key={
+                                  item
+                                }
+                                value={
+                                  item
+                                }
+                              >
+                                {
+                                  item
+                                }
+                              </option>
+                            )
+                          )}
+                        </select>
+                      </label>
+                    </>
+                  )}
+
+                  {access.canAssign && (
+                    <label
+                      className={
+                        styles.field
+                      }
+                    >
+                      Proposal owner
+
+                      <select
+                        name="owner_employee_id"
+                        value={
+                          visible.owner_employee_id ||
+                          ""
+                        }
+                        onChange={
+                          change
+                        }
+                      >
+                        <option value="">
+                          Unassigned
+                        </option>
+
+                        {employees.map(
+                          (
+                            employee
+                          ) => (
                             <option
-                              key={status}
-                              value={status}
+                              key={
+                                employee.id
+                              }
+                              value={
+                                employee.id
+                              }
                             >
-                              {status}
+                              {
+                                employee.full_name
+                              }
                             </option>
                           )
                         )}
                       </select>
+                    </label>
+                  )}
+                </div>
+
+                {access.canEdit && (
+                  <div
+                    className={
+                      styles.panel
                     }
-                  />
-
-                  <DetailRow
-                    label="Created"
-                    value={formatDate(
-                      proposal.created_at
-                    )}
-                  />
-                </div>
-              )}
-            </section>
-
-            <section className={styles.aiPanel}>
-              <div className={styles.aiHeader}>
-                <span className={styles.aiIcon}>
-                  ✦
-                </span>
-
-                <div>
-                  <span>
-                    Proposal intelligence
-                  </span>
-
-                  <h3>Quality overview</h3>
-                </div>
-              </div>
-
-              <div className={styles.qualityGrid}>
-                <QualityMetric
-                  label="Structure"
-                  value={
-                    sections.length >= 5
-                      ? "Strong"
-                      : "Needs work"
-                  }
-                />
-
-                <QualityMetric
-                  label="Commercials"
-                  value={
-                    visibleProposal.amount
-                      ? "Included"
-                      : "Missing"
-                  }
-                />
-
-                <QualityMetric
-                  label="Client"
-                  value={
-                    visibleProposal.client
-                      ? "Defined"
-                      : "Missing"
-                  }
-                />
-
-                <QualityMetric
-                  label="Status"
-                  value={
-                    visibleProposal.status ||
-                    "Draft"
-                  }
-                />
-              </div>
-
-              <div
-                className={styles.aiRecommendations}
-              >
-                <span>
-                  Recommended improvements
-                </span>
-
-                {recommendations.map(
-                  (recommendation, index) => (
-                    <div
-                      key={`${recommendation}-${index}`}
+                  >
+                    <label
                       className={
-                        styles.recommendationItem
+                        styles.field
                       }
                     >
-                      <span>→</span>
+                      Proposal content
 
-                      <p>{recommendation}</p>
-                    </div>
-                  )
+                      <textarea
+                        name="proposal_text"
+                        rows={26}
+                        value={
+                          visible.proposal_text ||
+                          ""
+                        }
+                        onChange={
+                          change
+                        }
+                      />
+                    </label>
+                  </div>
                 )}
               </div>
             </section>
-          </section>
+          )}
 
-          {editing ? (
-            <section className={styles.editorPanel}>
-              <div className={styles.panelHeader}>
-                <div>
-                  <h3>Proposal content</h3>
+          {/* ===============================================
+              NORMAL CONTENT
+          =============================================== */}
 
-                  <p>
-                    Edit the complete
-                    customer-facing document
-                  </p>
-                </div>
-              </div>
-
-              <textarea
-                name="proposal_text"
-                className={styles.proposalEditor}
-                rows={34}
-                value={
-                  draftProposal.proposal_text ||
-                  ""
+          {!editing && (
+            <div
+              className={
+                styles.grid
+              }
+            >
+              <section
+                className={
+                  styles.panel
                 }
-                disabled={saving}
-                onChange={handleFieldChange}
-              />
-            </section>
-          ) : (
-            <section className={styles.documentPanel}>
+              >
+                <div
+                  className={
+                    styles.panelHead
+                  }
+                >
+                  <h3>
+                    Proposal information
+                  </h3>
+                </div>
+
+                <Detail
+                  label="Client"
+                  value={
+                    proposal.client
+                  }
+                />
+
+                <Detail
+                  label="Contact"
+                  value={
+                    proposal.contact
+                  }
+                />
+
+                <Detail
+                  label="Email"
+                  value={
+                    proposal.email
+                  }
+                />
+
+                <Detail
+                  label="Service"
+                  value={
+                    proposal.service
+                  }
+                />
+
+                <Detail
+                  label="Value"
+                  value={
+                    formatAmount(
+                      proposal.amount
+                    )
+                  }
+                />
+
+                <Detail
+                  label="Owner"
+                  value={
+                    proposal.owner
+                      ?.full_name ||
+                    "Unassigned"
+                  }
+                />
+
+                <Detail
+                  label="Created"
+                  value={
+                    formatDate(
+                      proposal.created_at
+                    )
+                  }
+                />
+
+                {access.canEdit && (
+                  <div
+                    className={
+                      styles.actions
+                    }
+                  >
+                    {STATUSES.filter(
+                      (
+                        item
+                      ) =>
+                        item !==
+                        proposal.status
+                    ).map(
+                      (
+                        item
+                      ) => (
+                        <button
+                          key={
+                            item
+                          }
+                          type="button"
+                          className={
+                            styles.secondary
+                          }
+                          disabled={
+                            saving
+                          }
+                          onClick={() =>
+                            changeStatus(
+                              item
+                            )
+                          }
+                        >
+                          Mark{" "}
+                          {
+                            item
+                          }
+                        </button>
+                      )
+                    )}
+                  </div>
+                )}
+              </section>
+
+              <section
+                className={
+                  styles.ai
+                }
+              >
+                <div
+                  className={
+                    styles.panelHead
+                  }
+                >
+                  <h3>
+                    Proposal review
+                  </h3>
+                </div>
+
+                {recommendations.map(
+                  (
+                    recommendation,
+                    index
+                  ) => (
+                    <p
+                      key={
+                        index
+                      }
+                    >
+                      ✦{" "}
+                      {
+                        recommendation
+                      }
+                    </p>
+                  )
+                )}
+              </section>
+            </div>
+          )}
+
+          {/* ===============================================
+              DOCUMENT
+          =============================================== */}
+
+          {!editing && (
+            <section
+              className={
+                styles.documentCard
+              }
+            >
               <div
-                className={`${styles.documentToolbar} ${styles.noPrint}`}
+                className={
+                  styles.documentToolbar
+                }
               >
                 <div>
-                  <span className={styles.eyebrow}>
+                  <span
+                    className={
+                      styles.eyebrow
+                    }
+                  >
                     Customer document
                   </span>
 
-                  <h3>Full proposal</h3>
+                  <h3>
+                    Proposal preview
+                  </h3>
                 </div>
 
                 <div>
                   <button
                     type="button"
                     className={
-                      styles.secondaryButton
+                      styles.secondary
                     }
-                    onClick={copyProposal}
+                    onClick={
+                      copy
+                    }
                   >
                     Copy
                   </button>
@@ -841,145 +1410,172 @@ export default function ProposalDetailsPage() {
                   <button
                     type="button"
                     className={
-                      styles.primaryButton
+                      styles.primary
                     }
                     onClick={() =>
                       window.print()
                     }
                   >
-                    Export PDF
+                    Print / PDF
                   </button>
                 </div>
               </div>
 
               <article
-                className={styles.proposalDocument}
+                className={
+                  styles.document
+                }
               >
-                <header className={styles.documentHeader}>
+                <header>
                   <div>
-                    <span
-                      className={
-                        styles.documentBrandMark
-                      }
-                    >
+                    <b>
                       SN
-                    </span>
+                    </b>
 
-                    <div>
+                    <span>
                       <strong>
                         SaiNal Technologies Ltd
                       </strong>
 
-                      <p>
-                        Business technology
-                        solutions
-                      </p>
-                    </div>
+                      <small>
+                        Business solutions
+                      </small>
+                    </span>
                   </div>
 
-                  <div className={styles.documentTitle}>
-                    <span>PROPOSAL</span>
+                  <div>
+                    <h2>
+                      PROPOSAL
+                    </h2>
 
-                    <strong>
-                      {proposal.proposal_number ||
-                        "Proposal"}
-                    </strong>
+                    <small>
+                      {
+                        proposal.proposal_number
+                      }
+                    </small>
                   </div>
                 </header>
 
-                <section className={styles.documentMeta}>
+                <section
+                  className={
+                    styles.docMeta
+                  }
+                >
                   <div>
-                    <span>Prepared for</span>
+                    <small>
+                      Prepared for
+                    </small>
 
                     <strong>
-                      {proposal.client || "Client"}
+                      {
+                        proposal.client
+                      }
                     </strong>
 
-                    <p>{proposal.contact || ""}</p>
-                    <p>{proposal.email || ""}</p>
+                    <p>
+                      {proposal.contact ||
+                        ""}
+                    </p>
+
+                    <p>
+                      {proposal.email ||
+                        ""}
+                    </p>
                   </div>
 
                   <div>
-                    <span>Proposal date</span>
+                    <small>
+                      Date
+                    </small>
 
                     <strong>
                       {formatDate(
                         proposal.created_at
                       )}
                     </strong>
-
-                    <span>Status</span>
-
-                    <strong>
-                      {proposal.status || "Draft"}
-                    </strong>
                   </div>
                 </section>
 
                 <section
-                  className={styles.documentSummary}
+                  className={
+                    styles.summary
+                  }
                 >
                   <div>
-                    <span>Proposal title</span>
+                    <small>
+                      Service
+                    </small>
 
                     <strong>
-                      {proposal.title ||
-                        "Proposal"}
+                      {proposal.service ||
+                        "Not specified"}
                     </strong>
                   </div>
 
                   <div>
-                    <span>Value</span>
+                    <small>
+                      Proposal value
+                    </small>
 
                     <strong>
-                      {formatProposalAmount(
+                      {formatAmount(
                         proposal.amount
                       )}
                     </strong>
                   </div>
                 </section>
 
-                <div
-                  className={styles.documentSections}
+                <section
+                  className={
+                    styles.sections
+                  }
                 >
-                  {sections.length > 0 ? (
+                  {sections.length >
+                  0 ? (
                     sections.map(
-                      (section, index) => (
+                      (
+                        section,
+                        index
+                      ) => (
                         <section
-                          key={`${section.title}-${index}`}
-                          className={
-                            styles.documentSection
+                          key={
+                            index
                           }
                         >
                           {section.title && (
                             <h3>
-                              {section.title}
+                              {
+                                section.title
+                              }
                             </h3>
                           )}
 
-                          <p>{section.content}</p>
+                          <p>
+                            {
+                              section.content
+                            }
+                          </p>
                         </section>
                       )
                     )
                   ) : (
-                    <pre
-                      className={
-                        styles.proposalPreview
+                    <p>
+                      {
+                        proposal.proposal_text
                       }
-                    >
-                      {proposal.proposal_text ||
-                        "No proposal content is available."}
-                    </pre>
+                    </p>
                   )}
-                </div>
+                </section>
 
-                <footer
-                  className={styles.documentFooter}
-                >
-                  <p>SaiNal Technologies Ltd</p>
+                <footer>
+                  <p>
+                    SaiNal Technologies Ltd
+                  </p>
 
                   <p>
-                    www.sainaltechnologies.com
+                    {
+                      proposal.proposal_number
+                    }
                   </p>
                 </footer>
               </article>
@@ -991,138 +1587,175 @@ export default function ProposalDetailsPage() {
   );
 }
 
-function Field({
+// =========================================================
+// EDIT FIELD
+// =========================================================
+
+function EditField({
   label,
   name,
   value,
   onChange,
   type = "text",
-  full = false,
 }) {
   return (
-    <div
-      className={`${styles.field} ${
-        full ? styles.fieldFull : ""
-      }`}
+    <label
+      className={
+        styles.field
+      }
     >
-      <label htmlFor={`proposal-${name}`}>
-        {label}
-      </label>
+      {label}
 
       <input
-        id={`proposal-${name}`}
-        name={name}
-        type={type}
-        value={value || ""}
-        onChange={onChange}
+        name={
+          name
+        }
+        type={
+          type
+        }
+        value={
+          value ||
+          ""
+        }
+        onChange={
+          onChange
+        }
       />
-    </div>
+    </label>
   );
 }
 
-function DetailRow({
-  label,
-  value,
-  href,
-  customValue,
-}) {
-  return (
-    <div className={styles.detailRow}>
-      <span>{label}</span>
+// =========================================================
+// DETAIL
+// =========================================================
 
-      {customValue ? (
-        customValue
-      ) : href && value ? (
-        <a href={href}>{value}</a>
-      ) : (
-        <strong
-          className={
-            value ? "" : styles.emptyValue
-          }
-        >
-          {value || "Not available"}
-        </strong>
-      )}
-    </div>
-  );
-}
-
-function QualityMetric({
+function Detail({
   label,
   value,
 }) {
   return (
-    <div className={styles.qualityMetric}>
-      <span>{label}</span>
-      <strong>{value}</strong>
+    <div>
+      <small>
+        {label}
+      </small>
+
+      <p>
+        {value ||
+          "Not available"}
+      </p>
     </div>
   );
 }
 
-function LoadingState() {
+// =========================================================
+// LOADING
+// =========================================================
+
+function Loading() {
   return (
-    <section className={styles.loadingPanel}>
+    <section
+      className={
+        styles.loading
+      }
+    >
       {Array.from({
         length: 6,
-      }).map((_, index) => (
-        <div
-          key={index}
-          className={styles.loadingRow}
-        />
-      ))}
+      }).map(
+        (
+          _,
+          index
+        ) => (
+          <div
+            key={
+              index
+            }
+          />
+        )
+      )}
     </section>
   );
 }
 
-function parseProposalSections(text) {
-  const lines = String(text || "")
-    .split("\n")
-    .map((line) => line.trim());
+// =========================================================
+// HELPERS
+// =========================================================
+
+function parseSections(
+  text
+) {
+  const lines =
+    String(
+      text ||
+        ""
+    )
+      .split("\n");
 
   const sections = [];
 
-  let currentTitle = "";
+  let currentTitle =
+    "";
+
   let currentContent = [];
 
-  function flushSection() {
-    const content = currentContent
-      .join("\n")
-      .trim();
+  function pushSection() {
+    const content =
+      currentContent
+        .join("\n")
+        .trim();
 
-    if (currentTitle || content) {
+    if (
+      currentTitle ||
+      content
+    ) {
       sections.push({
-        title: currentTitle,
+        title:
+          currentTitle,
+
         content,
       });
     }
 
-    currentTitle = "";
     currentContent = [];
   }
 
-  lines.forEach((line) => {
-    const isHeading =
-      line &&
-      line.length <= 55 &&
-      line === line.toUpperCase() &&
-      /[A-Z]/.test(line);
+  for (
+    const line of lines
+  ) {
+    const trimmed =
+      line.trim();
 
-    if (isHeading) {
-      flushSection();
-      currentTitle = line;
-      return;
+    const looksLikeHeading =
+      trimmed &&
+      trimmed.length <=
+        55 &&
+      trimmed ===
+        trimmed.toUpperCase() &&
+      /[A-Z]/.test(
+        trimmed
+      );
+
+    if (
+      looksLikeHeading
+    ) {
+      pushSection();
+
+      currentTitle =
+        trimmed;
+    } else {
+      currentContent.push(
+        line
+      );
     }
+  }
 
-    if (line) {
-      currentContent.push(line);
-    }
-  });
-
-  flushSection();
+  pushSection();
 
   return sections.filter(
-    (section) =>
-      section.title || section.content
+    (
+      section
+    ) =>
+      section.title ||
+      section.content
   );
 }
 
@@ -1132,134 +1765,175 @@ function buildRecommendations(
 ) {
   const recommendations = [];
 
-  const sectionTitles = sections.map(
-    (section) =>
-      String(
-        section.title || ""
-      ).toLowerCase()
-  );
-
   if (
-    !sectionTitles.some((title) =>
-      title.includes("executive")
-    )
+    !proposal.email
   ) {
     recommendations.push(
-      "Add an executive summary focused on the client's objectives."
+      "Add a customer email address before sending the proposal."
     );
   }
 
   if (
-    !sectionTitles.some((title) =>
-      title.includes("scope")
-    )
+    !proposal.amount
   ) {
     recommendations.push(
-      "Define the scope of work and any exclusions clearly."
+      "Confirm the commercial value before customer acceptance."
     );
   }
 
   if (
-    !sectionTitles.some((title) =>
-      title.includes("timeline")
-    )
+    sections.length <
+    3
   ) {
     recommendations.push(
-      "Add an indicative delivery timeline and milestones."
+      "Consider adding clearer scope, commercial terms and next steps."
     );
   }
 
   if (
-    !sectionTitles.some((title) =>
-      title.includes("deliverable")
-    )
+    normalise(
+      proposal.status
+    ) ===
+    "draft"
   ) {
     recommendations.push(
-      "List the expected deliverables and acceptance criteria."
+      "Review the document before sending it to the customer."
     );
   }
 
-  if (!proposal.amount) {
+  if (
+    normalise(
+      proposal.status
+    ) ===
+    "sent"
+  ) {
     recommendations.push(
-      "Add the commercial value or explain how pricing will be confirmed."
+      "Follow up with the customer if a response is not received."
     );
   }
 
-  if (recommendations.length === 0) {
+  if (
+    recommendations.length ===
+    0
+  ) {
     recommendations.push(
-      "The proposal contains a strong base structure. Review wording and client-specific detail before sending."
+      "The proposal currently has no obvious outstanding actions."
     );
   }
 
-  return recommendations.slice(0, 5);
+  return recommendations;
 }
 
-function getMoneyValue(value) {
-  if (
-    value === null ||
-    value === undefined ||
-    value === ""
-  ) {
-    return 0;
-  }
+function normalise(
+  value
+) {
+  return String(
+    value ||
+      ""
+  )
+    .trim()
+    .toLowerCase();
+}
 
-  return (
+function getMoney(
+  value
+) {
+  const parsed =
     Number(
-      String(value).replace(
+      String(
+        value ||
+          ""
+      ).replace(
         /[^0-9.-]/g,
         ""
       )
-    ) || 0
-  );
+    );
+
+  return Number.isFinite(
+    parsed
+  )
+    ? parsed
+    : 0;
 }
 
-function formatProposalAmount(value) {
-  if (!value) {
-    return "To be confirmed";
+function formatAmount(
+  value
+) {
+  if (
+    !value
+  ) {
+    return "Not set";
   }
 
-  return getMoneyValue(value).toLocaleString(
+  if (
+    String(
+      value
+    ).includes(
+      "£"
+    )
+  ) {
+    return value;
+  }
+
+  const parsed =
+    getMoney(
+      value
+    );
+
+  if (
+    !parsed
+  ) {
+    return value;
+  }
+
+  return parsed.toLocaleString(
     "en-GB",
     {
-      style: "currency",
-      currency: "GBP",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
+      style:
+        "currency",
+
+      currency:
+        "GBP",
+
+      maximumFractionDigits:
+        2,
     }
   );
 }
 
-function formatDate(value) {
-  if (!value) {
+function formatDate(
+  value
+) {
+  if (
+    !value
+  ) {
     return "Not available";
   }
 
-  const date = new Date(value);
+  const date =
+    new Date(
+      value
+    );
 
-  if (Number.isNaN(date.getTime())) {
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
     return "Not available";
   }
 
-  return date.toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
+  return date.toLocaleDateString(
+    "en-GB",
+    {
+      day:
+        "2-digit",
 
-async function readJsonResponse(response) {
-  const responseText = await response.text();
+      month:
+        "short",
 
-  if (!responseText) {
-    return {};
-  }
-
-  try {
-    return JSON.parse(responseText);
-  } catch {
-    return {
-      error:
-        "The server returned an invalid response.",
-    };
-  }
+      year:
+        "numeric",
+    }
+  );
 }
