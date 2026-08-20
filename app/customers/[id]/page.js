@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useMemo,
   useState,
 } from "react";
 
@@ -18,6 +19,10 @@ import ProtectedRoute from "../../../components/ProtectedRoute";
 
 import styles from "./customer-details.module.css";
 
+// =========================================================
+// OPTIONS
+// =========================================================
+
 const CUSTOMER_STATUS_OPTIONS = [
   "Active",
   "Inactive",
@@ -29,10 +34,12 @@ const COMPLETED_STATUSES = [
   "completed",
   "complete",
   "done",
+  "closed",
 ];
 
 const PAID_STATUSES = [
   "paid",
+  "settled",
 ];
 
 const OVERDUE_STATUSES = [
@@ -66,6 +73,10 @@ const TABS = [
     label: "Follow-ups",
   },
 ];
+
+// =========================================================
+// PAGE
+// =========================================================
 
 export default function CustomerDetailsPage() {
   const params =
@@ -103,6 +114,11 @@ export default function CustomerDetailsPage() {
   ] = useState(false);
 
   const [
+    deleting,
+    setDeleting,
+  ] = useState(false);
+
+  const [
     editing,
     setEditing,
   ] = useState(false);
@@ -117,22 +133,23 @@ export default function CustomerDetailsPage() {
     setErrorMessage,
   ] = useState("");
 
+  // =======================================================
+  // LOAD
+  // =======================================================
+
   useEffect(() => {
-    if (customerId) {
+    if (
+      customerId
+    ) {
       fetchCustomerDetails();
     }
   }, [
     customerId,
   ]);
 
-  // =======================================================
-  // LOAD CUSTOMER WORKSPACE
-  // =======================================================
-
   async function fetchCustomerDetails() {
     try {
       setLoading(true);
-
       setErrorMessage("");
 
       const response =
@@ -147,7 +164,9 @@ export default function CustomerDetailsPage() {
       const responseData =
         await response.json();
 
-      if (!response.ok) {
+      if (
+        !response.ok
+      ) {
         throw new Error(
           responseData.error ||
             "Failed to load customer."
@@ -159,13 +178,16 @@ export default function CustomerDetailsPage() {
       );
 
       setDraftCustomer(
-        responseData.customer
+        responseData.customer ||
+          null
       );
     } catch (error) {
       console.error(
         "Customer details loading error:",
         error
       );
+
+      setData(null);
 
       setErrorMessage(
         error.message ||
@@ -177,10 +199,63 @@ export default function CustomerDetailsPage() {
   }
 
   // =======================================================
-  // EDIT CUSTOMER
+  // ACCESS
+  // =======================================================
+
+  const access =
+    data?.access ||
+    {};
+
+  const permissionKeys =
+    Array.isArray(
+      access.permissions
+    )
+      ? access.permissions
+      : [];
+
+  const canEditCustomer =
+    Boolean(
+      access.canEdit
+    );
+
+  const canDeleteCustomer =
+    Boolean(
+      access.canDelete
+    );
+
+  const canAssignCustomer =
+    Boolean(
+      access.canAssign
+    );
+
+  const canCreateQuote =
+    Boolean(
+      access.isOwner ||
+        permissionKeys.includes(
+          "quotes.create"
+        )
+    );
+
+  const canCreateProject =
+    Boolean(
+      access.isOwner ||
+        permissionKeys.includes(
+          "projects.create"
+        )
+    );
+
+  // =======================================================
+  // EDIT
   // =======================================================
 
   function startEditing() {
+    if (
+      !canEditCustomer &&
+      !canAssignCustomer
+    ) {
+      return;
+    }
+
     setDraftCustomer({
       ...data.customer,
     });
@@ -206,7 +281,8 @@ export default function CustomerDetailsPage() {
     const {
       name,
       value,
-    } = event.target;
+    } =
+      event.target;
 
     setDraftCustomer(
       (
@@ -220,11 +296,23 @@ export default function CustomerDetailsPage() {
     );
   }
 
+  // =======================================================
+  // SAVE
+  // =======================================================
+
   async function saveCustomer() {
     if (
       !draftCustomer
-        ?.customer_name
-        ?.trim()
+    ) {
+      return;
+    }
+
+    if (
+      canEditCustomer &&
+      !String(
+        draftCustomer.customer_name ||
+          ""
+      ).trim()
     ) {
       alert(
         "Customer name is required."
@@ -235,6 +323,48 @@ export default function CustomerDetailsPage() {
 
     try {
       setSaving(true);
+
+      const payload = {};
+
+      if (
+        canEditCustomer
+      ) {
+        payload.customer_name =
+          String(
+            draftCustomer.customer_name ||
+              ""
+          ).trim();
+
+        payload.company =
+          String(
+            draftCustomer.company ||
+              ""
+          ).trim();
+
+        payload.email =
+          String(
+            draftCustomer.email ||
+              ""
+          ).trim();
+
+        payload.phone =
+          String(
+            draftCustomer.phone ||
+              ""
+          ).trim();
+
+        payload.status =
+          draftCustomer.status ||
+          "Active";
+      }
+
+      if (
+        canAssignCustomer
+      ) {
+        payload.owner_employee_id =
+          draftCustomer.owner_employee_id ||
+          "";
+      }
 
       const response =
         await fetch(
@@ -249,41 +379,18 @@ export default function CustomerDetailsPage() {
             },
 
             body:
-              JSON.stringify({
-                customer_name:
-                  draftCustomer
-                    .customer_name
-                    .trim(),
-
-                company:
-                  String(
-                    draftCustomer.company ||
-                      ""
-                  ).trim(),
-
-                email:
-                  String(
-                    draftCustomer.email ||
-                      ""
-                  ).trim(),
-
-                phone:
-                  String(
-                    draftCustomer.phone ||
-                      ""
-                  ).trim(),
-
-                status:
-                  draftCustomer.status ||
-                  "Active",
-              }),
+              JSON.stringify(
+                payload
+              ),
           }
         );
 
       const responseData =
         await response.json();
 
-      if (!response.ok) {
+      if (
+        !response.ok
+      ) {
         throw new Error(
           responseData.error ||
             "Failed to save customer."
@@ -291,11 +398,8 @@ export default function CustomerDetailsPage() {
       }
 
       const updatedCustomer =
-        Array.isArray(
-          responseData
-        )
-          ? responseData[0]
-          : responseData;
+        responseData.customer ||
+        draftCustomer;
 
       setData(
         (
@@ -304,20 +408,19 @@ export default function CustomerDetailsPage() {
           ...currentData,
 
           customer:
-            updatedCustomer ||
-            draftCustomer,
+            updatedCustomer,
         })
       );
 
       setDraftCustomer(
-        updatedCustomer ||
-          draftCustomer
+        updatedCustomer
       );
 
       setEditing(false);
 
       alert(
-        "Customer updated successfully."
+        responseData.message ||
+          "Customer updated successfully."
       );
     } catch (error) {
       console.error(
@@ -335,12 +438,88 @@ export default function CustomerDetailsPage() {
   }
 
   // =======================================================
+  // DELETE
+  // =======================================================
+
+  async function deleteCustomer() {
+    if (
+      !data?.customer ||
+      !canDeleteCustomer
+    ) {
+      return;
+    }
+
+    const confirmed =
+      window.confirm(
+        `Delete ${
+          data.customer.customer_name ||
+          "this customer"
+        }?\n\nCustomers with linked quotes, projects or invoices cannot be deleted.`
+      );
+
+    if (
+      !confirmed
+    ) {
+      return;
+    }
+
+    try {
+      setDeleting(true);
+
+      const response =
+        await fetch(
+          `/api/customers/${customerId}`,
+          {
+            method:
+              "DELETE",
+          }
+        );
+
+      const responseData =
+        await response.json();
+
+      if (
+        !response.ok
+      ) {
+        throw new Error(
+          responseData.error ||
+            "Failed to delete customer."
+        );
+      }
+
+      alert(
+        responseData.message ||
+          "Customer deleted successfully."
+      );
+
+      router.push(
+        "/customers"
+      );
+
+      router.refresh();
+    } catch (error) {
+      console.error(
+        "Customer deletion error:",
+        error
+      );
+
+      alert(
+        error.message ||
+          "Unable to delete customer."
+      );
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  // =======================================================
   // START PROJECT
   // =======================================================
 
   async function startProject() {
     if (
-      !data?.customer
+      !data?.customer ||
+      !canCreateProject
     ) {
       return;
     }
@@ -365,12 +544,22 @@ export default function CustomerDetailsPage() {
 
     const acceptedQuote =
       quotes.find(
-        (quote) =>
+        (
+          quote
+        ) =>
           normaliseStatus(
             quote.status
-          ).includes(
-            "accepted"
-          )
+          ) ===
+          "accepted"
+      ) ||
+      quotes.find(
+        (
+          quote
+        ) =>
+          normaliseStatus(
+            quote.status
+          ) ===
+          "approved"
       ) ||
       quotes[0];
 
@@ -405,7 +594,9 @@ export default function CustomerDetailsPage() {
       const responseData =
         await response.json();
 
-      if (!response.ok) {
+      if (
+        !response.ok
+      ) {
         throw new Error(
           responseData.error ||
             "Failed to start project."
@@ -413,8 +604,8 @@ export default function CustomerDetailsPage() {
       }
 
       if (
-        !responseData
-          .project?.id
+        !responseData.project
+          ?.id
       ) {
         throw new Error(
           "Project was processed, but no project ID was returned."
@@ -447,10 +638,12 @@ export default function CustomerDetailsPage() {
   }
 
   // =======================================================
-  // LOADING
+  // STATES
   // =======================================================
 
-  if (loading) {
+  if (
+    loading
+  ) {
     return (
       <ProtectedRoute>
         <AppLayout
@@ -463,11 +656,9 @@ export default function CustomerDetailsPage() {
     );
   }
 
-  // =======================================================
-  // ERROR
-  // =======================================================
-
-  if (errorMessage) {
+  if (
+    errorMessage
+  ) {
     return (
       <ProtectedRoute>
         <AppLayout
@@ -485,7 +676,9 @@ export default function CustomerDetailsPage() {
               </strong>
 
               <p>
-                {errorMessage}
+                {
+                  errorMessage
+                }
               </p>
             </div>
 
@@ -505,10 +698,6 @@ export default function CustomerDetailsPage() {
       </ProtectedRoute>
     );
   }
-
-  // =======================================================
-  // NOT FOUND
-  // =======================================================
 
   if (
     !data?.customer
@@ -569,19 +758,24 @@ export default function CustomerDetailsPage() {
     tasks = [],
     invoices = [],
     followUps = [],
-    financialSummary,
-    recordCounts,
-    summary,
-  } = data;
+    financialSummary = {},
+    recordCounts = {},
+    summary = {},
+    employees = [],
+  } =
+    data;
 
   const visibleCustomer =
     editing
-      ? draftCustomer
+      ? draftCustomer ||
+        customer
       : customer;
 
   const paidInvoices =
     invoices.filter(
-      (invoice) =>
+      (
+        invoice
+      ) =>
         PAID_STATUSES.includes(
           normaliseStatus(
             invoice.status
@@ -591,7 +785,9 @@ export default function CustomerDetailsPage() {
 
   const overdueInvoices =
     invoices.filter(
-      (invoice) =>
+      (
+        invoice
+      ) =>
         OVERDUE_STATUSES.includes(
           normaliseStatus(
             invoice.status
@@ -601,7 +797,9 @@ export default function CustomerDetailsPage() {
 
   const activeProjects =
     projects.filter(
-      (project) =>
+      (
+        project
+      ) =>
         !COMPLETED_STATUSES.includes(
           normaliseStatus(
             project.status
@@ -611,7 +809,9 @@ export default function CustomerDetailsPage() {
 
   const pendingTasks =
     tasks.filter(
-      (task) =>
+      (
+        task
+      ) =>
         !COMPLETED_STATUSES.includes(
           normaliseStatus(
             task.status
@@ -619,33 +819,8 @@ export default function CustomerDetailsPage() {
         )
     );
 
-  const completedTasks =
-    tasks.filter(
-      (task) =>
-        COMPLETED_STATUSES.includes(
-          normaliseStatus(
-            task.status
-          )
-        )
-    );
-
-  const workflowTasks =
-    tasks.filter(
-      (task) =>
-        Boolean(
-          task.workflow_run_id
-        )
-    );
-
-  const overdueTasks =
-    tasks.filter(
-      isTaskOverdue
-    );
-
   const customerHealth =
     getCustomerHealth({
-      customer,
-
       overdueInvoices:
         overdueInvoices.length,
 
@@ -656,68 +831,83 @@ export default function CustomerDetailsPage() {
         activeProjects.length,
     });
 
+  const totalQuoted =
+    financialSummary.totalQuoted ??
+    quotes.reduce(
+      (
+        total,
+        quote
+      ) =>
+        total +
+        getMoneyValue(
+          quote.amount
+        ),
+      0
+    );
+
   const totalInvoiced =
-    financialSummary
-      ?.totalInvoicedFormatted ||
-    formatCurrency(
-      invoices.reduce(
-        (
-          total,
-          invoice
-        ) =>
-          total +
-          getMoneyValue(
-            invoice.total_amount ||
-              invoice.amount
-          ),
-        0
-      )
+    financialSummary.totalInvoiced ??
+    invoices.reduce(
+      (
+        total,
+        invoice
+      ) =>
+        total +
+        getMoneyValue(
+          invoice.total_amount ||
+            invoice.amount ||
+            invoice.total
+        ),
+      0
     );
 
-  const totalPaid =
-    financialSummary
-      ?.totalPaidFormatted ||
-    formatCurrency(
-      paidInvoices.reduce(
-        (
-          total,
-          invoice
-        ) =>
-          total +
-          getMoneyValue(
-            invoice.total_amount ||
-              invoice.amount
-          ),
-        0
-      )
+  const paidAmount =
+    financialSummary.paidAmount ??
+    paidInvoices.reduce(
+      (
+        total,
+        invoice
+      ) =>
+        total +
+        getMoneyValue(
+          invoice.total_amount ||
+            invoice.amount ||
+            invoice.total
+        ),
+      0
     );
 
-  const outstanding =
-    financialSummary
-      ?.outstandingFormatted ||
-    formatCurrency(
-      invoices
-        .filter(
-          (invoice) =>
-            !PAID_STATUSES.includes(
-              normaliseStatus(
-                invoice.status
-              )
-            )
-        )
-        .reduce(
-          (
-            total,
-            invoice
-          ) =>
-            total +
-            getMoneyValue(
-              invoice.total_amount ||
-                invoice.amount
-            ),
-          0
-        )
+  const outstandingAmount =
+    financialSummary.outstandingAmount ??
+    Math.max(
+      0,
+      totalInvoiced -
+        paidAmount
     );
+
+  // =======================================================
+  // TABS
+  // =======================================================
+
+  const tabCounts = {
+    overview:
+      null,
+
+    quotes:
+      quotes.length,
+
+    projects:
+      projects.length,
+
+    invoices:
+      invoices.length,
+
+    tasks:
+      tasks.length,
+
+    "follow-ups":
+      followUps.length,
+  };
 
   // =======================================================
   // PAGE
@@ -737,7 +927,9 @@ export default function CustomerDetailsPage() {
             styles.page
           }
         >
-          {/* HEADER */}
+          {/* =================================================
+              HEADER
+          ================================================= */}
 
           <section
             className={
@@ -767,8 +959,7 @@ export default function CustomerDetailsPage() {
               </span>
 
               <h2>
-                {visibleCustomer
-                  .customer_name ||
+                {visibleCustomer.customer_name ||
                   "Unnamed customer"}
               </h2>
 
@@ -783,19 +974,25 @@ export default function CustomerDetailsPage() {
                 styles.headerActions
               }
             >
-              {!editing ? (
-                <button
-                  type="button"
-                  className={
-                    styles.secondaryButton
-                  }
-                  onClick={
-                    startEditing
-                  }
-                >
-                  Edit customer
-                </button>
-              ) : (
+              {!editing &&
+                (
+                  canEditCustomer ||
+                  canAssignCustomer
+                ) && (
+                  <button
+                    type="button"
+                    className={
+                      styles.secondaryButton
+                    }
+                    onClick={
+                      startEditing
+                    }
+                  >
+                    Edit customer
+                  </button>
+                )}
+
+              {editing && (
                 <>
                   <button
                     type="button"
@@ -831,35 +1028,63 @@ export default function CustomerDetailsPage() {
                 </>
               )}
 
-              <Link
-                href={`/quotes?create=true&customer=${customer.id}`}
-                className={
-                  styles.actionButton
-                }
-              >
-                New quote
-              </Link>
+              {!editing &&
+                canCreateQuote && (
+                  <Link
+                    href={`/quotes?create=true&customer=${customer.id}`}
+                    className={
+                      styles.actionButton
+                    }
+                  >
+                    New quote
+                  </Link>
+                )}
 
-              <button
-                type="button"
-                className={
-                  styles.primaryButton
-                }
-                disabled={
-                  startingProject
-                }
-                onClick={
-                  startProject
-                }
-              >
-                {startingProject
-                  ? "Starting..."
-                  : "Start project"}
-              </button>
+              {!editing &&
+                canCreateProject && (
+                  <button
+                    type="button"
+                    className={
+                      styles.primaryButton
+                    }
+                    disabled={
+                      startingProject
+                    }
+                    onClick={
+                      startProject
+                    }
+                  >
+                    {startingProject
+                      ? "Starting..."
+                      : "Start project"}
+                  </button>
+                )}
+
+              {!editing &&
+                canDeleteCustomer && (
+                  <button
+                    type="button"
+                    className={
+                      styles.actionButton
+                    }
+                    disabled={
+                      deleting
+                    }
+                    onClick={
+                      deleteCustomer
+                    }
+                  >
+                    {deleting
+                      ? "Deleting..."
+                      : "Delete"}
+                  </button>
+                )}
             </div>
           </section>
 
-          {/* HERO */}
+          {/* =================================================
+              HERO
+          ================================================= */}
 
           <section
             className={
@@ -877,10 +1102,8 @@ export default function CustomerDetailsPage() {
                 }
               >
                 {getInitials(
-                  visibleCustomer
-                    .customer_name ||
-                    visibleCustomer
-                      .company
+                  visibleCustomer.customer_name ||
+                    visibleCustomer.company
                 )}
               </span>
 
@@ -890,8 +1113,7 @@ export default function CustomerDetailsPage() {
                 }
               >
                 <h3>
-                  {visibleCustomer
-                    .customer_name ||
+                  {visibleCustomer.customer_name ||
                     "Unnamed customer"}
                 </h3>
 
@@ -923,10 +1145,12 @@ export default function CustomerDetailsPage() {
                       styles.metaBadge
                     }
                   >
-                    Customer since{" "}
-                    {formatDate(
-                      customer.created_at
-                    )}
+                    Owner:{" "}
+                    {visibleCustomer.owner
+                      ?.full_name ||
+                      customer.owner
+                        ?.full_name ||
+                      "Unassigned"}
                   </span>
                 </div>
               </div>
@@ -938,42 +1162,268 @@ export default function CustomerDetailsPage() {
               }
             >
               <HeroMetric
-                label="Total invoiced"
+                label="Quotes"
                 value={
-                  totalInvoiced
+                  quotes.length
                 }
               />
 
               <HeroMetric
-                label="Outstanding"
+                label="Projects"
                 value={
-                  outstanding
-                }
-                warning={
-                  overdueInvoices.length >
-                  0
+                  projects.length
                 }
               />
 
               <HeroMetric
-                label="Active projects"
+                label="Invoices"
                 value={
-                  activeProjects.length
+                  invoices.length
                 }
               />
             </div>
           </section>
 
-          {/* TABS */}
+          {/* =================================================
+              EDIT FORM
+          ================================================= */}
 
-          <nav
+          {editing && (
+            <section
+              className={
+                styles.panel
+              }
+            >
+              <div
+                className={
+                  styles.panelHeader
+                }
+              >
+                <div>
+                  <h3>
+                    Edit customer
+                  </h3>
+
+                  <p>
+                    Update customer details
+                    and ownership.
+                  </p>
+                </div>
+              </div>
+
+              <div
+                className={
+                  styles.formGrid
+                }
+              >
+                {canEditCustomer && (
+                  <>
+                    <CustomerField
+                      label="Customer name"
+                      name="customer_name"
+                      value={
+                        draftCustomer.customer_name
+                      }
+                      onChange={
+                        handleCustomerChange
+                      }
+                    />
+
+                    <CustomerField
+                      label="Company"
+                      name="company"
+                      value={
+                        draftCustomer.company
+                      }
+                      onChange={
+                        handleCustomerChange
+                      }
+                    />
+
+                    <CustomerField
+                      label="Email"
+                      name="email"
+                      type="email"
+                      value={
+                        draftCustomer.email
+                      }
+                      onChange={
+                        handleCustomerChange
+                      }
+                    />
+
+                    <CustomerField
+                      label="Phone"
+                      name="phone"
+                      type="tel"
+                      value={
+                        draftCustomer.phone
+                      }
+                      onChange={
+                        handleCustomerChange
+                      }
+                    />
+
+                    <div
+                      className={
+                        styles.field
+                      }
+                    >
+                      <label
+                        htmlFor="customer-status"
+                      >
+                        Status
+                      </label>
+
+                      <select
+                        id="customer-status"
+                        name="status"
+                        value={
+                          draftCustomer.status ||
+                          "Active"
+                        }
+                        onChange={
+                          handleCustomerChange
+                        }
+                      >
+                        {CUSTOMER_STATUS_OPTIONS.map(
+                          (
+                            status
+                          ) => (
+                            <option
+                              key={
+                                status
+                              }
+                              value={
+                                status
+                              }
+                            >
+                              {
+                                status
+                              }
+                            </option>
+                          )
+                        )}
+                      </select>
+                    </div>
+                  </>
+                )}
+
+                {canAssignCustomer && (
+                  <div
+                    className={
+                      styles.field
+                    }
+                  >
+                    <label
+                      htmlFor="customer-owner"
+                    >
+                      Account owner
+                    </label>
+
+                    <select
+                      id="customer-owner"
+                      name="owner_employee_id"
+                      value={
+                        draftCustomer.owner_employee_id ||
+                        ""
+                      }
+                      onChange={
+                        handleCustomerChange
+                      }
+                    >
+                      <option value="">
+                        Unassigned
+                      </option>
+
+                      {employees.map(
+                        (
+                          employee
+                        ) => (
+                          <option
+                            key={
+                              employee.id
+                            }
+                            value={
+                              employee.id
+                            }
+                          >
+                            {
+                              employee.full_name
+                            }
+
+                            {employee.job_title
+                              ? ` — ${employee.job_title}`
+                              : ""}
+                          </option>
+                        )
+                      )}
+                    </select>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+
+          {/* =================================================
+              ACCOUNT METRICS
+          ================================================= */}
+
+          <section
+            className={
+              styles.accountGrid
+            }
+          >
+            <AccountMetric
+              label="Total quoted"
+              value={
+                formatCurrency(
+                  totalQuoted
+                )
+              }
+            />
+
+            <AccountMetric
+              label="Total invoiced"
+              value={
+                formatCurrency(
+                  totalInvoiced
+                )
+              }
+            />
+
+            <AccountMetric
+              label="Paid"
+              value={
+                formatCurrency(
+                  paidAmount
+                )
+              }
+            />
+
+            <AccountMetric
+              label="Outstanding"
+              value={
+                formatCurrency(
+                  outstandingAmount
+                )
+              }
+            />
+          </section>
+
+          {/* =================================================
+              TABS
+          ================================================= */}
+
+          <div
             className={
               styles.tabs
             }
-            aria-label="Customer sections"
           >
             {TABS.map(
-              (tab) => (
+              (
+                tab
+              ) => (
                 <button
                   key={
                     tab.id
@@ -991,595 +1441,519 @@ export default function CustomerDetailsPage() {
                     )
                   }
                 >
-                  {tab.label}
+                  {
+                    tab.label
+                  }
 
-                  <TabCount
-                    tabId={
-                      tab.id
-                    }
-                    counts={{
-                      quotes:
-                        quotes.length,
-
-                      projects:
-                        projects.length,
-
-                      invoices:
-                        invoices.length,
-
-                      tasks:
-                        tasks.length,
-
-                      "follow-ups":
-                        followUps.length,
-                    }}
-                  />
+                  {tabCounts[
+                    tab.id
+                  ] !==
+                    null && (
+                    <span
+                      className={
+                        styles.tabCount
+                      }
+                    >
+                      {
+                        tabCounts[
+                          tab.id
+                        ]
+                      }
+                    </span>
+                  )}
                 </button>
               )
             )}
-          </nav>
+          </div>
 
-          {/* OVERVIEW */}
+          {/* =================================================
+              OVERVIEW
+          ================================================= */}
 
           {activeTab ===
             "overview" && (
-            <OverviewTab
-              visibleCustomer={
-                visibleCustomer
-              }
-              customer={
-                customer
-              }
-              editing={
-                editing
-              }
-              saving={
-                saving
-              }
-              onChange={
-                handleCustomerChange
-              }
-              summary={
-                summary
-              }
-              lead={
-                lead
-              }
-              recordCounts={
-                recordCounts
-              }
-              totalInvoiced={
-                totalInvoiced
-              }
-              totalPaid={
-                totalPaid
-              }
-              outstanding={
-                outstanding
-              }
-              paidInvoices={
-                paidInvoices.length
-              }
-              overdueInvoices={
-                overdueInvoices.length
-              }
-              activeProjects={
-                activeProjects.length
-              }
-              pendingTasks={
-                pendingTasks.length
-              }
-            />
-          )}
-
-          {/* QUOTES */}
-
-          {activeTab ===
-            "quotes" && (
-            <RecordsTab
-              title="Quotes and proposals"
-              description="Commercial documents linked to this customer."
-            >
-              <div
-                className={
-                  styles.recordsGrid
-                }
-              >
-                <RecordsPanel
-                  title="Quotes"
-                  count={
-                    quotes.length
-                  }
-                >
-                  {quotes.length ===
-                  0 ? (
-                    <EmptyMessage>
-                      No quotes found.
-                    </EmptyMessage>
-                  ) : (
-                    <RecordsTable
-                      headings={[
-                        "Quote",
-                        "Service",
-                        "Amount",
-                        "Status",
-                        "Created",
-                      ]}
-                    >
-                      {quotes.map(
-                        (
-                          quote
-                        ) => (
-                          <tr
-                            key={
-                              quote.id
-                            }
-                          >
-                            <td>
-                              <Link
-                                href={`/quotes/${quote.id}`}
-                                className={
-                                  styles.recordLink
-                                }
-                              >
-                                {quote.quote_number ||
-                                  "Quote"}
-                              </Link>
-                            </td>
-
-                            <td>
-                              {quote.service ||
-                                "Not specified"}
-                            </td>
-
-                            <td>
-                              {quote.amount ||
-                                "Not set"}
-                            </td>
-
-                            <td>
-                              <StatusBadge
-                                status={
-                                  quote.status ||
-                                  "Draft"
-                                }
-                              />
-                            </td>
-
-                            <td>
-                              {formatDate(
-                                quote.created_at
-                              )}
-                            </td>
-                          </tr>
-                        )
-                      )}
-                    </RecordsTable>
-                  )}
-                </RecordsPanel>
-
-                <RecordsPanel
-                  title="Proposals"
-                  count={
-                    proposals.length
-                  }
-                >
-                  {proposals.length ===
-                  0 ? (
-                    <EmptyMessage>
-                      No proposals found.
-                    </EmptyMessage>
-                  ) : (
-                    <RecordsTable
-                      headings={[
-                        "Proposal",
-                        "Service",
-                        "Amount",
-                        "Status",
-                        "Created",
-                      ]}
-                    >
-                      {proposals.map(
-                        (
-                          proposal
-                        ) => (
-                          <tr
-                            key={
-                              proposal.id
-                            }
-                          >
-                            <td>
-                              <Link
-                                href={`/proposals/${proposal.id}`}
-                                className={
-                                  styles.recordLink
-                                }
-                              >
-                                {proposal.proposal_number ||
-                                  "Proposal"}
-                              </Link>
-                            </td>
-
-                            <td>
-                              {proposal.service ||
-                                "Not specified"}
-                            </td>
-
-                            <td>
-                              {proposal.amount ||
-                                "Not set"}
-                            </td>
-
-                            <td>
-                              <StatusBadge
-                                status={
-                                  proposal.status ||
-                                  "Draft"
-                                }
-                              />
-                            </td>
-
-                            <td>
-                              {formatDate(
-                                proposal.created_at
-                              )}
-                            </td>
-                          </tr>
-                        )
-                      )}
-                    </RecordsTable>
-                  )}
-                </RecordsPanel>
-              </div>
-            </RecordsTab>
-          )}
-
-          {/* PROJECTS */}
-
-          {activeTab ===
-            "projects" && (
-            <RecordsTab
-              title="Projects"
-              description="Delivery work linked to this customer."
-            >
-              {projects.length ===
-              0 ? (
-                <EmptyMessage>
-                  No projects found.
-                </EmptyMessage>
-              ) : (
-                <RecordsTable
-                  headings={[
-                    "Project",
-                    "Status",
-                    "Amount",
-                    "Start date",
-                    "Due date",
-                  ]}
-                >
-                  {projects.map(
-                    (
-                      project
-                    ) => (
-                      <tr
-                        key={
-                          project.id
-                        }
-                      >
-                        <td>
-                          <Link
-                            href={`/projects/${project.id}`}
-                            className={
-                              styles.recordLink
-                            }
-                          >
-                            {project.project_name ||
-                              "Unnamed project"}
-                          </Link>
-                        </td>
-
-                        <td>
-                          <StatusBadge
-                            status={
-                              project.status ||
-                              "Not Started"
-                            }
-                          />
-                        </td>
-
-                        <td>
-                          {project.amount ||
-                            "Not set"}
-                        </td>
-
-                        <td>
-                          {formatDate(
-                            project.start_date
-                          )}
-                        </td>
-
-                        <td>
-                          {formatDate(
-                            project.due_date
-                          )}
-                        </td>
-                      </tr>
-                    )
-                  )}
-                </RecordsTable>
-              )}
-            </RecordsTab>
-          )}
-
-          {/* INVOICES */}
-
-          {activeTab ===
-            "invoices" && (
-            <RecordsTab
-              title="Invoices"
-              description="Billing and payment records for this customer."
-            >
-              {invoices.length ===
-              0 ? (
-                <EmptyMessage>
-                  No invoices found.
-                </EmptyMessage>
-              ) : (
-                <RecordsTable
-                  headings={[
-                    "Invoice",
-                    "Service",
-                    "Amount",
-                    "Status",
-                    "Due date",
-                  ]}
-                >
-                  {invoices.map(
-                    (
-                      invoice
-                    ) => (
-                      <tr
-                        key={
-                          invoice.id
-                        }
-                      >
-                        <td>
-                          <Link
-                            href={`/invoices/${invoice.id}`}
-                            className={
-                              styles.recordLink
-                            }
-                          >
-                            {invoice.invoice_number ||
-                              "Invoice"}
-                          </Link>
-                        </td>
-
-                        <td>
-                          {invoice.service ||
-                            "Not specified"}
-                        </td>
-
-                        <td>
-                          {invoice.total_amount ||
-                            invoice.amount ||
-                            "Not set"}
-                        </td>
-
-                        <td>
-                          <StatusBadge
-                            status={
-                              invoice.status ||
-                              "Pending"
-                            }
-                          />
-                        </td>
-
-                        <td>
-                          {formatDate(
-                            invoice.due_date
-                          )}
-                        </td>
-                      </tr>
-                    )
-                  )}
-                </RecordsTable>
-              )}
-            </RecordsTab>
-          )}
-
-          {/* RELATED WORK */}
-
-          {activeTab ===
-            "tasks" && (
             <section
               className={
-                styles.relatedWorkSection
+                styles.overviewGrid
               }
             >
-              <div
+              <section
                 className={
-                  styles.relatedWorkHeader
+                  styles.panel
                 }
               >
-                <div>
-                  <span
+                <div
+                  className={
+                    styles.panelHeader
+                  }
+                >
+                  <div>
+                    <h3>
+                      Customer information
+                    </h3>
+
+                    <p>
+                      Core customer and
+                      account information.
+                    </p>
+                  </div>
+                </div>
+
+                <div
+                  className={
+                    styles.detailList
+                  }
+                >
+                  <DetailRow
+                    label="Customer"
+                    value={
+                      customer.customer_name
+                    }
+                  />
+
+                  <DetailRow
+                    label="Company"
+                    value={
+                      customer.company
+                    }
+                  />
+
+                  <DetailRow
+                    label="Email"
+                    value={
+                      customer.email
+                    }
+                  />
+
+                  <DetailRow
+                    label="Phone"
+                    value={
+                      customer.phone
+                    }
+                  />
+
+                  <DetailRow
+                    label="Status"
+                    value={
+                      customer.status
+                    }
+                  />
+
+                  <DetailRow
+                    label="Account owner"
+                    value={
+                      customer.owner
+                        ?.full_name ||
+                      "Unassigned"
+                    }
+                  />
+                </div>
+              </section>
+
+              <section
+                className={
+                  styles.panel
+                }
+              >
+                <div
+                  className={
+                    styles.panelHeader
+                  }
+                >
+                  <div>
+                    <h3>
+                      Relationship summary
+                    </h3>
+
+                    <p>
+                      Current account
+                      position and suggested
+                      next actions.
+                    </p>
+                  </div>
+                </div>
+
+                <div
+                  className={
+                    styles.aiSummary
+                  }
+                >
+                  <p>
+                    {summary.headline ||
+                      `${customer.customer_name} currently has ${quotes.length} quotes, ${projects.length} projects and ${invoices.length} invoices.`}
+                  </p>
+
+                  <div
                     className={
-                      styles.eyebrow
+                      styles.recommendations
                     }
                   >
-                    Customer actions
-                  </span>
+                    {(summary.recommendations ||
+                      []).length >
+                    0 ? (
+                      summary.recommendations.map(
+                        (
+                          recommendation,
+                          index
+                        ) => (
+                          <div
+                            key={`${recommendation}-${index}`}
+                            className={
+                              styles.recommendationItem
+                            }
+                          >
+                            <span>
+                              ✦
+                            </span>
 
-                  <h3>
-                    Related work
-                  </h3>
-
-                  <p>
-                    Tasks linked directly
-                    to this customer,
-                    generated by quote
-                    workflows, or created
-                    through customer
-                    projects.
-                  </p>
+                            <p>
+                              {
+                                recommendation
+                              }
+                            </p>
+                          </div>
+                        )
+                      )
+                    ) : (
+                      <p
+                        className={
+                          styles.emptyRecommendation
+                        }
+                      >
+                        No recommendations
+                        are currently
+                        available.
+                      </p>
+                    )}
+                  </div>
                 </div>
+              </section>
 
-                <div
+              {lead && (
+                <section
                   className={
-                    styles.relatedWorkSummary
+                    styles.panel
                   }
                 >
-                  <WorkMetric
-                    label="Open"
-                    value={
-                      pendingTasks.length
+                  <div
+                    className={
+                      styles.panelHeader
                     }
-                  />
+                  >
+                    <div>
+                      <h3>
+                        Original lead
+                      </h3>
 
-                  <WorkMetric
-                    label="Completed"
-                    value={
-                      completedTasks.length
+                      <p>
+                        Lead record that
+                        generated this
+                        customer.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div
+                    className={
+                      styles.detailList
                     }
-                    success
-                  />
+                  >
+                    <DetailRow
+                      label="Lead"
+                      value={
+                        lead.name
+                      }
+                    />
 
-                  <WorkMetric
-                    label="Workflow"
-                    value={
-                      workflowTasks.length
+                    <DetailRow
+                      label="Company"
+                      value={
+                        lead.company
+                      }
+                    />
+
+                    <DetailRow
+                      label="Status"
+                      value={
+                        lead.status
+                      }
+                    />
+
+                    <DetailRow
+                      label="Source"
+                      value={
+                        lead.source
+                      }
+                    />
+                  </div>
+
+                  <Link
+                    href={`/leads/${lead.id}`}
+                    className={
+                      styles.recordButton
                     }
-                  />
-
-                  <WorkMetric
-                    label="Overdue"
-                    value={
-                      overdueTasks.length
-                    }
-                    danger={
-                      overdueTasks.length >
-                      0
-                    }
-                  />
-                </div>
-              </div>
-
-              {tasks.length ===
-              0 ? (
-                <div
-                  className={
-                    styles.relatedWorkEmpty
-                  }
-                >
-                  <span>
-                    ☑
-                  </span>
-
-                  <h4>
-                    No related work yet
-                  </h4>
-
-                  <p>
-                    Customer tasks,
-                    project tasks and
-                    workflow-generated
-                    actions will appear
-                    here.
-                  </p>
-                </div>
-              ) : (
-                <div
-                  className={
-                    styles.relatedWorkList
-                  }
-                >
-                  {tasks.map(
-                    (
-                      task
-                    ) => (
-                      <CustomerTaskCard
-                        key={
-                          task.id
-                        }
-                        task={
-                          task
-                        }
-                        quotes={
-                          quotes
-                        }
-                        projects={
-                          projects
-                        }
-                      />
-                    )
-                  )}
-                </div>
+                  >
+                    Open lead
+                  </Link>
+                </section>
               )}
             </section>
           )}
 
-          {/* FOLLOW UPS */}
+          {/* =================================================
+              QUOTES
+          ================================================= */}
+
+          {activeTab ===
+            "quotes" && (
+            <RecordsPanel
+              title="Quotes"
+              description="Commercial quotations linked to this customer."
+              records={
+                quotes
+              }
+              emptyMessage="No quotes are linked to this customer."
+              renderRow={(
+                quote
+              ) => (
+                <>
+                  <span>
+                    {quote.quote_number ||
+                      "Quote"}
+                  </span>
+
+                  <span>
+                    {quote.service ||
+                      "No service"}
+                  </span>
+
+                  <span>
+                    {quote.status ||
+                      "Draft"}
+                  </span>
+
+                  <span>
+                    {formatCurrency(
+                      getMoneyValue(
+                        quote.amount
+                      )
+                    )}
+                  </span>
+
+                  <Link
+                    href={`/quotes/${quote.id}`}
+                    className={
+                      styles.recordLink
+                    }
+                  >
+                    Open
+                  </Link>
+                </>
+              )}
+            />
+          )}
+
+          {/* =================================================
+              PROJECTS
+          ================================================= */}
+
+          {activeTab ===
+            "projects" && (
+            <RecordsPanel
+              title="Projects"
+              description="Delivery projects linked to this customer."
+              records={
+                projects
+              }
+              emptyMessage="No projects are linked to this customer."
+              renderRow={(
+                project
+              ) => (
+                <>
+                  <span>
+                    {project.project_name ||
+                      project.name ||
+                      "Project"}
+                  </span>
+
+                  <span>
+                    {project.status ||
+                      "Not set"}
+                  </span>
+
+                  <span>
+                    {project.progress ??
+                      0}
+                    %
+                  </span>
+
+                  <span>
+                    {formatDate(
+                      project.created_at
+                    )}
+                  </span>
+
+                  <Link
+                    href={`/projects/${project.id}`}
+                    className={
+                      styles.recordLink
+                    }
+                  >
+                    Open
+                  </Link>
+                </>
+              )}
+            />
+          )}
+
+          {/* =================================================
+              INVOICES
+          ================================================= */}
+
+          {activeTab ===
+            "invoices" && (
+            <RecordsPanel
+              title="Invoices"
+              description="Invoices associated with this customer."
+              records={
+                invoices
+              }
+              emptyMessage="No invoices are linked to this customer."
+              renderRow={(
+                invoice
+              ) => (
+                <>
+                  <span>
+                    {invoice.invoice_number ||
+                      "Invoice"}
+                  </span>
+
+                  <span>
+                    {invoice.status ||
+                      "Draft"}
+                  </span>
+
+                  <span>
+                    {formatCurrency(
+                      getMoneyValue(
+                        invoice.total_amount ||
+                          invoice.amount ||
+                          invoice.total
+                      )
+                    )}
+                  </span>
+
+                  <span>
+                    {formatDate(
+                      invoice.created_at
+                    )}
+                  </span>
+
+                  <Link
+                    href={`/invoices/${invoice.id}`}
+                    className={
+                      styles.recordLink
+                    }
+                  >
+                    Open
+                  </Link>
+                </>
+              )}
+            />
+          )}
+
+          {/* =================================================
+              TASKS
+          ================================================= */}
+
+          {activeTab ===
+            "tasks" && (
+            <RecordsPanel
+              title="Related work"
+              description="Tasks and internal work linked to this customer."
+              records={
+                tasks
+              }
+              emptyMessage="No related work is linked to this customer."
+              renderRow={(
+                task
+              ) => (
+                <>
+                  <span>
+                    {task.title ||
+                      "Task"}
+                  </span>
+
+                  <span>
+                    {task.status ||
+                      "Pending"}
+                  </span>
+
+                  <span>
+                    {task.assigned_employee
+                      ?.full_name ||
+                      "Unassigned"}
+                  </span>
+
+                  <span>
+                    {formatDate(
+                      task.due_date ||
+                        task.created_at
+                    )}
+                  </span>
+
+                  <span>
+                    {isTaskOverdue(
+                      task
+                    )
+                      ? "Overdue"
+                      : "Open"}
+                  </span>
+                </>
+              )}
+            />
+          )}
+
+          {/* =================================================
+              FOLLOW UPS
+          ================================================= */}
 
           {activeTab ===
             "follow-ups" && (
-            <RecordsTab
+            <RecordsPanel
               title="Follow-ups"
-              description="Planned communication and customer actions."
-            >
-              {followUps.length ===
-              0 ? (
-                <EmptyMessage>
-                  No follow-ups found.
-                </EmptyMessage>
-              ) : (
-                <RecordsTable
-                  headings={[
-                    "Follow-up",
-                    "Status",
-                    "Due date",
-                    "Note",
-                  ]}
-                >
-                  {followUps.map(
-                    (
-                      followUp
-                    ) => (
-                      <tr
-                        key={
-                          followUp.id
-                        }
-                      >
-                        <td>
-                          {followUp.title ||
-                            "Follow-up"}
-                        </td>
+              description="Customer follow-up activity."
+              records={
+                followUps
+              }
+              emptyMessage="No follow-ups are linked to this customer."
+              renderRow={(
+                followUp
+              ) => (
+                <>
+                  <span>
+                    {followUp.title ||
+                      "Follow-up"}
+                  </span>
 
-                        <td>
-                          <StatusBadge
-                            status={
-                              followUp.status ||
-                              "Pending"
-                            }
-                          />
-                        </td>
+                  <span>
+                    {followUp.status ||
+                      "Pending"}
+                  </span>
 
-                        <td>
-                          {formatDate(
-                            followUp.due_date
-                          )}
-                        </td>
+                  <span>
+                    {formatDate(
+                      followUp.due_date
+                    )}
+                  </span>
 
-                        <td>
-                          {followUp.note ||
-                            "No note"}
-                        </td>
-                      </tr>
-                    )
-                  )}
-                </RecordsTable>
+                  <span>
+                    {followUp.note ||
+                      "No note"}
+                  </span>
+                </>
               )}
-            </RecordsTab>
+            />
           )}
         </div>
       </AppLayout>
@@ -1588,876 +1962,14 @@ export default function CustomerDetailsPage() {
 }
 
 // =========================================================
-// CUSTOMER TASK CARD
-// =======================================================
-
-function CustomerTaskCard({
-  task,
-  quotes,
-  projects,
-}) {
-  const completed =
-    COMPLETED_STATUSES.includes(
-      normaliseStatus(
-        task.status
-      )
-    );
-
-  const overdue =
-    isTaskOverdue(
-      task
-    );
-
-  const workflowGenerated =
-    Boolean(
-      task.workflow_run_id
-    );
-
-  const assignee =
-    task.assigned_employee
-      ?.full_name ||
-    task.assigned_employee
-      ?.email ||
-    "Unassigned";
-
-  const relationship =
-    getTaskRelationship({
-      task,
-      quotes,
-      projects,
-    });
-
-  return (
-    <article
-      className={
-        styles.relatedTaskCard
-      }
-    >
-      <div
-        className={
-          styles.relatedTaskMain
-        }
-      >
-        <span
-          className={`${styles.relatedTaskIcon} ${
-            completed
-              ? styles.relatedTaskIconCompleted
-              : ""
-          }`}
-        >
-          {completed
-            ? "✓"
-            : "☑"}
-        </span>
-
-        <div
-          className={
-            styles.relatedTaskCopy
-          }
-        >
-          <div
-            className={
-              styles.relatedTaskTitleRow
-            }
-          >
-            <Link
-              href={`/tasks/${task.id}`}
-            >
-              {task.task_name ||
-                "Unnamed task"}
-            </Link>
-
-            <StatusBadge
-              status={
-                task.status ||
-                "Open"
-              }
-            />
-          </div>
-
-          <p>
-            {task.description ||
-              "No task description has been added."}
-          </p>
-
-          <div
-            className={
-              styles.relatedTaskMeta
-            }
-          >
-            <span
-              className={
-                workflowGenerated
-                  ? styles.workflowSourceBadge
-                  : ""
-              }
-            >
-              {workflowGenerated
-                ? "Workflow generated"
-                : "Manual task"}
-            </span>
-
-            <span>
-              {task.priority ||
-                "Medium"}{" "}
-              priority
-            </span>
-
-            <span>
-              Assigned to{" "}
-              {assignee}
-            </span>
-
-            <span>
-              {relationship.label}
-            </span>
-
-            <span
-              className={
-                overdue
-                  ? styles.relatedTaskOverdue
-                  : ""
-              }
-            >
-              Due{" "}
-              {formatDate(
-                task.due_date
-              )}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <div
-        className={
-          styles.relatedTaskActions
-        }
-      >
-        {relationship.href && (
-          <Link
-            href={
-              relationship.href
-            }
-            className={
-              styles.secondaryRecordLink
-            }
-          >
-            Open source
-          </Link>
-        )}
-
-        <Link
-          href={`/tasks/${task.id}`}
-          className={
-            styles.relatedTaskOpen
-          }
-        >
-          Open task →
-        </Link>
-      </div>
-    </article>
-  );
-}
-
+// CUSTOMER FIELD
 // =========================================================
-// OVERVIEW TAB
-// =======================================================
-
-function OverviewTab({
-  visibleCustomer,
-  customer,
-  editing,
-  saving,
-  onChange,
-  summary,
-  lead,
-  recordCounts,
-  totalInvoiced,
-  totalPaid,
-  outstanding,
-  paidInvoices,
-  overdueInvoices,
-  activeProjects,
-  pendingTasks,
-}) {
-  const recommendations =
-    Array.isArray(
-      summary?.recommendations
-    )
-      ? summary.recommendations
-      : [];
-
-  return (
-    <div
-      className={
-        styles.overviewGrid
-      }
-    >
-      <section
-        className={
-          styles.panel
-        }
-      >
-        <div
-          className={
-            styles.panelHeader
-          }
-        >
-          <div>
-            <h3>
-              Customer information
-            </h3>
-
-            <p>
-              Contact and account details
-            </p>
-          </div>
-        </div>
-
-        {editing ? (
-          <div
-            className={
-              styles.formGrid
-            }
-          >
-            <CustomerField
-              label="Customer name"
-              name="customer_name"
-              value={
-                visibleCustomer
-                  .customer_name
-              }
-              disabled={
-                saving
-              }
-              onChange={
-                onChange
-              }
-            />
-
-            <CustomerField
-              label="Company"
-              name="company"
-              value={
-                visibleCustomer.company
-              }
-              disabled={
-                saving
-              }
-              onChange={
-                onChange
-              }
-            />
-
-            <CustomerField
-              label="Email"
-              name="email"
-              type="email"
-              value={
-                visibleCustomer.email
-              }
-              disabled={
-                saving
-              }
-              onChange={
-                onChange
-              }
-            />
-
-            <CustomerField
-              label="Phone"
-              name="phone"
-              type="tel"
-              value={
-                visibleCustomer.phone
-              }
-              disabled={
-                saving
-              }
-              onChange={
-                onChange
-              }
-            />
-
-            <div
-              className={
-                styles.field
-              }
-            >
-              <label
-                htmlFor="customer-status"
-              >
-                Status
-              </label>
-
-              <select
-                id="customer-status"
-                name="status"
-                value={
-                  visibleCustomer.status ||
-                  "Active"
-                }
-                disabled={
-                  saving
-                }
-                onChange={
-                  onChange
-                }
-              >
-                {CUSTOMER_STATUS_OPTIONS.map(
-                  (
-                    status
-                  ) => (
-                    <option
-                      key={
-                        status
-                      }
-                      value={
-                        status
-                      }
-                    >
-                      {status}
-                    </option>
-                  )
-                )}
-              </select>
-            </div>
-          </div>
-        ) : (
-          <div
-            className={
-              styles.detailList
-            }
-          >
-            <DetailRow
-              label="Customer name"
-              value={
-                visibleCustomer
-                  .customer_name
-              }
-            />
-
-            <DetailRow
-              label="Company"
-              value={
-                visibleCustomer.company
-              }
-            />
-
-            <DetailRow
-              label="Email"
-              value={
-                visibleCustomer.email
-              }
-              href={
-                visibleCustomer.email
-                  ? `mailto:${visibleCustomer.email}`
-                  : null
-              }
-            />
-
-            <DetailRow
-              label="Phone"
-              value={
-                visibleCustomer.phone
-              }
-              href={
-                visibleCustomer.phone
-                  ? `tel:${visibleCustomer.phone}`
-                  : null
-              }
-            />
-
-            <DetailRow
-              label="Status"
-              customValue={
-                <StatusBadge
-                  status={
-                    visibleCustomer.status ||
-                    "Active"
-                  }
-                />
-              }
-            />
-
-            <DetailRow
-              label="Created"
-              value={
-                formatDate(
-                  customer.created_at
-                )
-              }
-            />
-          </div>
-        )}
-      </section>
-
-      <section
-        className={
-          styles.aiPanel
-        }
-      >
-        <div
-          className={
-            styles.aiHeader
-          }
-        >
-          <span
-            className={
-              styles.aiIcon
-            }
-          >
-            ✦
-          </span>
-
-          <div>
-            <span>
-              AI customer intelligence
-            </span>
-
-            <h3>
-              Customer summary
-            </h3>
-          </div>
-        </div>
-
-        <div
-          className={
-            styles.aiSummary
-          }
-        >
-          <p>
-            {summary?.overview ||
-              "No AI customer summary is currently available."}
-          </p>
-        </div>
-
-        <div
-          className={
-            styles.recommendations
-          }
-        >
-          <span>
-            Recommended actions
-          </span>
-
-          {recommendations.length ===
-          0 ? (
-            <p
-              className={
-                styles.emptyRecommendation
-              }
-            >
-              No AI recommendations are
-              currently available.
-            </p>
-          ) : (
-            recommendations.map(
-              (
-                recommendation,
-                index
-              ) => (
-                <div
-                  key={`${recommendation}-${index}`}
-                  className={
-                    styles.recommendationItem
-                  }
-                >
-                  <span>
-                    →
-                  </span>
-
-                  <p>
-                    {recommendation}
-                  </p>
-                </div>
-              )
-            )
-          )}
-        </div>
-      </section>
-
-      <section
-        className={
-          styles.financePanel
-        }
-      >
-        <div
-          className={
-            styles.panelHeader
-          }
-        >
-          <div>
-            <h3>
-              Financial overview
-            </h3>
-
-            <p>
-              Customer billing performance
-            </p>
-          </div>
-        </div>
-
-        <div
-          className={
-            styles.financeGrid
-          }
-        >
-          <FinanceMetric
-            label="Total invoiced"
-            value={
-              totalInvoiced
-            }
-          />
-
-          <FinanceMetric
-            label="Paid"
-            value={
-              totalPaid
-            }
-            positive
-          />
-
-          <FinanceMetric
-            label="Outstanding"
-            value={
-              outstanding
-            }
-            warning={
-              overdueInvoices >
-              0
-            }
-          />
-
-          <FinanceMetric
-            label="Paid invoices"
-            value={
-              paidInvoices
-            }
-          />
-        </div>
-      </section>
-
-      <section
-        className={
-          styles.panel
-        }
-      >
-        <div
-          className={
-            styles.panelHeader
-          }
-        >
-          <div>
-            <h3>
-              Account overview
-            </h3>
-
-            <p>
-              Connected customer records
-            </p>
-          </div>
-        </div>
-
-        <div
-          className={
-            styles.accountGrid
-          }
-        >
-          <AccountMetric
-            label="Quotes"
-            value={
-              recordCounts?.quotes ||
-              0
-            }
-          />
-
-          <AccountMetric
-            label="Proposals"
-            value={
-              recordCounts?.proposals ||
-              0
-            }
-          />
-
-          <AccountMetric
-            label="Projects"
-            value={
-              recordCounts?.projects ||
-              activeProjects ||
-              0
-            }
-          />
-
-          <AccountMetric
-            label="Tasks"
-            value={
-              recordCounts?.tasks ||
-              pendingTasks ||
-              0
-            }
-          />
-
-          <AccountMetric
-            label="Invoices"
-            value={
-              recordCounts?.invoices ||
-              0
-            }
-          />
-
-          <AccountMetric
-            label="Follow-ups"
-            value={
-              recordCounts?.followUps ||
-              0
-            }
-          />
-        </div>
-      </section>
-
-      {lead && (
-        <section
-          className={
-            styles.panel
-          }
-        >
-          <div
-            className={
-              styles.panelHeader
-            }
-          >
-            <div>
-              <h3>
-                Original lead
-              </h3>
-
-              <p>
-                Source CRM opportunity
-              </p>
-            </div>
-          </div>
-
-          <div
-            className={
-              styles.originalLead
-            }
-          >
-            <div>
-              <strong>
-                {lead.name ||
-                  "Unnamed lead"}
-              </strong>
-
-              <p>
-                {lead.company ||
-                  "No company"}
-              </p>
-            </div>
-
-            <StatusBadge
-              status={
-                lead.status ||
-                "New"
-              }
-            />
-
-            <Link
-              href={`/leads/${lead.id}`}
-              className={
-                styles.recordButton
-              }
-            >
-              Open lead
-              <span>
-                →
-              </span>
-            </Link>
-          </div>
-        </section>
-      )}
-
-      <section
-        className={
-          styles.panel
-        }
-      >
-        <div
-          className={
-            styles.panelHeader
-          }
-        >
-          <div>
-            <h3>
-              Customer activity
-            </h3>
-
-            <p>
-              Current relationship timeline
-            </p>
-          </div>
-        </div>
-
-        <div
-          className={
-            styles.timeline
-          }
-        >
-          <TimelineItem
-            title="Customer created"
-            description={
-              formatDateTime(
-                customer.created_at
-              )
-            }
-          />
-
-          <TimelineItem
-            title="Customer status"
-            description={
-              customer.status ||
-              "Active"
-            }
-          />
-
-          <TimelineItem
-            title="Active delivery"
-            description={`${activeProjects} active project${
-              activeProjects ===
-              1
-                ? ""
-                : "s"
-            }`}
-          />
-
-          <TimelineItem
-            title="Pending actions"
-            description={`${pendingTasks} incomplete task${
-              pendingTasks ===
-              1
-                ? ""
-                : "s"
-            }`}
-          />
-        </div>
-      </section>
-    </div>
-  );
-}
-
-// =========================================================
-// COMMON COMPONENTS
-// =======================================================
-
-function RecordsTab({
-  title,
-  description,
-  children,
-}) {
-  return (
-    <section
-      className={
-        styles.recordsSection
-      }
-    >
-      <div
-        className={
-          styles.recordsSectionHeader
-        }
-      >
-        <div>
-          <h3>
-            {title}
-          </h3>
-
-          <p>
-            {description}
-          </p>
-        </div>
-      </div>
-
-      {children}
-    </section>
-  );
-}
-
-function RecordsPanel({
-  title,
-  count,
-  children,
-}) {
-  return (
-    <section
-      className={
-        styles.recordsPanel
-      }
-    >
-      <div
-        className={
-          styles.recordsPanelHeader
-        }
-      >
-        <h3>
-          {title}
-        </h3>
-
-        <span>
-          {count}
-        </span>
-      </div>
-
-      {children}
-    </section>
-  );
-}
-
-function RecordsTable({
-  headings,
-  children,
-}) {
-  return (
-    <div
-      className={
-        styles.tableWrapper
-      }
-    >
-      <table
-        className={
-          styles.recordsTable
-        }
-      >
-        <thead>
-          <tr>
-            {headings.map(
-              (
-                heading
-              ) => (
-                <th
-                  key={
-                    heading
-                  }
-                >
-                  {heading}
-                </th>
-              )
-            )}
-          </tr>
-        </thead>
-
-        <tbody>
-          {children}
-        </tbody>
-      </table>
-    </div>
-  );
-}
 
 function CustomerField({
   label,
   name,
   value,
   onChange,
-  disabled,
   type = "text",
 }) {
   return (
@@ -2484,9 +1996,6 @@ function CustomerField({
           value ||
           ""
         }
-        disabled={
-          disabled
-        }
         onChange={
           onChange
         }
@@ -2495,11 +2004,93 @@ function CustomerField({
   );
 }
 
+// =========================================================
+// RECORDS PANEL
+// =========================================================
+
+function RecordsPanel({
+  title,
+  description,
+  records,
+  emptyMessage,
+  renderRow,
+}) {
+  return (
+    <section
+      className={
+        styles.recordsSection
+      }
+    >
+      <div
+        className={
+          styles.recordsSectionHeader
+        }
+      >
+        <div>
+          <h3>
+            {title}
+          </h3>
+
+          <p>
+            {description}
+          </p>
+        </div>
+
+        <span
+          className={
+            styles.tabCount
+          }
+        >
+          {
+            records.length
+          }
+        </span>
+      </div>
+
+      {records.length ===
+      0 ? (
+        <EmptyMessage
+          text={
+            emptyMessage
+          }
+        />
+      ) : (
+        <div
+          className={
+            styles.recordsGrid
+          }
+        >
+          {records.map(
+            (
+              record
+            ) => (
+              <article
+                key={
+                  record.id
+                }
+                className={
+                  styles.recordsPanel
+                }
+              >
+                {renderRow(
+                  record
+                )}
+              </article>
+            )
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+// =========================================================
+// DETAIL ROW
+// =========================================================
+
 function DetailRow({
   label,
   value,
-  href,
-  customValue,
 }) {
   return (
     <div
@@ -2511,73 +2102,33 @@ function DetailRow({
         {label}
       </span>
 
-      {customValue ? (
-        customValue
-      ) : href && value ? (
-        <a
-          href={
-            href
-          }
-        >
-          {value}
-        </a>
-      ) : (
-        <strong
-          className={
-            value
-              ? ""
-              : styles.emptyValue
-          }
-        >
-          {value ||
-            "Not available"}
-        </strong>
-      )}
-    </div>
-  );
-}
-
-function HeroMetric({
-  label,
-  value,
-  warning = false,
-}) {
-  return (
-    <div
-      className={`${styles.heroMetric} ${
-        warning
-          ? styles.heroMetricWarning
-          : ""
-      }`}
-    >
-      <span>
-        {label}
-      </span>
-
-      <strong>
-        {value}
+      <strong
+        className={
+          value
+            ? ""
+            : styles.emptyValue
+        }
+      >
+        {value ||
+          "Not available"}
       </strong>
     </div>
   );
 }
 
-function FinanceMetric({
+// =========================================================
+// METRICS
+// =========================================================
+
+function HeroMetric({
   label,
   value,
-  positive = false,
-  warning = false,
 }) {
   return (
     <div
-      className={`${styles.financeMetric} ${
-        positive
-          ? styles.financePositive
-          : ""
-      } ${
-        warning
-          ? styles.financeWarning
-          : ""
-      }`}
+      className={
+        styles.heroMetric
+      }
     >
       <span>
         {label}
@@ -2600,57 +2151,32 @@ function AccountMetric({
         styles.accountMetric
       }
     >
-      <strong>
-        {value}
-      </strong>
-
       <span>
         {label}
       </span>
+
+      <strong>
+        {value}
+      </strong>
     </div>
   );
 }
 
-function WorkMetric({
-  label,
-  value,
-  success = false,
-  danger = false,
-}) {
-  return (
-    <div
-      className={`${styles.workMetric} ${
-        success
-          ? styles.workMetricSuccess
-          : ""
-      } ${
-        danger
-          ? styles.workMetricDanger
-          : ""
-      }`}
-    >
-      <strong>
-        {value}
-      </strong>
-
-      <span>
-        {label}
-      </span>
-    </div>
-  );
-}
+// =========================================================
+// HEALTH
+// =========================================================
 
 function HealthBadge({
   health,
 }) {
   const className =
     health.tone ===
-    "excellent"
-      ? styles.healthExcellent
+    "risk"
+      ? styles.healthRisk
       : health.tone ===
           "attention"
         ? styles.healthAttention
-        : styles.healthRisk;
+        : styles.healthExcellent;
 
   return (
     <span
@@ -2662,42 +2188,61 @@ function HealthBadge({
         }
       />
 
-      {health.label}
+      {
+        health.label
+      }
     </span>
   );
 }
 
-function TimelineItem({
-  title,
-  description,
+function getCustomerHealth({
+  overdueInvoices,
+  pendingTasks,
+  activeProjects,
 }) {
-  return (
-    <div
-      className={
-        styles.timelineItem
-      }
-    >
-      <span
-        className={
-          styles.timelineDot
-        }
-      />
+  if (
+    overdueInvoices >
+    0
+  ) {
+    return {
+      label:
+        "Needs attention",
 
-      <div>
-        <strong>
-          {title}
-        </strong>
+      tone:
+        "risk",
+    };
+  }
 
-        <p>
-          {description}
-        </p>
-      </div>
-    </div>
-  );
+  if (
+    pendingTasks >
+      3 ||
+    activeProjects >
+      2
+  ) {
+    return {
+      label:
+        "Monitor",
+
+      tone:
+        "attention",
+    };
+  }
+
+  return {
+    label:
+      "Healthy",
+
+    tone:
+      "excellent",
+  };
 }
 
+// =========================================================
+// EMPTY
+// =========================================================
+
 function EmptyMessage({
-  children,
+  text,
 }) {
   return (
     <div
@@ -2705,45 +2250,24 @@ function EmptyMessage({
         styles.emptyState
       }
     >
-      <span>
-        —
+      <span
+        className={
+          styles.notFoundIcon
+        }
+      >
+        ◇
       </span>
 
       <p>
-        {children}
+        {text}
       </p>
     </div>
   );
 }
 
-function TabCount({
-  tabId,
-  counts,
-}) {
-  const count =
-    counts[
-      tabId
-    ];
-
-  if (
-    count ===
-      undefined ||
-    tabId ===
-      "overview"
-  ) {
-    return null;
-  }
-
-  return (
-    <span
-      className={
-        styles.tabCount
-      }
-    >
-      {count}
-    </span>
-  );
-}
+// =========================================================
+// LOADING
+// =========================================================
 
 function LoadingState() {
   return (
@@ -2774,206 +2298,8 @@ function LoadingState() {
 }
 
 // =========================================================
-// TASK RELATIONSHIP
-// =======================================================
-
-function getTaskRelationship({
-  task,
-  quotes,
-  projects,
-}) {
-  const recordType =
-    normaliseStatus(
-      task.record_type
-    );
-
-  if (
-    [
-      "quote",
-      "quotes",
-    ].includes(
-      recordType
-    ) &&
-    task.record_id
-  ) {
-    const quote =
-      quotes.find(
-        (item) =>
-          String(
-            item.id
-          ) ===
-          String(
-            task.record_id
-          )
-      );
-
-    return {
-      label:
-        quote?.quote_number
-          ? `Quote ${quote.quote_number}`
-          : "Quote",
-
-      href:
-        `/quotes/${task.record_id}`,
-    };
-  }
-
-  if (
-    task.project_id
-  ) {
-    const project =
-      projects.find(
-        (item) =>
-          String(
-            item.id
-          ) ===
-          String(
-            task.project_id
-          )
-      );
-
-    return {
-      label:
-        project?.project_name
-          ? `Project: ${project.project_name}`
-          : "Project",
-
-      href:
-        `/projects/${task.project_id}`,
-    };
-  }
-
-  if (
-    [
-      "project",
-      "projects",
-    ].includes(
-      recordType
-    ) &&
-    task.record_id
-  ) {
-    const project =
-      projects.find(
-        (item) =>
-          String(
-            item.id
-          ) ===
-          String(
-            task.record_id
-          )
-      );
-
-    return {
-      label:
-        project?.project_name
-          ? `Project: ${project.project_name}`
-          : "Project",
-
-      href:
-        `/projects/${task.record_id}`,
-    };
-  }
-
-  if (
-    [
-      "customer",
-      "customers",
-    ].includes(
-      recordType
-    )
-  ) {
-    return {
-      label:
-        "Direct customer task",
-
-      href:
-        null,
-    };
-  }
-
-  return {
-    label:
-      "Customer work",
-
-    href:
-      null,
-  };
-}
-
-// =========================================================
-// HEALTH
-// =======================================================
-
-function getCustomerHealth({
-  customer,
-  overdueInvoices,
-  pendingTasks,
-  activeProjects,
-}) {
-  const status =
-    normaliseStatus(
-      customer.status
-    );
-
-  if (
-    status ===
-      "inactive" ||
-    overdueInvoices >
-      1
-  ) {
-    return {
-      label:
-        "At Risk",
-
-      tone:
-        "risk",
-    };
-  }
-
-  if (
-    status ===
-      "on hold" ||
-    overdueInvoices ===
-      1 ||
-    pendingTasks >
-      5
-  ) {
-    return {
-      label:
-        "Attention",
-
-      tone:
-        "attention",
-    };
-  }
-
-  if (
-    status ===
-      "active" ||
-    activeProjects >
-      0
-  ) {
-    return {
-      label:
-        "Excellent",
-
-      tone:
-        "excellent",
-    };
-  }
-
-  return {
-    label:
-      "Attention",
-
-    tone:
-      "attention",
-  };
-}
-
-// =========================================================
 // HELPERS
-// =======================================================
+// =========================================================
 
 function normaliseStatus(
   value
@@ -2990,7 +2316,12 @@ function isTaskOverdue(
   task
 ) {
   if (
-    !task?.due_date ||
+    !task?.due_date
+  ) {
+    return false;
+  }
+
+  if (
     COMPLETED_STATUSES.includes(
       normaliseStatus(
         task.status
@@ -3000,24 +2331,22 @@ function isTaskOverdue(
     return false;
   }
 
-  const dueDate =
+  const due =
     new Date(
-      `${String(
-        task.due_date
-      ).split("T")[0]}T23:59:59`
+      task.due_date
     );
 
   if (
     Number.isNaN(
-      dueDate.getTime()
+      due.getTime()
     )
   ) {
     return false;
   }
 
   return (
-    dueDate <
-    new Date()
+    due.getTime() <
+    Date.now()
   );
 }
 
@@ -3035,7 +2364,7 @@ function getMoneyValue(
     return 0;
   }
 
-  return (
+  const number =
     Number(
       String(
         value
@@ -3043,9 +2372,13 @@ function getMoneyValue(
         /[^0-9.-]/g,
         ""
       )
-    ) ||
-    0
-  );
+    );
+
+  return Number.isFinite(
+    number
+  )
+    ? number
+    : 0;
 }
 
 function formatCurrency(
@@ -3067,7 +2400,7 @@ function formatCurrency(
         0,
 
       maximumFractionDigits:
-        0,
+        2,
     }
   );
 }
@@ -3075,22 +2408,16 @@ function formatCurrency(
 function formatDate(
   value
 ) {
-  if (!value) {
-    return "Not scheduled";
+  if (
+    !value
+  ) {
+    return "Not available";
   }
 
   const date =
-    String(
+    new Date(
       value
-    ).includes(
-      "T"
-    )
-      ? new Date(
-          value
-        )
-      : new Date(
-          `${value}T12:00:00`
-        );
+    );
 
   if (
     Number.isNaN(
@@ -3115,74 +2442,29 @@ function formatDate(
   );
 }
 
-function formatDateTime(
-  value
+function getInitials(
+  value = ""
 ) {
-  if (!value) {
-    return "Not available";
-  }
-
-  const date =
-    new Date(
+  const words =
+    String(
       value
-    );
+    )
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
 
   if (
-    Number.isNaN(
-      date.getTime()
-    )
+    words.length ===
+    0
   ) {
-    return "Not available";
-  }
-
-  return date.toLocaleString(
-    "en-GB",
-    {
-      day:
-        "2-digit",
-
-      month:
-        "short",
-
-      year:
-        "numeric",
-
-      hour:
-        "2-digit",
-
-      minute:
-        "2-digit",
-    }
-  );
-}
-
-function getInitials(
-  value
-) {
-  const cleanValue =
-    String(
-      value ||
-        ""
-    ).trim();
-
-  if (!cleanValue) {
     return "CU";
   }
 
-  const parts =
-    cleanValue
-      .split(
-        /\s+/
-      )
-      .filter(
-        Boolean
-      );
-
   if (
-    parts.length ===
+    words.length ===
     1
   ) {
-    return parts[0]
+    return words[0]
       .slice(
         0,
         2
@@ -3190,9 +2472,9 @@ function getInitials(
       .toUpperCase();
   }
 
-  return `${parts[0][0]}${
-    parts[
-      parts.length -
+  return `${words[0][0]}${
+    words[
+      words.length -
         1
     ][0]
   }`.toUpperCase();
