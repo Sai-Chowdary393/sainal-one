@@ -878,3 +878,35 @@
     font-size: 26px;
   }
 }
+
+/* =========================================================
+   SAINAL ONE
+   OPERATIONS TYPOGRAPHY FINALISATION
+   PROJECTS LIST
+========================================================= */
+
+.projectIdentityCopy small {
+  font-size: 11px;
+}
+
+.overdueLabel {
+  font-size: 11px;
+}
+
+.progressMeta span {
+  font-size: 11px;
+}
+
+.progressMeta strong {
+  font-size: 11px;
+}
+
+@media (max-width: 720px) {
+  .field input,
+  .field select,
+  .field textarea,
+  .searchBox input,
+  .filterSelect {
+    font-size: 16px;
+  }
+}
