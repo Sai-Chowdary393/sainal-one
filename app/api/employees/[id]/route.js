@@ -31,10 +31,7 @@ function cleanNullableText(
       value
     );
 
-  return (
-    cleaned ||
-    null
-  );
+  return cleaned || null;
 }
 
 function isUuid(
@@ -45,6 +42,18 @@ function isUuid(
       value ||
         ""
     )
+  );
+}
+
+function isDateValue(
+  value
+) {
+  if (!value) {
+    return true;
+  }
+
+  return /^\d{4}-\d{2}-\d{2}$/.test(
+    String(value)
   );
 }
 
@@ -89,10 +98,6 @@ async function loadEmployeeWorkspace({
   organizationId,
   employeeId,
 }) {
-  // =======================================================
-  // EMPLOYEE
-  // =======================================================
-
   const {
     data:
       employee,
@@ -103,9 +108,7 @@ async function loadEmployeeWorkspace({
       .from(
         "employees"
       )
-      .select(
-        "*"
-      )
+      .select("*")
       .eq(
         "id",
         employeeId
@@ -124,9 +127,7 @@ async function loadEmployeeWorkspace({
     );
   }
 
-  if (
-    !employee
-  ) {
+  if (!employee) {
     return null;
   }
 
@@ -166,9 +167,7 @@ async function loadEmployeeWorkspace({
         )
         .maybeSingle();
 
-    if (
-      error
-    ) {
+    if (error) {
       throw new Error(
         error.message
       );
@@ -217,9 +216,7 @@ async function loadEmployeeWorkspace({
         )
         .maybeSingle();
 
-    if (
-      error
-    ) {
+    if (error) {
       throw new Error(
         error.message
       );
@@ -268,9 +265,7 @@ async function loadEmployeeWorkspace({
         )
         .maybeSingle();
 
-    if (
-      error
-    ) {
+    if (error) {
       throw new Error(
         error.message
       );
@@ -320,27 +315,21 @@ async function loadEmployeeWorkspace({
     );
   }
 
-  const roleIds =
-    [
-      ...new Set(
-        (
-          userRoles ||
-          []
+  const roleIds = [
+    ...new Set(
+      (
+        userRoles ||
+        []
+      )
+        .map(
+          (assignment) =>
+            assignment.role_id
         )
-          .map(
-            (
-              assignment
-            ) =>
-              assignment.role_id
-          )
-          .filter(
-            Boolean
-          )
-      ),
-    ];
+        .filter(Boolean)
+    ),
+  ];
 
-  let roleRows =
-    [];
+  let roleRows = [];
 
   if (
     roleIds.length >
@@ -373,9 +362,7 @@ async function loadEmployeeWorkspace({
           roleIds
         );
 
-    if (
-      error
-    ) {
+    if (error) {
       throw new Error(
         error.message
       );
@@ -389,9 +376,7 @@ async function loadEmployeeWorkspace({
   const roleMap =
     new Map(
       roleRows.map(
-        (
-          role
-        ) => [
+        (role) => [
           role.id,
           role,
         ]
@@ -403,9 +388,7 @@ async function loadEmployeeWorkspace({
       userRoles ||
       []
     ).map(
-      (
-        assignment
-      ) => ({
+      (assignment) => ({
         ...assignment,
 
         role:
@@ -415,10 +398,6 @@ async function loadEmployeeWorkspace({
           null,
       })
     );
-
-  // =======================================================
-  // RETURN
-  // =======================================================
 
   return {
     ...employee,
@@ -450,9 +429,7 @@ export async function GET(
       await context.params;
 
     if (
-      !isUuid(
-        id
-      )
+      !isUuid(id)
     ) {
       return NextResponse.json(
         {
@@ -465,10 +442,6 @@ export async function GET(
         }
       );
     }
-
-    // =====================================================
-    // ACCESS CONTROL
-    // =====================================================
 
     const access =
       await getCurrentEmployeeAccess();
@@ -521,9 +494,7 @@ export async function GET(
           id,
       });
 
-    if (
-      !employee
-    ) {
+    if (!employee) {
       return NextResponse.json(
         {
           error:
@@ -563,9 +534,7 @@ export async function GET(
           ),
       },
     });
-  } catch (
-    error
-  ) {
+  } catch (error) {
     console.error(
       "Employee GET error:",
       error
@@ -600,9 +569,7 @@ export async function PATCH(
       await context.params;
 
     if (
-      !isUuid(
-        id
-      )
+      !isUuid(id)
     ) {
       return NextResponse.json(
         {
@@ -615,10 +582,6 @@ export async function PATCH(
         }
       );
     }
-
-    // =====================================================
-    // ACCESS CONTROL
-    // =====================================================
 
     const access =
       await getCurrentEmployeeAccess();
@@ -671,9 +634,7 @@ export async function PATCH(
         .from(
           "employees"
         )
-        .select(
-          "*"
-        )
+        .select("*")
         .eq(
           "id",
           id
@@ -711,7 +672,7 @@ export async function PATCH(
       await request.json();
 
     // =====================================================
-    // ROLE MANAGEMENT REQUIRES roles.manage
+    // ROLE MANAGEMENT
     // =====================================================
 
     if (
@@ -727,8 +688,7 @@ export async function PATCH(
       );
     }
 
-    const updates =
-      {};
+    const updates = {};
 
     // =====================================================
     // EMPLOYEE NUMBER
@@ -770,9 +730,7 @@ export async function PATCH(
           .from(
             "employees"
           )
-          .select(
-            "id"
-          )
+          .select("id")
           .eq(
             "organization_id",
             organizationId
@@ -829,9 +787,7 @@ export async function PATCH(
           body.full_name
         );
 
-      if (
-        !fullName
-      ) {
+      if (!fullName) {
         return NextResponse.json(
           {
             error:
@@ -850,6 +806,13 @@ export async function PATCH(
 
     // =====================================================
     // EMAIL
+    //
+    // SECURITY / DATA CONSISTENCY:
+    // employees.email must stay aligned with Supabase Auth.
+    //
+    // For the POC this API does not support login email
+    // changes. If the frontend sends the existing email it
+    // is simply ignored.
     // =====================================================
 
     if (
@@ -858,21 +821,24 @@ export async function PATCH(
         "email"
       )
     ) {
-      const email =
+      const requestedEmail =
         cleanText(
           body.email
         ).toLowerCase();
 
+      const existingEmail =
+        cleanText(
+          existingEmployee.email
+        ).toLowerCase();
+
       if (
-        !email ||
-        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-          email
-        )
+        requestedEmail !==
+        existingEmail
       ) {
         return NextResponse.json(
           {
             error:
-              "Please enter a valid employee email address.",
+              "Employee login email cannot be changed from this screen yet. Please keep the current email address.",
           },
           {
             status:
@@ -880,59 +846,6 @@ export async function PATCH(
           }
         );
       }
-
-      const {
-        data:
-          duplicateEmployeeEmail,
-        error:
-          duplicateEmailError,
-      } =
-        await supabase
-          .from(
-            "employees"
-          )
-          .select(
-            "id"
-          )
-          .eq(
-            "organization_id",
-            organizationId
-          )
-          .ilike(
-            "email",
-            email
-          )
-          .neq(
-            "id",
-            id
-          )
-          .maybeSingle();
-
-      if (
-        duplicateEmailError
-      ) {
-        throw new Error(
-          duplicateEmailError.message
-        );
-      }
-
-      if (
-        duplicateEmployeeEmail
-      ) {
-        return NextResponse.json(
-          {
-            error:
-              "Another employee already uses this email address.",
-          },
-          {
-            status:
-              409,
-          }
-        );
-      }
-
-      updates.email =
-        email;
     }
 
     // =====================================================
@@ -1009,9 +922,7 @@ export async function PATCH(
             .from(
               "departments"
             )
-            .select(
-              "id"
-            )
+            .select("id")
             .eq(
               "id",
               departmentId
@@ -1105,9 +1016,7 @@ export async function PATCH(
             .from(
               "employees"
             )
-            .select(
-              "id"
-            )
+            .select("id")
             .eq(
               "id",
               managerId
@@ -1205,9 +1114,7 @@ export async function PATCH(
             .from(
               "employees"
             )
-            .select(
-              "id"
-            )
+            .select("id")
             .eq(
               "id",
               backupEmployeeId
@@ -1289,9 +1196,29 @@ export async function PATCH(
         "start_date"
       )
     ) {
-      updates.start_date =
+      const startDate =
         body.start_date ||
         null;
+
+      if (
+        !isDateValue(
+          startDate
+        )
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Start date must use YYYY-MM-DD format.",
+          },
+          {
+            status:
+              400,
+          }
+        );
+      }
+
+      updates.start_date =
+        startDate;
     }
 
     if (
@@ -1300,9 +1227,67 @@ export async function PATCH(
         "end_date"
       )
     ) {
-      updates.end_date =
+      const endDate =
         body.end_date ||
         null;
+
+      if (
+        !isDateValue(
+          endDate
+        )
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "End date must use YYYY-MM-DD format.",
+          },
+          {
+            status:
+              400,
+          }
+        );
+      }
+
+      updates.end_date =
+        endDate;
+    }
+
+    const nextStartDate =
+      Object.prototype.hasOwnProperty.call(
+        updates,
+        "start_date"
+      )
+        ? updates.start_date
+        : existingEmployee.start_date;
+
+    const nextEndDate =
+      Object.prototype.hasOwnProperty.call(
+        updates,
+        "end_date"
+      )
+        ? updates.end_date
+        : existingEmployee.end_date;
+
+    if (
+      nextStartDate &&
+      nextEndDate &&
+      String(
+        nextEndDate
+      ) <
+        String(
+          nextStartDate
+        )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Employee end date cannot be before the start date.",
+        },
+        {
+          status:
+            400,
+        }
+      );
     }
 
     if (
@@ -1349,6 +1334,28 @@ export async function PATCH(
           {
             error:
               "The organisation owner cannot be deactivated.",
+          },
+          {
+            status:
+              400,
+          }
+        );
+      }
+
+      if (
+        String(
+          existingEmployee.id
+        ) ===
+          String(
+            access.employee.id
+          ) &&
+        body.is_active ===
+          false
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "You cannot deactivate your own employee account.",
           },
           {
             status:
@@ -1435,17 +1442,36 @@ export async function PATCH(
         body.role_ids
       )
     ) {
-      const roleIds =
-        [
-          ...new Set(
-            body.role_ids.filter(
-              isUuid
+      const invalidRoleId =
+        body.role_ids.some(
+          (roleId) =>
+            !isUuid(
+              roleId
             )
-          ),
-        ];
+        );
 
-      let validRoles =
-        [];
+      if (
+        invalidRoleId
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "One or more selected roles are invalid.",
+          },
+          {
+            status:
+              400,
+          }
+        );
+      }
+
+      const roleIds = [
+        ...new Set(
+          body.role_ids
+        ),
+      ];
+
+      let validRoles = [];
 
       if (
         roleIds.length >
@@ -1510,15 +1536,9 @@ export async function PATCH(
         }
       }
 
-      // ===================================================
-      // OWNER ROLE PROTECTION
-      // ===================================================
-
       const selectedOwnerRole =
         validRoles.some(
-          (
-            role
-          ) =>
+          (role) =>
             role.code ===
             "ORG_OWNER"
         );
@@ -1557,10 +1577,6 @@ export async function PATCH(
         );
       }
 
-      // ===================================================
-      // CLEAR EXISTING ROLE ASSIGNMENTS
-      // ===================================================
-
       const {
         error:
           deleteRolesError,
@@ -1587,19 +1603,13 @@ export async function PATCH(
         );
       }
 
-      // ===================================================
-      // INSERT NEW ROLE ASSIGNMENTS
-      // ===================================================
-
       if (
         roleIds.length >
         0
       ) {
         const assignments =
           roleIds.map(
-            (
-              roleId
-            ) => ({
+            (roleId) => ({
               organization_id:
                 organizationId,
 
@@ -1637,10 +1647,6 @@ export async function PATCH(
       }
     }
 
-    // =====================================================
-    // RETURN FULL WORKSPACE
-    // =====================================================
-
     const refreshedEmployee =
       await loadEmployeeWorkspace({
         supabase,
@@ -1659,9 +1665,7 @@ export async function PATCH(
       message:
         "Employee updated successfully.",
     });
-  } catch (
-    error
-  ) {
+  } catch (error) {
     console.error(
       "Employee PATCH error:",
       error
@@ -1696,9 +1700,7 @@ export async function DELETE(
       await context.params;
 
     if (
-      !isUuid(
-        id
-      )
+      !isUuid(id)
     ) {
       return NextResponse.json(
         {
@@ -1711,10 +1713,6 @@ export async function DELETE(
         }
       );
     }
-
-    // =====================================================
-    // ACCESS CONTROL
-    // =====================================================
 
     const access =
       await getCurrentEmployeeAccess();
@@ -1753,10 +1751,6 @@ export async function DELETE(
       access.employee
         .organization_id;
 
-    // =====================================================
-    // EMPLOYEE
-    // =====================================================
-
     const {
       data:
         employee,
@@ -1794,9 +1788,7 @@ export async function DELETE(
       );
     }
 
-    if (
-      !employee
-    ) {
+    if (!employee) {
       return NextResponse.json(
         {
           error:
@@ -1808,10 +1800,6 @@ export async function DELETE(
         }
       );
     }
-
-    // =====================================================
-    // OWNER PROTECTION
-    // =====================================================
 
     if (
       employee
@@ -1828,10 +1816,6 @@ export async function DELETE(
         }
       );
     }
-
-    // =====================================================
-    // SELF-DEACTIVATION PROTECTION
-    // =====================================================
 
     if (
       String(
@@ -1853,10 +1837,6 @@ export async function DELETE(
       );
     }
 
-    // =====================================================
-    // ALREADY INACTIVE
-    // =====================================================
-
     if (
       !employee.is_active
     ) {
@@ -1867,10 +1847,6 @@ export async function DELETE(
           "Employee is already inactive.",
       });
     }
-
-    // =====================================================
-    // DEACTIVATE
-    // =====================================================
 
     const {
       data:
@@ -1895,9 +1871,7 @@ export async function DELETE(
           end_date:
             new Date()
               .toISOString()
-              .split(
-                "T"
-              )[0],
+              .split("T")[0],
 
           updated_by:
             access.employee
@@ -1929,9 +1903,7 @@ export async function DELETE(
       message:
         "Employee deactivated successfully.",
     });
-  } catch (
-    error
-  ) {
+  } catch (error) {
     console.error(
       "Employee DELETE error:",
       error
