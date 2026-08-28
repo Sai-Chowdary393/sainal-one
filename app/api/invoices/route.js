@@ -20,6 +20,15 @@ import {
 } from "../../../lib/recordAccess";
 
 // =========================================================
+// CONSTANTS
+// =========================================================
+
+const ALLOWED_CREATE_STATUSES = [
+  "Draft Invoice",
+  "Draft",
+];
+
+// =========================================================
 // HELPERS
 // =========================================================
 
@@ -53,6 +62,70 @@ function getPermissions(access) {
         "Invoices",
     }
   );
+}
+
+function isUuid(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    String(value || "")
+  );
+}
+
+function isValidDate(value) {
+  if (!value) {
+    return true;
+  }
+
+  return /^\d{4}-\d{2}-\d{2}$/.test(
+    value
+  );
+}
+
+async function validateRelatedRecord({
+  supabase,
+  organizationId,
+  table,
+  recordId,
+  label,
+}) {
+  if (!recordId) {
+    return null;
+  }
+
+  if (!isUuid(recordId)) {
+    throw new Error(
+      `${label} ID must be a valid UUID.`
+    );
+  }
+
+  const {
+    data,
+    error,
+  } = await supabase
+    .from(table)
+    .select("id")
+    .eq(
+      "id",
+      recordId
+    )
+    .eq(
+      "organization_id",
+      organizationId
+    )
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      `Unable to validate ${label.toLowerCase()}: ${error.message}`
+    );
+  }
+
+  if (!data) {
+    throw new Error(
+      `The selected ${label.toLowerCase()} is not valid for this organisation.`
+    );
+  }
+
+  return data.id;
 }
 
 function parseMoney(value) {
@@ -403,6 +476,55 @@ export async function POST(
       );
     }
 
+    /*
+     * A newly-created invoice must
+     * always start as Draft.
+     */
+    const status =
+      cleanText(
+        body.status
+      ) ||
+      "Draft Invoice";
+
+    if (
+      !ALLOWED_CREATE_STATUSES.includes(
+        status
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "New invoices must start as Draft Invoice or Draft.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
+    const dueDate =
+      body.due_date ||
+      null;
+
+    if (
+      dueDate &&
+      !isValidDate(
+        dueDate
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Due date must use YYYY-MM-DD format.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
     const subtotal =
       parseMoney(
         body.subtotal ??
@@ -484,13 +606,35 @@ export async function POST(
         );
       }
 
+      const requestedOwnerId =
+        cleanText(
+          body.owner_employee_id
+        );
+
+      if (
+        !isUuid(
+          requestedOwnerId
+        )
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "The selected invoice owner is not valid.",
+          },
+          {
+            status:
+              400,
+          }
+        );
+      }
+
       const owner =
         await validateRecordOwner({
           supabase,
           organizationId,
 
           employeeId:
-            body.owner_employee_id,
+            requestedOwnerId,
         });
 
       if (
@@ -513,6 +657,58 @@ export async function POST(
     }
 
     // =====================================================
+    // RELATED RECORDS
+    // =====================================================
+
+    const customerId =
+      body.customer_id
+        ? cleanText(
+            body.customer_id
+          )
+        : null;
+
+    const projectId =
+      body.project_id
+        ? cleanText(
+            body.project_id
+          )
+        : null;
+
+    const quoteId =
+      body.quote_id
+        ? cleanText(
+            body.quote_id
+          )
+        : null;
+
+    await validateRelatedRecord({
+      supabase,
+      organizationId,
+      table: "customers",
+      recordId:
+        customerId,
+      label: "Customer",
+    });
+
+    await validateRelatedRecord({
+      supabase,
+      organizationId,
+      table: "projects",
+      recordId:
+        projectId,
+      label: "Project",
+    });
+
+    await validateRelatedRecord({
+      supabase,
+      organizationId,
+      table: "quotes",
+      recordId:
+        quoteId,
+      label: "Quote",
+    });
+
+    // =====================================================
     // INSERT
     // =====================================================
 
@@ -532,16 +728,13 @@ export async function POST(
               organizationId,
 
             customer_id:
-              body.customer_id ||
-              null,
+              customerId,
 
             project_id:
-              body.project_id ||
-              null,
+              projectId,
 
             quote_id:
-              body.quote_id ||
-              null,
+              quoteId,
 
             invoice_number:
               cleanText(
@@ -578,15 +771,10 @@ export async function POST(
                 totalAmount
               ),
 
-            status:
-              cleanText(
-                body.status
-              ) ||
-              "Draft Invoice",
+            status,
 
             due_date:
-              body.due_date ||
-              null,
+              dueDate,
 
             payment_terms:
               cleanText(
@@ -637,15 +825,39 @@ export async function POST(
       error
     );
 
+    const message =
+      error.message ||
+      "Failed to create invoice.";
+
+    const validationError =
+      [
+        "invalid",
+        "required",
+        "uuid",
+        "not valid for this organisation",
+        "must start as",
+        "yyyy-mm-dd",
+      ].some(
+        (
+          word
+        ) =>
+          message
+            .toLowerCase()
+            .includes(
+              word
+            )
+      );
+
     return NextResponse.json(
       {
         error:
-          error.message ||
-          "Failed to create invoice.",
+          message,
       },
       {
         status:
-          500,
+          validationError
+            ? 400
+            : 500,
       }
     );
   }
