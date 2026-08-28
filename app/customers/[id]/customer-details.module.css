@@ -3,25 +3,36 @@
   gap: 20px;
 }
 
+
+/* =========================================================
+   HEADER
+========================================================= */
+
 .pageHeader {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
+
   gap: 24px;
 }
 
 .headerCopy {
   display: grid;
+
   gap: 6px;
 }
 
 .backLink {
-  display: inline-flex;
   width: fit-content;
+
+  display: inline-flex;
   align-items: center;
+
   gap: 6px;
+
   color: #947000;
-  font-size: 10px;
+
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -31,64 +42,94 @@
 
 .eyebrow {
   color: #9b7508;
-  font-size: 10px;
+
+  font-size: 11px;
   font-weight: 900;
-  letter-spacing: 1.15px;
+
+  letter-spacing: 1.05px;
+
   text-transform: uppercase;
 }
 
 .pageHeader h2 {
   margin: 0;
-  color: #27241e;
-  font-size: 29px;
-  letter-spacing: -0.75px;
+
+  color: var(--color-text);
+
+  font-size: var(--font-workspace-title);
+  font-weight: 800;
+
+  line-height: 1.2;
+
+  letter-spacing: -0.65px;
 }
 
 .pageHeader p {
   margin: 0;
-  color: #88847b;
-  font-size: 11px;
+
+  color: var(--color-muted);
+
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .headerActions {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
+
   gap: 9px;
 }
+
+
+/* =========================================================
+   BUTTONS
+========================================================= */
 
 .primaryButton,
 .secondaryButton,
 .actionButton,
 .recordButton {
-  display: inline-flex;
   min-height: 41px;
+
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+
   gap: 8px;
+
   padding: 0 14px;
+
   border-radius: 10px;
+
   font: inherit;
-  font-size: 10px;
+  font-size: var(--font-button);
   font-weight: 800;
+
   cursor: pointer;
+
   text-decoration: none;
+
   transition:
-    border-color 150ms ease,
-    background 150ms ease,
-    color 150ms ease,
-    transform 150ms ease;
+    border-color var(--transition-fast),
+    background var(--transition-fast),
+    color var(--transition-fast),
+    transform var(--transition-fast);
 }
 
 .primaryButton {
-  border: 1px solid #bd8d08;
+  border:
+    1px solid
+    #bd8d08;
+
+  color: #1b1a16;
+
   background:
     linear-gradient(
       145deg,
       #dfb83d,
       #c8940b
     );
-  color: #1b1a16;
 }
 
 .primaryButton:hover:not(:disabled) {
@@ -98,88 +139,120 @@
       #e6c14a,
       #d1a01a
     );
+
   transform:
     translateY(-1px);
 }
 
 .secondaryButton {
-  border: 1px solid #ddd9cf;
-  background: #ffffff;
-  color: #514d45;
+  border:
+    1px solid
+    var(--color-border);
+
+  color: var(--color-text-soft);
+
+  background: var(--color-surface);
 }
 
 .secondaryButton:hover:not(:disabled) {
   border-color: #c9aa49;
-  background: #fbf7e9;
+
   color: #8d6800;
+
+  background: var(--color-brand-soft);
 }
 
 .actionButton,
 .recordButton {
-  border: 1px solid #e0d9c7;
-  background: #faf7ee;
+  border:
+    1px solid
+    #e0d9c7;
+
   color: #8d6800;
+
+  background: #faf7ee;
 }
 
 .actionButton:hover,
 .recordButton:hover {
   border-color: #c9a53b;
+
   background: #f7efd6;
 }
 
 .primaryButton:disabled,
 .secondaryButton:disabled {
-  cursor: wait;
   opacity: 0.65;
+
+  cursor: wait;
 }
 
+
 /* =========================================================
-   HERO
+   HERO / CUSTOMER IDENTITY
 ========================================================= */
 
 .heroCard {
   display: grid;
+
   grid-template-columns:
     minmax(0, 1fr)
     minmax(400px, auto);
+
   align-items: center;
+
   gap: 24px;
+
   padding: 24px;
-  border: 1px solid #dfdcd3;
-  border-radius: 18px;
+
+  border:
+    1px solid
+    var(--color-border);
+
+  border-radius:
+    var(--radius-xl);
+
   background:
     radial-gradient(
       circle at 95% 0,
-      rgba(212, 175, 55, 0.13),
+      rgba(214, 165, 20, 0.13),
       transparent 30%
     ),
-    #ffffff;
+    var(--color-surface);
+
   box-shadow:
-    0 10px 30px
-    rgba(43, 36, 17, 0.05);
+    var(--shadow-sm);
 }
 
 .identity {
-  display: flex;
   min-width: 0;
+
+  display: flex;
   align-items: center;
+
   gap: 15px;
 }
 
 .avatar {
-  display: grid;
   width: 60px;
   height: 60px;
-  place-items: center;
+
   flex: 0 0 60px;
+
+  display: grid;
+  place-items: center;
+
   border-radius: 17px;
+
+  color: #deb840;
+
   background:
     linear-gradient(
       145deg,
       #24231f,
       #3a3426
     );
-  color: #deb840;
+
   font-size: 16px;
   font-weight: 900;
 }
@@ -190,102 +263,140 @@
 
 .identityCopy h3 {
   margin: 0;
+
   overflow: hidden;
-  color: #28251f;
-  font-size: 21px;
+
+  color: var(--color-text);
+
+  font-size: 24px;
+  font-weight: 800;
+
+  line-height: 1.25;
+
+  letter-spacing: -0.45px;
+
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .identityCopy p {
-  margin: 5px 0 0;
-  color: #8b877e;
-  font-size: 10px;
+  margin:
+    5px 0 0;
+
+  color: var(--color-muted);
+
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .identityMeta {
+  margin-top: 10px;
+
   display: flex;
   flex-wrap: wrap;
+
   gap: 7px;
-  margin-top: 10px;
+}
+
+.metaBadge,
+.healthBadge {
+  min-height: 28px;
+
+  display: inline-flex;
+  align-items: center;
+
+  padding: 0 10px;
+
+  border-radius: 999px;
+
+  font-size: 11px;
+  font-weight: 800;
 }
 
 .metaBadge {
-  display: inline-flex;
-  min-height: 28px;
-  align-items: center;
-  padding: 0 10px;
-  border-radius: 999px;
+  color: var(--color-text-soft);
+
   background: #f2f0ea;
-  color: #706c63;
-  font-size: 9px;
-  font-weight: 750;
 }
 
 .healthBadge {
-  display: inline-flex;
-  min-height: 28px;
-  align-items: center;
   gap: 7px;
-  padding: 0 10px;
-  border-radius: 999px;
-  font-size: 9px;
-  font-weight: 850;
 }
 
 .healthDot {
   width: 7px;
   height: 7px;
+
   border-radius: 50%;
 }
 
 .healthExcellent {
-  background: #e5f3ea;
   color: #387451;
+
+  background: var(--color-success-bg);
 }
 
 .healthExcellent .healthDot {
-  background: #4a9a68;
+  background: var(--color-success);
 }
 
 .healthAttention {
-  background: #faefd1;
   color: #8d6800;
+
+  background: var(--color-warning-bg);
 }
 
 .healthAttention .healthDot {
-  background: #d4a226;
+  background: var(--color-brand);
 }
 
 .healthRisk {
-  background: #f9e3e3;
   color: #a14545;
+
+  background: var(--color-danger-bg);
 }
 
 .healthRisk .healthDot {
-  background: #c24e4e;
+  background: var(--color-danger);
 }
+
+
+/* =========================================================
+   HERO METRICS
+========================================================= */
 
 .heroMetrics {
   display: grid;
+
   grid-template-columns:
     repeat(
       3,
       minmax(120px, 1fr)
     );
+
   overflow: hidden;
-  border: 1px solid #e4dfd2;
+
+  border:
+    1px solid
+    #e4dfd2;
+
   border-radius: 14px;
+
   background: #fbf8ef;
 }
 
 .heroMetric {
-  display: grid;
   min-width: 0;
+
+  display: grid;
+
   gap: 5px;
+
   padding: 15px;
+
   border-right:
-    1px solid #e7e0cd;
+    1px solid
+    #e7e0cd;
 }
 
 .heroMetric:last-child {
@@ -293,23 +404,30 @@
 }
 
 .heroMetric span {
-  color: #8d8980;
-  font-size: 8px;
+  color: var(--color-muted);
+
+  font-size: 11px;
   font-weight: 800;
+
   text-transform: uppercase;
 }
 
 .heroMetric strong {
   overflow: hidden;
+
   color: #8e6900;
-  font-size: 18px;
+
+  font-size: 20px;
+  font-weight: 800;
+
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .heroMetricWarning strong {
-  color: #a44646;
+  color: var(--color-danger);
 }
+
 
 /* =========================================================
    TABS
@@ -317,27 +435,42 @@
 
 .tabs {
   display: flex;
+
   overflow-x: auto;
+
   border-bottom:
-    1px solid #ddd9cf;
+    1px solid
+    var(--color-border);
+
   background: transparent;
 }
 
 .tabButton {
-  display: inline-flex;
   min-height: 48px;
+
+  display: inline-flex;
   align-items: center;
+
   gap: 7px;
+
   padding: 0 17px;
+
   border: 0;
+
   border-bottom:
-    3px solid transparent;
+    3px solid
+    transparent;
+
+  color: var(--color-muted);
+
   background: transparent;
-  color: #77736a;
+
   font: inherit;
-  font-size: 10px;
+  font-size: var(--font-button);
   font-weight: 800;
+
   white-space: nowrap;
+
   cursor: pointer;
 }
 
@@ -348,26 +481,35 @@
 .tabButtonActive {
   border-bottom-color:
     #c99b17;
+
   color: #8f6a00;
 }
 
 .tabCount {
-  display: grid;
   min-width: 20px;
   height: 20px;
+
+  display: grid;
   place-items: center;
+
   padding: 0 5px;
+
   border-radius: 999px;
+
+  color: var(--color-muted);
+
   background: #f0ede5;
-  color: #77736a;
-  font-size: 8px;
+
+  font-size: 10px;
+  font-weight: 800;
 }
 
-.tabButtonActive
-.tabCount {
-  background: #f5edcf;
+.tabButtonActive .tabCount {
   color: #8d6900;
+
+  background: var(--color-brand-soft);
 }
+
 
 /* =========================================================
    PANELS
@@ -375,12 +517,15 @@
 
 .overviewGrid {
   display: grid;
+
   grid-template-columns:
     repeat(
       2,
       minmax(0, 1fr)
     );
+
   align-items: start;
+
   gap: 18px;
 }
 
@@ -392,12 +537,17 @@
 .relatedWorkSection,
 .loadingPanel,
 .errorPanel {
-  border: 1px solid #dfdcd3;
-  border-radius: 18px;
-  background: #ffffff;
+  border:
+    1px solid
+    var(--color-border);
+
+  border-radius:
+    var(--radius-xl);
+
+  background: var(--color-surface);
+
   box-shadow:
-    0 10px 30px
-    rgba(43, 36, 17, 0.05);
+    var(--shadow-sm);
 }
 
 .panel,
@@ -406,41 +556,64 @@
 }
 
 .panelHeader {
+  padding-bottom: 14px;
+
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
+
   gap: 15px;
-  padding-bottom: 14px;
+
   border-bottom:
-    1px solid #ece9e2;
+    1px solid
+    var(--color-border-soft);
 }
 
 .panelHeader h3 {
   margin: 0;
-  color: #2c2923;
-  font-size: 16px;
+
+  color: var(--color-text);
+
+  font-size: var(--font-panel-title);
+  font-weight: 800;
 }
 
 .panelHeader p {
-  margin: 4px 0 0;
-  color: #98948b;
-  font-size: 9px;
+  margin:
+    4px 0 0;
+
+  color: var(--color-muted);
+
+  font-size: 12px;
+  line-height: 1.45;
 }
+
+
+/* =========================================================
+   DETAILS
+========================================================= */
 
 .detailList {
   display: grid;
+
   margin-top: 10px;
 }
 
 .detailRow {
+  padding:
+    13px 0;
+
   display: grid;
+
   grid-template-columns:
     145px
     minmax(0, 1fr);
+
   gap: 18px;
-  padding: 13px 0;
+
   border-bottom:
-    1px solid #f0eee8;
+    1px solid
+    var(--color-border-soft);
 }
 
 .detailRow:last-child {
@@ -448,16 +621,20 @@
 }
 
 .detailRow > span {
-  color: #89857c;
-  font-size: 10px;
+  color: var(--color-muted);
+
+  font-size: 12px;
   font-weight: 700;
 }
 
 .detailRow strong,
 .detailRow a {
   overflow-wrap: anywhere;
-  color: #333029;
-  font-size: 11px;
+
+  color: var(--color-text);
+
+  font-size: var(--font-body);
+  line-height: 1.5;
 }
 
 .detailRow a:hover {
@@ -465,33 +642,43 @@
 }
 
 .emptyValue {
-  color: #aaa69d !important;
-  font-weight: 500 !important;
+  color:
+    var(--color-muted-light)
+    !important;
+
+  font-weight:
+    500 !important;
 }
+
 
 /* =========================================================
    EDIT FORM
 ========================================================= */
 
 .formGrid {
+  margin-top: 17px;
+
   display: grid;
+
   grid-template-columns:
     repeat(
       2,
       minmax(0, 1fr)
     );
+
   gap: 14px;
-  margin-top: 17px;
 }
 
 .field {
   display: grid;
+
   gap: 7px;
 }
 
 .field label {
-  color: #4d4942;
-  font-size: 9px;
+  color: var(--color-text-soft);
+
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -499,298 +686,395 @@
 .field select {
   width: 100%;
   height: 43px;
+
   padding: 0 12px;
-  border: 1px solid #dad7ce;
+
+  border:
+    1px solid
+    var(--color-border);
+
   border-radius: 10px;
+
   outline: none;
-  background: #ffffff;
-  color: #2c2923;
+
+  color: var(--color-text);
+
+  background: var(--color-surface);
+
   font: inherit;
-  font-size: 11px;
+  font-size: var(--font-input);
 }
 
 .field input:focus,
 .field select:focus {
   border-color: #c69a1b;
+
   box-shadow:
     0 0 0 4px
     rgba(198, 154, 27, 0.1);
 }
 
+
 /* =========================================================
-   AI
+   AI CUSTOMER SUMMARY
 ========================================================= */
 
 .aiPanel {
   overflow: hidden;
+
+  color: #ffffff;
+
   background:
     radial-gradient(
       circle at 100% 0,
-      rgba(212, 175, 55, 0.19),
+      rgba(214, 165, 20, 0.19),
       transparent 29%
     ),
     #25241f;
-  color: #ffffff;
 }
 
 .aiHeader {
+  padding: 21px;
+
   display: flex;
   align-items: center;
+
   gap: 12px;
-  padding: 21px;
+
   border-bottom:
     1px solid
     rgba(255, 255, 255, 0.08);
 }
 
 .aiIcon {
-  display: grid;
   width: 42px;
   height: 42px;
-  place-items: center;
+
   flex: 0 0 42px;
+
+  display: grid;
+  place-items: center;
+
   border-radius: 12px;
+
+  color: #201e18;
+
   background:
     linear-gradient(
       145deg,
       #dfb941,
       #bc8906
     );
-  color: #201e18;
+
   font-size: 17px;
 }
 
 .aiHeader span {
   color: #d8b23a;
-  font-size: 8px;
+
+  font-size: 11px;
   font-weight: 850;
-  letter-spacing: 0.8px;
+
+  letter-spacing: 0.75px;
+
   text-transform: uppercase;
 }
 
 .aiHeader h3 {
-  margin: 4px 0 0;
-  font-size: 16px;
+  margin:
+    4px 0 0;
+
+  color: #ffffff;
+
+  font-size: var(--font-panel-title);
 }
 
 .aiSummary {
   padding:
-    20px
-    21px
-    8px;
+    20px 21px 8px;
 }
 
 .aiSummary p {
   margin: 0;
+
   color:
     rgba(
       255,
       255,
       255,
-      0.68
+      0.72
     );
-  font-size: 10px;
+
+  font-size: var(--font-body);
   line-height: 1.7;
 }
 
 .recommendations {
-  display: grid;
-  gap: 10px;
   padding:
-    13px
-    21px
-    21px;
+    13px 21px 21px;
+
+  display: grid;
+
+  gap: 10px;
 }
 
 .recommendations > span {
   color: #d3ab35;
-  font-size: 8px;
+
+  font-size: 11px;
   font-weight: 850;
+
   text-transform: uppercase;
 }
 
 .recommendationItem {
   display: grid;
+
   grid-template-columns:
     23px
     minmax(0, 1fr);
+
   align-items: flex-start;
+
   gap: 9px;
 }
 
 .recommendationItem > span {
-  display: grid;
   width: 22px;
   height: 22px;
+
+  display: grid;
   place-items: center;
+
   border-radius: 7px;
-  background:
-    rgba(
-      212,
-      175,
-      55,
-      0.11
-    );
+
   color: #dbb63d;
-  font-size: 10px;
+
+  background:
+    rgba(214, 165, 20, 0.11);
+
+  font-size: 11px;
 }
 
 .recommendationItem p,
 .emptyRecommendation {
-  margin: 2px 0 0;
+  margin:
+    2px 0 0;
+
   color:
     rgba(
       255,
       255,
       255,
-      0.63
+      0.67
     );
-  font-size: 9px;
-  line-height: 1.55;
+
+  font-size: 12px;
+  line-height: 1.6;
 }
+
 
 /* =========================================================
    FINANCE
 ========================================================= */
 
 .financeGrid {
+  margin-top: 17px;
+
   display: grid;
+
   grid-template-columns:
     repeat(
       4,
       minmax(0, 1fr)
     );
+
   gap: 11px;
-  margin-top: 17px;
 }
 
 .financeMetric {
   display: grid;
+
   gap: 6px;
+
   padding: 14px;
+
   border-radius: 12px;
-  background: #f7f5ef;
+
+  background:
+    var(--color-surface-soft);
 }
 
 .financeMetric span {
-  color: #858178;
-  font-size: 8px;
+  color: var(--color-muted);
+
+  font-size: 11px;
   font-weight: 800;
+
   text-transform: uppercase;
 }
 
 .financeMetric strong {
   overflow: hidden;
-  color: #34312b;
-  font-size: 18px;
+
+  color: var(--color-text);
+
+  font-size: 21px;
+  font-weight: 800;
+
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .financePositive strong {
-  color: #397451;
+  color: var(--color-success);
 }
 
 .financeWarning strong {
-  color: #a54747;
+  color: var(--color-danger);
 }
 
 .accountGrid {
+  margin-top: 17px;
+
   display: grid;
+
   grid-template-columns:
     repeat(
       3,
       minmax(0, 1fr)
     );
+
   gap: 10px;
-  margin-top: 17px;
 }
 
 .accountMetric {
-  display: grid;
-  gap: 4px;
   padding: 13px;
+
+  display: grid;
+
+  gap: 4px;
+
   border-radius: 11px;
-  background: #f7f5ef;
+
+  background:
+    var(--color-surface-soft);
+
   text-align: center;
 }
 
 .accountMetric strong {
   color: #8f6a00;
-  font-size: 19px;
+
+  font-size: 21px;
+  font-weight: 800;
 }
 
 .accountMetric span {
-  color: #8d8980;
-  font-size: 8px;
+  color: var(--color-muted);
+
+  font-size: 11px;
   font-weight: 750;
 }
 
+
 /* =========================================================
-   LEAD / TIMELINE
+   ORIGINAL LEAD
 ========================================================= */
 
 .originalLead {
+  margin-top: 17px;
+
   display: grid;
+
   grid-template-columns:
     minmax(0, 1fr)
     auto
     auto;
+
   align-items: center;
+
   gap: 15px;
-  margin-top: 17px;
 }
 
 .originalLead strong {
-  color: #34312b;
-  font-size: 11px;
+  color: var(--color-text);
+
+  font-size: var(--font-body);
 }
 
 .originalLead p {
-  margin: 4px 0 0;
-  color: #98948b;
-  font-size: 9px;
+  margin:
+    4px 0 0;
+
+  color: var(--color-muted);
+
+  font-size: 12px;
+  line-height: 1.45;
 }
 
+
+/* =========================================================
+   TIMELINE
+========================================================= */
+
 .timeline {
-  display: grid;
-  gap: 15px;
   margin-top: 17px;
+
+  display: grid;
+
+  gap: 15px;
 }
 
 .timelineItem {
   display: grid;
+
   grid-template-columns:
     12px
     minmax(0, 1fr);
+
   gap: 11px;
 }
 
 .timelineDot {
   width: 9px;
   height: 9px;
-  margin-top: 4px;
-  border: 2px solid #ffffff;
+
+  margin-top: 5px;
+
+  border:
+    2px solid
+    #ffffff;
+
   border-radius: 50%;
-  background: #c99b17;
+
+  background:
+    #c99b17;
+
   box-shadow:
     0 0 0 2px
     #e9ddba;
 }
 
 .timelineItem strong {
-  color: #3a3730;
-  font-size: 10px;
+  color: var(--color-text);
+
+  font-size: var(--font-body);
 }
 
 .timelineItem p {
-  margin: 4px 0 0;
-  color: #98948b;
-  font-size: 9px;
+  margin:
+    4px 0 0;
+
+  color: var(--color-muted);
+
+  font-size: 12px;
+  line-height: 1.5;
 }
 
+
 /* =========================================================
-   RECORDS
+   RELATED RECORDS
 ========================================================= */
 
 .recordsSection {
@@ -798,65 +1082,92 @@
 }
 
 .recordsSectionHeader {
-  padding: 20px 21px;
+  padding:
+    20px 21px;
+
   border-bottom:
-    1px solid #ebe8e1;
+    1px solid
+    var(--color-border-soft);
 }
 
 .recordsSectionHeader h3 {
   margin: 0;
-  color: #2c2923;
-  font-size: 17px;
+
+  color: var(--color-text);
+
+  font-size: var(--font-panel-title);
 }
 
 .recordsSectionHeader p {
-  margin: 5px 0 0;
-  color: #969289;
-  font-size: 9px;
+  margin:
+    5px 0 0;
+
+  color: var(--color-muted);
+
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .recordsGrid {
+  padding: 18px;
+
   display: grid;
+
   grid-template-columns:
     repeat(
       2,
       minmax(0, 1fr)
     );
+
   gap: 18px;
-  padding: 18px;
-  background: #f7f5ef;
+
+  background:
+    var(--color-page);
 }
 
 .recordsPanel {
   overflow: hidden;
+
   box-shadow: none;
 }
 
 .recordsPanelHeader {
+  padding:
+    16px 18px;
+
   display: flex;
   align-items: center;
   justify-content: space-between;
+
   gap: 15px;
-  padding: 16px 18px;
+
   border-bottom:
-    1px solid #ece9e2;
+    1px solid
+    var(--color-border-soft);
 }
 
 .recordsPanelHeader h3 {
   margin: 0;
-  color: #2c2923;
-  font-size: 14px;
+
+  color: var(--color-text);
+
+  font-size: 16px;
 }
 
 .recordsPanelHeader span {
-  display: grid;
   min-width: 27px;
   height: 27px;
+
+  display: grid;
   place-items: center;
+
   border-radius: 999px;
-  background: #f5edcf;
+
   color: #8f6a00;
-  font-size: 9px;
+
+  background: var(--color-brand-soft);
+
+  font-size: 11px;
   font-weight: 850;
 }
 
@@ -866,53 +1177,70 @@
 
 .recordsTable {
   width: 100%;
+
   min-width: 720px;
+
   border-collapse: collapse;
 }
 
 .recordsTable th {
-  padding: 12px 16px;
+  padding:
+    12px 16px;
+
   border-bottom:
-    1px solid #e9e6df;
-  background: #faf9f6;
-  color: #8c887f;
-  font-size: 8px;
+    1px solid
+    var(--color-border-soft);
+
+  color: var(--color-muted);
+
+  background:
+    var(--color-surface-soft);
+
+  font-size: 11px;
   font-weight: 850;
-  letter-spacing: 0.6px;
+
+  letter-spacing: 0.55px;
+
   text-align: left;
+
   text-transform: uppercase;
 }
 
 .recordsTable td {
-  padding: 15px 16px;
+  padding:
+    15px 16px;
+
   border-bottom:
-    1px solid #efede7;
-  color: #4f4b44;
-  font-size: 10px;
+    1px solid
+    var(--color-border-soft);
+
+  color: var(--color-text-soft);
+
+  font-size: var(--font-table);
+  line-height: 1.5;
+
   vertical-align: middle;
 }
 
-.recordsTable
-tbody
-tr:last-child
-td {
+.recordsTable tbody tr:last-child td {
   border-bottom: 0;
 }
 
-.recordsTable
-tbody
-tr:hover {
+.recordsTable tbody tr:hover {
   background: #fcfaf4;
 }
 
 .recordLink {
-  color: #2e2b25;
+  color: var(--color-text);
+
+  font-size: var(--font-table);
   font-weight: 850;
 }
 
 .recordLink:hover {
   color: #947000;
 }
+
 
 /* =========================================================
    RELATED WORK
@@ -923,22 +1251,23 @@ tr:hover {
 }
 
 .relatedWorkHeader {
+  padding:
+    22px 24px;
+
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
+
   gap: 24px;
-  padding: 22px 24px;
+
   border-bottom:
-    1px solid #e9e6de;
+    1px solid
+    var(--color-border-soft);
+
   background:
     radial-gradient(
       circle at 100% 0,
-      rgba(
-        212,
-        175,
-        55,
-        0.12
-      ),
+      rgba(214, 165, 20, 0.12),
       transparent 30%
     ),
     linear-gradient(
@@ -949,57 +1278,76 @@ tr:hover {
 }
 
 .relatedWorkHeader h3 {
-  margin: 5px 0 0;
-  color: #29261f;
-  font-size: 19px;
+  margin:
+    5px 0 0;
+
+  color: var(--color-text);
+
+  font-size: var(--font-panel-title);
 }
 
 .relatedWorkHeader p {
   max-width: 620px;
-  margin: 5px 0 0;
-  color: #918d84;
-  font-size: 10px;
+
+  margin:
+    5px 0 0;
+
+  color: var(--color-muted);
+
+  font-size: 12px;
   line-height: 1.6;
 }
 
 .relatedWorkSummary {
   display: grid;
+
   grid-template-columns:
     repeat(
       4,
       minmax(78px, 1fr)
     );
+
   gap: 8px;
 }
 
 .workMetric {
-  display: grid;
   min-width: 78px;
+
+  display: grid;
+
   gap: 2px;
-  padding: 10px 12px;
+
+  padding:
+    10px 12px;
+
   border-radius: 10px;
-  background: #f5edcf;
+
+  background: var(--color-brand-soft);
+
   text-align: center;
 }
 
 .workMetric strong {
   color: #886500;
-  font-size: 15px;
+
+  font-size: 16px;
 }
 
 .workMetric span {
-  color: #9a7d23;
-  font-size: 8px;
+  color: #8e7528;
+
+  font-size: 11px;
   font-weight: 800;
+
   text-transform: uppercase;
 }
 
 .workMetricSuccess {
-  background: #e3f2e8;
+  background: var(--color-success-bg);
 }
 
 .workMetricSuccess strong {
-  color: #357552;
+  color: var(--color-success);
 }
 
 .workMetricSuccess span {
@@ -1007,11 +1355,11 @@ tr:hover {
 }
 
 .workMetricDanger {
-  background: #fae5e5;
+  background: var(--color-danger-bg);
 }
 
 .workMetricDanger strong {
-  color: #a44242;
+  color: var(--color-danger);
 }
 
 .workMetricDanger span {
@@ -1020,53 +1368,75 @@ tr:hover {
 
 .relatedWorkList {
   display: grid;
+
   gap: 12px;
+
   padding: 20px;
-  background: #f8f7f3;
+
+  background:
+    var(--color-page);
 }
 
 .relatedTaskCard {
+  padding: 18px;
+
   display: flex;
   align-items: center;
   justify-content: space-between;
+
   gap: 18px;
-  padding: 18px;
-  border: 1px solid #dedad0;
+
+  border:
+    1px solid
+    var(--color-border);
+
   border-radius: 14px;
-  background: #ffffff;
-  box-shadow:
-    0 4px 16px
-    rgba(43, 36, 17, 0.035);
+
+  background:
+    var(--color-surface);
+
+  box-shadow: var(--shadow-xs);
 }
 
 .relatedTaskMain {
-  display: flex;
   min-width: 0;
+
   flex: 1;
+
+  display: flex;
   align-items: flex-start;
+
   gap: 13px;
 }
 
 .relatedTaskIcon {
-  display: grid;
   width: 42px;
   height: 42px;
-  place-items: center;
+
   flex: 0 0 42px;
+
+  display: grid;
+  place-items: center;
+
   border-radius: 12px;
-  background: #f5edcf;
+
   color: #8d6900;
+
+  background: var(--color-brand-soft);
+
   font-size: 15px;
   font-weight: 900;
 }
 
 .relatedTaskIconCompleted {
-  background: #e3f2e8;
-  color: #367653;
+  color: var(--color-success);
+
+  background: var(--color-success-bg);
 }
 
 .relatedTaskCopy {
   min-width: 0;
+
   flex: 1;
 }
 
@@ -1074,12 +1444,14 @@ tr:hover {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+
   gap: 9px;
 }
 
 .relatedTaskTitleRow > a {
-  color: #302d27;
-  font-size: 13px;
+  color: var(--color-text);
+
+  font-size: var(--font-body);
   font-weight: 850;
 }
 
@@ -1089,56 +1461,73 @@ tr:hover {
 
 .relatedTaskCopy > p {
   max-width: 760px;
-  margin: 6px 0 0;
+
+  margin:
+    6px 0 0;
+
   overflow: hidden;
-  color: #858178;
-  font-size: 10px;
+
+  color: var(--color-muted);
+
+  font-size: 12px;
   line-height: 1.55;
+
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .relatedTaskMeta {
+  margin-top: 10px;
+
   display: flex;
   flex-wrap: wrap;
+
   gap: 7px;
-  margin-top: 10px;
 }
 
 .relatedTaskMeta span {
-  display: inline-flex;
   min-height: 26px;
+
+  display: inline-flex;
   align-items: center;
+
   padding: 0 9px;
+
   border-radius: 7px;
+
+  color: var(--color-muted);
+
   background: #f3f1ec;
-  color: #757168;
-  font-size: 8px;
+
+  font-size: 11px;
   font-weight: 750;
 }
 
-.relatedTaskMeta
-.workflowSourceBadge {
-  background: #f5edcf;
+.relatedTaskMeta .workflowSourceBadge {
   color: #8d6800;
+
+  background: var(--color-brand-soft);
 }
 
-.relatedTaskMeta
-.relatedTaskOverdue {
-  background: #fae5e5;
-  color: #a44242;
+.relatedTaskMeta .relatedTaskOverdue {
+  color: var(--color-danger);
+
+  background: var(--color-danger-bg);
 }
 
 .relatedTaskActions {
-  display: flex;
   flex: 0 0 auto;
+
+  display: flex;
   align-items: center;
+
   gap: 12px;
 }
 
 .relatedTaskOpen {
   color: #8d6800;
-  font-size: 10px;
+
+  font-size: var(--font-button);
   font-weight: 850;
 }
 
@@ -1147,8 +1536,9 @@ tr:hover {
 }
 
 .secondaryRecordLink {
-  color: #77736a;
-  font-size: 9px;
+  color: var(--color-muted);
+
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -1156,53 +1546,81 @@ tr:hover {
   color: #947000;
 }
 
+
+/* =========================================================
+   EMPTY RELATED WORK
+========================================================= */
+
 .relatedWorkEmpty {
-  display: grid;
   min-height: 250px;
+
+  display: grid;
+
   place-items: center;
   align-content: center;
+
   gap: 8px;
+
   padding: 30px;
+
   text-align: center;
 }
 
 .relatedWorkEmpty > span {
-  display: grid;
   width: 48px;
   height: 48px;
+
+  display: grid;
   place-items: center;
+
   border-radius: 14px;
-  background: #f5edcf;
+
   color: #987000;
+
+  background: var(--color-brand-soft);
+
   font-size: 19px;
 }
 
 .relatedWorkEmpty h4 {
-  margin: 3px 0 0;
-  color: #35312b;
+  margin:
+    3px 0 0;
+
+  color: var(--color-text);
+
   font-size: 15px;
 }
 
 .relatedWorkEmpty p {
   max-width: 430px;
+
   margin: 0;
-  color: #99958c;
-  font-size: 9px;
+
+  color: var(--color-muted);
+
+  font-size: 12px;
   line-height: 1.6;
 }
 
+
 /* =========================================================
-   EMPTY / ERROR / LOADING
+   GENERAL EMPTY / ERROR / LOADING
 ========================================================= */
 
 .emptyState {
-  display: grid;
   min-height: 210px;
+
+  display: grid;
+
   place-items: center;
   align-content: center;
+
   gap: 7px;
+
   padding: 28px;
-  color: #aaa69d;
+
+  color: var(--color-muted-light);
+
   text-align: center;
 }
 
@@ -1212,18 +1630,23 @@ tr:hover {
 
 .emptyState p {
   margin: 0;
-  font-size: 10px;
+
+  font-size: 12px;
 }
 
 .loadingPanel {
   display: grid;
+
   gap: 14px;
+
   padding: 22px;
 }
 
 .loadingRow {
   height: 70px;
+
   border-radius: 12px;
+
   background:
     linear-gradient(
       90deg,
@@ -1231,8 +1654,10 @@ tr:hover {
       #f5f3ee 50%,
       #e9e6df 75%
     );
+
   background-size:
     200% 100%;
+
   animation:
     loadingPulse
     1.4s
@@ -1240,13 +1665,17 @@ tr:hover {
 }
 
 .errorPanel {
+  padding: 22px;
+
   display: flex;
   align-items: center;
   justify-content: space-between;
+
   gap: 20px;
-  padding: 22px;
+
   border-color: #e6c4c4;
-  background: #fff7f7;
+
+  background: var(--color-danger-bg);
 }
 
 .errorPanel strong {
@@ -1254,42 +1683,60 @@ tr:hover {
 }
 
 .errorPanel p {
-  margin: 5px 0 0;
-  color: #a36262;
-  font-size: 10px;
+  margin:
+    5px 0 0;
+
+  color: #995656;
+
+  font-size: 12px;
 }
 
 .notFound {
-  display: grid;
   min-height: 340px;
+
+  display: grid;
+
   place-items: center;
   align-content: center;
+
   gap: 10px;
+
   text-align: center;
 }
 
 .notFoundIcon {
-  display: grid;
   width: 56px;
   height: 56px;
+
+  display: grid;
   place-items: center;
+
   border-radius: 16px;
-  background: #f5edcf;
+
   color: #987000;
+
+  background: var(--color-brand-soft);
+
   font-size: 22px;
 }
 
 .notFound h2 {
   margin: 0;
-  color: #302d27;
-  font-size: 21px;
+
+  color: var(--color-text);
+
+  font-size: 24px;
 }
 
 .notFound p {
   max-width: 420px;
+
   margin: 0;
-  color: #969289;
-  font-size: 10px;
+
+  color: var(--color-muted);
+
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 @keyframes loadingPulse {
@@ -1304,13 +1751,12 @@ tr:hover {
   }
 }
 
+
 /* =========================================================
    RESPONSIVE
 ========================================================= */
 
-@media (
-  max-width: 1150px
-) {
+@media (max-width: 1150px) {
   .heroCard {
     grid-template-columns:
       1fr;
@@ -1338,12 +1784,19 @@ tr:hover {
   }
 }
 
-@media (
-  max-width: 850px
-) {
+@media (max-width: 850px) {
   .pageHeader {
     align-items: stretch;
+
     flex-direction: column;
+  }
+
+  .pageHeader h2 {
+    font-size: 26px;
+  }
+
+  .identityCopy h3 {
+    font-size: 22px;
   }
 
   .headerActions {
@@ -1357,8 +1810,10 @@ tr:hover {
 
   .heroMetric {
     border-right: 0;
+
     border-bottom:
-      1px solid #e7e0cd;
+      1px solid
+      #e7e0cd;
   }
 
   .heroMetric:last-child {
@@ -1378,6 +1833,7 @@ tr:hover {
 
   .relatedTaskCard {
     align-items: stretch;
+
     flex-direction: column;
   }
 
@@ -1386,9 +1842,7 @@ tr:hover {
   }
 }
 
-@media (
-  max-width: 560px
-) {
+@media (max-width: 560px) {
   .headerActions {
     flex-direction: column;
   }
@@ -1404,6 +1858,7 @@ tr:hover {
   .avatar {
     width: 50px;
     height: 50px;
+
     flex-basis: 50px;
   }
 
@@ -1418,12 +1873,14 @@ tr:hover {
   .originalLead {
     grid-template-columns:
       1fr;
+
     align-items: flex-start;
   }
 
   .detailRow {
     grid-template-columns:
       1fr;
+
     gap: 6px;
   }
 
@@ -1444,321 +1901,13 @@ tr:hover {
   }
 
   .relatedTaskActions {
-    flex-direction: column;
-    align-items: flex-start;
     margin-left: 55px;
-  }
-}
 
-/* =========================================================
-   SaiNal One Typography — Customer Details
-========================================================= */
+    align-items: flex-start;
 
-.backLink,
-.eyebrow {
-  font-size:
-    var(
-      --font-label
-    );
-}
-
-.pageHeader h2 {
-  font-size:
-    var(
-      --font-workspace-title
-    );
-  line-height: 1.2;
-}
-
-.pageHeader p {
-  font-size:
-    var(
-      --font-helper
-    );
-  line-height:
-    var(
-      --line-helper
-    );
-}
-
-.primaryButton,
-.secondaryButton,
-.actionButton,
-.recordButton {
-  font-size:
-    var(
-      --font-button
-    );
-}
-
-.identityCopy h3 {
-  font-size: 24px;
-  line-height: 1.25;
-}
-
-.identityCopy p {
-  font-size:
-    var(
-      --font-helper
-    );
-  line-height:
-    var(
-      --line-helper
-    );
-}
-
-.metaBadge,
-.healthBadge {
-  font-size:
-    var(
-      --font-label
-    );
-}
-
-.heroMetric span {
-  font-size:
-    var(
-      --font-label
-    );
-}
-
-.heroMetric strong {
-  font-size: 20px;
-}
-
-.tabButton {
-  font-size:
-    var(
-      --font-button
-    );
-}
-
-.tabCount {
-  font-size:
-    var(
-      --font-meta
-    );
-}
-
-.panelHeader h3,
-.recordsSectionHeader h3,
-.relatedWorkHeader h3 {
-  font-size:
-    var(
-      --font-panel-title
-    );
-}
-
-.panelHeader p,
-.recordsSectionHeader p,
-.relatedWorkHeader p {
-  font-size:
-    var(
-      --font-helper
-    );
-  line-height:
-    var(
-      --line-helper
-    );
-}
-
-.detailRow > span {
-  font-size:
-    var(
-      --font-helper
-    );
-}
-
-.detailRow strong,
-.detailRow a {
-  font-size:
-    var(
-      --font-body
-    );
-  line-height: 1.5;
-}
-
-.field label {
-  font-size:
-    var(
-      --font-helper
-    );
-}
-
-.field input,
-.field select {
-  font-size:
-    var(
-      --font-input
-    );
-}
-
-.aiHeader span,
-.recommendations > span {
-  font-size:
-    var(
-      --font-label
-    );
-}
-
-.aiHeader h3 {
-  font-size:
-    var(
-      --font-panel-title
-    );
-}
-
-.aiSummary p {
-  font-size:
-    var(
-      --font-body
-    );
-  line-height: 1.7;
-}
-
-.recommendationItem p,
-.emptyRecommendation {
-  font-size:
-    var(
-      --font-helper
-    );
-  line-height: 1.6;
-}
-
-.financeMetric span,
-.accountMetric span {
-  font-size:
-    var(
-      --font-label
-    );
-}
-
-.financeMetric strong,
-.accountMetric strong {
-  font-size: 21px;
-}
-
-.originalLead strong {
-  font-size:
-    var(
-      --font-body
-    );
-}
-
-.originalLead p {
-  font-size:
-    var(
-      --font-helper
-    );
-  line-height:
-    var(
-      --line-helper
-    );
-}
-
-.timelineItem strong {
-  font-size:
-    var(
-      --font-body
-    );
-}
-
-.timelineItem p {
-  font-size:
-    var(
-      --font-helper
-    );
-  line-height: 1.5;
-}
-
-.recordsPanelHeader h3 {
-  font-size: 16px;
-}
-
-.recordsPanelHeader span {
-  font-size:
-    var(
-      --font-label
-    );
-}
-
-.recordsTable th {
-  font-size:
-    var(
-      --font-label
-    );
-}
-
-.recordsTable td {
-  font-size:
-    var(
-      --font-table
-    );
-  line-height: 1.5;
-}
-
-.recordLink {
-  font-size:
-    var(
-      --font-table
-    );
-}
-
-.relatedTaskTitleRow > a {
-  font-size:
-    var(
-      --font-body
-    );
-}
-
-.relatedTaskCopy > p {
-  font-size:
-    var(
-      --font-helper
-    );
-}
-
-.relatedTaskOpen,
-.secondaryRecordLink {
-  font-size:
-    var(
-      --font-button
-    );
-}
-
-.emptyState p,
-.relatedWorkEmpty p,
-.errorPanel p,
-.notFound p {
-  font-size:
-    var(
-      --font-helper
-    );
-  line-height:
-    var(
-      --line-helper
-    );
-}
-
-.notFound h2 {
-  font-size: 24px;
-}
-
-@media (
-  max-width: 850px
-) {
-  .pageHeader h2 {
-    font-size: 26px;
+    flex-direction: column;
   }
 
-  .identityCopy h3 {
-    font-size: 22px;
-  }
-}
-
-@media (
-  max-width: 560px
-) {
   .field input,
   .field select {
     font-size: 16px;
