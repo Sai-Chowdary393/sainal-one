@@ -40,6 +40,74 @@ const ALLOWED_PRIORITIES = [
   "Critical",
 ];
 
+const RELATED_RECORD_CONFIG = {
+  lead: {
+    table:
+      "leads",
+
+    prefix:
+      "leads",
+
+    module:
+      "Leads",
+  },
+
+  quote: {
+    table:
+      "quotes",
+
+    prefix:
+      "quotes",
+
+    module:
+      "Quotes",
+  },
+
+  customer: {
+    table:
+      "customers",
+
+    prefix:
+      "customers",
+
+    module:
+      "Customers",
+  },
+
+  proposal: {
+    table:
+      "proposals",
+
+    prefix:
+      "proposals",
+
+    module:
+      "Proposals",
+  },
+
+  project: {
+    table:
+      "projects",
+
+    prefix:
+      "projects",
+
+    module:
+      "Projects",
+  },
+
+  invoice: {
+    table:
+      "invoices",
+
+    prefix:
+      "invoices",
+
+    module:
+      "Invoices",
+  },
+};
+
 const RECORD_TYPE_ALIASES = {
   lead: [
     "lead",
@@ -76,66 +144,69 @@ const RECORD_TYPE_ALIASES = {
 // HELPERS
 // =========================================================
 
-function cleanText(
-  value
-) {
+function cleanText(value) {
   return typeof value ===
     "string"
     ? value.trim()
     : "";
 }
 
-function cleanNullableText(
-  value
-) {
+function cleanNullableText(value) {
   const cleaned =
-    cleanText(
-      value
-    );
+    cleanText(value);
 
-  return cleaned ||
-    null;
+  return cleaned || null;
 }
 
-function normalise(
-  value
-) {
-  return String(
-    value ||
-      ""
-  )
+function normalise(value) {
+  return String(value || "")
     .trim()
     .toLowerCase();
 }
 
-function isUuid(
+function normaliseRecordType(
   value
 ) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    String(
-      value ||
-        ""
+  const type =
+    normalise(value);
+
+  for (
+    const [
+      canonical,
+      aliases,
+    ] of Object.entries(
+      RECORD_TYPE_ALIASES
     )
+  ) {
+    if (
+      aliases.includes(
+        type
+      )
+    ) {
+      return canonical;
+    }
+  }
+
+  return type;
+}
+
+function isUuid(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    String(value || "")
   );
 }
 
-function isDateValue(
-  value
-) {
+function isDateValue(value) {
   if (!value) {
     return true;
   }
 
   return /^\d{4}-\d{2}-\d{2}$/.test(
-    String(
-      value
-    )
+    String(value)
   );
 }
 
-function forbidden(
-  message
-) {
+function forbidden(message) {
   return NextResponse.json(
     {
       error:
@@ -148,9 +219,7 @@ function forbidden(
   );
 }
 
-function getPermissions(
-  access
-) {
+function getPermissions(access) {
   return getRecordPermissions(
     access,
     {
@@ -179,9 +248,7 @@ async function enrichTasksWithEmployees({
         []
       )
         .map(
-          (
-            task
-          ) =>
+          (task) =>
             task.assigned_employee_id
         )
         .filter(Boolean)
@@ -196,9 +263,7 @@ async function enrichTasksWithEmployees({
       tasks ||
       []
     ).map(
-      (
-        task
-      ) => ({
+      (task) => ({
         ...task,
 
         assigned_employee:
@@ -246,9 +311,7 @@ async function enrichTasksWithEmployees({
         employees ||
         []
       ).map(
-        (
-          employee
-        ) => [
+        (employee) => [
           employee.id,
           employee,
         ]
@@ -259,9 +322,7 @@ async function enrichTasksWithEmployees({
     tasks ||
     []
   ).map(
-    (
-      task
-    ) => ({
+    (task) => ({
       ...task,
 
       assigned_employee:
@@ -284,17 +345,11 @@ async function validateProjectForTask({
   access,
   projectId,
 }) {
-  if (
-    !projectId
-  ) {
+  if (!projectId) {
     return null;
   }
 
-  if (
-    !isUuid(
-      projectId
-    )
-  ) {
+  if (!isUuid(projectId)) {
     throw new Error(
       "The selected project is not valid."
     );
@@ -336,10 +391,6 @@ async function validateProjectForTask({
     );
   }
 
-  /*
-   * Prevent a Tasks user from attaching work to a Project
-   * that they themselves cannot access.
-   */
   const projectPermissions =
     getRecordPermissions(
       access,
@@ -374,6 +425,189 @@ async function validateProjectForTask({
 }
 
 // =========================================================
+// VALIDATE RELATED RECORD
+// =========================================================
+
+async function validateRelatedRecordForTask({
+  supabase,
+  access,
+  recordType,
+  recordId,
+}) {
+  if (
+    !recordType &&
+    !recordId
+  ) {
+    return {
+      recordType:
+        null,
+
+      recordId:
+        null,
+    };
+  }
+
+  if (
+    !recordType ||
+    !recordId
+  ) {
+    throw new Error(
+      "Both record_type and record_id are required when linking a task."
+    );
+  }
+
+  const canonicalType =
+    normaliseRecordType(
+      recordType
+    );
+
+  const config =
+    RELATED_RECORD_CONFIG[
+      canonicalType
+    ];
+
+  if (!config) {
+    throw new Error(
+      "The related record type is not supported."
+    );
+  }
+
+  if (!isUuid(recordId)) {
+    throw new Error(
+      "The related record ID is not valid."
+    );
+  }
+
+  const organizationId =
+    access.employee
+      .organization_id;
+
+  const {
+    data:
+      record,
+    error,
+  } =
+    await supabase
+      .from(
+        config.table
+      )
+      .select("*")
+      .eq(
+        "id",
+        recordId
+      )
+      .eq(
+        "organization_id",
+        organizationId
+      )
+      .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      error.message
+    );
+  }
+
+  if (!record) {
+    throw new Error(
+      "The related record is not valid for this organisation."
+    );
+  }
+
+  const permissions =
+    getRecordPermissions(
+      access,
+      {
+        prefix:
+          config.prefix,
+
+        module:
+          config.module,
+      }
+    );
+
+  const visible =
+    await canViewOwnedRecord({
+      supabase,
+      access,
+      permissions,
+      record,
+    });
+
+  if (!visible) {
+    throw new Error(
+      "You do not have permission to link this record to a task."
+    );
+  }
+
+  return {
+    recordType:
+      canonicalType,
+
+    recordId:
+      record.id,
+  };
+}
+
+// =========================================================
+// VALIDATE WORKFLOW RUN
+// =========================================================
+
+async function validateWorkflowRun({
+  supabase,
+  organizationId,
+  workflowRunId,
+}) {
+  if (!workflowRunId) {
+    return null;
+  }
+
+  if (
+    !isUuid(
+      workflowRunId
+    )
+  ) {
+    throw new Error(
+      "The workflow run ID is not valid."
+    );
+  }
+
+  const {
+    data:
+      workflowRun,
+    error,
+  } =
+    await supabase
+      .from(
+        "workflow_runs"
+      )
+      .select("id")
+      .eq(
+        "id",
+        workflowRunId
+      )
+      .eq(
+        "organization_id",
+        organizationId
+      )
+      .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      error.message
+    );
+  }
+
+  if (!workflowRun) {
+    throw new Error(
+      "The workflow run is not valid for this organisation."
+    );
+  }
+
+  return workflowRun.id;
+}
+
+// =========================================================
 // GET TASKS
 // =========================================================
 
@@ -384,9 +618,7 @@ export async function GET(
     const access =
       await getServerAccess();
 
-    if (
-      !access.employee
-    ) {
+    if (!access.employee) {
       return NextResponse.json(
         {
           error:
@@ -466,10 +698,6 @@ export async function GET(
           organizationId
         );
 
-    // =====================================================
-    // RBAC VISIBILITY
-    // =====================================================
-
     if (
       !permissions.canViewAll &&
       permissions.canViewTeam
@@ -498,10 +726,6 @@ export async function GET(
         );
     }
 
-    // =====================================================
-    // PROJECT FILTER
-    // =====================================================
-
     if (
       scope ===
         "project" ||
@@ -525,18 +749,31 @@ export async function GET(
         );
       }
 
+      try {
+        await validateProjectForTask({
+          supabase,
+          access,
+          projectId,
+        });
+      } catch (error) {
+        return NextResponse.json(
+          {
+            error:
+              error.message,
+          },
+          {
+            status:
+              403,
+          }
+        );
+      }
+
       query =
         query.eq(
           "project_id",
           projectId
         );
-    }
-
-    // =====================================================
-    // RELATED RECORD FILTER
-    // =====================================================
-
-    else if (
+    } else if (
       scope ===
       "record"
     ) {
@@ -556,47 +793,42 @@ export async function GET(
         );
       }
 
-      if (
-        !isUuid(
-          recordId
-        )
-      ) {
+      try {
+        const validated =
+          await validateRelatedRecordForTask({
+            supabase,
+            access,
+            recordType,
+            recordId,
+          });
+
+        query =
+          query
+            .eq(
+              "record_id",
+              validated.recordId
+            )
+            .in(
+              "record_type",
+              RECORD_TYPE_ALIASES[
+                validated.recordType
+              ] || [
+                validated.recordType,
+              ]
+            );
+      } catch (error) {
         return NextResponse.json(
           {
             error:
-              "A valid record_id is required.",
+              error.message,
           },
           {
             status:
-              400,
+              403,
           }
         );
       }
-
-      const recordAliases =
-        RECORD_TYPE_ALIASES[
-          recordType
-        ] || [
-          recordType,
-        ];
-
-      query =
-        query
-          .eq(
-            "record_id",
-            recordId
-          )
-          .in(
-            "record_type",
-            recordAliases
-          );
-    }
-
-    // =====================================================
-    // MY TASKS
-    // =====================================================
-
-    else if (
+    } else if (
       scope ===
       "mine"
     ) {
@@ -605,13 +837,7 @@ export async function GET(
           "assigned_employee_id",
           access.employee.id
         );
-    }
-
-    // =====================================================
-    // VALID SCOPES
-    // =====================================================
-
-    else if (
+    } else if (
       scope !==
       "all"
     ) {
@@ -714,9 +940,7 @@ export async function POST(
     const access =
       await getServerAccess();
 
-    if (
-      !access.employee
-    ) {
+    if (!access.employee) {
       return NextResponse.json(
         {
           error:
@@ -751,9 +975,7 @@ export async function POST(
           body.title
       );
 
-    if (
-      !taskName
-    ) {
+    if (!taskName) {
       return NextResponse.json(
         {
           error:
@@ -852,9 +1074,7 @@ export async function POST(
         body.project_id
       );
 
-    if (
-      projectId
-    ) {
+    if (projectId) {
       try {
         project =
           await validateProjectForTask({
@@ -880,9 +1100,13 @@ export async function POST(
     // ASSIGNEE
     // =====================================================
 
+    /*
+     * Default to the creator.
+     *
+     * Creating a Task under somebody else's Project
+     * must not silently bypass tasks.assign.
+     */
     let assignedEmployeeId =
-      project
-        ?.owner_employee_id ||
       access.employee.id;
 
     if (
@@ -927,9 +1151,7 @@ export async function POST(
             requestedEmployeeId,
         });
 
-      if (
-        !employee
-      ) {
+      if (!employee) {
         return NextResponse.json(
           {
             error:
@@ -947,33 +1169,36 @@ export async function POST(
     }
 
     // =====================================================
-    // RECORD LINK
+    // RELATED RECORD
     // =====================================================
 
-    const recordType =
-      cleanNullableText(
-        body.record_type
-      );
+    let relatedRecord;
 
-    const recordId =
-      cleanNullableText(
-        body.record_id
-      );
+    try {
+      relatedRecord =
+        await validateRelatedRecordForTask({
+          supabase,
+          access,
 
-    if (
-      recordId &&
-      !isUuid(
-        recordId
-      )
-    ) {
+          recordType:
+            cleanNullableText(
+              body.record_type
+            ),
+
+          recordId:
+            cleanNullableText(
+              body.record_id
+            ),
+        });
+    } catch (error) {
       return NextResponse.json(
         {
           error:
-            "The related record ID is not valid.",
+            error.message,
         },
         {
           status:
-            400,
+            403,
         }
       );
     }
@@ -982,21 +1207,25 @@ export async function POST(
     // WORKFLOW RUN
     // =====================================================
 
-    const workflowRunId =
-      cleanNullableText(
-        body.workflow_run_id
-      );
+    let workflowRunId =
+      null;
 
-    if (
-      workflowRunId &&
-      !isUuid(
-        workflowRunId
-      )
-    ) {
+    try {
+      workflowRunId =
+        await validateWorkflowRun({
+          supabase,
+          organizationId,
+
+          workflowRunId:
+            cleanNullableText(
+              body.workflow_run_id
+            ),
+        });
+    } catch (error) {
       return NextResponse.json(
         {
           error:
-            "The workflow run ID is not valid.",
+            error.message,
         },
         {
           status:
@@ -1008,10 +1237,6 @@ export async function POST(
     const now =
       new Date()
         .toISOString();
-
-    // =====================================================
-    // INSERT
-    // =====================================================
 
     const {
       data:
@@ -1049,10 +1274,12 @@ export async function POST(
               assignedEmployeeId,
 
             record_type:
-              recordType,
+              relatedRecord
+                .recordType,
 
             record_id:
-              recordId,
+              relatedRecord
+                .recordId,
 
             workflow_run_id:
               workflowRunId,
@@ -1069,9 +1296,7 @@ export async function POST(
         .select()
         .single();
 
-    if (
-      createError
-    ) {
+    if (createError) {
       throw new Error(
         createError.message
       );
