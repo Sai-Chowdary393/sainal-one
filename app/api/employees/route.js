@@ -4,15 +4,15 @@ import {
 
 import {
   createServerSupabaseClient,
-} from "../../../lib/supabaseServer";
+} from "../../../../lib/supabaseServer";
 
 import {
   createAdminSupabaseClient,
-} from "../../../lib/supabaseAdmin";
+} from "../../../../lib/supabaseAdmin";
 
 import {
   getCurrentEmployeeAccess,
-} from "../../../lib/accessControl";
+} from "../../../../lib/accessControl";
 
 // =========================================================
 // HELPERS
