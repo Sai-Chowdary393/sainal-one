@@ -1016,3 +1016,53 @@
     font-size: 16px;
   }
 }
+
+/* =========================================================
+   SAINAL ONE
+   FINAL TYPOGRAPHY — ROLES & PERMISSIONS
+========================================================= */
+.eyebrow,
+.editorEyebrow { font-size: var(--font-label); }
+.pageHeader h2 { font-size: var(--font-workspace-title); line-height: 1.2; }
+.pageHeader p { font-size: var(--font-body); }
+.primaryButton,
+.secondaryButton,
+.openButton,
+.deactivateButton,
+.moduleSelectButton,
+.filterSelect { font-size: var(--font-button); }
+.noticePanel p,
+.editorHeader p,
+.permissionsHeader p,
+.rolesHeading p,
+.roleIdentity p,
+.emptyState p,
+.errorPanel p { font-size: 12px; line-height: 1.55; }
+.editorHeader h3,
+.permissionsHeader h3 { font-size: var(--font-section-title); }
+.field > span { font-size: 12px; }
+.field input,
+.field textarea,
+.searchBox input { font-size: var(--font-input); }
+.systemBadge,
+.selectedCount,
+.resultCount,
+.statusBadge { font-size: 11px; }
+.activeOption strong,
+.permissionOption strong { font-size: 13px; }
+.activeOption small,
+.permissionOption small,
+.moduleHeaderCopy small { font-size: 11px; line-height: 1.45; }
+.permissionOption code { font-size: 11px; }
+.moduleHeaderCopy strong { font-size: 14px; }
+.roleCode,
+.metric span,
+.permissionPreview > span,
+.permissionTag,
+.permissionMore { font-size: 11px; }
+@media (max-width: 720px) {
+  .field input,
+  .field textarea,
+  .searchBox input,
+  .filterSelect { font-size: 16px; }
+}
