@@ -738,3 +738,42 @@
     font-size: 16px;
   }
 }
+
+/* =========================================================
+   SAINAL ONE
+   FINAL TYPOGRAPHY — EMPLOYEES
+========================================================= */
+.eyebrow { font-size: var(--font-label); }
+.pageHeader h2 { font-size: var(--font-workspace-title); line-height: 1.2; }
+.pageHeader p { font-size: var(--font-body); }
+.primaryButton,
+.secondaryButton,
+.openButton,
+.deleteButton,
+.filterSelect { font-size: var(--font-button); }
+.noticePanel p,
+.formHeading p,
+.tableHeading p,
+.emptyState p,
+.errorPanel p { font-size: 12px; line-height: 1.55; }
+.formHeading h3 { font-size: var(--font-section-title); }
+.field label { font-size: 12px; }
+.field input,
+.field select,
+.searchBox input { font-size: var(--font-input); }
+.roleOption strong { font-size: 13px; }
+.roleOption small { font-size: 11px; }
+.summaryLabel,
+.resultCount,
+.employeeTable th,
+.roleBadge,
+.statusBadge { font-size: 11px; }
+.employeeTable td { font-size: var(--font-table); line-height: 1.5; }
+.employeeIdentityCopy strong { font-size: 14px; }
+.employeeIdentityCopy small { font-size: 11px; }
+@media (max-width: 720px) {
+  .field input,
+  .field select,
+  .searchBox input,
+  .filterSelect { font-size: 16px; }
+}
