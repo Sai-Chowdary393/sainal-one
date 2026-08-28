@@ -12,6 +12,7 @@ import {
 
 import {
   buildClientAccess,
+  canViewOwnedRecord,
   getRecordPermissions,
   getTeamEmployeeIds,
   loadAssignableEmployees,
@@ -39,6 +40,74 @@ const ALLOWED_RELATED_TYPES = [
   "Invoice",
 ];
 
+const RELATED_CONFIG = {
+  Lead: {
+    table:
+      "leads",
+
+    prefix:
+      "leads",
+
+    module:
+      "Leads",
+  },
+
+  Customer: {
+    table:
+      "customers",
+
+    prefix:
+      "customers",
+
+    module:
+      "Customers",
+  },
+
+  Quote: {
+    table:
+      "quotes",
+
+    prefix:
+      "quotes",
+
+    module:
+      "Quotes",
+  },
+
+  Proposal: {
+    table:
+      "proposals",
+
+    prefix:
+      "proposals",
+
+    module:
+      "Proposals",
+  },
+
+  Project: {
+    table:
+      "projects",
+
+    prefix:
+      "projects",
+
+    module:
+      "Projects",
+  },
+
+  Invoice: {
+    table:
+      "invoices",
+
+    prefix:
+      "invoices",
+
+    module:
+      "Invoices",
+  },
+};
+
 // =========================================================
 // HELPERS
 // =========================================================
@@ -57,10 +126,7 @@ function cleanNullableText(value) {
 }
 
 function normalise(value) {
-  return String(
-    value ||
-      ""
-  )
+  return String(value || "")
     .trim()
     .toLowerCase();
 }
@@ -84,10 +150,12 @@ function isDateValue(value) {
 function forbidden(message) {
   return NextResponse.json(
     {
-      error: message,
+      error:
+        message,
     },
     {
-      status: 403,
+      status:
+        403,
     }
   );
 }
@@ -106,6 +174,110 @@ function getPermissions(access) {
 }
 
 // =========================================================
+// VALIDATE RELATED RECORD
+// =========================================================
+
+async function validateRelatedRecord({
+  supabase,
+  access,
+  relatedType,
+  relatedId,
+}) {
+  if (
+    relatedType ===
+    "General"
+  ) {
+    return null;
+  }
+
+  const config =
+    RELATED_CONFIG[
+      relatedType
+    ];
+
+  if (!config) {
+    throw new Error(
+      "Invalid related record type."
+    );
+  }
+
+  if (
+    !relatedId ||
+    !isUuid(
+      relatedId
+    )
+  ) {
+    throw new Error(
+      `A valid ${relatedType.toLowerCase()} ID is required.`
+    );
+  }
+
+  const organizationId =
+    access.employee
+      .organization_id;
+
+  const {
+    data:
+      record,
+    error,
+  } =
+    await supabase
+      .from(
+        config.table
+      )
+      .select("*")
+      .eq(
+        "organization_id",
+        organizationId
+      )
+      .eq(
+        "id",
+        relatedId
+      )
+      .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      error.message
+    );
+  }
+
+  if (!record) {
+    throw new Error(
+      `The selected ${relatedType.toLowerCase()} is not valid for this organisation.`
+    );
+  }
+
+  const permissions =
+    getRecordPermissions(
+      access,
+      {
+        prefix:
+          config.prefix,
+
+        module:
+          config.module,
+      }
+    );
+
+  const visible =
+    await canViewOwnedRecord({
+      supabase,
+      access,
+      permissions,
+      record,
+    });
+
+  if (!visible) {
+    throw new Error(
+      `You do not have permission to create a follow-up for this ${relatedType.toLowerCase()}.`
+    );
+  }
+
+  return record.id;
+}
+
+// =========================================================
 // ENRICH ASSIGNEES
 // =========================================================
 
@@ -116,7 +288,10 @@ async function enrichFollowUps({
 }) {
   const employeeIds = [
     ...new Set(
-      (followUps || [])
+      (
+        followUps ||
+        []
+      )
         .map(
           (item) =>
             item.assigned_employee_id
@@ -129,9 +304,13 @@ async function enrichFollowUps({
     employeeIds.length ===
     0
   ) {
-    return (followUps || []).map(
+    return (
+      followUps ||
+      []
+    ).map(
       (item) => ({
         ...item,
+
         assigned_employee:
           null,
       })
@@ -139,18 +318,23 @@ async function enrichFollowUps({
   }
 
   const {
-    data: employees,
+    data:
+      employees,
     error,
   } =
     await supabase
-      .from("employees")
-      .select(`
-        id,
-        full_name,
-        email,
-        job_title,
-        department_id
-      `)
+      .from(
+        "employees"
+      )
+      .select(
+        `
+          id,
+          full_name,
+          email,
+          job_title,
+          department_id
+        `
+      )
       .eq(
         "organization_id",
         organizationId
@@ -168,7 +352,10 @@ async function enrichFollowUps({
 
   const employeeMap =
     new Map(
-      (employees || []).map(
+      (
+        employees ||
+        []
+      ).map(
         (employee) => [
           employee.id,
           employee,
@@ -176,7 +363,10 @@ async function enrichFollowUps({
       )
     );
 
-  return (followUps || []).map(
+  return (
+    followUps ||
+    []
+  ).map(
     (item) => ({
       ...item,
 
@@ -184,7 +374,8 @@ async function enrichFollowUps({
         item.assigned_employee_id
           ? employeeMap.get(
               item.assigned_employee_id
-            ) || null
+            ) ||
+            null
           : null,
     })
   );
@@ -215,7 +406,9 @@ export async function GET(
     }
 
     const permissions =
-      getPermissions(access);
+      getPermissions(
+        access
+      );
 
     if (
       !permissions.canViewAll &&
@@ -243,7 +436,8 @@ export async function GET(
       normalise(
         url.searchParams.get(
           "scope"
-        ) || "all"
+        ) ||
+          "all"
       );
 
     const relatedType =
@@ -270,10 +464,6 @@ export async function GET(
           "organization_id",
           organizationId
         );
-
-    // =====================================================
-    // RBAC VISIBILITY
-    // =====================================================
 
     if (
       !permissions.canViewAll &&
@@ -303,10 +493,6 @@ export async function GET(
         );
     }
 
-    // =====================================================
-    // OPTIONAL FILTERS
-    // =====================================================
-
     if (
       scope ===
       "mine"
@@ -326,7 +512,8 @@ export async function GET(
             "Unsupported follow-up scope.",
         },
         {
-          status: 400,
+          status:
+            400,
         }
       );
     }
@@ -359,8 +546,11 @@ export async function GET(
         .order(
           "due_date",
           {
-            ascending: true,
-            nullsFirst: false,
+            ascending:
+              true,
+
+            nullsFirst:
+              false,
           }
         )
         .order(
@@ -383,7 +573,8 @@ export async function GET(
         organizationId,
 
         followUps:
-          data || [],
+          data ||
+          [],
       });
 
     let employees = [];
@@ -425,7 +616,8 @@ export async function GET(
           "Failed to fetch follow-ups.",
       },
       {
-        status: 500,
+        status:
+          500,
       }
     );
   }
@@ -456,7 +648,9 @@ export async function POST(
     }
 
     const permissions =
-      getPermissions(access);
+      getPermissions(
+        access
+      );
 
     if (
       !permissions.canCreate
@@ -481,7 +675,8 @@ export async function POST(
             "Follow-up title is required.",
         },
         {
-          status: 400,
+          status:
+            400,
         }
       );
     }
@@ -489,7 +684,8 @@ export async function POST(
     const status =
       cleanText(
         body.status
-      ) || "Pending";
+      ) ||
+      "Pending";
 
     if (
       !ALLOWED_STATUSES.includes(
@@ -502,7 +698,8 @@ export async function POST(
             "Invalid follow-up status.",
         },
         {
-          status: 400,
+          status:
+            400,
         }
       );
     }
@@ -510,7 +707,8 @@ export async function POST(
     const relatedType =
       cleanText(
         body.related_type
-      ) || "General";
+      ) ||
+      "General";
 
     if (
       !ALLOWED_RELATED_TYPES.includes(
@@ -523,20 +721,16 @@ export async function POST(
             "Invalid related record type.",
         },
         {
-          status: 400,
+          status:
+            400,
         }
       );
     }
 
-    const relatedId =
+    const requestedRelatedId =
       cleanNullableText(
         body.related_id
       );
-
-    /*
-     * related_id stays TEXT because that is the
-     * existing SaiNal One follow_ups schema.
-     */
 
     const dueDate =
       body.due_date ||
@@ -553,7 +747,8 @@ export async function POST(
             "Follow-up due date must use YYYY-MM-DD format.",
         },
         {
-          status: 400,
+          status:
+            400,
         }
       );
     }
@@ -564,6 +759,41 @@ export async function POST(
     const organizationId =
       access.employee
         .organization_id;
+
+    // =====================================================
+    // RELATED RECORD
+    // =====================================================
+
+    let relatedId =
+      null;
+
+    if (
+      relatedType !==
+      "General"
+    ) {
+      try {
+        relatedId =
+          await validateRelatedRecord({
+            supabase,
+            access,
+            relatedType,
+
+            relatedId:
+              requestedRelatedId,
+          });
+      } catch (error) {
+        return NextResponse.json(
+          {
+            error:
+              error.message,
+          },
+          {
+            status:
+              403,
+          }
+        );
+      }
+    }
 
     // =====================================================
     // ASSIGNEE
@@ -599,7 +829,8 @@ export async function POST(
               "The selected follow-up assignee is not valid.",
           },
           {
-            status: 400,
+            status:
+              400,
           }
         );
       }
@@ -620,7 +851,8 @@ export async function POST(
               "The selected follow-up assignee is not valid.",
           },
           {
-            status: 400,
+            status:
+              400,
           }
         );
       }
@@ -705,7 +937,8 @@ export async function POST(
           "Follow-up created successfully.",
       },
       {
-        status: 201,
+        status:
+          201,
       }
     );
   } catch (error) {
@@ -721,7 +954,8 @@ export async function POST(
           "Failed to create follow-up.",
       },
       {
-        status: 500,
+        status:
+          500,
       }
     );
   }
