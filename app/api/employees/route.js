@@ -4,15 +4,15 @@ import {
 
 import {
   createServerSupabaseClient,
-} from "../../../../lib/supabaseServer";
+} from "../../../lib/supabaseServer";
 
 import {
   createAdminSupabaseClient,
-} from "../../../../lib/supabaseAdmin";
+} from "../../../lib/supabaseAdmin";
 
 import {
   getCurrentEmployeeAccess,
-} from "../../../../lib/accessControl";
+} from "../../../lib/accessControl";
 
 // =========================================================
 // HELPERS
@@ -1078,116 +1078,25 @@ export async function POST(
           {
             error:
               validRolesError.message,
-          },
-          {
-            status:
-              500,
-          }
-        );
-      }
-
-      if (
-        (
-          validRoles ||
-          []
-        ).length !==
-        roleIds.length
-      ) {
-        return NextResponse.json(
-          {
-            error:
-              "One or more selected roles are invalid.",
-          },
-          {
-            status:
-              400,
-          }
-        );
-      }
-
-      const includesOwnerRole =
-        (
-          validRoles ||
-          []
-        ).some(
-          (role) =>
-            role.code ===
-            "ORG_OWNER"
-        );
-
-      if (
-        includesOwnerRole
-      ) {
-        return NextResponse.json(
-          {
-            error:
-              "The Organisation Owner role cannot be assigned through employee invitation.",
-          },
-          {
-            status:
-              400,
-          }
-        );
-      }
+        },
+        {
+          status:
+            500,
+        }
+      );
     }
 
-    // =====================================================
-    // SEND SUPABASE INVITATION
-    // =====================================================
-
-    const adminSupabase =
-      createAdminSupabaseClient();
-
-    const redirectTo =
-      getInviteRedirectUrl(
-        request
-      );
-
-    const {
-      data:
-        inviteData,
-      error:
-        inviteError,
-    } =
-      await adminSupabase
-        .auth
-        .admin
-        .inviteUserByEmail(
-          email,
-          {
-            redirectTo,
-
-            data: {
-              full_name:
-                fullName,
-
-              employee_number:
-                employeeNumber,
-
-              organization_id:
-                organizationId,
-
-              invited_by:
-                access.employee
-                  .user_id,
-            },
-          }
-        );
-
     if (
-      inviteError ||
-      !inviteData?.user
+      (
+        validRoles ||
+        []
+      ).length !==
+      roleIds.length
     ) {
-      console.error(
-        "Supabase employee invitation error:",
-        inviteError
-      );
-
       return NextResponse.json(
         {
           error:
-            inviteError?.message ||
-            "The employee invitation could not be sent.",
+            "One or more selected roles are invalid.",
         },
         {
           status:
@@ -1196,122 +1105,296 @@ export async function POST(
       );
     }
 
-    const invitedAuthUserId =
-      inviteData.user.id;
+    const includesOwnerRole =
+      (
+        validRoles ||
+        []
+      ).some(
+        (role) =>
+          role.code ===
+          "ORG_OWNER"
+      );
 
-    // =====================================================
-    // CREATE EMPLOYEE RECORD
-    // =====================================================
+    if (
+      includesOwnerRole
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "The Organisation Owner role cannot be assigned through employee invitation.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+  }
 
-    const employeePayload = {
-      organization_id:
-        organizationId,
+  // =====================================================
+  // SEND SUPABASE INVITATION
+  // =====================================================
 
-      user_id:
-        invitedAuthUserId,
+  const adminSupabase =
+    createAdminSupabaseClient();
 
-      employee_number:
-        employeeNumber,
+  const redirectTo =
+    getInviteRedirectUrl(
+      request
+    );
 
-      full_name:
-        fullName,
+  const {
+    data:
+      inviteData,
+    error:
+      inviteError,
+  } =
+    await adminSupabase
+      .auth
+      .admin
+      .inviteUserByEmail(
+        email,
+        {
+          redirectTo,
 
-      email,
+          data: {
+            full_name:
+              fullName,
 
-      phone:
-        cleanNullableText(
-          body.phone
-        ),
+            employee_number:
+              employeeNumber,
 
-      job_title:
-        cleanNullableText(
-          body.job_title
-        ),
+            organization_id:
+              organizationId,
 
-      department_id:
-        departmentId,
+            invited_by:
+              access.employee
+                .user_id,
+          },
+        }
+      );
 
-      manager_id:
-        managerId,
+  if (
+    inviteError ||
+    !inviteData?.user
+  ) {
+    console.error(
+      "Supabase employee invitation error:",
+      inviteError
+    );
 
-      backup_employee_id:
-        backupEmployeeId,
+    return NextResponse.json(
+      {
+        error:
+          inviteError?.message ||
+          "The employee invitation could not be sent.",
+      },
+      {
+        status:
+          400,
+      }
+    );
+  }
 
-      employment_type:
-        cleanText(
-          body.employment_type
-        ) ||
-        "Employee",
+  const invitedAuthUserId =
+    inviteData.user.id;
 
-      employment_status:
-        "Invited",
+  // =====================================================
+  // CREATE EMPLOYEE RECORD
+  // =====================================================
 
-      availability_status:
-        cleanText(
-          body.availability_status
-        ) ||
-        "Available",
+  const employeePayload = {
+    organization_id:
+      organizationId,
 
-      start_date:
-        cleanNullableText(
-          body.start_date
-        ),
+    user_id:
+      invitedAuthUserId,
 
-      end_date:
-        cleanNullableText(
-          body.end_date
-        ),
+    employee_number:
+      employeeNumber,
 
-      timezone:
-        cleanText(
-          body.timezone
-        ) ||
-        "Europe/London",
+    full_name:
+      fullName,
 
-      locale:
-        cleanText(
-          body.locale
-        ) ||
-        "en-GB",
+    email,
 
-      is_organization_owner:
-        false,
+    phone:
+      cleanNullableText(
+        body.phone
+      ),
 
-      is_active:
-        true,
+    job_title:
+      cleanNullableText(
+        body.job_title
+      ),
 
-      created_by:
-        access.employee
-          .user_id,
+    department_id:
+      departmentId,
 
-      updated_by:
-        access.employee
-          .user_id,
-    };
+    manager_id:
+      managerId,
+
+    backup_employee_id:
+      backupEmployeeId,
+
+    employment_type:
+      cleanText(
+        body.employment_type
+      ) ||
+      "Employee",
+
+    employment_status:
+      "Invited",
+
+    availability_status:
+      cleanText(
+        body.availability_status
+      ) ||
+      "Available",
+
+    start_date:
+      cleanNullableText(
+        body.start_date
+      ),
+
+    end_date:
+      cleanNullableText(
+        body.end_date
+      ),
+
+    timezone:
+      cleanText(
+        body.timezone
+      ) ||
+      "Europe/London",
+
+    locale:
+      cleanText(
+        body.locale
+      ) ||
+      "en-GB",
+
+    is_organization_owner:
+      false,
+
+    is_active:
+      true,
+
+    created_by:
+      access.employee
+        .user_id,
+
+    updated_by:
+      access.employee
+        .user_id,
+  };
+
+  const {
+    data:
+      createdEmployee,
+    error:
+      createError,
+  } =
+    await supabase
+      .from(
+        "employees"
+      )
+      .insert([
+        employeePayload,
+      ])
+      .select()
+      .single();
+
+  // =====================================================
+  // CLEAN UP AUTH USER IF EMPLOYEE CREATION FAILS
+  // =====================================================
+
+  if (
+    createError
+  ) {
+    try {
+      await adminSupabase
+        .auth
+        .admin
+        .deleteUser(
+          invitedAuthUserId
+        );
+    } catch (
+      cleanupError
+    ) {
+      console.error(
+        "Failed to clean up invited Auth user:",
+        cleanupError
+      );
+    }
+
+    return NextResponse.json(
+      {
+        error:
+          createError.message,
+      },
+      {
+        status:
+          500,
+      }
+    );
+  }
+
+  // =====================================================
+  // ASSIGN ROLES
+  // =====================================================
+
+  if (
+    roleIds.length >
+    0
+  ) {
+    const roleAssignments =
+      roleIds.map(
+        (roleId) => ({
+          organization_id:
+            organizationId,
+
+          employee_id:
+            createdEmployee.id,
+
+          role_id:
+            roleId,
+
+          assigned_by:
+            access.employee
+              .user_id,
+        })
+      );
 
     const {
-      data:
-        createdEmployee,
       error:
-        createError,
+        roleAssignmentError,
     } =
+      await supabase
+        .from(
+          "user_roles"
+        )
+        .insert(
+          roleAssignments
+        );
+
+    if (
+      roleAssignmentError
+    ) {
       await supabase
         .from(
           "employees"
         )
-        .insert([
-          employeePayload,
-        ])
-        .select()
-        .single();
+        .delete()
+        .eq(
+          "id",
+          createdEmployee.id
+        )
+        .eq(
+          "organization_id",
+          organizationId
+        );
 
-    // =====================================================
-    // CLEAN UP AUTH USER IF EMPLOYEE CREATION FAILS
-    // =====================================================
-
-    if (
-      createError
-    ) {
       try {
         await adminSupabase
           .auth
@@ -1331,7 +1414,8 @@ export async function POST(
       return NextResponse.json(
         {
           error:
-            createError.message,
+            "The employee could not be assigned roles: " +
+            roleAssignmentError.message,
         },
         {
           status:
@@ -1339,124 +1423,40 @@ export async function POST(
         }
       );
     }
-
-    // =====================================================
-    // ASSIGN ROLES
-    // =====================================================
-
-    if (
-      roleIds.length >
-      0
-    ) {
-      const roleAssignments =
-        roleIds.map(
-          (roleId) => ({
-            organization_id:
-              organizationId,
-
-            employee_id:
-              createdEmployee.id,
-
-            role_id:
-              roleId,
-
-            assigned_by:
-              access.employee
-                .user_id,
-          })
-        );
-
-      const {
-        error:
-          roleAssignmentError,
-      } =
-        await supabase
-          .from(
-            "user_roles"
-          )
-          .insert(
-            roleAssignments
-          );
-
-      if (
-        roleAssignmentError
-      ) {
-        await supabase
-          .from(
-            "employees"
-          )
-          .delete()
-          .eq(
-            "id",
-            createdEmployee.id
-          )
-          .eq(
-            "organization_id",
-            organizationId
-          );
-
-        try {
-          await adminSupabase
-            .auth
-            .admin
-            .deleteUser(
-              invitedAuthUserId
-            );
-        } catch (
-          cleanupError
-        ) {
-          console.error(
-            "Failed to clean up invited Auth user:",
-            cleanupError
-          );
-        }
-
-        return NextResponse.json(
-          {
-            error:
-              "The employee could not be assigned roles: " +
-              roleAssignmentError.message,
-          },
-          {
-            status:
-              500,
-          }
-        );
-      }
-    }
-
-    return NextResponse.json(
-      {
-        employee:
-          createdEmployee,
-
-        invited:
-          true,
-
-        message:
-          `Employee created and invitation sent to ${email}.`,
-      },
-      {
-        status:
-          201,
-      }
-    );
-  } catch (error) {
-    console.error(
-      "Employees POST error:",
-      error
-    );
-
-    return NextResponse.json(
-      {
-        error:
-          error.message ||
-          "Failed to invite employee.",
-      },
-      {
-        status:
-          500,
-      }
-    );
   }
+
+  return NextResponse.json(
+    {
+      employee:
+        createdEmployee,
+
+      invited:
+        true,
+
+      message:
+        `Employee created and invitation sent to ${email}.`,
+    },
+    {
+      status:
+        201,
+    }
+  );
+} catch (error) {
+  console.error(
+    "Employees POST error:",
+    error
+  );
+
+  return NextResponse.json(
+    {
+      error:
+        error.message ||
+        "Failed to invite employee.",
+    },
+    {
+      status:
+        500,
+    }
+  );
+}
 }
