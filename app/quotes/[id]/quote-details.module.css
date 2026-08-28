@@ -1960,3 +1960,186 @@ strong {
     font-size: 28px;
   }
 }
+
+/* =========================================================
+   SAINAL ONE
+   COMMERCIAL DETAIL TYPOGRAPHY FINALISATION
+   QUOTE DETAIL
+========================================================= */
+
+/*
+ * Meaningful business information should never use
+ * 8px–10px typography.
+ */
+
+/* Workflow summary */
+
+.relatedWorkMetric,
+.relatedWorkMetricSuccess,
+.workflowRunCount {
+  font-size: 11px;
+}
+
+.relatedTaskCopy > p {
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.relatedTaskMeta span {
+  font-size: 11px;
+}
+
+.relatedTaskOpen {
+  font-size: 13px;
+}
+
+.relatedWorkError strong {
+  font-size: 13px;
+}
+
+.relatedWorkError p {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.relatedWorkEmpty h4 {
+  font-size: 15px;
+}
+
+.relatedWorkEmpty p {
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+
+/* Workflow runs */
+
+.workflowRunEyebrow {
+  font-size: 11px;
+}
+
+.workflowRunIdentity h4 {
+  font-size: 17px;
+}
+
+.workflowRunIdentity p {
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.workflowRunStatus,
+.timelineStatus {
+  font-size: 11px;
+}
+
+
+/* Workflow metrics */
+
+.workflowMetric span {
+  font-size: 11px;
+}
+
+.workflowMetric strong {
+  font-size: 13px;
+}
+
+
+/* Workflow timeline */
+
+.timelineStepNumber {
+  font-size: 11px;
+}
+
+.timelineContent h5 {
+  font-size: 15px;
+}
+
+.timelineContentHeader p {
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.timelineMeta span {
+  font-size: 11px;
+}
+
+.timelineMeta strong {
+  font-size: 11px;
+}
+
+.timelineError > span {
+  font-size: 11px;
+}
+
+.timelineError strong {
+  font-size: 12px;
+}
+
+.timelineError p {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+
+/* Workflow states */
+
+.workflowEmptySteps {
+  font-size: 12px;
+}
+
+.workflowHistoryError strong {
+  font-size: 13px;
+}
+
+.workflowHistoryError p {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.workflowEmpty h4 {
+  font-size: 15px;
+}
+
+.workflowEmpty p {
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+
+/* Quote document */
+
+.documentMeta span,
+.documentSummary span {
+  font-size: 11px;
+}
+
+.documentMeta strong {
+  font-size: 17px;
+}
+
+.documentMeta p {
+  font-size: 14px;
+}
+
+.documentFooter p {
+  font-size: 12px;
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 620px) {
+  .relatedTaskOpen {
+    font-size: 13px;
+  }
+
+  .workflowRunIdentity h4 {
+    font-size: 16px;
+  }
+
+  .timelineContent h5 {
+    font-size: 14px;
+  }
+}
