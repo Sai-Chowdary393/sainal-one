@@ -1176,3 +1176,342 @@
     box-shadow: none;
   }
 }
+
+/* =========================================================
+   SAINAL ONE
+   COMMERCIAL DETAIL TYPOGRAPHY
+   INVOICE DETAIL
+========================================================= */
+
+
+/* =========================================================
+   PAGE HEADER
+========================================================= */
+
+.backLink,
+.eyebrow,
+.heroLabel {
+  font-size: var(--font-label);
+}
+
+.pageHeader h2 {
+  font-size: var(--font-workspace-title);
+  line-height: 1.2;
+}
+
+.pageHeader p {
+  font-size: var(--font-helper);
+  line-height: var(--line-helper);
+}
+
+
+/* =========================================================
+   BUTTONS
+========================================================= */
+
+.primaryButton,
+.secondaryButton,
+.successButton,
+.warningButton {
+  font-size: var(--font-button);
+}
+
+
+/* =========================================================
+   INVOICE HERO
+========================================================= */
+
+.identityCopy h3 {
+  font-size: 24px;
+  line-height: 1.25;
+}
+
+.identityCopy p {
+  font-size: var(--font-helper);
+  line-height: var(--line-helper);
+}
+
+.metaBadge,
+.overdueBadge,
+.linkedBadge {
+  font-size: var(--font-label);
+}
+
+.heroMetric span {
+  font-size: 11px;
+}
+
+.heroMetric strong {
+  font-size: 20px;
+}
+
+
+/* =========================================================
+   WORKSPACE PANELS
+========================================================= */
+
+.panelHeader h3 {
+  font-size: var(--font-panel-title);
+}
+
+.panelHeader p {
+  font-size: var(--font-helper);
+  line-height: var(--line-helper);
+}
+
+.detailRow > span {
+  font-size: 12px;
+}
+
+.detailRow strong,
+.detailRow a {
+  font-size: var(--font-body);
+  line-height: 1.55;
+}
+
+.customerLink,
+.projectLink {
+  font-size: var(--font-body);
+}
+
+
+/* =========================================================
+   EDIT FORM
+========================================================= */
+
+.field label {
+  font-size: 12px;
+}
+
+.field input,
+.field select,
+.field textarea {
+  font-size: var(--font-input);
+}
+
+
+/* =========================================================
+   CALCULATIONS
+========================================================= */
+
+.calculationItem span {
+  font-size: 11px;
+}
+
+.calculationItem strong {
+  font-size: 20px;
+}
+
+.calculationTotal strong {
+  font-size: 24px;
+}
+
+
+/* =========================================================
+   AI PAYMENT/RISK PANEL
+========================================================= */
+
+.aiHeader span {
+  font-size: 11px;
+}
+
+.aiHeader h3 {
+  font-size: var(--font-panel-title);
+}
+
+.riskMetric span {
+  font-size: 11px;
+}
+
+.riskMetric strong {
+  font-size: 13px;
+}
+
+.aiRecommendations > span {
+  font-size: 11px;
+}
+
+.recommendationItem p {
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+
+/* =========================================================
+   PAYMENT HISTORY
+========================================================= */
+
+.paymentItem strong {
+  font-size: 13px;
+}
+
+.paymentItem p {
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.paymentItem time {
+  font-size: 11px;
+}
+
+
+/* =========================================================
+   DOCUMENT TOOLBAR
+========================================================= */
+
+.documentToolbar h3 {
+  font-size: 20px;
+}
+
+
+/* =========================================================
+   INVOICE DOCUMENT HEADER
+========================================================= */
+
+.companyIdentity h2 {
+  font-size: 19px;
+}
+
+.companyIdentity p {
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.invoiceMeta h1 {
+  font-size: 30px;
+}
+
+.invoiceMeta p {
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+
+/* =========================================================
+   BILLING INFORMATION
+========================================================= */
+
+.billPanel span {
+  font-size: 11px;
+}
+
+.billPanel strong {
+  font-size: 14px;
+}
+
+.billPanel p {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+
+/* =========================================================
+   INVOICE ITEMS
+========================================================= */
+
+.invoiceItemsTable th {
+  font-size: 11px;
+}
+
+.invoiceItemsTable td {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+
+/* =========================================================
+   PAYMENT TERMS
+========================================================= */
+
+.paymentTerms h3 {
+  font-size: 15px;
+}
+
+.paymentTerms p {
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.bankDetails span {
+  font-size: 11px;
+}
+
+.bankDetails p {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+
+/* =========================================================
+   TOTALS
+========================================================= */
+
+.totalRow span {
+  font-size: 12px;
+}
+
+.totalRow strong {
+  font-size: 14px;
+}
+
+.grandTotal strong {
+  font-size: 24px;
+}
+
+
+/* =========================================================
+   FOOTER
+========================================================= */
+
+.invoiceFooter p {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+
+/* =========================================================
+   STATES
+========================================================= */
+
+.errorPanel p,
+.notFound p {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.notFound h2 {
+  font-size: 24px;
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 760px) {
+  .pageHeader h2 {
+    font-size: 26px;
+  }
+
+  .identityCopy h3 {
+    font-size: 22px;
+  }
+
+  .field input,
+  .field select,
+  .field textarea {
+    font-size: 16px;
+  }
+
+  .invoiceMeta h1 {
+    font-size: 27px;
+  }
+
+  .invoiceItemsTable th {
+    font-size: 11px;
+  }
+
+  .invoiceItemsTable td {
+    font-size: 13px;
+  }
+}
