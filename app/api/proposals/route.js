@@ -95,6 +95,54 @@ function generateProposalNumber() {
   return `SNP-${year}-${suffix}`;
 }
 
+async function validateRelatedRecord({
+  supabase,
+  organizationId,
+  table,
+  recordId,
+  label,
+}) {
+  if (!recordId) {
+    return null;
+  }
+
+  if (!isUuid(recordId)) {
+    throw new Error(
+      `${label} ID must be a valid UUID.`
+    );
+  }
+
+  const {
+    data,
+    error,
+  } = await supabase
+    .from(table)
+    .select("id")
+    .eq(
+      "id",
+      recordId
+    )
+    .eq(
+      "organization_id",
+      organizationId
+    )
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      `Unable to validate ${label.toLowerCase()}: ${error.message}`
+    );
+  }
+
+  if (!data) {
+    throw new Error(
+      `The selected ${label.toLowerCase()} is not valid for this organisation.`
+    );
+  }
+
+  return data.id;
+}
+
 // =========================================================
 // ATTACH OWNERS
 // =========================================================
@@ -179,10 +227,6 @@ export async function GET() {
           organizationId
         );
 
-    // =====================================================
-    // TEAM
-    // =====================================================
-
     if (
       !permissions.canViewAll &&
       permissions.canViewTeam
@@ -200,13 +244,7 @@ export async function GET() {
           "owner_employee_id",
           teamEmployeeIds
         );
-    }
-
-    // =====================================================
-    // OWN
-    // =====================================================
-
-    else if (
+    } else if (
       !permissions.canViewAll &&
       permissions.canViewOwn
     ) {
@@ -247,10 +285,6 @@ export async function GET() {
           proposalRows ||
           [],
       });
-
-    // =====================================================
-    // ASSIGNABLE EMPLOYEES
-    // =====================================================
 
     let employees = [];
 
@@ -425,10 +459,6 @@ export async function POST(
       access.employee
         .organization_id;
 
-    // =====================================================
-    // OWNER
-    // =====================================================
-
     let ownerEmployeeId =
       access.employee.id;
 
@@ -493,37 +523,57 @@ export async function POST(
         owner.id;
     }
 
-    // =====================================================
-    // RELATED RECORDS
-    // =====================================================
-
     const leadId =
-      body.lead_id &&
-      isUuid(
-        body.lead_id
-      )
-        ? body.lead_id
+      body.lead_id
+        ? cleanText(
+            body.lead_id
+          )
         : null;
 
     const customerId =
-      body.customer_id &&
-      isUuid(
-        body.customer_id
-      )
-        ? body.customer_id
+      body.customer_id
+        ? cleanText(
+            body.customer_id
+          )
         : null;
 
     const quoteId =
-      body.quote_id &&
-      isUuid(
-        body.quote_id
-      )
-        ? body.quote_id
+      body.quote_id
+        ? cleanText(
+            body.quote_id
+          )
         : null;
 
-    // =====================================================
-    // PROPOSAL NUMBER
-    // =====================================================
+    /*
+     * Every related record must belong
+     * to the current organisation.
+     */
+    await validateRelatedRecord({
+      supabase,
+      organizationId,
+      table: "leads",
+      recordId:
+        leadId,
+      label: "Lead",
+    });
+
+    await validateRelatedRecord({
+      supabase,
+      organizationId,
+      table: "customers",
+      recordId:
+        customerId,
+      label: "Customer",
+    });
+
+    await validateRelatedRecord({
+      supabase,
+      organizationId,
+      table: "quotes",
+      recordId:
+        quoteId,
+      label: "Quote",
+    });
 
     const proposalNumber =
       cleanText(
@@ -550,10 +600,6 @@ export async function POST(
         }
       );
     }
-
-    // =====================================================
-    // INSERT
-    // =====================================================
 
     const {
       data:
@@ -653,15 +699,37 @@ export async function POST(
       error
     );
 
+    const message =
+      error.message ||
+      "Failed to create proposal.";
+
+    const validationError =
+      [
+        "invalid",
+        "required",
+        "uuid",
+        "not valid for this organisation",
+      ].some(
+        (
+          word
+        ) =>
+          message
+            .toLowerCase()
+            .includes(
+              word
+            )
+      );
+
     return NextResponse.json(
       {
         error:
-          error.message ||
-          "Failed to create proposal.",
+          message,
       },
       {
         status:
-          500,
+          validationError
+            ? 400
+            : 500,
       }
     );
   }
