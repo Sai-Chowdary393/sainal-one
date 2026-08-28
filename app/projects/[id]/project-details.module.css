@@ -1298,3 +1298,49 @@
     font-size: 26px;
   }
 }
+
+/* =========================================================
+   SAINAL ONE
+   OPERATIONS TYPOGRAPHY FINALISATION
+   PROJECT DETAIL
+========================================================= */
+
+.progressHeader span {
+  font-size: 12px;
+}
+
+.progressMetric span {
+  font-size: 11px;
+}
+
+.aiHeader span,
+.riskMetric span,
+.aiRecommendations > span {
+  font-size: 11px;
+}
+
+.riskMetric strong {
+  font-size: 13px;
+}
+
+.recommendationItem p {
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.taskIdentityCopy small {
+  font-size: 11px;
+}
+
+.overdueLabel {
+  font-size: 11px;
+}
+
+@media (max-width: 760px) {
+  .field input,
+  .field select,
+  .field textarea,
+  .statusSelect {
+    font-size: 16px;
+  }
+}
