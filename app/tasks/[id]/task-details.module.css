@@ -789,3 +789,74 @@
       --font-body
     );
 }
+
+/* =========================================================
+   SAINAL ONE
+   OPERATIONS TYPOGRAPHY FINALISATION
+   TASK DETAIL
+========================================================= */
+
+.priorityBadge,
+.workflowBadge {
+  font-size: 11px;
+}
+
+.dueCard span {
+  font-size: 11px;
+}
+
+.dueCard small {
+  font-size: 12px;
+}
+
+.panelHeader p,
+.activityHeader p,
+.dangerPanel p {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.editForm label > span {
+  font-size: 12px;
+}
+
+.editForm input,
+.editForm select,
+.editForm textarea {
+  font-size: 14px;
+}
+
+.activityError {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.timelineTop strong {
+  font-size: 13px;
+}
+
+.timelineTop span {
+  font-size: 11px;
+}
+
+.timelineContent p {
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.timelineContent small {
+  font-size: 11px;
+}
+
+.notFound p {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+@media (max-width: 620px) {
+  .editForm input,
+  .editForm select,
+  .editForm textarea {
+    font-size: 16px;
+  }
+}
