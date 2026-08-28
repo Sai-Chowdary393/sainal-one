@@ -39,6 +39,74 @@ const ALLOWED_RELATED_TYPES = [
   "Invoice",
 ];
 
+const RELATED_CONFIG = {
+  Lead: {
+    table:
+      "leads",
+
+    prefix:
+      "leads",
+
+    module:
+      "Leads",
+  },
+
+  Customer: {
+    table:
+      "customers",
+
+    prefix:
+      "customers",
+
+    module:
+      "Customers",
+  },
+
+  Quote: {
+    table:
+      "quotes",
+
+    prefix:
+      "quotes",
+
+    module:
+      "Quotes",
+  },
+
+  Proposal: {
+    table:
+      "proposals",
+
+    prefix:
+      "proposals",
+
+    module:
+      "Proposals",
+  },
+
+  Project: {
+    table:
+      "projects",
+
+    prefix:
+      "projects",
+
+    module:
+      "Projects",
+  },
+
+  Invoice: {
+    table:
+      "invoices",
+
+    prefix:
+      "invoices",
+
+    module:
+      "Invoices",
+  },
+};
+
 // =========================================================
 // HELPERS
 // =========================================================
@@ -76,10 +144,12 @@ function isDateValue(value) {
 function forbidden(message) {
   return NextResponse.json(
     {
-      error: message,
+      error:
+        message,
     },
     {
-      status: 403,
+      status:
+        403,
     }
   );
 }
@@ -95,6 +165,110 @@ function getPermissions(access) {
         "Follow-ups",
     }
   );
+}
+
+// =========================================================
+// VALIDATE RELATED RECORD
+// =========================================================
+
+async function validateRelatedRecord({
+  supabase,
+  access,
+  relatedType,
+  relatedId,
+}) {
+  if (
+    relatedType ===
+    "General"
+  ) {
+    return null;
+  }
+
+  const config =
+    RELATED_CONFIG[
+      relatedType
+    ];
+
+  if (!config) {
+    throw new Error(
+      "Invalid related record type."
+    );
+  }
+
+  if (
+    !relatedId ||
+    !isUuid(
+      relatedId
+    )
+  ) {
+    throw new Error(
+      `A valid ${relatedType.toLowerCase()} ID is required.`
+    );
+  }
+
+  const organizationId =
+    access.employee
+      .organization_id;
+
+  const {
+    data:
+      record,
+    error,
+  } =
+    await supabase
+      .from(
+        config.table
+      )
+      .select("*")
+      .eq(
+        "organization_id",
+        organizationId
+      )
+      .eq(
+        "id",
+        relatedId
+      )
+      .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      error.message
+    );
+  }
+
+  if (!record) {
+    throw new Error(
+      `The selected ${relatedType.toLowerCase()} is not valid for this organisation.`
+    );
+  }
+
+  const permissions =
+    getRecordPermissions(
+      access,
+      {
+        prefix:
+          config.prefix,
+
+        module:
+          config.module,
+      }
+    );
+
+  const visible =
+    await canViewOwnedRecord({
+      supabase,
+      access,
+      permissions,
+      record,
+    });
+
+  if (!visible) {
+    throw new Error(
+      `You do not have permission to link this ${relatedType.toLowerCase()}.`
+    );
+  }
+
+  return record.id;
 }
 
 // =========================================================
@@ -187,16 +361,19 @@ async function enrichFollowUp({
       .from(
         "employees"
       )
-      .select(`
-        id,
-        full_name,
-        email,
-        job_title,
-        department_id
-      `)
+      .select(
+        `
+          id,
+          full_name,
+          email,
+          job_title,
+          department_id
+        `
+      )
       .eq(
         "id",
-        followUp.assigned_employee_id
+        followUp
+          .assigned_employee_id
       )
       .eq(
         "organization_id",
@@ -214,7 +391,8 @@ async function enrichFollowUp({
     ...followUp,
 
     assigned_employee:
-      employee || null,
+      employee ||
+      null,
   };
 }
 
@@ -239,7 +417,8 @@ export async function GET(
             "A valid follow-up ID is required.",
         },
         {
-          status: 400,
+          status:
+            400,
         }
       );
     }
@@ -261,7 +440,9 @@ export async function GET(
     }
 
     const permissions =
-      getPermissions(access);
+      getPermissions(
+        access
+      );
 
     if (
       !permissions.canViewAll &&
@@ -294,7 +475,8 @@ export async function GET(
             "Follow-up not found.",
         },
         {
-          status: 404,
+          status:
+            404,
         }
       );
     }
@@ -360,7 +542,8 @@ export async function GET(
           "Failed to load follow-up.",
       },
       {
-        status: 500,
+        status:
+          500,
       }
     );
   }
@@ -387,7 +570,8 @@ export async function PATCH(
             "A valid follow-up ID is required.",
         },
         {
-          status: 400,
+          status:
+            400,
         }
       );
     }
@@ -409,7 +593,9 @@ export async function PATCH(
     }
 
     const permissions =
-      getPermissions(access);
+      getPermissions(
+        access
+      );
 
     const supabase =
       createAdminSupabaseClient();
@@ -432,7 +618,8 @@ export async function PATCH(
             "Follow-up not found.",
         },
         {
-          status: 404,
+          status:
+            404,
         }
       );
     }
@@ -506,7 +693,8 @@ export async function PATCH(
             "No supported follow-up changes were provided.",
         },
         {
-          status: 400,
+          status:
+            400,
         }
       );
     }
@@ -535,7 +723,8 @@ export async function PATCH(
               "Follow-up title cannot be empty.",
           },
           {
-            status: 400,
+            status:
+              400,
           }
         );
       }
@@ -577,7 +766,8 @@ export async function PATCH(
               "Follow-up due date must use YYYY-MM-DD format.",
           },
           {
-            status: 400,
+            status:
+              400,
           }
         );
       }
@@ -603,7 +793,8 @@ export async function PATCH(
               "Invalid follow-up status.",
           },
           {
-            status: 400,
+            status:
+              400,
           }
         );
       }
@@ -612,15 +803,37 @@ export async function PATCH(
         body.status;
     }
 
-    if (
+    // =====================================================
+    // RELATED RECORD
+    // =====================================================
+
+    const wantsRelatedType =
       Object.prototype.hasOwnProperty.call(
         body,
         "related_type"
-      )
+      );
+
+    const wantsRelatedId =
+      Object.prototype.hasOwnProperty.call(
+        body,
+        "related_id"
+      );
+
+    if (
+      wantsRelatedType ||
+      wantsRelatedId
     ) {
+      const nextRelatedType =
+        wantsRelatedType
+          ? cleanText(
+              body.related_type
+            )
+          : followUp.related_type ||
+            "General";
+
       if (
         !ALLOWED_RELATED_TYPES.includes(
-          body.related_type
+          nextRelatedType
         )
       ) {
         return NextResponse.json(
@@ -629,25 +842,62 @@ export async function PATCH(
               "Invalid related record type.",
           },
           {
-            status: 400,
+            status:
+              400,
           }
         );
       }
 
-      updates.related_type =
-        body.related_type;
-    }
+      const nextRelatedId =
+        wantsRelatedId
+          ? cleanNullableText(
+              body.related_id
+            )
+          : followUp.related_id;
 
-    if (
-      Object.prototype.hasOwnProperty.call(
-        body,
-        "related_id"
-      )
-    ) {
-      updates.related_id =
-        cleanNullableText(
-          body.related_id
-        );
+      if (
+        nextRelatedType ===
+        "General"
+      ) {
+        updates.related_type =
+          "General";
+
+        updates.related_id =
+          null;
+      } else {
+        let validatedId;
+
+        try {
+          validatedId =
+            await validateRelatedRecord({
+              supabase,
+              access,
+
+              relatedType:
+                nextRelatedType,
+
+              relatedId:
+                nextRelatedId,
+            });
+        } catch (error) {
+          return NextResponse.json(
+            {
+              error:
+                error.message,
+            },
+            {
+              status:
+                403,
+            }
+          );
+        }
+
+        updates.related_type =
+          nextRelatedType;
+
+        updates.related_id =
+          validatedId;
+      }
     }
 
     if (
@@ -673,7 +923,8 @@ export async function PATCH(
                 "The selected follow-up assignee is not valid.",
             },
             {
-              status: 400,
+              status:
+                400,
             }
           );
         }
@@ -693,7 +944,8 @@ export async function PATCH(
                 "The selected follow-up assignee is not valid.",
             },
             {
-              status: 400,
+              status:
+                400,
             }
           );
         }
@@ -762,7 +1014,8 @@ export async function PATCH(
           "Failed to update follow-up.",
       },
       {
-        status: 500,
+        status:
+          500,
       }
     );
   }
@@ -789,7 +1042,8 @@ export async function DELETE(
             "A valid follow-up ID is required.",
         },
         {
-          status: 400,
+          status:
+            400,
         }
       );
     }
@@ -811,7 +1065,9 @@ export async function DELETE(
     }
 
     const permissions =
-      getPermissions(access);
+      getPermissions(
+        access
+      );
 
     if (
       !permissions.canDelete
@@ -842,7 +1098,8 @@ export async function DELETE(
             "Follow-up not found.",
         },
         {
-          status: 404,
+          status:
+            404,
         }
       );
     }
@@ -902,7 +1159,8 @@ export async function DELETE(
           "Failed to delete follow-up.",
       },
       {
-        status: 500,
+        status:
+          500,
       }
     );
   }
