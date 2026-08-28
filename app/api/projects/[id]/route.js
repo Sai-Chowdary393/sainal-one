@@ -52,10 +52,7 @@ function cleanNullableText(value) {
 
 function isUuid(value) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    String(
-      value ||
-        ""
-    )
+    String(value || "")
   );
 }
 
@@ -82,7 +79,9 @@ function forbidden(message) {
   );
 }
 
-function getProjectPermissions(access) {
+function getProjectPermissions(
+  access
+) {
   return getRecordPermissions(
     access,
     {
@@ -95,7 +94,9 @@ function getProjectPermissions(access) {
   );
 }
 
-function getTaskPermissions(access) {
+function getTaskPermissions(
+  access
+) {
   return getRecordPermissions(
     access,
     {
@@ -105,6 +106,61 @@ function getTaskPermissions(access) {
       module:
         "Tasks",
     }
+  );
+}
+
+function getCustomerPermissions(
+  access
+) {
+  return getRecordPermissions(
+    access,
+    {
+      prefix:
+        "customers",
+
+      module:
+        "Customers",
+    }
+  );
+}
+
+function getQuotePermissions(
+  access
+) {
+  return getRecordPermissions(
+    access,
+    {
+      prefix:
+        "quotes",
+
+      module:
+        "Quotes",
+    }
+  );
+}
+
+function getInvoicePermissions(
+  access
+) {
+  return getRecordPermissions(
+    access,
+    {
+      prefix:
+        "invoices",
+
+      module:
+        "Invoices",
+    }
+  );
+}
+
+function hasViewPermission(
+  permissions
+) {
+  return Boolean(
+    permissions.canViewAll ||
+      permissions.canViewTeam ||
+      permissions.canViewOwn
   );
 }
 
@@ -161,9 +217,9 @@ async function loadProjectTasks({
     );
 
   if (
-    !taskPermissions.canViewAll &&
-    !taskPermissions.canViewTeam &&
-    !taskPermissions.canViewOwn
+    !hasViewPermission(
+      taskPermissions
+    )
   ) {
     return {
       tasks: [],
@@ -193,6 +249,7 @@ async function loadProjectTasks({
     const teamIds =
       await getTeamEmployeeIds({
         supabase,
+
         employee:
           access.employee,
       });
@@ -227,9 +284,7 @@ async function loadProjectTasks({
       }
     );
 
-  if (
-    taskError
-  ) {
+  if (taskError) {
     throw new Error(
       taskError.message
     );
@@ -242,9 +297,7 @@ async function loadProjectTasks({
         []
       )
         .map(
-          (
-            task
-          ) =>
+          (task) =>
             task.assigned_employee_id
         )
         .filter(Boolean)
@@ -300,9 +353,7 @@ async function loadProjectTasks({
           taskEmployees ||
           []
         ).map(
-          (
-            employee
-          ) => [
+          (employee) => [
             employee.id,
             employee,
           ]
@@ -315,9 +366,7 @@ async function loadProjectTasks({
       taskRows ||
       []
     ).map(
-      (
-        task
-      ) => ({
+      (task) => ({
         ...task,
 
         assigned_employee:
@@ -337,6 +386,194 @@ async function loadProjectTasks({
 }
 
 // =========================================================
+// LOAD RELATED SINGLE RECORD
+// =========================================================
+
+async function loadVisibleRelatedRecord({
+  supabase,
+  access,
+  organizationId,
+  table,
+  recordId,
+  permissions,
+  select = "*",
+}) {
+  if (
+    !recordId ||
+    !hasViewPermission(
+      permissions
+    )
+  ) {
+    return null;
+  }
+
+  const {
+    data:
+      record,
+    error,
+  } =
+    await supabase
+      .from(table)
+      .select(select)
+      .eq(
+        "organization_id",
+        organizationId
+      )
+      .eq(
+        "id",
+        recordId
+      )
+      .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      error.message
+    );
+  }
+
+  if (!record) {
+    return null;
+  }
+
+  /*
+   * We need the ownership field for record visibility.
+   * When a custom select is used below, we separately
+   * load the security record first.
+   */
+  const {
+    data:
+      securityRecord,
+    error:
+      securityError,
+  } =
+    await supabase
+      .from(table)
+      .select(
+        "id, owner_employee_id"
+      )
+      .eq(
+        "organization_id",
+        organizationId
+      )
+      .eq(
+        "id",
+        recordId
+      )
+      .maybeSingle();
+
+  if (securityError) {
+    throw new Error(
+      securityError.message
+    );
+  }
+
+  if (!securityRecord) {
+    return null;
+  }
+
+  const visible =
+    await canViewOwnedRecord({
+      supabase,
+      access,
+      permissions,
+
+      record:
+        securityRecord,
+    });
+
+  return visible
+    ? record
+    : null;
+}
+
+// =========================================================
+// LOAD INVOICES WITH INVOICE RBAC
+// =========================================================
+
+async function loadVisibleInvoices({
+  supabase,
+  access,
+  organizationId,
+  projectId,
+}) {
+  const permissions =
+    getInvoicePermissions(
+      access
+    );
+
+  if (
+    !hasViewPermission(
+      permissions
+    )
+  ) {
+    return [];
+  }
+
+  let query =
+    supabase
+      .from(
+        "invoices"
+      )
+      .select("*")
+      .eq(
+        "organization_id",
+        organizationId
+      )
+      .eq(
+        "project_id",
+        projectId
+      );
+
+  if (
+    !permissions.canViewAll &&
+    permissions.canViewTeam
+  ) {
+    const teamIds =
+      await getTeamEmployeeIds({
+        supabase,
+
+        employee:
+          access.employee,
+      });
+
+    query =
+      query.in(
+        "owner_employee_id",
+        teamIds
+      );
+  } else if (
+    !permissions.canViewAll &&
+    permissions.canViewOwn
+  ) {
+    query =
+      query.eq(
+        "owner_employee_id",
+        access.employee.id
+      );
+  }
+
+  const {
+    data,
+    error,
+  } =
+    await query.order(
+      "created_at",
+      {
+        ascending:
+          false,
+      }
+    );
+
+  if (error) {
+    throw new Error(
+      error.message
+    );
+  }
+
+  return data || [];
+}
+
+// =========================================================
 // GET
 // =========================================================
 
@@ -350,9 +587,7 @@ export async function GET(
     } =
       await context.params;
 
-    if (
-      !isUuid(id)
-    ) {
+    if (!isUuid(id)) {
       return NextResponse.json(
         {
           error:
@@ -368,9 +603,7 @@ export async function GET(
     const access =
       await getServerAccess();
 
-    if (
-      !access.employee
-    ) {
+    if (!access.employee) {
       return NextResponse.json(
         {
           error:
@@ -389,9 +622,9 @@ export async function GET(
       );
 
     if (
-      !projectPermissions.canViewAll &&
-      !projectPermissions.canViewTeam &&
-      !projectPermissions.canViewOwn
+      !hasViewPermission(
+        projectPermissions
+      )
     ) {
       return forbidden(
         "You do not have permission to view projects."
@@ -409,6 +642,7 @@ export async function GET(
       await loadProject({
         supabase,
         organizationId,
+
         projectId:
           id,
       });
@@ -430,8 +664,10 @@ export async function GET(
       await canViewOwnedRecord({
         supabase,
         access,
+
         permissions:
           projectPermissions,
+
         record:
           project,
       });
@@ -450,10 +686,6 @@ export async function GET(
           project,
       });
 
-    // =====================================================
-    // TASKS WITH TASK RBAC
-    // =====================================================
-
     const {
       tasks,
       taskPermissions,
@@ -462,149 +694,95 @@ export async function GET(
         supabase,
         access,
         organizationId,
+
         projectId:
           id,
       });
 
     // =====================================================
-    // CUSTOMER
+    // CUSTOMER — CUSTOMER RBAC
     // =====================================================
 
-    let customer = null;
-
-    if (
-      project.customer_id
-    ) {
-      const {
-        data,
-        error,
-      } =
-        await supabase
-          .from(
-            "customers"
-          )
-          .select(
-            `
-              id,
-              customer_name,
-              company,
-              email,
-              phone,
-              status
-            `
-          )
-          .eq(
-            "organization_id",
-            organizationId
-          )
-          .eq(
-            "id",
-            project.customer_id
-          )
-          .maybeSingle();
-
-      if (error) {
-        throw new Error(
-          error.message
-        );
-      }
-
-      customer =
-        data ||
-        null;
-    }
-
-    // =====================================================
-    // QUOTE
-    // =====================================================
-
-    let quote = null;
-
-    if (
-      project.quote_id
-    ) {
-      const {
-        data,
-        error,
-      } =
-        await supabase
-          .from(
-            "quotes"
-          )
-          .select(
-            `
-              id,
-              quote_number,
-              client,
-              contact,
-              service,
-              amount,
-              status
-            `
-          )
-          .eq(
-            "organization_id",
-            organizationId
-          )
-          .eq(
-            "id",
-            project.quote_id
-          )
-          .maybeSingle();
-
-      if (error) {
-        throw new Error(
-          error.message
-        );
-      }
-
-      quote =
-        data ||
-        null;
-    }
-
-    // =====================================================
-    // INVOICES
-    // =====================================================
-
-    const {
-      data:
-        invoices,
-      error:
-        invoicesError,
-    } =
-      await supabase
-        .from(
-          "invoices"
-        )
-        .select("*")
-        .eq(
-          "organization_id",
-          organizationId
-        )
-        .eq(
-          "project_id",
-          id
-        )
-        .order(
-          "created_at",
-          {
-            ascending:
-              false,
-          }
-        );
-
-    if (
-      invoicesError
-    ) {
-      throw new Error(
-        invoicesError.message
+    const customerPermissions =
+      getCustomerPermissions(
+        access
       );
-    }
+
+    const customer =
+      await loadVisibleRelatedRecord({
+        supabase,
+        access,
+        organizationId,
+
+        table:
+          "customers",
+
+        recordId:
+          project.customer_id,
+
+        permissions:
+          customerPermissions,
+
+        select:
+          `
+            id,
+            customer_name,
+            company,
+            email,
+            phone,
+            status
+          `,
+      });
 
     // =====================================================
-    // PROJECT ASSIGNMENT OPTIONS
+    // QUOTE — QUOTE RBAC
     // =====================================================
+
+    const quotePermissions =
+      getQuotePermissions(
+        access
+      );
+
+    const quote =
+      await loadVisibleRelatedRecord({
+        supabase,
+        access,
+        organizationId,
+
+        table:
+          "quotes",
+
+        recordId:
+          project.quote_id,
+
+        permissions:
+          quotePermissions,
+
+        select:
+          `
+            id,
+            quote_number,
+            client,
+            contact,
+            service,
+            amount,
+            status
+          `,
+      });
+
+    // =====================================================
+    // INVOICES — INVOICE RBAC
+    // =====================================================
+
+    const invoices =
+      await loadVisibleInvoices({
+        supabase,
+        access,
+        organizationId,
+
+        projectId:
+          id,
+      });
 
     let employees = [];
 
@@ -617,10 +795,6 @@ export async function GET(
           organizationId,
         });
     }
-
-    // =====================================================
-    // TASK ASSIGNMENT OPTIONS
-    // =====================================================
 
     let taskEmployees = [];
 
@@ -644,9 +818,7 @@ export async function GET(
 
       tasks,
 
-      invoices:
-        invoices ||
-        [],
+      invoices,
 
       employees,
 
@@ -658,6 +830,7 @@ export async function GET(
       access:
         buildClientAccess({
           access,
+
           permissions:
             projectPermissions,
         }),
@@ -665,6 +838,7 @@ export async function GET(
       taskAccess:
         buildClientAccess({
           access,
+
           permissions:
             taskPermissions,
         }),
@@ -703,9 +877,7 @@ export async function PATCH(
     } =
       await context.params;
 
-    if (
-      !isUuid(id)
-    ) {
+    if (!isUuid(id)) {
       return NextResponse.json(
         {
           error:
@@ -721,9 +893,7 @@ export async function PATCH(
     const access =
       await getServerAccess();
 
-    if (
-      !access.employee
-    ) {
+    if (!access.employee) {
       return NextResponse.json(
         {
           error:
@@ -752,6 +922,7 @@ export async function PATCH(
       await loadProject({
         supabase,
         organizationId,
+
         projectId:
           id,
       });
@@ -798,9 +969,7 @@ export async function PATCH(
 
     const wantsEdit =
       editableFields.some(
-        (
-          field
-        ) =>
+        (field) =>
           Object.prototype.hasOwnProperty.call(
             body,
             field
@@ -969,12 +1138,8 @@ export async function PATCH(
     if (
       nextStartDate &&
       nextDueDate &&
-      String(
-        nextDueDate
-      ) <
-        String(
-          nextStartDate
-        )
+      String(nextDueDate) <
+        String(nextStartDate)
     ) {
       return NextResponse.json(
         {
@@ -1041,6 +1206,7 @@ export async function PATCH(
           await validateRecordOwner({
             supabase,
             organizationId,
+
             employeeId:
               requestedOwnerId,
           });
@@ -1087,9 +1253,7 @@ export async function PATCH(
         .select()
         .single();
 
-    if (
-      updateError
-    ) {
+    if (updateError) {
       throw new Error(
         updateError.message
       );
@@ -1099,6 +1263,7 @@ export async function PATCH(
       await attachRecordOwner({
         supabase,
         organizationId,
+
         record:
           updatedProject,
       });
@@ -1144,9 +1309,7 @@ export async function DELETE(
     } =
       await context.params;
 
-    if (
-      !isUuid(id)
-    ) {
+    if (!isUuid(id)) {
       return NextResponse.json(
         {
           error:
@@ -1162,9 +1325,7 @@ export async function DELETE(
     const access =
       await getServerAccess();
 
-    if (
-      !access.employee
-    ) {
+    if (!access.employee) {
       return NextResponse.json(
         {
           error:
@@ -1201,6 +1362,7 @@ export async function DELETE(
       await loadProject({
         supabase,
         organizationId,
+
         projectId:
           id,
       });
@@ -1283,17 +1445,13 @@ export async function DELETE(
           ),
       ]);
 
-    if (
-      tasksResult.error
-    ) {
+    if (tasksResult.error) {
       throw new Error(
         tasksResult.error.message
       );
     }
 
-    if (
-      invoicesResult.error
-    ) {
+    if (invoicesResult.error) {
       throw new Error(
         invoicesResult.error.message
       );
@@ -1341,9 +1499,7 @@ export async function DELETE(
           organizationId
         );
 
-    if (
-      deleteError
-    ) {
+    if (deleteError) {
       throw new Error(
         deleteError.message
       );
