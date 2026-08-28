@@ -23,6 +23,7 @@ function getQuotePermissions(
 ) {
   return {
     canViewAll:
+      access.isOwner ||
       access.can(
         "quotes.view_all"
       ) ||
@@ -32,6 +33,7 @@ function getQuotePermissions(
       ),
 
     canViewTeam:
+      access.isOwner ||
       access.can(
         "quotes.view_team"
       ) ||
@@ -41,6 +43,7 @@ function getQuotePermissions(
       ),
 
     canViewOwn:
+      access.isOwner ||
       access.can(
         "quotes.view_own"
       ) ||
@@ -50,6 +53,7 @@ function getQuotePermissions(
       ),
 
     canCreate:
+      access.isOwner ||
       access.can(
         "quotes.create"
       ) ||
@@ -59,6 +63,7 @@ function getQuotePermissions(
       ),
 
     canEdit:
+      access.isOwner ||
       access.can(
         "quotes.edit"
       ) ||
@@ -68,6 +73,7 @@ function getQuotePermissions(
       ),
 
     canDelete:
+      access.isOwner ||
       access.can(
         "quotes.delete"
       ) ||
@@ -77,6 +83,7 @@ function getQuotePermissions(
       ),
 
     canSend:
+      access.isOwner ||
       access.can(
         "quotes.send"
       ) ||
@@ -86,6 +93,7 @@ function getQuotePermissions(
       ),
 
     canApprove:
+      access.isOwner ||
       access.can(
         "quotes.approve"
       ) ||
@@ -98,6 +106,7 @@ function getQuotePermissions(
       ),
 
     canAssign:
+      access.isOwner ||
       access.can(
         "quotes.assign"
       ) ||
@@ -480,10 +489,12 @@ export async function GET() {
           access.isOwner,
 
         permissions:
-          access.permissionKeys,
+          access.permissionKeys ||
+          [],
 
         roles:
-          access.roles,
+          access.roles ||
+          [],
       },
     });
   } catch (
@@ -623,12 +634,6 @@ export async function POST(
         owner.id;
     }
 
-    /*
-     * createQuote currently does not accept
-     * owner_employee_id as a normalised field.
-     *
-     * Create first, then attach the authenticated owner.
-     */
     const quote =
       await createQuote({
         supabase:
@@ -636,42 +641,11 @@ export async function POST(
 
         organizationId,
 
+        ownerEmployeeId,
+
         input:
           body,
       });
-
-    const {
-      data:
-        ownedQuote,
-      error:
-        ownerUpdateError,
-    } =
-      await adminSupabase
-        .from(
-          "quotes"
-        )
-        .update({
-          owner_employee_id:
-            ownerEmployeeId,
-        })
-        .eq(
-          "id",
-          quote.id
-        )
-        .eq(
-          "organization_id",
-          organizationId
-        )
-        .select()
-        .single();
-
-    if (
-      ownerUpdateError
-    ) {
-      throw new Error(
-        ownerUpdateError.message
-      );
-    }
 
     const [
       formattedQuote,
@@ -681,7 +655,7 @@ export async function POST(
         organizationId,
 
         quotes: [
-          ownedQuote,
+          quote,
         ],
       });
 
@@ -715,6 +689,7 @@ export async function POST(
         "invalid",
         "required",
         "uuid",
+        "not valid for this organisation",
       ].some(
         (
           word
