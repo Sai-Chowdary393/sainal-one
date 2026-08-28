@@ -13,6 +13,7 @@ import {
 import {
   attachRecordOwner,
   buildClientAccess,
+  canViewOwnedRecord,
   getRecordPermissions,
   getTeamEmployeeIds,
   loadAssignableEmployees,
@@ -50,10 +51,7 @@ function cleanNullableText(value) {
 
 function isUuid(value) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    String(
-      value ||
-        ""
-    )
+    String(value || "")
   );
 }
 
@@ -91,6 +89,20 @@ function getPermissions(access) {
   );
 }
 
+function getRelatedPermissions(
+  access,
+  prefix,
+  module
+) {
+  return getRecordPermissions(
+    access,
+    {
+      prefix,
+      module,
+    }
+  );
+}
+
 // =========================================================
 // ATTACH OWNERS
 // =========================================================
@@ -105,9 +117,7 @@ async function attachOwners({
       projects ||
       []
     ).map(
-      (
-        project
-      ) =>
+      (project) =>
         attachRecordOwner({
           supabase,
           organizationId,
@@ -119,6 +129,84 @@ async function attachOwners({
 }
 
 // =========================================================
+// VALIDATE RELATED RECORD
+// =========================================================
+
+async function validateRelatedRecord({
+  supabase,
+  access,
+  organizationId,
+  table,
+  recordId,
+  label,
+  prefix,
+  module,
+}) {
+  if (!recordId) {
+    return null;
+  }
+
+  if (!isUuid(recordId)) {
+    throw new Error(
+      `The selected ${label.toLowerCase()} is not valid.`
+    );
+  }
+
+  const {
+    data:
+      record,
+    error,
+  } =
+    await supabase
+      .from(table)
+      .select("*")
+      .eq(
+        "organization_id",
+        organizationId
+      )
+      .eq(
+        "id",
+        recordId
+      )
+      .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      error.message
+    );
+  }
+
+  if (!record) {
+    throw new Error(
+      `The selected ${label.toLowerCase()} is not valid.`
+    );
+  }
+
+  const permissions =
+    getRelatedPermissions(
+      access,
+      prefix,
+      module
+    );
+
+  const visible =
+    await canViewOwnedRecord({
+      supabase,
+      access,
+      permissions,
+      record,
+    });
+
+  if (!visible) {
+    throw new Error(
+      `You do not have permission to use this ${label.toLowerCase()}.`
+    );
+  }
+
+  return record;
+}
+
+// =========================================================
 // GET
 // =========================================================
 
@@ -127,9 +215,7 @@ export async function GET() {
     const access =
       await getServerAccess();
 
-    if (
-      !access.employee
-    ) {
+    if (!access.employee) {
       return NextResponse.json(
         {
           error:
@@ -175,10 +261,6 @@ export async function GET() {
           organizationId
         );
 
-    // =====================================================
-    // TEAM VISIBILITY
-    // =====================================================
-
     if (
       !permissions.canViewAll &&
       permissions.canViewTeam
@@ -196,13 +278,7 @@ export async function GET() {
           "owner_employee_id",
           teamEmployeeIds
         );
-    }
-
-    // =====================================================
-    // OWN VISIBILITY
-    // =====================================================
-
-    else if (
+    } else if (
       !permissions.canViewAll &&
       permissions.canViewOwn
     ) {
@@ -227,9 +303,7 @@ export async function GET() {
         }
       );
 
-    if (
-      projectsError
-    ) {
+    if (projectsError) {
       throw new Error(
         projectsError.message
       );
@@ -244,10 +318,6 @@ export async function GET() {
           projectRows ||
           [],
       });
-
-    // =====================================================
-    // ASSIGNMENT OPTIONS
-    // =====================================================
 
     let employees = [];
 
@@ -305,9 +375,7 @@ export async function POST(
     const access =
       await getServerAccess();
 
-    if (
-      !access.employee
-    ) {
+    if (!access.employee) {
       return NextResponse.json(
         {
           error:
@@ -341,9 +409,7 @@ export async function POST(
         body.project_name
       );
 
-    if (
-      !projectName
-    ) {
+    if (!projectName) {
       return NextResponse.json(
         {
           error:
@@ -476,9 +542,7 @@ export async function POST(
             requestedOwnerId,
         });
 
-      if (
-        !owner
-      ) {
+      if (!owner) {
         return NextResponse.json(
           {
             error:
@@ -495,118 +559,134 @@ export async function POST(
     }
 
     // =====================================================
-    // RELATED CUSTOMER
+    // CUSTOMER
     // =====================================================
 
-    let customerId =
-      body.customer_id ||
+    const requestedCustomerId =
+      cleanText(
+        body.customer_id
+      );
+
+    let customer =
       null;
 
     if (
-      customerId
+      requestedCustomerId
     ) {
-      const {
-        data:
-          customer,
-        error:
-          customerError,
-      } =
-        await supabase
-          .from(
-            "customers"
-          )
-          .select(
-            "id"
-          )
-          .eq(
-            "organization_id",
-            organizationId
-          )
-          .eq(
-            "id",
-            customerId
-          )
-          .maybeSingle();
+      try {
+        customer =
+          await validateRelatedRecord({
+            supabase,
+            access,
+            organizationId,
 
-      if (
-        customerError
-      ) {
-        throw new Error(
-          customerError.message
-        );
-      }
+            table:
+              "customers",
 
-      if (
-        !customer
-      ) {
+            recordId:
+              requestedCustomerId,
+
+            label:
+              "Customer",
+
+            prefix:
+              "customers",
+
+            module:
+              "Customers",
+          });
+      } catch (error) {
         return NextResponse.json(
           {
             error:
-              "The selected customer is not valid.",
+              error.message,
           },
           {
-            status: 400,
+            status: 403,
           }
         );
       }
-
-      customerId =
-        customer.id;
     }
 
     // =====================================================
-    // RELATED QUOTE
+    // QUOTE
     // =====================================================
 
-    let quoteId =
-      body.quote_id ||
+    const requestedQuoteId =
+      cleanText(
+        body.quote_id
+      );
+
+    let quote =
       null;
 
     if (
-      quoteId
+      requestedQuoteId
     ) {
-      const {
-        data:
-          quote,
-        error:
-          quoteError,
-      } =
-        await supabase
-          .from(
-            "quotes"
-          )
-          .select(
-            `
-              id,
-              customer_id,
-              owner_employee_id
-            `
-          )
-          .eq(
-            "organization_id",
-            organizationId
-          )
-          .eq(
-            "id",
-            quoteId
-          )
-          .maybeSingle();
+      try {
+        quote =
+          await validateRelatedRecord({
+            supabase,
+            access,
+            organizationId,
 
-      if (
-        quoteError
-      ) {
-        throw new Error(
-          quoteError.message
+            table:
+              "quotes",
+
+            recordId:
+              requestedQuoteId,
+
+            label:
+              "Quote",
+
+            prefix:
+              "quotes",
+
+            module:
+              "Quotes",
+          });
+      } catch (error) {
+        return NextResponse.json(
+          {
+            error:
+              error.message,
+          },
+          {
+            status: 403,
+          }
         );
       }
+    }
 
+    let customerId =
+      customer?.id ||
+      null;
+
+    const quoteId =
+      quote?.id ||
+      null;
+
+    /*
+     * If the Quote already belongs to a Customer,
+     * use that relationship unless an explicit
+     * matching Customer was supplied.
+     */
+    if (
+      quote?.customer_id
+    ) {
       if (
-        !quote
+        customerId &&
+        String(
+          customerId
+        ) !==
+          String(
+            quote.customer_id
+          )
       ) {
         return NextResponse.json(
           {
             error:
-              "The selected quote is not valid.",
+              "The selected quote belongs to a different customer.",
           },
           {
             status: 400,
@@ -614,27 +694,58 @@ export async function POST(
         );
       }
 
-      quoteId =
-        quote.id;
+      if (!customerId) {
+        /*
+         * The Quote itself has already been validated as
+         * visible. Confirm the inherited Customer is also
+         * part of the same organisation.
+         */
+        const {
+          data:
+            inheritedCustomer,
+          error:
+            inheritedCustomerError,
+        } =
+          await supabase
+            .from(
+              "customers"
+            )
+            .select("id")
+            .eq(
+              "organization_id",
+              organizationId
+            )
+            .eq(
+              "id",
+              quote.customer_id
+            )
+            .maybeSingle();
 
-      /*
-       * When a project is created from a quote and no
-       * customer was explicitly provided, inherit the quote
-       * customer relationship.
-       */
-      if (
-        !customerId &&
-        quote.customer_id
-      ) {
+        if (
+          inheritedCustomerError
+        ) {
+          throw new Error(
+            inheritedCustomerError.message
+          );
+        }
+
+        if (
+          !inheritedCustomer
+        ) {
+          return NextResponse.json(
+            {
+              error:
+                "The quote has an invalid customer relationship.",
+            },
+            {
+              status: 400,
+            }
+          );
+        }
+
         customerId =
-          quote.customer_id;
+          inheritedCustomer.id;
       }
-
-      /*
-       * A normal creator keeps ownership.
-       * An owner/assign-capable employee can explicitly
-       * choose another owner through owner_employee_id.
-       */
     }
 
     // =====================================================
@@ -690,9 +801,7 @@ export async function POST(
         .select()
         .single();
 
-    if (
-      createError
-    ) {
+    if (createError) {
       throw new Error(
         createError.message
       );
@@ -725,14 +834,36 @@ export async function POST(
       error
     );
 
+    const message =
+      error.message ||
+      "Unable to create project.";
+
+    const validationError =
+      [
+        "required",
+        "invalid",
+        "yyyy-mm-dd",
+        "cannot be before",
+        "different customer",
+      ].some(
+        (item) =>
+          message
+            .toLowerCase()
+            .includes(
+              item
+            )
+      );
+
     return NextResponse.json(
       {
         error:
-          error.message ||
-          "Unable to create project.",
+          message,
       },
       {
-        status: 500,
+        status:
+          validationError
+            ? 400
+            : 500,
       }
     );
   }
