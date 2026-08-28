@@ -1068,3 +1068,30 @@
     font-size: 16px;
   }
 }
+
+/* =========================================================
+   SAINAL ONE
+   FINAL TYPOGRAPHY — AI ASSISTANT
+========================================================= */
+.heroStatusCard small { font-size: 11px; }
+.heroStatusCard p { font-size: 12px; line-height: 1.5; }
+.quickActionCopy small { font-size: 12px; }
+.messageMeta time { font-size: 11px; }
+.messageActions button { font-size: 11px; }
+.composerFooter > span,
+.suggestedPrompts > span,
+.suggestedPrompts button { font-size: 11px; }
+.sendButton { font-size: 13px; }
+.capabilitiesHeader span,
+.aiGuidance > span,
+.latestInsight > span { font-size: 11px; }
+.capabilityItem strong { font-size: 13px; }
+.capabilityItem p,
+.aiGuidance p,
+.latestInsight p,
+.disclaimerPanel p { font-size: 12px; line-height: 1.6; }
+.aiGuidance strong { font-size: 13px; line-height: 1.55; }
+.latestInsight button { font-size: 11px; }
+@media (max-width: 720px) {
+  .promptComposer textarea { font-size: 16px; }
+}
