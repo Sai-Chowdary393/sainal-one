@@ -924,3 +924,268 @@
     box-shadow: none;
   }
 }
+
+/* =========================================================
+   SAINAL ONE
+   COMMERCIAL DETAIL TYPOGRAPHY
+   PROPOSAL DETAIL
+========================================================= */
+
+
+/* =========================================================
+   PAGE HEADER
+========================================================= */
+
+.backLink,
+.eyebrow,
+.heroLabel {
+  font-size: var(--font-label);
+}
+
+.pageHeader h2 {
+  font-size: var(--font-workspace-title);
+  line-height: 1.2;
+}
+
+.pageHeader p {
+  font-size: var(--font-helper);
+  line-height: var(--line-helper);
+}
+
+.primaryButton,
+.secondaryButton {
+  font-size: var(--font-button);
+}
+
+
+/* =========================================================
+   PROPOSAL HERO
+========================================================= */
+
+.identityCopy h3 {
+  font-size: 24px;
+  line-height: 1.25;
+}
+
+.identityCopy p {
+  font-size: var(--font-helper);
+  line-height: var(--line-helper);
+}
+
+.metaBadge {
+  font-size: var(--font-label);
+}
+
+.amountCard span {
+  font-size: var(--font-label);
+}
+
+.amountCard strong {
+  font-size: 30px;
+}
+
+.amountCard small {
+  font-size: 11px;
+}
+
+
+/* =========================================================
+   PANELS
+========================================================= */
+
+.panelHeader h3 {
+  font-size: var(--font-panel-title);
+}
+
+.panelHeader p {
+  font-size: var(--font-helper);
+  line-height: var(--line-helper);
+}
+
+.detailRow > span {
+  font-size: 12px;
+}
+
+.detailRow strong,
+.detailRow a {
+  font-size: var(--font-body);
+  line-height: 1.55;
+}
+
+.inlineStatusSelect {
+  font-size: var(--font-button);
+}
+
+
+/* =========================================================
+   EDITOR
+========================================================= */
+
+.field label {
+  font-size: 12px;
+}
+
+.field input,
+.field select,
+.proposalEditor {
+  font-size: var(--font-input);
+}
+
+.proposalEditor {
+  line-height: 1.7;
+}
+
+
+/* =========================================================
+   AI PROPOSAL REVIEW
+========================================================= */
+
+.aiHeader span {
+  font-size: 11px;
+}
+
+.aiHeader h3 {
+  font-size: var(--font-panel-title);
+}
+
+.qualityMetric span {
+  font-size: 11px;
+}
+
+.qualityMetric strong {
+  font-size: 13px;
+}
+
+.aiRecommendations > span {
+  font-size: 11px;
+}
+
+.recommendationItem p {
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+
+/* =========================================================
+   DOCUMENT TOOLBAR
+========================================================= */
+
+.documentToolbar h3 {
+  font-size: 20px;
+}
+
+
+/* =========================================================
+   PROPOSAL DOCUMENT
+========================================================= */
+
+.documentHeader strong {
+  font-size: 18px;
+}
+
+.documentHeader p {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.documentTitle span {
+  font-size: 30px;
+}
+
+.documentTitle strong {
+  font-size: 13px;
+}
+
+.documentMeta span {
+  font-size: 11px;
+}
+
+.documentMeta strong {
+  font-size: 15px;
+}
+
+.documentMeta p {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.documentSummary span {
+  font-size: 11px;
+}
+
+.documentSummary strong {
+  font-size: 19px;
+}
+
+.documentSummary > div:last-child strong {
+  font-size: 30px;
+}
+
+
+/* =========================================================
+   PROPOSAL CONTENT
+========================================================= */
+
+.documentSection h3 {
+  font-size: 16px;
+}
+
+.documentSection p {
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.proposalPreview {
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.documentFooter p {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+
+/* =========================================================
+   STATES
+========================================================= */
+
+.errorPanel p,
+.notFound p {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.notFound h2 {
+  font-size: 24px;
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 680px) {
+  .pageHeader h2 {
+    font-size: 26px;
+  }
+
+  .identityCopy h3 {
+    font-size: 22px;
+  }
+
+  .field input,
+  .field select,
+  .proposalEditor {
+    font-size: 16px;
+  }
+
+  .documentTitle span {
+    font-size: 27px;
+  }
+
+  .proposalPreview,
+  .documentSection p {
+    font-size: 14px;
+  }
+}
