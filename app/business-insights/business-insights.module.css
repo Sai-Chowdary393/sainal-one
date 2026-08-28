@@ -1219,3 +1219,32 @@
     font-size: 13px;
   }
 }
+
+/* =========================================================
+   SAINAL ONE
+   FINAL TYPOGRAPHY — BUSINESS INSIGHTS
+========================================================= */
+.reportMetadata { font-size: 11px; }
+.healthCopy > span,
+.executiveMetric > span,
+.panelHeader span,
+.compactPanelHeader span,
+.forecastCard > span { font-size: 11px; }
+.healthCopy p,
+.executiveMetric small,
+.insightPanelHeader p,
+.progressMetric span,
+.priorityItem p,
+.opportunityItem p,
+.sectionHeading > p,
+.forecastCard > p,
+.errorPanel p { font-size: 12px; line-height: 1.55; }
+.metricRow span,
+.metricRow strong,
+.progressMetric strong,
+.priorityItem strong { font-size: 13px; }
+.panelLink { font-size: 13px; }
+.reportContent p { font-size: 14px; line-height: 1.75; }
+@media (max-width: 760px) {
+  .reportContent p { font-size: 13px; }
+}
