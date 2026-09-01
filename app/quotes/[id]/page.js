@@ -135,18 +135,14 @@ export default function QuoteDetailsPage() {
   // =======================================================
 
   useEffect(() => {
-    if (
-      !quoteId
-    ) {
+    if (!quoteId) {
       return;
     }
 
     fetchQuote();
     fetchWorkflowHistory();
     fetchRelatedTasks();
-  }, [
-    quoteId,
-  ]);
+  }, [quoteId]);
 
   async function fetchQuote() {
     try {
@@ -157,17 +153,14 @@ export default function QuoteDetailsPage() {
         await fetch(
           `/api/quotes/${quoteId}`,
           {
-            cache:
-              "no-store",
+            cache: "no-store",
           }
         );
 
       const data =
         await response.json();
 
-      if (
-        !response.ok
-      ) {
+      if (!response.ok) {
         throw new Error(
           data.error ||
             "Failed to load quote."
@@ -282,9 +275,7 @@ export default function QuoteDetailsPage() {
           }
         );
 
-      if (
-        !response.ok
-      ) {
+      if (!response.ok) {
         return;
       }
 
@@ -329,9 +320,7 @@ export default function QuoteDetailsPage() {
           }
         );
 
-      if (
-        !response.ok
-      ) {
+      if (!response.ok) {
         return;
       }
 
@@ -406,9 +395,7 @@ export default function QuoteDetailsPage() {
   }
 
   async function saveQuote() {
-    if (
-      !draftQuote
-    ) {
+    if (!draftQuote) {
       return;
     }
 
@@ -417,9 +404,7 @@ export default function QuoteDetailsPage() {
 
       const payload = {};
 
-      if (
-        access.canEdit
-      ) {
+      if (access.canEdit) {
         payload.client =
           String(
             draftQuote.client ||
@@ -467,9 +452,7 @@ export default function QuoteDetailsPage() {
           "Draft";
       }
 
-      if (
-        access.canAssign
-      ) {
+      if (access.canAssign) {
         payload.owner_employee_id =
           draftQuote.owner_employee_id ||
           "";
@@ -497,18 +480,14 @@ export default function QuoteDetailsPage() {
       const data =
         await response.json();
 
-      if (
-        !response.ok
-      ) {
+      if (!response.ok) {
         throw new Error(
           data.error ||
             "Failed to update quote."
         );
       }
 
-      if (
-        data.quote
-      ) {
+      if (data.quote) {
         setQuote(
           data.quote
         );
@@ -561,9 +540,7 @@ export default function QuoteDetailsPage() {
         }? This action cannot be undone.`
       );
 
-    if (
-      !confirmed
-    ) {
+    if (!confirmed) {
       return;
     }
 
@@ -582,9 +559,7 @@ export default function QuoteDetailsPage() {
       const data =
         await response.json();
 
-      if (
-        !response.ok
-      ) {
+      if (!response.ok) {
         throw new Error(
           data.error ||
             "Failed to delete quote."
@@ -640,9 +615,7 @@ export default function QuoteDetailsPage() {
         "pending approval",
         "approved",
         "accepted",
-      ].includes(
-        status
-      )
+      ].includes(status)
     ) {
       setApprovalMessage(
         `This quote is already ${quote.status}.`
@@ -659,9 +632,7 @@ export default function QuoteDetailsPage() {
         } for approval?`
       );
 
-    if (
-      !confirmed
-    ) {
+    if (!confirmed) {
       return;
     }
 
@@ -697,19 +668,19 @@ export default function QuoteDetailsPage() {
       const data =
         await response.json();
 
-      if (
-        !response.ok
-      ) {
+      if (!response.ok) {
         throw new Error(
           data.error ||
             "Unable to submit quote for approval."
         );
       }
 
-      if (
-        data.quote
-      ) {
+      if (data.quote) {
         setQuote(
+          data.quote
+        );
+
+        setDraftQuote(
           data.quote
         );
       } else {
@@ -771,9 +742,7 @@ export default function QuoteDetailsPage() {
       return;
     }
 
-    if (
-      quote.customer_id
-    ) {
+    if (quote.customer_id) {
       router.push(
         `/customers/${quote.customer_id}`
       );
@@ -796,9 +765,7 @@ export default function QuoteDetailsPage() {
       const data =
         await response.json();
 
-      if (
-        !response.ok
-      ) {
+      if (!response.ok) {
         throw new Error(
           data.error ||
             "Failed to convert quote to customer."
@@ -860,7 +827,7 @@ export default function QuoteDetailsPage() {
       alert(
         "Quote copied successfully."
       );
-    } catch (error) {
+    } catch {
       alert(
         "Unable to copy the quote."
       );
@@ -871,9 +838,7 @@ export default function QuoteDetailsPage() {
   // STATES
   // =======================================================
 
-  if (
-    loading
-  ) {
+  if (loading) {
     return (
       <ProtectedRoute>
         <AppLayout
@@ -886,9 +851,7 @@ export default function QuoteDetailsPage() {
     );
   }
 
-  if (
-    errorMessage
-  ) {
+  if (errorMessage) {
     return (
       <ProtectedRoute>
         <AppLayout
@@ -906,9 +869,7 @@ export default function QuoteDetailsPage() {
               </strong>
 
               <p>
-                {
-                  errorMessage
-                }
+                {errorMessage}
               </p>
             </div>
 
@@ -929,9 +890,7 @@ export default function QuoteDetailsPage() {
     );
   }
 
-  if (
-    !quote
-  ) {
+  if (!quote) {
     return (
       <ProtectedRoute>
         <AppLayout
@@ -995,13 +954,7 @@ export default function QuoteDetailsPage() {
       "pending approval",
       "approved",
       "accepted",
-    ].includes(
-      status
-    );
-
-  // =======================================================
-  // PAGE
-  // =======================================================
+    ].includes(status);
 
   return (
     <ProtectedRoute>
@@ -1017,9 +970,7 @@ export default function QuoteDetailsPage() {
             styles.page
           }
         >
-          {/* =================================================
-              HEADER
-          ================================================= */}
+          {/* HEADER */}
 
           <section
             className={
@@ -1182,27 +1133,19 @@ export default function QuoteDetailsPage() {
             </div>
           </section>
 
-          {/* =================================================
-              MESSAGES
-          ================================================= */}
+          {/* MESSAGE */}
 
           {approvalMessage && (
             <section
               className={
-                styles.panel
+                styles.messagePanel
               }
             >
-              <p>
-                {
-                  approvalMessage
-                }
-              </p>
+              {approvalMessage}
             </section>
           )}
 
-          {/* =================================================
-              HERO
-          ================================================= */}
+          {/* HERO */}
 
           <section
             className={
@@ -1304,9 +1247,7 @@ export default function QuoteDetailsPage() {
             </div>
           </section>
 
-          {/* =================================================
-              EDIT
-          ================================================= */}
+          {/* EDIT */}
 
           {editing && (
             <section
@@ -1325,15 +1266,15 @@ export default function QuoteDetailsPage() {
                   </h3>
 
                   <p>
-                    Update commercial
-                    details and ownership.
+                    Update commercial details
+                    and ownership.
                   </p>
                 </div>
               </div>
 
               <div
                 className={
-                  styles.detailsGrid
+                  styles.editGrid
                 }
               >
                 {access.canEdit && (
@@ -1407,12 +1348,12 @@ export default function QuoteDetailsPage() {
 
                     <div
                       className={
-                        styles.detailRow
+                        styles.editField
                       }
                     >
-                      <span>
+                      <label>
                         Status
-                      </span>
+                      </label>
 
                       <select
                         name="status"
@@ -1436,9 +1377,7 @@ export default function QuoteDetailsPage() {
                                 option
                               }
                             >
-                              {
-                                option
-                              }
+                              {option}
                             </option>
                           )
                         )}
@@ -1450,12 +1389,12 @@ export default function QuoteDetailsPage() {
                 {access.canAssign && (
                   <div
                     className={
-                      styles.detailRow
+                      styles.editField
                     }
                   >
-                    <span>
+                    <label>
                       Quote owner
-                    </span>
+                    </label>
 
                     <select
                       name="owner_employee_id"
@@ -1497,7 +1436,7 @@ export default function QuoteDetailsPage() {
               {access.canEdit && (
                 <div
                   className={
-                    styles.documentPanel
+                    styles.editDocument
                   }
                 >
                   <label>
@@ -1514,18 +1453,13 @@ export default function QuoteDetailsPage() {
                       handleChange
                     }
                     rows={16}
-                    className={
-                      styles.quotePreview
-                    }
                   />
                 </div>
               )}
             </section>
           )}
 
-          {/* =================================================
-              DETAILS
-          ================================================= */}
+          {/* DETAILS */}
 
           {!editing && (
             <section
@@ -1638,19 +1572,19 @@ export default function QuoteDetailsPage() {
                   }
                 >
                   <div>
-                    <strong>
+                    <h3>
                       Quote document
-                    </strong>
+                    </h3>
 
                     <p>
-                      Customer-facing
-                      quotation content.
+                      Customer-facing quotation
+                      preview.
                     </p>
                   </div>
 
                   <div
                     className={
-                      styles.headerActions
+                      styles.documentActions
                     }
                   >
                     <button
@@ -1679,92 +1613,252 @@ export default function QuoteDetailsPage() {
                   </div>
                 </div>
 
-                <pre
+                <div
                   className={
-                    styles.quotePreview
+                    styles.documentViewport
                   }
                 >
-                  {quote.quote_text ||
-                    "No quote document content is available."}
-                </pre>
+                  <article
+                    className={
+                      styles.quoteDocument
+                    }
+                  >
+                    <div
+                      className={
+                        styles.documentBrand
+                      }
+                    >
+                      <div>
+                        <span
+                          className={
+                            styles.documentBrandMark
+                          }
+                        >
+                          SN
+                        </span>
+
+                        <div>
+                          <strong>
+                            SaiNal Technologies Ltd
+                          </strong>
+
+                          <p>
+                            Business solutions
+                            and technology services
+                          </p>
+                        </div>
+                      </div>
+
+                      <div
+                        className={
+                          styles.documentTitle
+                        }
+                      >
+                        <span>
+                          QUOTE
+                        </span>
+
+                        <strong>
+                          {quote.quote_number}
+                        </strong>
+                      </div>
+                    </div>
+
+                    <div
+                      className={
+                        styles.documentMeta
+                      }
+                    >
+                      <div>
+                        <span>
+                          Prepared for
+                        </span>
+
+                        <strong>
+                          {quote.client ||
+                            "Client"}
+                        </strong>
+
+                        <p>
+                          {quote.contact ||
+                            ""}
+                        </p>
+
+                        <p>
+                          {quote.email ||
+                            ""}
+                        </p>
+
+                        <p>
+                          {quote.phone ||
+                            ""}
+                        </p>
+                      </div>
+
+                      <div>
+                        <span>
+                          Quote date
+                        </span>
+
+                        <strong>
+                          {formatDate(
+                            quote.created_at
+                          )}
+                        </strong>
+
+                        <span>
+                          Status
+                        </span>
+
+                        <strong>
+                          {quote.status ||
+                            "Draft"}
+                        </strong>
+                      </div>
+                    </div>
+
+                    <div
+                      className={
+                        styles.documentSummary
+                      }
+                    >
+                      <div>
+                        <span>
+                          Service
+                        </span>
+
+                        <strong>
+                          {quote.service ||
+                            "Service"}
+                        </strong>
+                      </div>
+
+                      <div>
+                        <span>
+                          Total
+                        </span>
+
+                        <strong>
+                          {formatQuoteAmount(
+                            quote.amount
+                          )}
+                        </strong>
+                      </div>
+                    </div>
+
+                    <pre
+                      className={
+                        styles.quotePreview
+                      }
+                    >
+                      {quote.quote_text ||
+                        "No quote document content is available."}
+                    </pre>
+
+                    <footer
+                      className={
+                        styles.documentFooter
+                      }
+                    >
+                      <p>
+                        SaiNal Technologies Ltd
+                      </p>
+
+                      <p>
+                        www.sainaltechnologies.com
+                      </p>
+                    </footer>
+                  </article>
+                </div>
               </section>
             </section>
           )}
 
-          {/* =================================================
-              RELATED WORK
-          ================================================= */}
+          {/* LOWER WORKSPACE */}
 
           <section
             className={
-              styles.relatedWorkPanel
+              styles.lowerGrid
             }
           >
-            <div
+            {/* RELATED WORK */}
+
+            <section
               className={
-                styles.relatedWorkHeader
+                styles.relatedWorkPanel
               }
             >
-              <div>
-                <h3>
-                  Related work
-                </h3>
-
-                <p>
-                  Tasks created for this
-                  quotation.
-                </p>
-              </div>
-
-              <span
-                className={
-                  styles.relatedWorkMetric
-                }
-              >
-                {
-                  relatedTasks.length
-                }
-              </span>
-            </div>
-
-            {relatedTasksLoading ? (
-              <p
-                className={
-                  styles.relatedWorkLoading
-                }
-              >
-                Loading related work...
-              </p>
-            ) : relatedTasks.length ===
-              0 ? (
-              <p
-                className={
-                  styles.relatedWorkEmpty
-                }
-              >
-                No related tasks.
-              </p>
-            ) : (
               <div
                 className={
-                  styles.relatedWorkList
+                  styles.compactPanelHeader
                 }
               >
-                {relatedTasks.map(
-                  (
-                    task
-                  ) => (
-                    <article
-                      key={
-                        task.id
-                      }
-                      className={
-                        styles.relatedTaskCard
-                      }
-                    >
-                      <div
+                <div>
+                  <h3>
+                    Related work
+                  </h3>
+
+                  <p>
+                    Tasks created for this
+                    quotation.
+                  </p>
+                </div>
+
+                <span
+                  className={
+                    styles.relatedWorkMetric
+                  }
+                >
+                  {relatedTasks.length}
+                </span>
+              </div>
+
+              {relatedTasksLoading ? (
+                <div
+                  className={
+                    styles.compactLoading
+                  }
+                >
+                  Loading related work...
+                </div>
+              ) : relatedTasks.length ===
+                0 ? (
+                <div
+                  className={
+                    styles.compactEmpty
+                  }
+                >
+                  <span>
+                    ✓
+                  </span>
+
+                  <div>
+                    <strong>
+                      No related tasks
+                    </strong>
+
+                    <p>
+                      Tasks connected to this
+                      quote will appear here.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  className={
+                    styles.relatedWorkList
+                  }
+                >
+                  {relatedTasks.map(
+                    (
+                      task
+                    ) => (
+                      <article
+                        key={
+                          task.id
+                        }
                         className={
-                          styles.relatedTaskMain
+                          styles.relatedTaskCard
                         }
                       >
                         <span
@@ -1781,103 +1875,110 @@ export default function QuoteDetailsPage() {
                           }
                         >
                           <strong>
-                            {task.title ||
+                            {task.task_name ||
+                              task.title ||
                               "Task"}
                           </strong>
 
-                          <span>
+                          <p>
                             {task.status ||
                               "Pending"}
-                          </span>
+                          </p>
                         </div>
-                      </div>
-                    </article>
-                  )
-                )}
-              </div>
-            )}
-          </section>
+                      </article>
+                    )
+                  )}
+                </div>
+              )}
+            </section>
 
-          {/* =================================================
-              WORKFLOW
-          ================================================= */}
+            {/* APPROVAL WORKFLOW */}
 
-          <section
-            className={
-              styles.workflowHistoryPanel
-            }
-          >
-            <div
+            <section
               className={
-                styles.workflowHistoryHeader
+                styles.workflowHistoryPanel
               }
             >
-              <div>
-                <h3>
-                  Approval workflow
-                </h3>
-
-                <p>
-                  Workflow execution history
-                  for this quote.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                className={
-                  styles.workflowRefreshButton
-                }
-                onClick={
-                  fetchWorkflowHistory
-                }
-              >
-                Refresh
-              </button>
-            </div>
-
-            {workflowHistoryLoading ? (
-              <p>
-                Loading workflow history...
-              </p>
-            ) : workflowHistory.length ===
-              0 ? (
               <div
                 className={
-                  styles.workflowEmpty
+                  styles.compactPanelHeader
                 }
               >
-                <strong>
-                  No workflow runs yet
-                </strong>
+                <div>
+                  <h3>
+                    Approval workflow
+                  </h3>
 
-                <p>
-                  Submit this quotation for
-                  approval to start the
-                  configured workflow.
-                </p>
+                  <p>
+                    Workflow execution history
+                    for this quote.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  className={
+                    styles.workflowRefreshButton
+                  }
+                  onClick={
+                    fetchWorkflowHistory
+                  }
+                  disabled={
+                    workflowHistoryLoading
+                  }
+                  title="Refresh workflow history"
+                >
+                  ↻
+                </button>
               </div>
-            ) : (
-              <div
-                className={
-                  styles.workflowRuns
-                }
-              >
-                {workflowHistory.map(
-                  (
-                    run
-                  ) => (
-                    <article
-                      key={
-                        run.id
-                      }
-                      className={
-                        styles.workflowRunCard
-                      }
-                    >
-                      <div
+
+              {workflowHistoryLoading ? (
+                <div
+                  className={
+                    styles.compactLoading
+                  }
+                >
+                  Loading workflow history...
+                </div>
+              ) : workflowHistory.length ===
+                0 ? (
+                <div
+                  className={
+                    styles.compactEmpty
+                  }
+                >
+                  <span>
+                    ◇
+                  </span>
+
+                  <div>
+                    <strong>
+                      No workflow runs yet
+                    </strong>
+
+                    <p>
+                      Submit this quotation
+                      for approval to start
+                      the configured workflow.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  className={
+                    styles.workflowRuns
+                  }
+                >
+                  {workflowHistory.map(
+                    (
+                      run
+                    ) => (
+                      <article
+                        key={
+                          run.id
+                        }
                         className={
-                          styles.workflowRunIdentity
+                          styles.workflowRunCard
                         }
                       >
                         <span
@@ -1888,7 +1989,11 @@ export default function QuoteDetailsPage() {
                           ◇
                         </span>
 
-                        <div>
+                        <div
+                          className={
+                            styles.workflowRunIdentity
+                          }
+                        >
                           <strong>
                             {run.workflow_name ||
                               run.workflow
@@ -1896,21 +2001,21 @@ export default function QuoteDetailsPage() {
                               "Approval workflow"}
                           </strong>
 
-                          <small>
+                          <p>
                             {run.status ||
                               "Unknown"}{" "}
                             ·{" "}
                             {formatDateTime(
                               run.created_at
                             )}
-                          </small>
+                          </p>
                         </div>
-                      </div>
-                    </article>
-                  )
-                )}
-              </div>
-            )}
+                      </article>
+                    )
+                  )}
+                </div>
+              )}
+            </section>
           </section>
         </div>
       </AppLayout>
@@ -1932,20 +2037,16 @@ function EditField({
   return (
     <div
       className={
-        styles.detailRow
+        styles.editField
       }
     >
-      <span>
+      <label>
         {label}
-      </span>
+      </label>
 
       <input
-        name={
-          name
-        }
-        type={
-          type
-        }
+        name={name}
+        type={type}
         value={
           value ||
           ""
@@ -1977,19 +2078,18 @@ function DetailRow({
         {label}
       </span>
 
-      {customValue ||
-        (
-          <strong
-            className={
-              value
-                ? ""
-                : styles.emptyValue
-            }
-          >
-            {value ||
-              "Not available"}
-          </strong>
-        )}
+      {customValue || (
+        <strong
+          className={
+            value
+              ? ""
+              : styles.emptyValue
+          }
+        >
+          {value ||
+            "Not available"}
+        </strong>
+      )}
     </div>
   );
 }
@@ -2013,9 +2113,7 @@ function LoadingState() {
           index
         ) => (
           <div
-            key={
-              index
-            }
+            key={index}
             className={
               styles.loadingRow
             }
@@ -2065,18 +2163,14 @@ function getMoneyValue(
 function formatQuoteAmount(
   value
 ) {
-  if (
-    !value
-  ) {
+  if (!value) {
     return "Not set";
   }
 
   if (
     String(
       value
-    ).includes(
-      "£"
-    )
+    ).includes("£")
   ) {
     return value;
   }
@@ -2086,9 +2180,7 @@ function formatQuoteAmount(
       value
     );
 
-  if (
-    !number
-  ) {
+  if (!number) {
     return value;
   }
 
@@ -2110,9 +2202,7 @@ function formatQuoteAmount(
 function formatDate(
   value
 ) {
-  if (
-    !value
-  ) {
+  if (!value) {
     return "Not available";
   }
 
@@ -2147,9 +2237,7 @@ function formatDate(
 function formatDateTime(
   value
 ) {
-  if (
-    !value
-  ) {
+  if (!value) {
     return "Date unavailable";
   }
 
