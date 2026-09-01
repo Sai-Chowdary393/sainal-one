@@ -52,36 +52,80 @@ function forbidden(
   );
 }
 
+// =========================================================
+// CUSTOMER PERMISSIONS
+// =========================================================
+
 function getCustomerPermissions(
   access
 ) {
+  // =======================================================
+  // IMPORTANT
+  //
+  // customers.view is the existing general Customer
+  // permission used by current roles.
+  //
+  // For record-level security we treat it as OWN access,
+  // rather than VIEW ALL.
+  //
+  // This means:
+  //
+  // customers.view
+  //     -> employee can see customers they own
+  //
+  // customers.view_team
+  //     -> employee can see team-owned customers
+  //
+  // customers.view_all
+  //     -> employee can see all organisation customers
+  //
+  // Organisation Owner still receives full access through
+  // serverAccess / access.can().
+  // =======================================================
+
+  const hasGeneralView =
+    access.can(
+      "customers.view"
+    ) ||
+    access.canModuleAction(
+      "Customers",
+      "view"
+    );
+
+  const canViewAll =
+    access.can(
+      "customers.view_all"
+    ) ||
+    access.canModuleAction(
+      "Customers",
+      "view_all"
+    );
+
+  const canViewTeam =
+    access.can(
+      "customers.view_team"
+    ) ||
+    access.canModuleAction(
+      "Customers",
+      "view_team"
+    );
+
+  const canViewOwn =
+    hasGeneralView ||
+    access.can(
+      "customers.view_own"
+    ) ||
+    access.canModuleAction(
+      "Customers",
+      "view_own"
+    );
+
   return {
-    canViewAll:
-      access.can(
-        "customers.view_all"
-      ) ||
-      access.canModuleAction(
-        "Customers",
-        "view_all"
-      ),
+    canViewAll,
 
-    canViewTeam:
-      access.can(
-        "customers.view_team"
-      ) ||
-      access.canModuleAction(
-        "Customers",
-        "view_team"
-      ),
+    canViewTeam,
 
-    canViewOwn:
-      access.can(
-        "customers.view_own"
-      ) ||
-      access.canModuleAction(
-        "Customers",
-        "view_own"
-      ),
+    canViewOwn,
 
     canCreate:
       access.can(
@@ -160,6 +204,7 @@ async function attachOwners({
         customer
       ) => ({
         ...customer,
+
         owner:
           null,
       })
@@ -268,6 +313,10 @@ export async function GET() {
         access
       );
 
+    // =====================================================
+    // REQUIRE AT LEAST ONE VIEW SCOPE
+    // =====================================================
+
     if (
       !permissions.canViewAll &&
       !permissions.canViewTeam &&
@@ -297,7 +346,17 @@ export async function GET() {
         );
 
     // =====================================================
-    // TEAM
+    // RECORD VISIBILITY
+    // =====================================================
+    //
+    // Priority:
+    //
+    // 1. View All
+    // 2. View Team
+    // 3. View Own
+    //
+    // customers.view falls into View Own for backwards
+    // compatibility with existing SaiNal One roles.
     // =====================================================
 
     if (
@@ -351,12 +410,14 @@ export async function GET() {
           (
             teamEmployees ||
             []
-          ).map(
-            (
-              employee
-            ) =>
-              employee.id
-          );
+          )
+            .map(
+              (
+                employee
+              ) =>
+                employee.id
+            )
+            .filter(Boolean);
 
         if (
           teamEmployeeIds.length ===
@@ -583,8 +644,16 @@ export async function POST(
       access.employee
         .organization_id;
 
+    // =====================================================
+    // DEFAULT OWNER
+    // =====================================================
+
     let ownerEmployeeId =
       access.employee.id;
+
+    // =====================================================
+    // EXPLICIT OWNER
+    // =====================================================
 
     if (
       Object.prototype.hasOwnProperty.call(
@@ -652,6 +721,10 @@ export async function POST(
       ownerEmployeeId =
         owner.id;
     }
+
+    // =====================================================
+    // CREATE CUSTOMER
+    // =====================================================
 
     const {
       data:
