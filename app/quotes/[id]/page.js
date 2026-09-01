@@ -20,10 +20,6 @@ import styles from "./quote-details.module.css";
 
 const STATUS_OPTIONS = [
   "Draft",
-  "Pending Approval",
-  "Approved",
-  "Rejected",
-  "Accepted",
   "Expired",
 ];
 
@@ -101,6 +97,11 @@ export default function QuoteDetailsPage() {
   ] = useState(false);
 
   const [
+    decidingApprovalId,
+    setDecidingApprovalId,
+  ] = useState("");
+
+  const [
     errorMessage,
     setErrorMessage,
   ] = useState("");
@@ -130,6 +131,11 @@ export default function QuoteDetailsPage() {
     setRelatedTasksLoading,
   ] = useState(false);
 
+  const [
+    quoteApprovals,
+    setQuoteApprovals,
+  ] = useState([]);
+
   // =======================================================
   // LOAD
   // =======================================================
@@ -142,7 +148,10 @@ export default function QuoteDetailsPage() {
     fetchQuote();
     fetchWorkflowHistory();
     fetchRelatedTasks();
-  }, [quoteId]);
+    fetchApprovals();
+  }, [
+    quoteId,
+  ]);
 
   async function fetchQuote() {
     try {
@@ -153,7 +162,8 @@ export default function QuoteDetailsPage() {
         await fetch(
           `/api/quotes/${quoteId}`,
           {
-            cache: "no-store",
+            cache:
+              "no-store",
           }
         );
 
@@ -237,7 +247,9 @@ export default function QuoteDetailsPage() {
               ?.canConvert
           ),
       });
-    } catch (error) {
+    } catch (
+      error
+    ) {
       console.error(
         "Quote loading error:",
         error
@@ -251,6 +263,172 @@ export default function QuoteDetailsPage() {
       );
     } finally {
       setLoading(false);
+    }
+  }
+
+  // =======================================================
+  // APPROVALS
+  // =======================================================
+
+  async function fetchApprovals() {
+    try {
+      const response =
+        await fetch(
+          "/api/approvals",
+          {
+            cache:
+              "no-store",
+          }
+        );
+
+      if (!response.ok) {
+        setQuoteApprovals(
+          []
+        );
+
+        return;
+      }
+
+      const data =
+        await response.json();
+
+      const approvals =
+        Array.isArray(
+          data.approvals
+        )
+          ? data.approvals
+          : [];
+
+      setQuoteApprovals(
+        approvals.filter(
+          (
+            approval
+          ) =>
+            String(
+              approval
+                ?.workflow_run
+                ?.record_type ||
+                ""
+            )
+              .trim()
+              .toLowerCase() ===
+              "quote" &&
+            String(
+              approval
+                ?.workflow_run
+                ?.record_id ||
+                ""
+            ) ===
+              String(
+                quoteId
+              )
+        )
+      );
+    } catch (
+      error
+    ) {
+      console.error(
+        "Approval loading error:",
+        error
+      );
+
+      setQuoteApprovals(
+        []
+      );
+    }
+  }
+
+  async function decideApproval(
+    approval,
+    decision
+  ) {
+    if (
+      !approval?.id ||
+      decidingApprovalId
+    ) {
+      return;
+    }
+
+    const confirmed =
+      window.confirm(
+        decision ===
+          "Approved"
+          ? "Approve this quotation?"
+          : "Reject this quotation?"
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setDecidingApprovalId(
+        approval.id
+      );
+
+      setApprovalMessage(
+        ""
+      );
+
+      const response =
+        await fetch(
+          "/api/approvals",
+          {
+            method:
+              "PATCH",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify({
+                step_run_id:
+                  approval.id,
+
+                decision,
+              }),
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error ||
+            "Unable to process approval."
+        );
+      }
+
+      setApprovalMessage(
+        data.message ||
+          "Approval updated successfully."
+      );
+
+      await Promise.all([
+        fetchQuote(),
+        fetchWorkflowHistory(),
+        fetchRelatedTasks(),
+        fetchApprovals(),
+      ]);
+    } catch (
+      error
+    ) {
+      console.error(
+        "Approval decision error:",
+        error
+      );
+
+      setApprovalMessage(
+        error.message ||
+          "Unable to process approval."
+      );
+    } finally {
+      setDecidingApprovalId(
+        ""
+      );
     }
   }
 
@@ -289,7 +467,9 @@ export default function QuoteDetailsPage() {
           ? data.tasks
           : []
       );
-    } catch (error) {
+    } catch (
+      error
+    ) {
       console.error(
         "Quote related work error:",
         error
@@ -334,7 +514,9 @@ export default function QuoteDetailsPage() {
           ? data.runs
           : []
       );
-    } catch (error) {
+    } catch (
+      error
+    ) {
       console.error(
         "Quote workflow history error:",
         error
@@ -404,7 +586,9 @@ export default function QuoteDetailsPage() {
 
       const payload = {};
 
-      if (access.canEdit) {
+      if (
+        access.canEdit
+      ) {
         payload.client =
           String(
             draftQuote.client ||
@@ -449,10 +633,13 @@ export default function QuoteDetailsPage() {
 
         payload.status =
           draftQuote.status ||
+          quote.status ||
           "Draft";
       }
 
-      if (access.canAssign) {
+      if (
+        access.canAssign
+      ) {
         payload.owner_employee_id =
           draftQuote.owner_employee_id ||
           "";
@@ -505,7 +692,9 @@ export default function QuoteDetailsPage() {
         data.message ||
           "Quote updated successfully."
       );
-    } catch (error) {
+    } catch (
+      error
+    ) {
       console.error(
         "Quote update error:",
         error
@@ -571,7 +760,9 @@ export default function QuoteDetailsPage() {
       );
 
       router.refresh();
-    } catch (error) {
+    } catch (
+      error
+    ) {
       console.error(
         "Quote deletion error:",
         error
@@ -587,7 +778,7 @@ export default function QuoteDetailsPage() {
   }
 
   // =======================================================
-  // APPROVAL
+  // SUBMIT FOR APPROVAL
   // =======================================================
 
   async function submitForApproval() {
@@ -605,7 +796,7 @@ export default function QuoteDetailsPage() {
       return;
     }
 
-    const status =
+    const currentStatus =
       normaliseStatus(
         quote.status
       );
@@ -615,7 +806,9 @@ export default function QuoteDetailsPage() {
         "pending approval",
         "approved",
         "accepted",
-      ].includes(status)
+      ].includes(
+        currentStatus
+      )
     ) {
       setApprovalMessage(
         `This quote is already ${quote.status}.`
@@ -695,8 +888,11 @@ export default function QuoteDetailsPage() {
       await Promise.all([
         fetchWorkflowHistory(),
         fetchRelatedTasks(),
+        fetchApprovals(),
       ]);
-    } catch (error) {
+    } catch (
+      error
+    ) {
       console.error(
         "Quote approval error:",
         error
@@ -742,7 +938,9 @@ export default function QuoteDetailsPage() {
       return;
     }
 
-    if (quote.customer_id) {
+    if (
+      quote.customer_id
+    ) {
       router.push(
         `/customers/${quote.customer_id}`
       );
@@ -751,7 +949,9 @@ export default function QuoteDetailsPage() {
     }
 
     try {
-      setConverting(true);
+      setConverting(
+        true
+      );
 
       const response =
         await fetch(
@@ -794,7 +994,9 @@ export default function QuoteDetailsPage() {
       router.push(
         `/customers/${data.customer.id}`
       );
-    } catch (error) {
+    } catch (
+      error
+    ) {
       console.error(
         "Quote conversion error:",
         error
@@ -805,7 +1007,9 @@ export default function QuoteDetailsPage() {
           "Error converting quote to customer."
       );
     } finally {
-      setConverting(false);
+      setConverting(
+        false
+      );
     }
   }
 
@@ -851,7 +1055,9 @@ export default function QuoteDetailsPage() {
     );
   }
 
-  if (errorMessage) {
+  if (
+    errorMessage
+  ) {
     return (
       <ProtectedRoute>
         <AppLayout
@@ -1019,7 +1225,9 @@ export default function QuoteDetailsPage() {
                 (
                   access.canEdit ||
                   access.canAssign
-                ) && (
+                ) &&
+                status !==
+                  "pending approval" && (
                   <button
                     type="button"
                     className={
@@ -1112,7 +1320,9 @@ export default function QuoteDetailsPage() {
                 )}
 
               {!editing &&
-                access.canDelete && (
+                access.canDelete &&
+                status !==
+                  "pending approval" && (
                   <button
                     type="button"
                     className={
@@ -1132,8 +1342,6 @@ export default function QuoteDetailsPage() {
                 )}
             </div>
           </section>
-
-          {/* MESSAGE */}
 
           {approvalMessage && (
             <section
@@ -1358,8 +1566,11 @@ export default function QuoteDetailsPage() {
                       <select
                         name="status"
                         value={
-                          visibleQuote.status ||
-                          "Draft"
+                          STATUS_OPTIONS.includes(
+                            visibleQuote.status
+                          )
+                            ? visibleQuote.status
+                            : "Draft"
                         }
                         onChange={
                           handleChange
@@ -1452,7 +1663,9 @@ export default function QuoteDetailsPage() {
                     onChange={
                       handleChange
                     }
-                    rows={16}
+                    rows={
+                      16
+                    }
                   />
                 </div>
               )}
@@ -1920,9 +2133,12 @@ export default function QuoteDetailsPage() {
                   className={
                     styles.workflowRefreshButton
                   }
-                  onClick={
-                    fetchWorkflowHistory
-                  }
+                  onClick={async () => {
+                    await Promise.all([
+                      fetchWorkflowHistory(),
+                      fetchApprovals(),
+                    ]);
+                  }}
                   disabled={
                     workflowHistoryLoading
                   }
@@ -1972,46 +2188,129 @@ export default function QuoteDetailsPage() {
                   {workflowHistory.map(
                     (
                       run
-                    ) => (
-                      <article
-                        key={
-                          run.id
-                        }
-                        className={
-                          styles.workflowRunCard
-                        }
-                      >
-                        <span
+                    ) => {
+                      const pendingApproval =
+                        quoteApprovals.find(
+                          (
+                            approval
+                          ) =>
+                            String(
+                              approval.workflow_run_id ||
+                              ""
+                            ) ===
+                              String(
+                                run.id
+                              ) &&
+                            [
+                              "Pending",
+                              "Waiting",
+                            ].includes(
+                              approval.status
+                            ) &&
+                            approval.can_decide
+                        );
+
+                      return (
+                        <article
+                          key={
+                            run.id
+                          }
                           className={
-                            styles.workflowRunIcon
+                            styles.workflowRunCard
                           }
                         >
-                          ◇
-                        </span>
+                          <span
+                            className={
+                              styles.workflowRunIcon
+                            }
+                          >
+                            ◇
+                          </span>
 
-                        <div
-                          className={
-                            styles.workflowRunIdentity
-                          }
-                        >
-                          <strong>
-                            {run.workflow_name ||
-                              run.workflow
-                                ?.name ||
-                              "Approval workflow"}
-                          </strong>
+                          <div
+                            className={
+                              styles.workflowRunIdentity
+                            }
+                          >
+                            <strong>
+                              {run.workflow_name ||
+                                run.workflow
+                                  ?.name ||
+                                "Approval workflow"}
+                            </strong>
 
-                          <p>
-                            {run.status ||
-                              "Unknown"}{" "}
-                            ·{" "}
-                            {formatDateTime(
-                              run.created_at
+                            <p>
+                              {run.status ||
+                                "Unknown"}{" "}
+                              ·{" "}
+                              {formatDateTime(
+                                run.created_at
+                              )}
+                            </p>
+
+                            {pendingApproval && (
+                              <div
+                                className={
+                                  styles.documentActions
+                                }
+                                style={{
+                                  justifyContent:
+                                    "flex-start",
+                                  marginTop:
+                                    "12px",
+                                }}
+                              >
+                                <button
+                                  type="button"
+                                  className={
+                                    styles.secondaryButton
+                                  }
+                                  disabled={
+                                    Boolean(
+                                      decidingApprovalId
+                                    )
+                                  }
+                                  onClick={() =>
+                                    decideApproval(
+                                      pendingApproval,
+                                      "Rejected"
+                                    )
+                                  }
+                                >
+                                  {decidingApprovalId ===
+                                  pendingApproval.id
+                                    ? "Processing..."
+                                    : "Reject"}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  className={
+                                    styles.primaryButton
+                                  }
+                                  disabled={
+                                    Boolean(
+                                      decidingApprovalId
+                                    )
+                                  }
+                                  onClick={() =>
+                                    decideApproval(
+                                      pendingApproval,
+                                      "Approved"
+                                    )
+                                  }
+                                >
+                                  {decidingApprovalId ===
+                                  pendingApproval.id
+                                    ? "Processing..."
+                                    : "Approve"}
+                                </button>
+                              </div>
                             )}
-                          </p>
-                        </div>
-                      </article>
-                    )
+                          </div>
+                        </article>
+                      );
+                    }
                   )}
                 </div>
               )}
@@ -2045,8 +2344,12 @@ function EditField({
       </label>
 
       <input
-        name={name}
-        type={type}
+        name={
+          name
+        }
+        type={
+          type
+        }
         value={
           value ||
           ""
@@ -2113,7 +2416,9 @@ function LoadingState() {
           index
         ) => (
           <div
-            key={index}
+            key={
+              index
+            }
             className={
               styles.loadingRow
             }
