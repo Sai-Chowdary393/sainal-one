@@ -2,7 +2,6 @@
 
 import {
   useEffect,
-  useMemo,
   useState,
 } from "react";
 
@@ -753,13 +752,11 @@ export default function CustomerDetailsPage() {
     customer,
     lead,
     quotes = [],
-    proposals = [],
     projects = [],
     tasks = [],
     invoices = [],
     followUps = [],
     financialSummary = {},
-    recordCounts = {},
     summary = {},
     employees = [],
   } =
@@ -1812,53 +1809,10 @@ export default function CustomerDetailsPage() {
 
           {activeTab ===
             "invoices" && (
-            <RecordsPanel
-              title="Invoices"
-              description="Invoices associated with this customer."
-              records={
+            <InvoicesPanel
+              invoices={
                 invoices
               }
-              emptyMessage="No invoices are linked to this customer."
-              renderRow={(
-                invoice
-              ) => (
-                <>
-                  <span>
-                    {invoice.invoice_number ||
-                      "Invoice"}
-                  </span>
-
-                  <span>
-                    {invoice.status ||
-                      "Draft"}
-                  </span>
-
-                  <span>
-                    {formatCurrency(
-                      getMoneyValue(
-                        invoice.total_amount ||
-                          invoice.amount ||
-                          invoice.total
-                      )
-                    )}
-                  </span>
-
-                  <span>
-                    {formatDate(
-                      invoice.created_at
-                    )}
-                  </span>
-
-                  <Link
-                    href={`/invoices/${invoice.id}`}
-                    className={
-                      styles.recordLink
-                    }
-                  >
-                    Open
-                  </Link>
-                </>
-              )}
             />
           )}
 
@@ -1962,6 +1916,226 @@ export default function CustomerDetailsPage() {
 }
 
 // =========================================================
+// INVOICES PANEL
+// =========================================================
+
+function InvoicesPanel({
+  invoices,
+}) {
+  return (
+    <section
+      className={
+        styles.recordsSection
+      }
+    >
+      <div
+        className={
+          styles.invoiceSectionHeader
+        }
+      >
+        <div>
+          <span
+            className={
+              styles.invoiceEyebrow
+            }
+          >
+            Finance activity
+          </span>
+
+          <h3>
+            Invoices
+          </h3>
+
+          <p>
+            Billing records associated
+            with this customer.
+          </p>
+        </div>
+
+        <span
+          className={
+            styles.invoiceCountBadge
+          }
+        >
+          {invoices.length}{" "}
+          {invoices.length === 1
+            ? "invoice"
+            : "invoices"}
+        </span>
+      </div>
+
+      {invoices.length ===
+      0 ? (
+        <EmptyMessage
+          text="No invoices are linked to this customer."
+        />
+      ) : (
+        <div
+          className={
+            styles.tableWrapper
+          }
+        >
+          <table
+            className={
+              styles.recordsTable
+            }
+          >
+            <thead>
+              <tr>
+                <th>
+                  Invoice
+                </th>
+
+                <th>
+                  Status
+                </th>
+
+                <th
+                  className={
+                    styles.amountColumn
+                  }
+                >
+                  Total
+                </th>
+
+                <th>
+                  Issued
+                </th>
+
+                <th>
+                  Due
+                </th>
+
+                <th
+                  className={
+                    styles.actionColumn
+                  }
+                >
+                  Action
+                </th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {invoices.map(
+                (
+                  invoice
+                ) => (
+                  <tr
+                    key={
+                      invoice.id
+                    }
+                  >
+                    <td>
+                      <div
+                        className={
+                          styles.invoiceIdentity
+                        }
+                      >
+                        <span
+                          className={
+                            styles.invoiceIcon
+                          }
+                        >
+                          £
+                        </span>
+
+                        <div
+                          className={
+                            styles.invoiceIdentityCopy
+                          }
+                        >
+                          <Link
+                            href={`/invoices/${invoice.id}`}
+                            className={
+                              styles.invoiceNumber
+                            }
+                          >
+                            {invoice.invoice_number ||
+                              "Invoice"}
+                          </Link>
+
+                          <small>
+                            {invoice.project_id
+                              ? "Project invoice"
+                              : "Customer invoice"}
+                          </small>
+                        </div>
+                      </div>
+                    </td>
+
+                    <td>
+                      <StatusBadge
+                        status={
+                          invoice.status ||
+                          "Draft Invoice"
+                        }
+                      />
+                    </td>
+
+                    <td
+                      className={
+                        styles.amountCell
+                      }
+                    >
+                      {formatCurrency(
+                        getMoneyValue(
+                          invoice.total_amount ||
+                            invoice.amount ||
+                            invoice.total
+                        )
+                      )}
+                    </td>
+
+                    <td>
+                      {formatInvoiceDate(
+                        invoice.created_at,
+                        "Not set"
+                      )}
+                    </td>
+
+                    <td>
+                      <span
+                        className={
+                          isInvoiceOverdue(
+                            invoice
+                          )
+                            ? styles.overdueDate
+                            : ""
+                        }
+                      >
+                        {formatInvoiceDate(
+                          invoice.due_date,
+                          "Not set"
+                        )}
+                      </span>
+                    </td>
+
+                    <td>
+                      <Link
+                        href={`/invoices/${invoice.id}`}
+                        className={
+                          styles.invoiceOpenButton
+                        }
+                      >
+                        Open
+                        <span>
+                          →
+                        </span>
+                      </Link>
+                    </td>
+                  </tr>
+                )
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+// =========================================================
 // CUSTOMER FIELD
 // =========================================================
 
@@ -2038,7 +2212,7 @@ function RecordsPanel({
 
         <span
           className={
-            styles.tabCount
+            styles.recordsCountBadge
           }
         >
           {
@@ -2350,6 +2524,52 @@ function isTaskOverdue(
   );
 }
 
+function isInvoiceOverdue(
+  invoice
+) {
+  if (
+    !invoice?.due_date
+  ) {
+    return false;
+  }
+
+  const status =
+    normaliseStatus(
+      invoice.status
+    );
+
+  if (
+    [
+      "paid",
+      "settled",
+      "cancelled",
+      "canceled",
+    ].includes(
+      status
+    )
+  ) {
+    return false;
+  }
+
+  const due =
+    new Date(
+      invoice.due_date
+    );
+
+  if (
+    Number.isNaN(
+      due.getTime()
+    )
+  ) {
+    return false;
+  }
+
+  return (
+    due.getTime() <
+    Date.now()
+  );
+}
+
 function getMoneyValue(
   value
 ) {
@@ -2425,6 +2645,45 @@ function formatDate(
     )
   ) {
     return "Not available";
+  }
+
+  return date.toLocaleDateString(
+    "en-GB",
+    {
+      day:
+        "2-digit",
+
+      month:
+        "short",
+
+      year:
+        "numeric",
+    }
+  );
+}
+
+function formatInvoiceDate(
+  value,
+  fallback =
+    "Not set"
+) {
+  if (
+    !value
+  ) {
+    return fallback;
+  }
+
+  const date =
+    new Date(
+      value
+    );
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return fallback;
   }
 
   return date.toLocaleDateString(
