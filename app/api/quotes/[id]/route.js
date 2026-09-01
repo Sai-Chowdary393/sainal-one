@@ -794,10 +794,6 @@ export async function POST(
       action ===
       "submit_for_approval"
     ) {
-      /*
-       * Submitting for approval changes the quote and starts
-       * a workflow. We allow quotes.edit or quotes.approve.
-       */
       if (
         !permissions.canEdit &&
         !permissions.canApprove
@@ -825,8 +821,30 @@ export async function POST(
             id,
         });
 
+      /*
+       * submitQuoteForApproval returns the raw database quote.
+       * Attach owner details before sending it back to the UI
+       * so ownership does not temporarily display as Unassigned.
+       */
+      const formattedQuote =
+        result.quote
+          ? await attachRecordOwner({
+              supabase,
+
+              organizationId:
+                access.employee
+                  .organization_id,
+
+              record:
+                result.quote,
+            })
+          : null;
+
       return NextResponse.json({
         ...result,
+
+        quote:
+          formattedQuote,
 
         message:
           "Quote submitted for approval successfully.",
