@@ -160,9 +160,13 @@ function formatVatRate(value) {
         0
     );
 
-  return `${Number.isInteger(number)
+  return `${Number.isInteger(
+    number
+  )
     ? number
-    : number.toFixed(2)}%`;
+    : number.toFixed(
+        2
+      )}%`;
 }
 
 function isValidDate(value) {
@@ -176,6 +180,10 @@ function isValidDate(value) {
     value
   );
 }
+
+// =========================================================
+// LOAD INVOICE
+// =========================================================
 
 async function loadInvoice({
   supabase,
@@ -210,6 +218,135 @@ async function loadInvoice({
   }
 
   return data;
+}
+
+// =========================================================
+// LOAD RELATED EMAIL CONTEXT
+// =========================================================
+
+async function loadInvoiceRelationships({
+  supabase,
+  organizationId,
+  invoice,
+}) {
+  let customer = null;
+  let quote = null;
+
+  // =======================================================
+  // CUSTOMER
+  // =======================================================
+
+  if (
+    invoice.customer_id
+  ) {
+    const {
+      data,
+      error,
+    } =
+      await supabase
+        .from(
+          "customers"
+        )
+        .select(
+          `
+            id,
+            customer_name,
+            company,
+            email,
+            phone
+          `
+        )
+        .eq(
+          "id",
+          invoice.customer_id
+        )
+        .eq(
+          "organization_id",
+          organizationId
+        )
+        .maybeSingle();
+
+    if (
+      error
+    ) {
+      console.error(
+        "Invoice customer context error:",
+        error
+      );
+    } else {
+      customer =
+        data ||
+        null;
+    }
+  }
+
+  // =======================================================
+  // QUOTE
+  // =======================================================
+
+  if (
+    invoice.quote_id
+  ) {
+    const {
+      data,
+      error,
+    } =
+      await supabase
+        .from(
+          "quotes"
+        )
+        .select(
+          `
+            id,
+            quote_number,
+            email
+          `
+        )
+        .eq(
+          "id",
+          invoice.quote_id
+        )
+        .eq(
+          "organization_id",
+          organizationId
+        )
+        .maybeSingle();
+
+    if (
+      error
+    ) {
+      console.error(
+        "Invoice quote context error:",
+        error
+      );
+    } else {
+      quote =
+        data ||
+        null;
+    }
+  }
+
+  // =======================================================
+  // RECIPIENT PRIORITY
+  //
+  // 1. Customer email
+  // 2. Quote email
+  // 3. Invoice email if field exists
+  // =======================================================
+
+  const recipientEmail =
+    cleanText(
+      customer?.email ||
+        quote?.email ||
+        invoice.email ||
+        ""
+    ).toLowerCase();
+
+  return {
+    customer,
+    quote,
+    recipientEmail,
+  };
 }
 
 // =========================================================
@@ -334,6 +471,22 @@ export async function GET(
           invoice,
       });
 
+    // =====================================================
+    // CUSTOMER / QUOTE / RECIPIENT
+    // =====================================================
+
+    const relationships =
+      await loadInvoiceRelationships({
+        supabase,
+        organizationId,
+
+        invoice,
+      });
+
+    // =====================================================
+    // ASSIGNABLE EMPLOYEES
+    // =====================================================
+
     let employees = [];
 
     if (
@@ -349,6 +502,15 @@ export async function GET(
     return NextResponse.json({
       invoice:
         formattedInvoice,
+
+      customer:
+        relationships.customer,
+
+      quote:
+        relationships.quote,
+
+      recipientEmail:
+        relationships.recipientEmail,
 
       employees,
 
