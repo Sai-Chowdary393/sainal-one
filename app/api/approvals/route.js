@@ -7,12 +7,41 @@ import {
   getServerAccess,
 } from "../../../lib/serverAccess";
 
+import {
+  createAdminSupabaseClient,
+} from "../../../lib/supabaseAdmin";
+
+import {
+  resumeApprovalStep,
+} from "../../../lib/workflow-runtime/runner";
+
+// =========================================================
+// HELPERS
+// =========================================================
+
+function isUuid(
+  value
+) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    String(
+      value ||
+        ""
+    )
+  );
+}
+
+// =========================================================
+// GET APPROVALS
+// =========================================================
+
 export async function GET() {
   try {
     const access =
       await getServerAccess();
 
-    if (!access.employee) {
+    if (
+      !access.employee
+    ) {
       return NextResponse.json(
         {
           error:
@@ -54,11 +83,14 @@ export async function GET() {
         .order(
           "created_at",
           {
-            ascending: false,
+            ascending:
+              false,
           }
         );
 
-    if (!canManage) {
+    if (
+      !canManage
+    ) {
       query =
         query.eq(
           "assigned_employee_id",
@@ -67,19 +99,24 @@ export async function GET() {
     }
 
     const {
-      data: stepRuns,
+      data:
+        stepRuns,
       error:
         stepRunsError,
-    } = await query;
+    } =
+      await query;
 
-    if (stepRunsError) {
+    if (
+      stepRunsError
+    ) {
       throw new Error(
         `Unable to load approvals: ${stepRunsError.message}`
       );
     }
 
     const allStepRuns =
-      stepRuns || [];
+      stepRuns ||
+      [];
 
     if (
       allStepRuns.length ===
@@ -87,12 +124,9 @@ export async function GET() {
     ) {
       return NextResponse.json({
         approvals: [],
-
         employees: [],
-
         currentEmployee:
           access.employee,
-
         canManage,
 
         summary: {
@@ -114,7 +148,9 @@ export async function GET() {
         ...new Set(
           allStepRuns
             .map(
-              (item) =>
+              (
+                item
+              ) =>
                 item.workflow_step_id
             )
             .filter(Boolean)
@@ -122,7 +158,8 @@ export async function GET() {
       ];
 
     const {
-      data: workflowSteps,
+      data:
+        workflowSteps,
       error:
         workflowStepsError,
     } =
@@ -146,7 +183,9 @@ export async function GET() {
             error: null,
           };
 
-    if (workflowStepsError) {
+    if (
+      workflowStepsError
+    ) {
       throw new Error(
         `Unable to load approval workflow steps: ${workflowStepsError.message}`
       );
@@ -154,21 +193,30 @@ export async function GET() {
 
     const approvalStepIds =
       new Set(
-        (workflowSteps || [])
+        (
+          workflowSteps ||
+          []
+        )
           .filter(
-            (step) =>
+            (
+              step
+            ) =>
               step.step_type ===
               "Approval"
           )
           .map(
-            (step) =>
+            (
+              step
+            ) =>
               step.id
           )
       );
 
     const approvalRuns =
       allStepRuns.filter(
-        (item) =>
+        (
+          item
+        ) =>
           approvalStepIds.has(
             item.workflow_step_id
           )
@@ -180,12 +228,9 @@ export async function GET() {
     ) {
       return NextResponse.json({
         approvals: [],
-
         employees: [],
-
         currentEmployee:
           access.employee,
-
         canManage,
 
         summary: {
@@ -207,7 +252,9 @@ export async function GET() {
         ...new Set(
           approvalRuns
             .map(
-              (item) =>
+              (
+                item
+              ) =>
                 item.workflow_run_id
             )
             .filter(Boolean)
@@ -215,22 +262,28 @@ export async function GET() {
       ];
 
     const {
-      data: workflowRuns,
+      data:
+        workflowRuns,
       error:
         workflowRunsError,
-    } = await access.supabase
-      .from("workflow_runs")
-      .select("*")
-      .eq(
-        "organization_id",
-        organizationId
-      )
-      .in(
-        "id",
-        workflowRunIds
-      );
+    } =
+      await access.supabase
+        .from(
+          "workflow_runs"
+        )
+        .select("*")
+        .eq(
+          "organization_id",
+          organizationId
+        )
+        .in(
+          "id",
+          workflowRunIds
+        );
 
-    if (workflowRunsError) {
+    if (
+      workflowRunsError
+    ) {
       throw new Error(
         `Unable to load approval workflow runs: ${workflowRunsError.message}`
       );
@@ -244,10 +297,13 @@ export async function GET() {
       [
         ...new Set(
           (
-            workflowRuns || []
+            workflowRuns ||
+            []
           )
             .map(
-              (item) =>
+              (
+                item
+              ) =>
                 item.workflow_id
             )
             .filter(Boolean)
@@ -255,11 +311,13 @@ export async function GET() {
       ];
 
     const {
-      data: workflows,
+      data:
+        workflows,
       error:
         workflowsError,
     } =
-      workflowIds.length > 0
+      workflowIds.length >
+      0
         ? await access.supabase
             .from(
               "workflows"
@@ -287,7 +345,9 @@ export async function GET() {
             error: null,
           };
 
-    if (workflowsError) {
+    if (
+      workflowsError
+    ) {
       throw new Error(
         `Unable to load approval workflows: ${workflowsError.message}`
       );
@@ -297,55 +357,43 @@ export async function GET() {
     // EMPLOYEES
     // =====================================================
 
-    const employeeIds =
-      [
-        ...new Set(
-          approvalRuns
-            .flatMap(
-              (item) => [
-                item.assigned_employee_id,
-                item.decided_by,
-                item.delegated_to,
-              ]
-            )
-            .filter(Boolean)
-        ),
-      ];
-
-    /*
-     * Load all active employees because
-     * they are also used by the Delegate UI.
-     */
     const {
-      data: employees,
+      data:
+        employees,
       error:
         employeesError,
-    } = await access.supabase
-      .from("employees")
-      .select(
-        `
-          id,
-          employee_number,
-          full_name,
-          email,
-          job_title,
-          employment_status,
-          availability_status,
-          is_active
-        `
-      )
-      .eq(
-        "organization_id",
-        organizationId
-      )
-      .order(
-        "full_name",
-        {
-          ascending: true,
-        }
-      );
+    } =
+      await access.supabase
+        .from(
+          "employees"
+        )
+        .select(
+          `
+            id,
+            employee_number,
+            full_name,
+            email,
+            job_title,
+            employment_status,
+            availability_status,
+            is_active
+          `
+        )
+        .eq(
+          "organization_id",
+          organizationId
+        )
+        .order(
+          "full_name",
+          {
+            ascending:
+              true,
+          }
+        );
 
-    if (employeesError) {
+    if (
+      employeesError
+    ) {
       throw new Error(
         `Unable to load approval employees: ${employeesError.message}`
       );
@@ -353,8 +401,13 @@ export async function GET() {
 
     const employeeMap =
       new Map(
-        (employees || []).map(
-          (employee) => [
+        (
+          employees ||
+          []
+        ).map(
+          (
+            employee
+          ) => [
             employee.id,
             employee,
           ]
@@ -364,9 +417,12 @@ export async function GET() {
     const stepMap =
       new Map(
         (
-          workflowSteps || []
+          workflowSteps ||
+          []
         ).map(
-          (step) => [
+          (
+            step
+          ) => [
             step.id,
             step,
           ]
@@ -376,9 +432,12 @@ export async function GET() {
     const runMap =
       new Map(
         (
-          workflowRuns || []
+          workflowRuns ||
+          []
         ).map(
-          (run) => [
+          (
+            run
+          ) => [
             run.id,
             run,
           ]
@@ -388,9 +447,12 @@ export async function GET() {
     const workflowMap =
       new Map(
         (
-          workflows || []
+          workflows ||
+          []
         ).map(
-          (workflow) => [
+          (
+            workflow
+          ) => [
             workflow.id,
             workflow,
           ]
@@ -399,22 +461,35 @@ export async function GET() {
 
     const approvals =
       approvalRuns.map(
-        (stepRun) => {
+        (
+          stepRun
+        ) => {
           const step =
             stepMap.get(
               stepRun.workflow_step_id
-            ) || null;
+            ) ||
+            null;
 
           const run =
             runMap.get(
               stepRun.workflow_run_id
-            ) || null;
+            ) ||
+            null;
 
           const workflow =
             run
               ? workflowMap.get(
                   run.workflow_id
-                ) || null
+                ) ||
+                null
+              : null;
+
+          const assignedEmployee =
+            stepRun.assigned_employee_id
+              ? employeeMap.get(
+                  stepRun.assigned_employee_id
+                ) ||
+                null
               : null;
 
           return {
@@ -428,12 +503,7 @@ export async function GET() {
             workflow,
 
             assigned_employee:
-              stepRun.assigned_employee_id
-                ? employeeMap.get(
-                    stepRun.assigned_employee_id
-                  ) ||
-                  null
-                : null,
+              assignedEmployee,
 
             decided_by_employee:
               stepRun.decided_by
@@ -450,13 +520,29 @@ export async function GET() {
                   ) ||
                   null
                 : null,
+
+            can_decide:
+              Boolean(
+                canManage ||
+                (
+                  stepRun.assigned_employee_id &&
+                  String(
+                    stepRun.assigned_employee_id
+                  ) ===
+                    String(
+                      currentEmployeeId
+                    )
+                )
+              ),
           };
         }
       );
 
     const pending =
       approvals.filter(
-        (item) =>
+        (
+          item
+        ) =>
           item.status ===
             "Pending" ||
           item.status ===
@@ -465,21 +551,27 @@ export async function GET() {
 
     const approved =
       approvals.filter(
-        (item) =>
+        (
+          item
+        ) =>
           item.decision ===
           "Approved"
       ).length;
 
     const rejected =
       approvals.filter(
-        (item) =>
+        (
+          item
+        ) =>
           item.decision ===
           "Rejected"
       ).length;
 
     const changesRequested =
       approvals.filter(
-        (item) =>
+        (
+          item
+        ) =>
           item.decision ===
           "RequestChanges"
       ).length;
@@ -489,9 +581,12 @@ export async function GET() {
 
       employees:
         (
-          employees || []
+          employees ||
+          []
         ).filter(
-          (employee) =>
+          (
+            employee
+          ) =>
             employee.is_active !==
               false &&
             employee.employment_status !==
@@ -516,7 +611,9 @@ export async function GET() {
         changesRequested,
       },
     });
-  } catch (error) {
+  } catch (
+    error
+  ) {
     console.error(
       "Approvals GET error:",
       error
@@ -529,7 +626,304 @@ export async function GET() {
           "Unable to load approvals.",
       },
       {
-        status: 500,
+        status:
+          500,
+      }
+    );
+  }
+}
+
+// =========================================================
+// PATCH APPROVAL DECISION
+// =========================================================
+
+export async function PATCH(
+  request
+) {
+  try {
+    const access =
+      await getServerAccess();
+
+    if (
+      !access.employee
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            access.error,
+        },
+        {
+          status:
+            access.status,
+        }
+      );
+    }
+
+    const body =
+      await request.json();
+
+    const stepRunId =
+      String(
+        body.step_run_id ||
+        ""
+      ).trim();
+
+    const decision =
+      String(
+        body.decision ||
+        ""
+      ).trim();
+
+    if (
+      !isUuid(
+        stepRunId
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "A valid approval ID is required.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
+    if (
+      ![
+        "Approved",
+        "Rejected",
+      ].includes(
+        decision
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Decision must be Approved or Rejected.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
+    const organizationId =
+      access.employee
+        .organization_id;
+
+    const currentEmployeeId =
+      access.employee.id;
+
+    const canManage =
+      canManageWorkflows(
+        access
+      );
+
+    const supabase =
+      createAdminSupabaseClient();
+
+    // =====================================================
+    // VERIFY STEP RUN
+    // =====================================================
+
+    const {
+      data:
+        stepRun,
+      error:
+        stepRunError,
+    } =
+      await supabase
+        .from(
+          "workflow_step_runs"
+        )
+        .select("*")
+        .eq(
+          "id",
+          stepRunId
+        )
+        .eq(
+          "organization_id",
+          organizationId
+        )
+        .maybeSingle();
+
+    if (
+      stepRunError
+    ) {
+      throw new Error(
+        stepRunError.message
+      );
+    }
+
+    if (!stepRun) {
+      return NextResponse.json(
+        {
+          error:
+            "Approval was not found.",
+        },
+        {
+          status:
+            404,
+        }
+      );
+    }
+
+    if (
+      ![
+        "Pending",
+        "Waiting",
+      ].includes(
+        stepRun.status
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "This approval has already been decided.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
+    // =====================================================
+    // CONFIRM IT IS AN APPROVAL STEP
+    // =====================================================
+
+    const {
+      data:
+        workflowStep,
+      error:
+        workflowStepError,
+    } =
+      await supabase
+        .from(
+          "workflow_steps"
+        )
+        .select(
+          "id, step_type, name"
+        )
+        .eq(
+          "id",
+          stepRun.workflow_step_id
+        )
+        .eq(
+          "organization_id",
+          organizationId
+        )
+        .maybeSingle();
+
+    if (
+      workflowStepError
+    ) {
+      throw new Error(
+        workflowStepError.message
+      );
+    }
+
+    if (
+      !workflowStep ||
+      workflowStep.step_type !==
+        "Approval"
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "The selected workflow step is not an approval.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
+    // =====================================================
+    // AUTHORISATION
+    // =====================================================
+    //
+    // Normal case:
+    // Assigned manager approves.
+    //
+    // Owner / workflow manager:
+    // Can manage a stuck/unassigned approval.
+    //
+    // =====================================================
+
+    const isAssignedApprover =
+      Boolean(
+        stepRun.assigned_employee_id &&
+        String(
+          stepRun.assigned_employee_id
+        ) ===
+          String(
+            currentEmployeeId
+          )
+      );
+
+    if (
+      !canManage &&
+      !isAssignedApprover
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "This approval is assigned to another employee.",
+        },
+        {
+          status:
+            403,
+        }
+      );
+    }
+
+    const result =
+      await resumeApprovalStep({
+        supabase,
+        organizationId,
+
+        stepRunId,
+
+        decision,
+
+        decidedByEmployeeId:
+          currentEmployeeId,
+      });
+
+    return NextResponse.json({
+      message:
+        decision ===
+          "Approved"
+          ? "Approval completed successfully."
+          : "Quote rejected successfully.",
+
+      decision,
+
+      result,
+    });
+  } catch (
+    error
+  ) {
+    console.error(
+      "Approval PATCH error:",
+      error
+    );
+
+    return NextResponse.json(
+      {
+        error:
+          error.message ||
+          "Unable to process approval.",
+      },
+      {
+        status:
+          500,
       }
     );
   }
