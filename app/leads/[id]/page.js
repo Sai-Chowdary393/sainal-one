@@ -998,7 +998,7 @@ www.sainaltechnologies.com`;
                   lead.value,
 
                 status:
-                  "Draft Quote",
+                  "Draft",
 
                 quote_text:
                   quoteText,
