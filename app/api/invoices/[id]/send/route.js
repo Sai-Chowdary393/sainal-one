@@ -101,9 +101,51 @@ function escapeHtml(value) {
     );
 }
 
+function formatEmailDate(value) {
+  if (
+    !value
+  ) {
+    return "";
+  }
+
+  const date =
+    new Date(
+      value
+    );
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return String(
+      value
+    );
+  }
+
+  return date.toLocaleDateString(
+    "en-GB",
+    {
+      day:
+        "2-digit",
+
+      month:
+        "short",
+
+      year:
+        "numeric",
+    }
+  );
+}
+
+// =========================================================
+// EMAIL HTML
+// =========================================================
+
 function invoiceToHtml({
   invoice,
   settings,
+  message,
 }) {
   const companyName =
     settings
@@ -131,29 +173,88 @@ function invoiceToHtml({
     invoice.amount ||
     "£0.00";
 
+  const cleanMessage =
+    cleanText(
+      message
+    );
+
+  const messageHtml =
+    cleanMessage
+      ? `
+        <div style="
+          margin:24px 0;
+          padding:16px 18px;
+          border-left:4px solid #d5a51d;
+          background:#fbf8ef;
+          border-radius:6px;
+          color:#4d493f;
+        ">
+          ${escapeHtml(
+            cleanMessage
+          ).replace(
+            /\n/g,
+            "<br />"
+          )}
+        </div>
+      `
+      : "";
+
   return `
-    <div style="font-family:Arial,sans-serif;line-height:1.6;color:#28251f;max-width:760px;margin:0 auto;">
-      <div style="display:flex;justify-content:space-between;border-bottom:3px solid #d5a51d;padding-bottom:20px;margin-bottom:28px;">
+    <div style="
+      font-family:Arial,sans-serif;
+      line-height:1.6;
+      color:#28251f;
+      max-width:760px;
+      margin:0 auto;
+    ">
+      <div style="
+        display:flex;
+        justify-content:space-between;
+        border-bottom:3px solid #d5a51d;
+        padding-bottom:20px;
+        margin-bottom:28px;
+      ">
         <div>
-          <div style="font-size:22px;font-weight:700;">
-            ${escapeHtml(companyName)}
+          <div style="
+            font-size:22px;
+            font-weight:700;
+          ">
+            ${escapeHtml(
+              companyName
+            )}
           </div>
 
           ${
             address
-              ? `<div style="color:#77736a;">${escapeHtml(address)}</div>`
+              ? `
+                <div style="color:#77736a;">
+                  ${escapeHtml(
+                    address
+                  )}
+                </div>
+              `
               : ""
           }
 
           ${
             website
-              ? `<div style="color:#77736a;">${escapeHtml(website)}</div>`
+              ? `
+                <div style="color:#77736a;">
+                  ${escapeHtml(
+                    website
+                  )}
+                </div>
+              `
               : ""
           }
         </div>
 
         <div style="text-align:right;">
-          <div style="font-size:24px;font-weight:700;color:#9a7100;">
+          <div style="
+            font-size:24px;
+            font-weight:700;
+            color:#9a7100;
+          ">
             INVOICE
           </div>
 
@@ -171,36 +272,73 @@ function invoiceToHtml({
       </p>
 
       <p>
-        Please find the invoice details below.
+        Please find your invoice details below.
       </p>
 
-      <table style="width:100%;border-collapse:collapse;margin:28px 0;">
+      ${messageHtml}
+
+      <table style="
+        width:100%;
+        border-collapse:collapse;
+        margin:28px 0;
+      ">
         <tr>
-          <td style="padding:10px;border-bottom:1px solid #eee;">
-            <strong>Client</strong>
+          <td style="
+            padding:10px;
+            border-bottom:1px solid #eee;
+          ">
+            <strong>
+              Client
+            </strong>
           </td>
 
-          <td style="padding:10px;border-bottom:1px solid #eee;text-align:right;">
-            ${escapeHtml(invoice.client)}
+          <td style="
+            padding:10px;
+            border-bottom:1px solid #eee;
+            text-align:right;
+          ">
+            ${escapeHtml(
+              invoice.client
+            )}
           </td>
         </tr>
 
         <tr>
-          <td style="padding:10px;border-bottom:1px solid #eee;">
-            <strong>Service</strong>
+          <td style="
+            padding:10px;
+            border-bottom:1px solid #eee;
+          ">
+            <strong>
+              Service
+            </strong>
           </td>
 
-          <td style="padding:10px;border-bottom:1px solid #eee;text-align:right;">
-            ${escapeHtml(invoice.service)}
+          <td style="
+            padding:10px;
+            border-bottom:1px solid #eee;
+            text-align:right;
+          ">
+            ${escapeHtml(
+              invoice.service
+            )}
           </td>
         </tr>
 
         <tr>
-          <td style="padding:10px;border-bottom:1px solid #eee;">
-            <strong>Subtotal</strong>
+          <td style="
+            padding:10px;
+            border-bottom:1px solid #eee;
+          ">
+            <strong>
+              Subtotal
+            </strong>
           </td>
 
-          <td style="padding:10px;border-bottom:1px solid #eee;text-align:right;">
+          <td style="
+            padding:10px;
+            border-bottom:1px solid #eee;
+            text-align:right;
+          ">
             ${escapeHtml(
               invoice.subtotal ||
                 invoice.amount
@@ -209,30 +347,54 @@ function invoiceToHtml({
         </tr>
 
         <tr>
-          <td style="padding:10px;border-bottom:1px solid #eee;">
-            <strong>VAT</strong>
+          <td style="
+            padding:10px;
+            border-bottom:1px solid #eee;
+          ">
+            <strong>
+              VAT
+            </strong>
           </td>
 
-          <td style="padding:10px;border-bottom:1px solid #eee;text-align:right;">
+          <td style="
+            padding:10px;
+            border-bottom:1px solid #eee;
+            text-align:right;
+          ">
             ${escapeHtml(
               invoice.vat_amount ||
                 "£0.00"
             )}
+
             ${
               invoice.vat_rate
-                ? ` (${escapeHtml(invoice.vat_rate)})`
+                ? ` (${escapeHtml(
+                    invoice.vat_rate
+                  )})`
                 : ""
             }
           </td>
         </tr>
 
         <tr>
-          <td style="padding:14px 10px;">
-            <strong>Total</strong>
+          <td style="
+            padding:14px 10px;
+          ">
+            <strong>
+              Total
+            </strong>
           </td>
 
-          <td style="padding:14px 10px;text-align:right;font-size:20px;font-weight:700;color:#9a7100;">
-            ${escapeHtml(total)}
+          <td style="
+            padding:14px 10px;
+            text-align:right;
+            font-size:20px;
+            font-weight:700;
+            color:#9a7100;
+          ">
+            ${escapeHtml(
+              total
+            )}
           </td>
         </tr>
       </table>
@@ -241,8 +403,14 @@ function invoiceToHtml({
         invoice.due_date
           ? `
             <p>
-              <strong>Due date:</strong>
-              ${escapeHtml(invoice.due_date)}
+              <strong>
+                Due date:
+              </strong>
+              ${escapeHtml(
+                formatEmailDate(
+                  invoice.due_date
+                )
+              )}
             </p>
           `
           : ""
@@ -252,20 +420,35 @@ function invoiceToHtml({
         paymentTerms
           ? `
             <p>
-              <strong>Payment terms:</strong><br />
-              ${escapeHtml(paymentTerms)}
+              <strong>
+                Payment terms:
+              </strong>
+              <br />
+
+              ${escapeHtml(
+                paymentTerms
+              ).replace(
+                /\n/g,
+                "<br />"
+              )}
             </p>
           `
           : ""
       }
 
-      <p style="margin-top:30px;">
+      <p style="
+        margin-top:30px;
+      ">
         Thank you for your business.
       </p>
 
       <p>
-        Kind regards,<br />
-        ${escapeHtml(companyName)}
+        Kind regards,
+        <br />
+
+        ${escapeHtml(
+          companyName
+        )}
       </p>
     </div>
   `;
@@ -355,7 +538,7 @@ export async function POST(
         .organization_id;
 
     // =====================================================
-    // INVOICE
+    // LOAD INVOICE
     // =====================================================
 
     const {
@@ -421,6 +604,34 @@ export async function POST(
     }
 
     // =====================================================
+    // BLOCK CANCELLED
+    // =====================================================
+
+    const currentStatus =
+      String(
+        invoice.status ||
+          ""
+      )
+        .trim()
+        .toLowerCase();
+
+    if (
+      currentStatus ===
+      "cancelled"
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Cancelled invoices cannot be sent.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
+    // =====================================================
     // REQUEST
     // =====================================================
 
@@ -433,16 +644,55 @@ export async function POST(
       body = {};
     }
 
+    const customMessage =
+      cleanText(
+        body.message
+      );
+
     let recipientEmail =
       cleanText(
         body.email ||
           body.to ||
           invoice.email
-      )
-        .toLowerCase();
+      ).toLowerCase();
 
     // =====================================================
-    // FALLBACK EMAIL FROM QUOTE / CUSTOMER
+    // CUSTOMER EMAIL FALLBACK
+    // =====================================================
+
+    if (
+      !recipientEmail &&
+      invoice.customer_id
+    ) {
+      const {
+        data:
+          customer,
+      } =
+        await supabase
+          .from(
+            "customers"
+          )
+          .select(
+            "email"
+          )
+          .eq(
+            "id",
+            invoice.customer_id
+          )
+          .eq(
+            "organization_id",
+            organizationId
+          )
+          .maybeSingle();
+
+      recipientEmail =
+        cleanText(
+          customer?.email
+        ).toLowerCase();
+    }
+
+    // =====================================================
+    // QUOTE EMAIL FALLBACK
     // =====================================================
 
     if (
@@ -473,40 +723,7 @@ export async function POST(
       recipientEmail =
         cleanText(
           quote?.email
-        )
-          .toLowerCase();
-    }
-
-    if (
-      !recipientEmail &&
-      invoice.customer_id
-    ) {
-      const {
-        data:
-          customer,
-      } =
-        await supabase
-          .from(
-            "customers"
-          )
-          .select(
-            "email"
-          )
-          .eq(
-            "id",
-            invoice.customer_id
-          )
-          .eq(
-            "organization_id",
-            organizationId
-          )
-          .maybeSingle();
-
-      recipientEmail =
-        cleanText(
-          customer?.email
-        )
-          .toLowerCase();
+        ).toLowerCase();
     }
 
     if (
@@ -613,7 +830,7 @@ export async function POST(
     }
 
     // =====================================================
-    // SEND
+    // SEND WITH RESEND
     // =====================================================
 
     const resend =
@@ -643,6 +860,9 @@ export async function POST(
 
             settings:
               companySettings,
+
+            message:
+              customMessage,
           }),
       });
 
@@ -668,16 +888,8 @@ export async function POST(
     }
 
     // =====================================================
-    // UPDATE STATUS
+    // STATUS AFTER SUCCESSFUL SEND
     // =====================================================
-
-    const currentStatus =
-      String(
-        invoice.status ||
-          ""
-      )
-        .trim()
-        .toLowerCase();
 
     const nextStatus =
       [
@@ -786,6 +998,9 @@ export async function POST(
       message:
         "Invoice sent successfully.",
 
+      recipient:
+        recipientEmail,
+
       invoice:
         updatedInvoice,
 
@@ -798,6 +1013,10 @@ export async function POST(
           recipientEmail,
 
         subject,
+
+        message:
+          customMessage ||
+          null,
       },
     });
   } catch (error) {
