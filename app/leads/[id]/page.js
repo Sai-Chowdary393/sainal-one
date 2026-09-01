@@ -77,6 +77,11 @@ export default function LeadDetails() {
   });
 
   const [
+    followUps,
+    setFollowUps,
+  ] = useState([]);
+
+  const [
     loading,
     setLoading,
   ] = useState(true);
@@ -261,6 +266,11 @@ export default function LeadDetails() {
               ?.canAssign
           ),
       });
+
+      await fetchRelatedFollowUps(
+        data.lead?.id ||
+          leadId
+      );
     } catch (
       error
     ) {
@@ -277,9 +287,81 @@ export default function LeadDetails() {
       setLead(
         null
       );
+
+      setFollowUps(
+        []
+      );
     } finally {
       setLoading(
         false
+      );
+    }
+  }
+
+  // =======================================================
+  // RELATED FOLLOW-UPS
+  // =======================================================
+
+  async function fetchRelatedFollowUps(
+    currentLeadId = leadId
+  ) {
+    if (
+      !currentLeadId
+    ) {
+      setFollowUps(
+        []
+      );
+
+      return;
+    }
+
+    try {
+      const response =
+        await fetch(
+          `/api/follow-ups?related_type=Lead&related_id=${encodeURIComponent(
+            currentLeadId
+          )}`,
+          {
+            cache:
+              "no-store",
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (
+        !response.ok
+      ) {
+        console.warn(
+          "Unable to load related follow-ups:",
+          data.error
+        );
+
+        setFollowUps(
+          []
+        );
+
+        return;
+      }
+
+      setFollowUps(
+        Array.isArray(
+          data.followUps
+        )
+          ? data.followUps
+          : []
+      );
+    } catch (
+      error
+    ) {
+      console.error(
+        "Related follow-up loading error:",
+        error
+      );
+
+      setFollowUps(
+        []
       );
     }
   }
@@ -783,6 +865,10 @@ The email should:
             "Failed to create follow-up."
         );
       }
+
+      await fetchRelatedFollowUps(
+        lead.id
+      );
 
       alert(
         "Follow-up task created successfully."
@@ -1877,12 +1963,202 @@ www.sainaltechnologies.com`;
                   }
                 />
 
+                {followUps.map(
+                  (
+                    followUp
+                  ) => (
+                    <TimelineItem
+                      key={`timeline-${followUp.id}`}
+                      title={
+                        `Follow-up: ${
+                          followUp.title ||
+                          "Follow-up"
+                        }`
+                      }
+                      description={
+                        formatFollowUpDescription(
+                          followUp
+                        )
+                      }
+                    />
+                  )
+                )}
+
                 <TimelineItem
                   title="Quote activity"
                   description={
                     quoteSaved
                       ? "A quote was generated during this session"
                       : "No new quote generated during this session"
+                  }
+                />
+              </div>
+            </section>
+          </section>
+
+          {/* =================================================
+              RELATED FOLLOW-UPS
+          ================================================= */}
+
+          <section
+            className={
+              styles.contentGrid
+            }
+          >
+            <section
+              className={
+                styles.panel
+              }
+            >
+              <div
+                className={
+                  styles.panelHeader
+                }
+              >
+                <div>
+                  <h3>
+                    Related follow-ups
+                  </h3>
+
+                  <p>
+                    Customer actions linked
+                    to this lead
+                  </p>
+                </div>
+              </div>
+
+              {followUps.length ===
+              0 ? (
+                <p
+                  className={
+                    styles.notesText
+                  }
+                >
+                  No follow-ups are currently
+                  linked to this lead.
+                </p>
+              ) : (
+                <div
+                  className={
+                    styles.timeline
+                  }
+                >
+                  {followUps.map(
+                    (
+                      followUp
+                    ) => (
+                      <TimelineItem
+                        key={
+                          followUp.id
+                        }
+                        title={
+                          followUp.title ||
+                          "Follow-up"
+                        }
+                        description={
+                          formatFollowUpDescription(
+                            followUp
+                          )
+                        }
+                      />
+                    )
+                  )}
+                </div>
+              )}
+            </section>
+
+            <section
+              className={
+                styles.panel
+              }
+            >
+              <div
+                className={
+                  styles.panelHeader
+                }
+              >
+                <div>
+                  <h3>
+                    Follow-up summary
+                  </h3>
+
+                  <p>
+                    Current lead activity
+                  </p>
+                </div>
+              </div>
+
+              <div
+                className={
+                  styles.detailList
+                }
+              >
+                <DetailRow
+                  label="Total"
+                  value={
+                    String(
+                      followUps.length
+                    )
+                  }
+                />
+
+                <DetailRow
+                  label="Pending"
+                  value={
+                    String(
+                      followUps.filter(
+                        (
+                          item
+                        ) =>
+                          String(
+                            item.status ||
+                            ""
+                          )
+                            .trim()
+                            .toLowerCase() ===
+                          "pending"
+                      ).length
+                    )
+                  }
+                />
+
+                <DetailRow
+                  label="In progress"
+                  value={
+                    String(
+                      followUps.filter(
+                        (
+                          item
+                        ) =>
+                          String(
+                            item.status ||
+                            ""
+                          )
+                            .trim()
+                            .toLowerCase() ===
+                          "in progress"
+                      ).length
+                    )
+                  }
+                />
+
+                <DetailRow
+                  label="Completed"
+                  value={
+                    String(
+                      followUps.filter(
+                        (
+                          item
+                        ) =>
+                          String(
+                            item.status ||
+                            ""
+                          )
+                            .trim()
+                            .toLowerCase() ===
+                          "completed"
+                      ).length
+                    )
                   }
                 />
               </div>
@@ -2214,6 +2490,69 @@ function TimelineItem({
         </p>
       </div>
     </div>
+  );
+}
+
+// =========================================================
+// FOLLOW-UP DESCRIPTION
+// =========================================================
+
+function formatFollowUpDescription(
+  followUp
+) {
+  if (
+    !followUp
+  ) {
+    return "Follow-up details unavailable";
+  }
+
+  const parts = [];
+
+  if (
+    followUp.status
+  ) {
+    parts.push(
+      followUp.status
+    );
+  }
+
+  if (
+    followUp.due_date
+  ) {
+    parts.push(
+      `Due ${formatDate(
+        followUp.due_date
+      )}`
+    );
+  } else {
+    parts.push(
+      "No due date"
+    );
+  }
+
+  const assignee =
+    followUp
+      .assigned_employee
+      ?.full_name;
+
+  if (
+    assignee
+  ) {
+    parts.push(
+      assignee
+    );
+  }
+
+  if (
+    followUp.note
+  ) {
+    parts.push(
+      followUp.note
+    );
+  }
+
+  return parts.join(
+    " • "
   );
 }
 
