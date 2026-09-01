@@ -15,6 +15,7 @@ import {
 } from "../../../../../lib/supabaseAdmin";
 
 import {
+  attachRecordOwner,
   canViewOwnedRecord,
   getRecordPermissions,
 } from "../../../../../lib/recordAccess";
@@ -406,6 +407,7 @@ function invoiceToHtml({
               <strong>
                 Due date:
               </strong>
+
               ${escapeHtml(
                 formatEmailDate(
                   invoice.due_date
@@ -935,6 +937,21 @@ export async function POST(
     }
 
     // =====================================================
+    // IMPORTANT:
+    // RE-ATTACH OWNER INFORMATION BEFORE RETURNING
+    // =====================================================
+
+    const formattedInvoice =
+      await attachRecordOwner({
+        supabase,
+
+        organizationId,
+
+        record:
+          updatedInvoice,
+      });
+
+    // =====================================================
     // EMAIL LOG
     // =====================================================
 
@@ -994,6 +1011,10 @@ export async function POST(
       );
     }
 
+    // =====================================================
+    // RESPONSE
+    // =====================================================
+
     return NextResponse.json({
       message:
         "Invoice sent successfully.",
@@ -1002,7 +1023,7 @@ export async function POST(
         recipientEmail,
 
       invoice:
-        updatedInvoice,
+        formattedInvoice,
 
       email: {
         id:
