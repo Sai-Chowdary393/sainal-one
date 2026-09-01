@@ -28,6 +28,11 @@ const ALLOWED_CREATE_STATUSES = [
   "Draft",
 ];
 
+const DEFAULT_PAYMENT_TERMS =
+  "Payment due within 14 days of invoice date.";
+
+const DEFAULT_DUE_DAYS = 14;
+
 // =========================================================
 // HELPERS
 // =========================================================
@@ -80,6 +85,62 @@ function isValidDate(value) {
   );
 }
 
+// =========================================================
+// DATE HELPERS
+// =========================================================
+
+function getCreatedAt() {
+  return new Date().toISOString();
+}
+
+function formatDateForDatabase(date) {
+  const year =
+    date.getUTCFullYear();
+
+  const month =
+    String(
+      date.getUTCMonth() +
+        1
+    ).padStart(
+      2,
+      "0"
+    );
+
+  const day =
+    String(
+      date.getUTCDate()
+    ).padStart(
+      2,
+      "0"
+    );
+
+  return `${year}-${month}-${day}`;
+}
+
+function getDefaultDueDate(
+  createdAt,
+  days =
+    DEFAULT_DUE_DAYS
+) {
+  const date =
+    new Date(
+      createdAt
+    );
+
+  date.setUTCDate(
+    date.getUTCDate() +
+      days
+  );
+
+  return formatDateForDatabase(
+    date
+  );
+}
+
+// =========================================================
+// RELATED RECORD VALIDATION
+// =========================================================
+
 async function validateRelatedRecord({
   supabase,
   organizationId,
@@ -100,18 +161,23 @@ async function validateRelatedRecord({
   const {
     data,
     error,
-  } = await supabase
-    .from(table)
-    .select("id")
-    .eq(
-      "id",
-      recordId
-    )
-    .eq(
-      "organization_id",
-      organizationId
-    )
-    .maybeSingle();
+  } =
+    await supabase
+      .from(
+        table
+      )
+      .select(
+        "id"
+      )
+      .eq(
+        "id",
+        recordId
+      )
+      .eq(
+        "organization_id",
+        organizationId
+      )
+      .maybeSingle();
 
   if (error) {
     throw new Error(
@@ -127,6 +193,10 @@ async function validateRelatedRecord({
 
   return data.id;
 }
+
+// =========================================================
+// MONEY HELPERS
+// =========================================================
 
 function parseMoney(value) {
   const cleaned =
@@ -205,10 +275,18 @@ function formatVatRate(value) {
         0
     );
 
-  return `${Number.isInteger(number)
+  return `${Number.isInteger(
+    number
+  )
     ? number
-    : number.toFixed(2)}%`;
+    : number.toFixed(
+        2
+      )}%`;
 }
+
+// =========================================================
+// INVOICE NUMBER
+// =========================================================
 
 function generateInvoiceNumber() {
   const year =
@@ -218,10 +296,16 @@ function generateInvoiceNumber() {
   const suffix =
     Date.now()
       .toString()
-      .slice(-6);
+      .slice(
+        -6
+      );
 
   return `SNI-${year}-${suffix}`;
 }
+
+// =========================================================
+// OWNER ATTACHMENT
+// =========================================================
 
 async function attachOwners({
   supabase,
@@ -239,6 +323,7 @@ async function attachOwners({
         attachRecordOwner({
           supabase,
           organizationId,
+
           record:
             invoice,
         })
@@ -297,11 +382,17 @@ export async function GET() {
         .from(
           "invoices"
         )
-        .select("*")
+        .select(
+          "*"
+        )
         .eq(
           "organization_id",
           organizationId
         );
+
+    // =====================================================
+    // RECORD ACCESS
+    // =====================================================
 
     if (
       !permissions.canViewAll &&
@@ -362,6 +453,10 @@ export async function GET() {
           [],
       });
 
+    // =====================================================
+    // ASSIGNABLE EMPLOYEES
+    // =====================================================
+
     let employees = [];
 
     if (
@@ -388,7 +483,9 @@ export async function GET() {
           permissions,
         }),
     });
-  } catch (error) {
+  } catch (
+    error
+  ) {
     console.error(
       "Invoices GET error:",
       error
@@ -450,6 +547,10 @@ export async function POST(
     const body =
       await request.json();
 
+    // =====================================================
+    // CLIENT / SERVICE
+    // =====================================================
+
     const client =
       cleanText(
         body.client
@@ -476,10 +577,14 @@ export async function POST(
       );
     }
 
+    // =====================================================
+    // STATUS
+    // =====================================================
+
     /*
-     * A newly-created invoice must
-     * always start as Draft.
+     * Every newly-created invoice starts as a draft.
      */
+
     const status =
       cleanText(
         body.status
@@ -503,14 +608,31 @@ export async function POST(
       );
     }
 
-    const dueDate =
-      body.due_date ||
-      null;
+    // =====================================================
+    // CREATED / DUE DATES
+    // =====================================================
+
+    /*
+     * created_at is now explicitly set.
+     *
+     * If the user supplies a due date we use it.
+     *
+     * If no due date is supplied we automatically
+     * calculate 14 days after the invoice creation date.
+     */
+
+    const createdAt =
+      getCreatedAt();
+
+    const requestedDueDate =
+      cleanText(
+        body.due_date
+      );
 
     if (
-      dueDate &&
+      requestedDueDate &&
       !isValidDate(
-        dueDate
+        requestedDueDate
       )
     ) {
       return NextResponse.json(
@@ -524,6 +646,16 @@ export async function POST(
         }
       );
     }
+
+    const dueDate =
+      requestedDueDate ||
+      getDefaultDueDate(
+        createdAt
+      );
+
+    // =====================================================
+    // MONEY
+    // =====================================================
 
     const subtotal =
       parseMoney(
@@ -580,6 +712,10 @@ export async function POST(
     const totalAmount =
       subtotal +
       vatAmount;
+
+    // =====================================================
+    // SERVER / ORGANISATION
+    // =====================================================
 
     const supabase =
       createAdminSupabaseClient();
@@ -657,7 +793,7 @@ export async function POST(
     }
 
     // =====================================================
-    // RELATED RECORDS
+    // RELATED RECORD IDS
     // =====================================================
 
     const customerId =
@@ -681,32 +817,69 @@ export async function POST(
           )
         : null;
 
+    // =====================================================
+    // VALIDATE CUSTOMER
+    // =====================================================
+
     await validateRelatedRecord({
       supabase,
       organizationId,
-      table: "customers",
+
+      table:
+        "customers",
+
       recordId:
         customerId,
-      label: "Customer",
+
+      label:
+        "Customer",
     });
+
+    // =====================================================
+    // VALIDATE PROJECT
+    // =====================================================
 
     await validateRelatedRecord({
       supabase,
       organizationId,
-      table: "projects",
+
+      table:
+        "projects",
+
       recordId:
         projectId,
-      label: "Project",
+
+      label:
+        "Project",
     });
+
+    // =====================================================
+    // VALIDATE QUOTE
+    // =====================================================
 
     await validateRelatedRecord({
       supabase,
       organizationId,
-      table: "quotes",
+
+      table:
+        "quotes",
+
       recordId:
         quoteId,
-      label: "Quote",
+
+      label:
+        "Quote",
     });
+
+    // =====================================================
+    // PAYMENT TERMS
+    // =====================================================
+
+    const paymentTerms =
+      cleanText(
+        body.payment_terms
+      ) ||
+      DEFAULT_PAYMENT_TERMS;
 
     // =====================================================
     // INSERT
@@ -773,14 +946,20 @@ export async function POST(
 
             status,
 
+            /*
+             * Explicit invoice creation date.
+             */
+            created_at:
+              createdAt,
+
+            /*
+             * User-selected date or automatic +14 days.
+             */
             due_date:
               dueDate,
 
             payment_terms:
-              cleanText(
-                body.payment_terms
-              ) ||
-              "Payment due within 14 days of invoice date.",
+              paymentTerms,
 
             owner_employee_id:
               ownerEmployeeId,
@@ -797,6 +976,10 @@ export async function POST(
       );
     }
 
+    // =====================================================
+    // OWNER DETAILS
+    // =====================================================
+
     const formattedInvoice =
       await attachRecordOwner({
         supabase,
@@ -805,6 +988,10 @@ export async function POST(
         record:
           invoice,
       });
+
+    // =====================================================
+    // RESPONSE
+    // =====================================================
 
     return NextResponse.json(
       {
@@ -819,7 +1006,9 @@ export async function POST(
           201,
       }
     );
-  } catch (error) {
+  } catch (
+    error
+  ) {
     console.error(
       "Invoice POST error:",
       error
