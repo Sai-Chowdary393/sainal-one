@@ -21,98 +21,141 @@ import {
 function getQuotePermissions(
   access
 ) {
-  return {
-    canViewAll:
+  const canGenericView =
+    Boolean(
       access.isOwner ||
-      access.can(
-        "quotes.view_all"
-      ) ||
-      access.canModuleAction(
-        "Quotes",
-        "view_all"
+        access.can(
+          "quotes.view"
+        ) ||
+        access.canModuleAction(
+          "Quotes",
+          "view"
+        )
+    );
+
+  return {
+    canView:
+      canGenericView,
+
+    canViewAll:
+      Boolean(
+        access.isOwner ||
+          access.can(
+            "quotes.view_all"
+          ) ||
+          access.canModuleAction(
+            "Quotes",
+            "view_all"
+          )
       ),
 
     canViewTeam:
-      access.isOwner ||
-      access.can(
-        "quotes.view_team"
-      ) ||
-      access.canModuleAction(
-        "Quotes",
-        "view_team"
+      Boolean(
+        access.isOwner ||
+          access.can(
+            "quotes.view_team"
+          ) ||
+          access.canModuleAction(
+            "Quotes",
+            "view_team"
+          )
       ),
 
+    /*
+     * Security-safe compatibility:
+     *
+     * quotes.view does NOT become view_all.
+     *
+     * It becomes view_own so existing roles with the
+     * generic View Quotes permission can still access
+     * the quotes they own.
+     */
     canViewOwn:
-      access.isOwner ||
-      access.can(
-        "quotes.view_own"
-      ) ||
-      access.canModuleAction(
-        "Quotes",
-        "view_own"
+      Boolean(
+        access.isOwner ||
+          access.can(
+            "quotes.view_own"
+          ) ||
+          access.canModuleAction(
+            "Quotes",
+            "view_own"
+          ) ||
+          canGenericView
       ),
 
     canCreate:
-      access.isOwner ||
-      access.can(
-        "quotes.create"
-      ) ||
-      access.canModuleAction(
-        "Quotes",
-        "create"
+      Boolean(
+        access.isOwner ||
+          access.can(
+            "quotes.create"
+          ) ||
+          access.canModuleAction(
+            "Quotes",
+            "create"
+          )
       ),
 
     canEdit:
-      access.isOwner ||
-      access.can(
-        "quotes.edit"
-      ) ||
-      access.canModuleAction(
-        "Quotes",
-        "edit"
+      Boolean(
+        access.isOwner ||
+          access.can(
+            "quotes.edit"
+          ) ||
+          access.canModuleAction(
+            "Quotes",
+            "edit"
+          )
       ),
 
     canDelete:
-      access.isOwner ||
-      access.can(
-        "quotes.delete"
-      ) ||
-      access.canModuleAction(
-        "Quotes",
-        "delete"
+      Boolean(
+        access.isOwner ||
+          access.can(
+            "quotes.delete"
+          ) ||
+          access.canModuleAction(
+            "Quotes",
+            "delete"
+          )
       ),
 
     canSend:
-      access.isOwner ||
-      access.can(
-        "quotes.send"
-      ) ||
-      access.canModuleAction(
-        "Quotes",
-        "send"
+      Boolean(
+        access.isOwner ||
+          access.can(
+            "quotes.send"
+          ) ||
+          access.canModuleAction(
+            "Quotes",
+            "send"
+          )
       ),
 
     canApprove:
-      access.isOwner ||
-      access.can(
-        "quotes.approve"
-      ) ||
-      access.canModuleAction(
-        "Quotes",
-        [
-          "approve",
-          "approval",
-        ]
+      Boolean(
+        access.isOwner ||
+          access.can(
+            "quotes.approve"
+          ) ||
+          access.canModuleAction(
+            "Quotes",
+            [
+              "approve",
+              "approval",
+            ]
+          )
       ),
 
     canAssign:
-      access.isOwner ||
-      access.can(
-        "quotes.assign"
-      ) ||
-      access.canModuleAction(
-        "Quotes",
-        "assign"
+      Boolean(
+        access.isOwner ||
+          access.can(
+            "quotes.assign"
+          ) ||
+          access.canModuleAction(
+            "Quotes",
+            "assign"
+          )
       ),
   };
 }
@@ -307,6 +350,10 @@ export async function GET() {
           organizationId
         );
 
+    // =====================================================
+    // TEAM VISIBILITY
+    // =====================================================
+
     if (
       !permissions.canViewAll &&
       permissions.canViewTeam
@@ -358,12 +405,14 @@ export async function GET() {
           (
             teamEmployees ||
             []
-          ).map(
-            (
-              employee
-            ) =>
-              employee.id
-          );
+          )
+            .map(
+              (
+                employee
+              ) =>
+                employee.id
+            )
+            .filter(Boolean);
 
         if (
           ownerIds.length ===
@@ -380,7 +429,13 @@ export async function GET() {
           "owner_employee_id",
           ownerIds
         );
-    } else if (
+    }
+
+    // =====================================================
+    // OWN VISIBILITY
+    // =====================================================
+
+    else if (
       !permissions.canViewAll &&
       permissions.canViewOwn
     ) {
