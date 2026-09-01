@@ -45,47 +45,92 @@ export default function InvoiceDetailsPage() {
   const invoiceId =
     params?.id;
 
-  const [invoice, setInvoice] =
+  const [
+    invoice,
+    setInvoice,
+  ] =
     useState(null);
 
   const [
     draftInvoice,
     setDraftInvoice,
-  ] = useState(null);
-
-  const [settings, setSettings] =
+  ] =
     useState(null);
 
-  const [employees, setEmployees] =
+  const [
+    settings,
+    setSettings,
+  ] =
+    useState(null);
+
+  const [
+    employees,
+    setEmployees,
+  ] =
     useState([]);
 
-  const [access, setAccess] =
+  const [
+    recipientEmail,
+    setRecipientEmail,
+  ] =
+    useState("");
+
+  const [
+    access,
+    setAccess,
+  ] =
     useState({
-      isOwner: false,
-      canEdit: false,
-      canDelete: false,
-      canAssign: false,
-      canSend: false,
-      canApprove: false,
-      permissions: [],
+      isOwner:
+        false,
+
+      canEdit:
+        false,
+
+      canDelete:
+        false,
+
+      canAssign:
+        false,
+
+      canSend:
+        false,
+
+      canApprove:
+        false,
+
+      permissions:
+        [],
     });
 
-  const [loading, setLoading] =
+  const [
+    loading,
+    setLoading,
+  ] =
     useState(true);
 
-  const [editing, setEditing] =
+  const [
+    editing,
+    setEditing,
+  ] =
     useState(false);
 
-  const [saving, setSaving] =
+  const [
+    saving,
+    setSaving,
+  ] =
     useState(false);
 
-  const [deleting, setDeleting] =
+  const [
+    deleting,
+    setDeleting,
+  ] =
     useState(false);
 
   const [
     errorMessage,
     setErrorMessage,
-  ] = useState("");
+  ] =
+    useState("");
 
   // =======================================================
   // LOAD
@@ -168,6 +213,15 @@ export default function InvoiceDetailsPage() {
           : []
       );
 
+      setRecipientEmail(
+        invoiceData.recipientEmail ||
+          invoiceData.customer
+            ?.email ||
+          invoiceData.quote
+            ?.email ||
+          ""
+      );
+
       setAccess({
         isOwner:
           Boolean(
@@ -237,6 +291,8 @@ export default function InvoiceDetailsPage() {
 
       setDraftInvoice(null);
 
+      setRecipientEmail("");
+
       setErrorMessage(
         error.message ||
           "Unable to load invoice."
@@ -287,7 +343,9 @@ export default function InvoiceDetailsPage() {
         current
       ) => ({
         ...current,
-        [name]: value,
+
+        [name]:
+          value,
       })
     );
   }
@@ -321,7 +379,9 @@ export default function InvoiceDetailsPage() {
     const data =
       await response.json();
 
-    if (!response.ok) {
+    if (
+      !response.ok
+    ) {
       throw new Error(
         data.error ||
           "Failed to update invoice."
@@ -542,7 +602,9 @@ export default function InvoiceDetailsPage() {
       const data =
         await response.json();
 
-      if (!response.ok) {
+      if (
+        !response.ok
+      ) {
         throw new Error(
           data.error ||
             "Failed to delete invoice."
@@ -586,7 +648,9 @@ export default function InvoiceDetailsPage() {
   // STATES
   // =======================================================
 
-  if (loading) {
+  if (
+    loading
+  ) {
     return (
       <ProtectedRoute>
         <AppLayout
@@ -599,7 +663,9 @@ export default function InvoiceDetailsPage() {
     );
   }
 
-  if (errorMessage) {
+  if (
+    errorMessage
+  ) {
     return (
       <ProtectedRoute>
         <AppLayout
@@ -613,12 +679,13 @@ export default function InvoiceDetailsPage() {
           >
             <div>
               <strong>
-                Unable to load
-                invoice
+                Unable to load invoice
               </strong>
 
               <p>
-                {errorMessage}
+                {
+                  errorMessage
+                }
               </p>
             </div>
 
@@ -771,8 +838,14 @@ export default function InvoiceDetailsPage() {
 
   const canSend =
     Boolean(
-      access.isOwner ||
-      access.canSend
+      (
+        access.isOwner ||
+        access.canSend
+      ) &&
+      normaliseStatus(
+        invoice.status
+      ) !==
+        "cancelled"
     );
 
   // =======================================================
@@ -846,7 +919,9 @@ export default function InvoiceDetailsPage() {
                 canSend && (
                   <SendRecordEmail
                     endpoint={`/api/invoices/${invoice.id}/send`}
-                    defaultEmail=""
+                    defaultEmail={
+                      recipientEmail
+                    }
                     defaultSubject={`Invoice ${
                       invoice.invoice_number ||
                       ""
@@ -1032,7 +1107,9 @@ export default function InvoiceDetailsPage() {
               </span>
 
               <strong>
-                {totalAmount}
+                {
+                  totalAmount
+                }
               </strong>
             </div>
           </section>
@@ -1161,7 +1238,9 @@ export default function InvoiceDetailsPage() {
                                 item
                               }
                             >
-                              {item}
+                              {
+                                item
+                              }
                             </option>
                           )
                         )}
@@ -1227,6 +1306,7 @@ export default function InvoiceDetailsPage() {
                   <label
                     style={{
                       ...detailStyles.field,
+
                       gridColumn:
                         "1 / -1",
                     }}
@@ -1386,7 +1466,9 @@ export default function InvoiceDetailsPage() {
                       detailStyles.statusAmount
                     }
                   >
-                    {totalAmount}
+                    {
+                      totalAmount
+                    }
                   </strong>
 
                   <p>
@@ -1539,7 +1621,9 @@ export default function InvoiceDetailsPage() {
                         detailStyles.companyName
                       }
                     >
-                      {companyName}
+                      {
+                        companyName
+                      }
                     </strong>
 
                     <p>
@@ -1668,7 +1752,9 @@ export default function InvoiceDetailsPage() {
                     </span>
 
                     <span>
-                      {subtotal}
+                      {
+                        subtotal
+                      }
                     </span>
                   </div>
                 </section>
@@ -1714,7 +1800,9 @@ export default function InvoiceDetailsPage() {
                   </h3>
 
                   <p>
-                    {paymentTerms}
+                    {
+                      paymentTerms
+                    }
                   </p>
                 </section>
 
@@ -1734,7 +1822,9 @@ export default function InvoiceDetailsPage() {
                     {bankName && (
                       <p>
                         Bank:{" "}
-                        {bankName}
+                        {
+                          bankName
+                        }
                       </p>
                     )}
 
@@ -1939,12 +2029,16 @@ function normaliseStatus(
 function formatDate(
   value
 ) {
-  if (!value) {
+  if (
+    !value
+  ) {
     return "Not set";
   }
 
   const date =
-    new Date(value);
+    new Date(
+      value
+    );
 
   if (
     Number.isNaN(
@@ -1972,12 +2066,16 @@ function formatDate(
 function toDateInput(
   value
 ) {
-  if (!value) {
+  if (
+    !value
+  ) {
     return "";
   }
 
   const date =
-    new Date(value);
+    new Date(
+      value
+    );
 
   if (
     Number.isNaN(
@@ -2003,7 +2101,9 @@ function toDateInput(
 function isOverdue(
   dueDate
 ) {
-  if (!dueDate) {
+  if (
+    !dueDate
+  ) {
     return false;
   }
 
@@ -2061,329 +2161,626 @@ function getDisplayStatus(
 
 const detailStyles = {
   page: {
-    display: "grid",
-    gap: "20px",
-    color: "#28251f",
-    fontSize: "13px",
+    display:
+      "grid",
+
+    gap:
+      "20px",
+
+    color:
+      "#28251f",
+
+    fontSize:
+      "13px",
   },
 
   header: {
-    display: "flex",
+    display:
+      "flex",
+
     justifyContent:
       "space-between",
+
     alignItems:
       "flex-start",
-    gap: "24px",
+
+    gap:
+      "24px",
   },
 
   backLink: {
     display:
       "inline-block",
+
     marginBottom:
       "12px",
-    color: "#8d6b05",
-    fontSize: "11px",
-    fontWeight: 750,
-    textDecoration: "none",
+
+    color:
+      "#8d6b05",
+
+    fontSize:
+      "11px",
+
+    fontWeight:
+      750,
+
+    textDecoration:
+      "none",
   },
 
   eyebrow: {
-    display: "block",
-    marginBottom: "6px",
-    color: "#9b7507",
-    fontSize: "10px",
-    fontWeight: 800,
-    letterSpacing: "1px",
+    display:
+      "block",
+
+    marginBottom:
+      "6px",
+
+    color:
+      "#9b7507",
+
+    fontSize:
+      "10px",
+
+    fontWeight:
+      800,
+
+    letterSpacing:
+      "1px",
+
     textTransform:
       "uppercase",
   },
 
   heading: {
-    margin: 0,
-    fontSize: "27px",
+    margin:
+      0,
+
+    fontSize:
+      "27px",
   },
 
   description: {
-    margin: "6px 0 0",
-    color: "#7c786e",
-    fontSize: "13px",
+    margin:
+      "6px 0 0",
+
+    color:
+      "#7c786e",
+
+    fontSize:
+      "13px",
   },
 
   actions: {
-    display: "flex",
-    flexWrap: "wrap",
+    display:
+      "flex",
+
+    flexWrap:
+      "wrap",
+
     justifyContent:
       "flex-end",
-    gap: "9px",
+
+    gap:
+      "9px",
   },
 
   primaryButton: {
-    minHeight: "39px",
-    padding: "0 15px",
+    minHeight:
+      "39px",
+
+    padding:
+      "0 15px",
+
     border:
       "1px solid #b78800",
-    borderRadius: "10px",
-    background: "#dca900",
-    color: "#17130a",
-    fontSize: "12px",
-    fontWeight: 750,
-    cursor: "pointer",
+
+    borderRadius:
+      "10px",
+
+    background:
+      "#dca900",
+
+    color:
+      "#17130a",
+
+    fontSize:
+      "12px",
+
+    fontWeight:
+      750,
+
+    cursor:
+      "pointer",
   },
 
   secondaryButton: {
-    minHeight: "39px",
-    padding: "0 15px",
+    minHeight:
+      "39px",
+
+    padding:
+      "0 15px",
+
     border:
       "1px solid #ddd9cf",
-    borderRadius: "10px",
-    background: "#ffffff",
-    color: "#413d36",
-    fontSize: "12px",
-    fontWeight: 700,
-    cursor: "pointer",
+
+    borderRadius:
+      "10px",
+
+    background:
+      "#ffffff",
+
+    color:
+      "#413d36",
+
+    fontSize:
+      "12px",
+
+    fontWeight:
+      700,
+
+    cursor:
+      "pointer",
   },
 
   dangerButton: {
-    minHeight: "39px",
-    padding: "0 15px",
+    minHeight:
+      "39px",
+
+    padding:
+      "0 15px",
+
     border:
       "1px solid #e1b9b9",
-    borderRadius: "10px",
-    background: "#fff7f7",
-    color: "#a13e3e",
-    fontSize: "12px",
-    fontWeight: 700,
-    cursor: "pointer",
+
+    borderRadius:
+      "10px",
+
+    background:
+      "#fff7f7",
+
+    color:
+      "#a13e3e",
+
+    fontSize:
+      "12px",
+
+    fontWeight:
+      700,
+
+    cursor:
+      "pointer",
   },
 
   hero: {
-    display: "flex",
+    display:
+      "flex",
+
     justifyContent:
       "space-between",
-    alignItems: "center",
-    gap: "25px",
-    padding: "22px",
+
+    alignItems:
+      "center",
+
+    gap:
+      "25px",
+
+    padding:
+      "22px",
+
     border:
       "1px solid #dedbd2",
-    borderRadius: "16px",
-    background: "#ffffff",
+
+    borderRadius:
+      "16px",
+
+    background:
+      "#ffffff",
   },
 
   identity: {
-    display: "flex",
-    alignItems: "center",
-    gap: "14px",
+    display:
+      "flex",
+
+    alignItems:
+      "center",
+
+    gap:
+      "14px",
   },
 
   invoiceIcon: {
-    display: "grid",
-    width: "48px",
-    height: "48px",
-    placeItems: "center",
-    borderRadius: "12px",
-    background: "#29271f",
-    color: "#e2b83a",
-    fontSize: "20px",
-    fontWeight: 800,
+    display:
+      "grid",
+
+    width:
+      "48px",
+
+    height:
+      "48px",
+
+    placeItems:
+      "center",
+
+    borderRadius:
+      "12px",
+
+    background:
+      "#29271f",
+
+    color:
+      "#e2b83a",
+
+    fontSize:
+      "20px",
+
+    fontWeight:
+      800,
   },
 
   smallLabel: {
-    color: "#9b7507",
-    fontSize: "10px",
-    fontWeight: 800,
+    color:
+      "#9b7507",
+
+    fontSize:
+      "10px",
+
+    fontWeight:
+      800,
+
     textTransform:
       "uppercase",
   },
 
   heroTitle: {
-    margin: "4px 0 8px",
-    fontSize: "20px",
+    margin:
+      "4px 0 8px",
+
+    fontSize:
+      "20px",
   },
 
   meta: {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: "8px",
-    alignItems: "center",
+    display:
+      "flex",
+
+    flexWrap:
+      "wrap",
+
+    gap:
+      "8px",
+
+    alignItems:
+      "center",
   },
 
   metaBadge: {
-    padding: "5px 8px",
-    borderRadius: "999px",
-    background: "#f4f1ea",
-    color: "#686359",
-    fontSize: "10px",
-    fontWeight: 650,
+    padding:
+      "5px 8px",
+
+    borderRadius:
+      "999px",
+
+    background:
+      "#f4f1ea",
+
+    color:
+      "#686359",
+
+    fontSize:
+      "10px",
+
+    fontWeight:
+      650,
   },
 
   totalBox: {
-    display: "grid",
-    minWidth: "190px",
-    gap: "5px",
-    padding: "15px 18px",
-    borderRadius: "12px",
-    background: "#f8efd4",
-    textAlign: "right",
+    display:
+      "grid",
+
+    minWidth:
+      "190px",
+
+    gap:
+      "5px",
+
+    padding:
+      "15px 18px",
+
+    borderRadius:
+      "12px",
+
+    background:
+      "#f8efd4",
+
+    textAlign:
+      "right",
   },
 
   panel: {
-    overflow: "hidden",
+    overflow:
+      "hidden",
+
     border:
       "1px solid #dedbd2",
-    borderRadius: "15px",
-    background: "#ffffff",
+
+    borderRadius:
+      "15px",
+
+    background:
+      "#ffffff",
   },
 
   panelHeader: {
-    padding: "18px 20px",
+    padding:
+      "18px 20px",
+
     borderBottom:
       "1px solid #ece9e2",
   },
 
   formGrid: {
-    display: "grid",
+    display:
+      "grid",
+
     gridTemplateColumns:
       "repeat(2, minmax(0, 1fr))",
-    gap: "15px",
-    padding: "20px",
+
+    gap:
+      "15px",
+
+    padding:
+      "20px",
   },
 
   field: {
-    display: "grid",
-    gap: "7px",
-    color: "#3e3a33",
-    fontSize: "12px",
-    fontWeight: 700,
+    display:
+      "grid",
+
+    gap:
+      "7px",
+
+    color:
+      "#3e3a33",
+
+    fontSize:
+      "12px",
+
+    fontWeight:
+      700,
   },
 
   input: {
-    minHeight: "42px",
-    padding: "0 11px",
+    minHeight:
+      "42px",
+
+    padding:
+      "0 11px",
+
     border:
       "1px solid #dcd8ce",
-    borderRadius: "9px",
-    background: "#ffffff",
-    fontSize: "13px",
+
+    borderRadius:
+      "9px",
+
+    background:
+      "#ffffff",
+
+    fontSize:
+      "13px",
   },
 
   textarea: {
-    padding: "11px",
+    padding:
+      "11px",
+
     border:
       "1px solid #dcd8ce",
-    borderRadius: "9px",
-    resize: "vertical",
-    fontFamily: "inherit",
-    fontSize: "13px",
+
+    borderRadius:
+      "9px",
+
+    resize:
+      "vertical",
+
+    fontFamily:
+      "inherit",
+
+    fontSize:
+      "13px",
   },
 
   twoColumn: {
-    display: "grid",
+    display:
+      "grid",
+
     gridTemplateColumns:
       "repeat(2, minmax(0, 1fr))",
-    gap: "16px",
+
+    gap:
+      "16px",
   },
 
   detailList: {
-    display: "grid",
-    padding: "5px 20px 15px",
+    display:
+      "grid",
+
+    padding:
+      "5px 20px 15px",
   },
 
   detailRow: {
-    display: "flex",
+    display:
+      "flex",
+
     justifyContent:
       "space-between",
-    gap: "20px",
-    padding: "13px 0",
+
+    gap:
+      "20px",
+
+    padding:
+      "13px 0",
+
     borderBottom:
       "1px solid #efede7",
-    fontSize: "12px",
+
+    fontSize:
+      "12px",
   },
 
   statusPanel: {
-    display: "grid",
+    display:
+      "grid",
+
     justifyItems:
       "start",
-    gap: "15px",
-    padding: "20px",
+
+    gap:
+      "15px",
+
+    padding:
+      "20px",
   },
 
   statusAmount: {
-    fontSize: "25px",
+    fontSize:
+      "25px",
   },
 
   statusActions: {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: "8px",
+    display:
+      "flex",
+
+    flexWrap:
+      "wrap",
+
+    gap:
+      "8px",
   },
 
   documentCard: {
-    overflow: "hidden",
+    overflow:
+      "hidden",
+
     border:
       "1px solid #dedbd2",
-    borderRadius: "16px",
-    background: "#f4f2ed",
+
+    borderRadius:
+      "16px",
+
+    background:
+      "#f4f2ed",
   },
 
   documentToolbar: {
-    display: "flex",
+    display:
+      "flex",
+
     justifyContent:
       "space-between",
-    alignItems: "center",
-    padding: "17px 20px",
+
+    alignItems:
+      "center",
+
+    padding:
+      "17px 20px",
+
     borderBottom:
       "1px solid #dedbd2",
-    background: "#ffffff",
+
+    background:
+      "#ffffff",
   },
 
   document: {
     width:
       "min(900px, calc(100% - 50px))",
-    minHeight: "950px",
-    margin: "28px auto",
-    padding: "45px",
+
+    minHeight:
+      "950px",
+
+    margin:
+      "28px auto",
+
+    padding:
+      "45px",
+
     border:
       "1px solid #dedbd2",
-    background: "#ffffff",
+
+    background:
+      "#ffffff",
+
     boxShadow:
       "0 16px 40px rgba(38,31,13,.08)",
   },
 
   documentHeader: {
-    display: "flex",
+    display:
+      "flex",
+
     justifyContent:
       "space-between",
-    gap: "30px",
-    paddingBottom: "24px",
+
+    gap:
+      "30px",
+
+    paddingBottom:
+      "24px",
+
     borderBottom:
       "3px solid #c99b17",
   },
 
   companyName: {
-    fontSize: "18px",
+    fontSize:
+      "18px",
   },
 
   invoiceTitle: {
-    margin: 0,
-    color: "#936c00",
-    letterSpacing: "2px",
+    margin:
+      0,
+
+    color:
+      "#936c00",
+
+    letterSpacing:
+      "2px",
   },
 
   documentMeta: {
-    display: "grid",
+    display:
+      "grid",
+
     gridTemplateColumns:
       "1fr auto",
-    gap: "40px",
-    padding: "28px 0",
+
+    gap:
+      "40px",
+
+    padding:
+      "28px 0",
   },
 
   docLabel: {
-    display: "block",
-    marginBottom: "6px",
-    color: "#987100",
-    fontSize: "10px",
-    fontWeight: 800,
-    letterSpacing: ".6px",
+    display:
+      "block",
+
+    marginBottom:
+      "6px",
+
+    color:
+      "#987100",
+
+    fontSize:
+      "10px",
+
+    fontWeight:
+      800,
+
+    letterSpacing:
+      ".6px",
+
     textTransform:
       "uppercase",
   },
@@ -2391,126 +2788,247 @@ const detailStyles = {
   invoiceTable: {
     border:
       "1px solid #dfdcd3",
-    borderRadius: "10px",
-    overflow: "hidden",
+
+    borderRadius:
+      "10px",
+
+    overflow:
+      "hidden",
   },
 
   invoiceTableHeader: {
-    display: "grid",
+    display:
+      "grid",
+
     gridTemplateColumns:
       "1fr auto",
-    gap: "20px",
-    padding: "12px 15px",
-    background: "#f5f2eb",
+
+    gap:
+      "20px",
+
+    padding:
+      "12px 15px",
+
+    background:
+      "#f5f2eb",
   },
 
   invoiceTableRow: {
-    display: "grid",
+    display:
+      "grid",
+
     gridTemplateColumns:
       "1fr auto",
-    gap: "20px",
-    padding: "15px",
+
+    gap:
+      "20px",
+
+    padding:
+      "15px",
   },
 
   totals: {
-    display: "grid",
-    width: "360px",
-    maxWidth: "100%",
+    display:
+      "grid",
+
+    width:
+      "360px",
+
+    maxWidth:
+      "100%",
+
     margin:
       "25px 0 25px auto",
   },
 
   totalRow: {
-    display: "flex",
+    display:
+      "flex",
+
     justifyContent:
       "space-between",
-    padding: "9px 0",
+
+    padding:
+      "9px 0",
+
     borderBottom:
       "1px solid #ece9e1",
   },
 
   grandTotal: {
-    marginTop: "4px",
-    padding: "13px",
-    borderBottom: 0,
-    borderRadius: "9px",
-    background: "#f7efd5",
-    color: "#805f00",
-    fontSize: "16px",
+    marginTop:
+      "4px",
+
+    padding:
+      "13px",
+
+    borderBottom:
+      0,
+
+    borderRadius:
+      "9px",
+
+    background:
+      "#f7efd5",
+
+    color:
+      "#805f00",
+
+    fontSize:
+      "16px",
   },
 
   documentSection: {
-    marginTop: "28px",
-    paddingTop: "18px",
+    marginTop:
+      "28px",
+
+    paddingTop:
+      "18px",
+
     borderTop:
       "1px solid #ece9e1",
-    lineHeight: 1.7,
+
+    lineHeight:
+      1.7,
   },
 
   documentFooter: {
-    display: "flex",
+    display:
+      "flex",
+
     justifyContent:
       "space-between",
-    gap: "20px",
-    marginTop: "40px",
-    paddingTop: "16px",
+
+    gap:
+      "20px",
+
+    marginTop:
+      "40px",
+
+    paddingTop:
+      "16px",
+
     borderTop:
       "1px solid #dedbd2",
-    color: "#8f8a80",
-    fontSize: "10px",
+
+    color:
+      "#8f8a80",
+
+    fontSize:
+      "10px",
   },
 
   error: {
-    display: "flex",
+    display:
+      "flex",
+
     justifyContent:
       "space-between",
-    gap: "20px",
-    padding: "20px",
+
+    gap:
+      "20px",
+
+    padding:
+      "20px",
+
     border:
       "1px solid #efcaca",
-    borderRadius: "14px",
-    background: "#fff7f7",
-    color: "#a13e3e",
+
+    borderRadius:
+      "14px",
+
+    background:
+      "#fff7f7",
+
+    color:
+      "#a13e3e",
   },
 
   notFound: {
-    display: "grid",
-    minHeight: "360px",
-    placeItems: "center",
-    alignContent: "center",
-    gap: "10px",
-    textAlign: "center",
+    display:
+      "grid",
+
+    minHeight:
+      "360px",
+
+    placeItems:
+      "center",
+
+    alignContent:
+      "center",
+
+    gap:
+      "10px",
+
+    textAlign:
+      "center",
   },
 
   bigIcon: {
-    display: "grid",
-    width: "55px",
-    height: "55px",
-    placeItems: "center",
-    borderRadius: "14px",
-    background: "#f5edcf",
-    color: "#987000",
-    fontSize: "22px",
+    display:
+      "grid",
+
+    width:
+      "55px",
+
+    height:
+      "55px",
+
+    placeItems:
+      "center",
+
+    borderRadius:
+      "14px",
+
+    background:
+      "#f5edcf",
+
+    color:
+      "#987000",
+
+    fontSize:
+      "22px",
   },
 
   primaryLink: {
-    padding: "11px 15px",
-    borderRadius: "9px",
-    background: "#dca900",
-    color: "#17130a",
-    fontSize: "12px",
-    fontWeight: 750,
-    textDecoration: "none",
+    padding:
+      "11px 15px",
+
+    borderRadius:
+      "9px",
+
+    background:
+      "#dca900",
+
+    color:
+      "#17130a",
+
+    fontSize:
+      "12px",
+
+    fontWeight:
+      750,
+
+    textDecoration:
+      "none",
   },
 
   loading: {
-    display: "grid",
-    gap: "11px",
+    display:
+      "grid",
+
+    gap:
+      "11px",
   },
 
   loadingRow: {
-    height: "72px",
-    borderRadius: "12px",
-    background: "#eeece6",
+    height:
+      "72px",
+
+    borderRadius:
+      "12px",
+
+    background:
+      "#eeece6",
   },
 };
