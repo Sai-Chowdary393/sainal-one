@@ -317,105 +317,17 @@ export default function ProjectDetailsPage() {
           null
       );
 
-      setAccess({
-        isOwner:
-          Boolean(
-            data.access
-              ?.isOwner
-          ),
+      setAccess(
+        buildAccess(
+          data.access
+        )
+      );
 
-        canViewAll:
-          Boolean(
-            data.access
-              ?.canViewAll
-          ),
-
-        canViewTeam:
-          Boolean(
-            data.access
-              ?.canViewTeam
-          ),
-
-        canViewOwn:
-          Boolean(
-            data.access
-              ?.canViewOwn
-          ),
-
-        canCreate:
-          Boolean(
-            data.access
-              ?.canCreate
-          ),
-
-        canEdit:
-          Boolean(
-            data.access
-              ?.canEdit
-          ),
-
-        canDelete:
-          Boolean(
-            data.access
-              ?.canDelete
-          ),
-
-        canAssign:
-          Boolean(
-            data.access
-              ?.canAssign
-          ),
-      });
-
-      setTaskAccess({
-        isOwner:
-          Boolean(
-            data.taskAccess
-              ?.isOwner
-          ),
-
-        canViewAll:
-          Boolean(
-            data.taskAccess
-              ?.canViewAll
-          ),
-
-        canViewTeam:
-          Boolean(
-            data.taskAccess
-              ?.canViewTeam
-          ),
-
-        canViewOwn:
-          Boolean(
-            data.taskAccess
-              ?.canViewOwn
-          ),
-
-        canCreate:
-          Boolean(
-            data.taskAccess
-              ?.canCreate
-          ),
-
-        canEdit:
-          Boolean(
-            data.taskAccess
-              ?.canEdit
-          ),
-
-        canDelete:
-          Boolean(
-            data.taskAccess
-              ?.canDelete
-          ),
-
-        canAssign:
-          Boolean(
-            data.taskAccess
-              ?.canAssign
-          ),
-      });
+      setTaskAccess(
+        buildAccess(
+          data.taskAccess
+        )
+      );
 
       if (
         nextProject
@@ -649,6 +561,8 @@ export default function ProjectDetailsPage() {
         populateEditForm(
           data.project
         );
+      } else {
+        await fetchProjectDetails();
       }
 
       setShowEditForm(
@@ -687,7 +601,8 @@ export default function ProjectDetailsPage() {
 
       assigned_employee_id:
         taskAccess.canAssign
-          ? project.owner_employee_id ||
+          ? project
+              ?.owner_employee_id ||
             currentEmployee
               ?.id ||
             ""
@@ -848,6 +763,26 @@ export default function ProjectDetailsPage() {
       !taskAccess.canCreate
     ) {
       return;
+    }
+
+    /*
+     * Prevent accidental duplicate template generation.
+     * Manual tasks can still be added using "+ Add task".
+     */
+    if (
+      tasks.length >
+      0
+    ) {
+      const confirmed =
+        window.confirm(
+          "This project already has tasks. Generate another set of default tasks?"
+        );
+
+      if (
+        !confirmed
+      ) {
+        return;
+      }
     }
 
     const defaults = [
@@ -1250,7 +1185,9 @@ export default function ProjectDetailsPage() {
         "Delete this project? Projects with linked tasks or invoices cannot be deleted."
       );
 
-    if (!confirmed) {
+    if (
+      !confirmed
+    ) {
       return;
     }
 
@@ -1302,6 +1239,13 @@ export default function ProjectDetailsPage() {
   // =======================================================
 
   async function generateInvoice() {
+    if (
+      !project ||
+      generatingInvoice
+    ) {
+      return;
+    }
+
     try {
       setGeneratingInvoice(
         true
@@ -1375,6 +1319,13 @@ export default function ProjectDetailsPage() {
       ) {
         router.push(
           `/invoices/${data.invoice.id}`
+        );
+      } else {
+        await fetchProjectDetails();
+
+        alert(
+          data.message ||
+            "Invoice generated successfully."
         );
       }
     } catch (error) {
@@ -1526,9 +1477,21 @@ export default function ProjectDetailsPage() {
               styles.notFound
             }
           >
+            <span
+              className={
+                styles.notFoundIcon
+              }
+            >
+              ▰
+            </span>
+
             <h2>
               Project not found
             </h2>
+
+            <p>
+              The project may have been removed or you may not have access to it.
+            </p>
 
             <Link
               href="/projects"
@@ -1545,23 +1508,39 @@ export default function ProjectDetailsPage() {
   }
 
   // =======================================================
+  // CLEAN DISPLAY HIERARCHY
+  // =======================================================
+
+  const customerName =
+    customer?.company ||
+    customer?.customer_name ||
+    "Customer";
+
+  const serviceName =
+    quote?.service ||
+    project.description ||
+    project.project_name ||
+    "Project delivery";
+
+  // =======================================================
   // PAGE
   // =======================================================
 
   return (
     <ProtectedRoute>
       <AppLayout
-        title={
-          project.project_name ||
-          "Project Workspace"
-        }
-        description="Manage delivery, ownership, project tasks and invoicing."
+        title="Project Workspace"
+        description="Manage delivery, tasks and invoicing."
       >
         <div
           className={
             styles.page
           }
         >
+          {/* =================================================
+              PAGE HEADER
+          ================================================= */}
+
           <section
             className={
               styles.pageHeader
@@ -1590,14 +1569,11 @@ export default function ProjectDetailsPage() {
               </span>
 
               <h2>
-                {
-                  project.project_name
-                }
+                {customerName}
               </h2>
 
               <p>
-                {project.description ||
-                  "Manage project delivery and tasks."}
+                {serviceName}
               </p>
             </div>
 
@@ -1637,7 +1613,9 @@ export default function ProjectDetailsPage() {
                     generateDefaultTasks
                   }
                 >
-                  Generate default tasks
+                  {savingTask
+                    ? "Generating..."
+                    : "Generate default tasks"}
                 </button>
               )}
 
@@ -1694,43 +1672,50 @@ export default function ProjectDetailsPage() {
                     deleteProject
                   }
                 >
-                  Delete project
+                  {deletingProject
+                    ? "Deleting..."
+                    : "Delete project"}
                 </button>
               )}
             </div>
           </section>
 
+          {/* =================================================
+              ADD TASK
+          ================================================= */}
+
           {showTaskForm &&
             taskAccess.canCreate && (
               <section
                 className={
-                  styles.panel
+                  styles.taskFormPanel
                 }
               >
                 <div
                   className={
-                    styles.panelHeader
+                    styles.taskFormHeader
                   }
                 >
-                  <div>
-                    <h3>
-                      Add task
-                    </h3>
+                  <h3>
+                    Add task
+                  </h3>
 
-                    <p>
-                      Create a delivery task for this project.
-                    </p>
-                  </div>
+                  <p>
+                    Create a delivery task for this project.
+                  </p>
                 </div>
 
                 <form
+                  className={
+                    styles.taskForm
+                  }
                   onSubmit={
                     createTask
                   }
                 >
                   <div
-                    style={
-                      formGridStyle
+                    className={
+                      styles.formGrid
                     }
                   >
                     <TaskField
@@ -1785,25 +1770,25 @@ export default function ProjectDetailsPage() {
                     />
 
                     {taskAccess.canAssign && (
-                      <label
-                        style={
-                          fieldStyle
+                      <div
+                        className={
+                          styles.field
                         }
                       >
-                        <span>
+                        <label
+                          htmlFor="task-assigned-employee"
+                        >
                           Assigned employee
-                        </span>
+                        </label>
 
                         <select
+                          id="task-assigned-employee"
                           name="assigned_employee_id"
                           value={
                             taskForm.assigned_employee_id
                           }
                           onChange={
                             handleTaskFormChange
-                          }
-                          style={
-                            inputStyle
                           }
                         >
                           <option value="">
@@ -1829,44 +1814,36 @@ export default function ProjectDetailsPage() {
                             )
                           )}
                         </select>
-                      </label>
+                      </div>
                     )}
+
+                    <div
+                      className={`${styles.field} ${styles.fieldFull}`}
+                    >
+                      <label
+                        htmlFor="task-description"
+                      >
+                        Description
+                      </label>
+
+                      <textarea
+                        id="task-description"
+                        name="description"
+                        rows={4}
+                        value={
+                          taskForm.description
+                        }
+                        onChange={
+                          handleTaskFormChange
+                        }
+                      />
+                    </div>
                   </div>
-
-                  <label
-                    style={{
-                      ...fieldStyle,
-                      marginTop:
-                        "14px",
-                    }}
-                  >
-                    <span>
-                      Description
-                    </span>
-
-                    <textarea
-                      name="description"
-                      rows={4}
-                      value={
-                        taskForm.description
-                      }
-                      onChange={
-                        handleTaskFormChange
-                      }
-                      style={
-                        textareaStyle
-                      }
-                    />
-                  </label>
 
                   <div
                     className={
-                      styles.headerActions
+                      styles.formActions
                     }
-                    style={{
-                      marginTop:
-                        "18px",
-                    }}
                   >
                     <button
                       type="button"
@@ -1898,6 +1875,10 @@ export default function ProjectDetailsPage() {
               </section>
             )}
 
+          {/* =================================================
+              EDIT PROJECT
+          ================================================= */}
+
           {showEditForm &&
             access.canEdit && (
               <section
@@ -1910,19 +1891,32 @@ export default function ProjectDetailsPage() {
                     styles.panelHeader
                   }
                 >
-                  <h3>
-                    Edit project
-                  </h3>
+                  <div>
+                    <h3>
+                      Edit project
+                    </h3>
+
+                    <p>
+                      Update delivery information, dates, status and ownership.
+                    </p>
+                  </div>
                 </div>
 
                 <form
+                  className={
+                    styles.taskForm
+                  }
                   onSubmit={
                     saveProject
                   }
+                  style={{
+                    marginTop:
+                      "18px",
+                  }}
                 >
                   <div
-                    style={
-                      formGridStyle
+                    className={
+                      styles.formGrid
                     }
                   >
                     <TaskField
@@ -1970,16 +1964,96 @@ export default function ProjectDetailsPage() {
                         handleEditChange
                       }
                     />
+
+                    <TaskSelect
+                      label="Status"
+                      name="status"
+                      value={
+                        editForm.status
+                      }
+                      onChange={
+                        handleEditChange
+                      }
+                      options={
+                        PROJECT_STATUS_OPTIONS
+                      }
+                    />
+
+                    {access.canAssign && (
+                      <div
+                        className={
+                          styles.field
+                        }
+                      >
+                        <label
+                          htmlFor="project-owner"
+                        >
+                          Project owner
+                        </label>
+
+                        <select
+                          id="project-owner"
+                          name="owner_employee_id"
+                          value={
+                            editForm.owner_employee_id
+                          }
+                          onChange={
+                            handleEditChange
+                          }
+                        >
+                          <option value="">
+                            Unassigned
+                          </option>
+
+                          {employees.map(
+                            (
+                              employee
+                            ) => (
+                              <option
+                                key={
+                                  employee.id
+                                }
+                                value={
+                                  employee.id
+                                }
+                              >
+                                {
+                                  employee.full_name
+                                }
+                              </option>
+                            )
+                          )}
+                        </select>
+                      </div>
+                    )}
+
+                    <div
+                      className={`${styles.field} ${styles.fieldFull}`}
+                    >
+                      <label
+                        htmlFor="project-description"
+                      >
+                        Description
+                      </label>
+
+                      <textarea
+                        id="project-description"
+                        name="description"
+                        rows={5}
+                        value={
+                          editForm.description
+                        }
+                        onChange={
+                          handleEditChange
+                        }
+                      />
+                    </div>
                   </div>
 
                   <div
                     className={
-                      styles.headerActions
+                      styles.formActions
                     }
-                    style={{
-                      marginTop:
-                        "18px",
-                    }}
                   >
                     <button
                       type="button"
@@ -2002,12 +2076,18 @@ export default function ProjectDetailsPage() {
                         savingProject
                       }
                     >
-                      Save project
+                      {savingProject
+                        ? "Saving..."
+                        : "Save project"}
                     </button>
                   </div>
                 </form>
               </section>
             )}
+
+          {/* =================================================
+              PROJECT HERO
+          ================================================= */}
 
           <section
             className={
@@ -2032,23 +2112,65 @@ export default function ProjectDetailsPage() {
                   styles.identityCopy
                 }
               >
-                <StatusBadge
-                  status={
-                    project.status ||
-                    "Planning"
+                <span
+                  className={
+                    styles.identityLabel
                   }
-                />
+                >
+                  Project delivery
+                </span>
 
                 <h3>
-                  {
-                    project.project_name
-                  }
+                  {serviceName}
                 </h3>
 
                 <p>
-                  {project.description ||
-                    "No description"}
+                  {customerName}
                 </p>
+
+                <div
+                  className={
+                    styles.identityMeta
+                  }
+                >
+                  <StatusBadge
+                    status={
+                      project.status ||
+                      "Planning"
+                    }
+                  />
+
+                  <span
+                    className={
+                      styles.metaBadge
+                    }
+                  >
+                    Owner:{" "}
+                    {project.owner
+                      ?.full_name ||
+                      "Unassigned"}
+                  </span>
+
+                  <span
+                    className={
+                      styles.metaBadge
+                    }
+                  >
+                    {formatProjectAmount(
+                      project.amount
+                    )}
+                  </span>
+
+                  {project.quote_id && (
+                    <span
+                      className={
+                        styles.linkedBadge
+                      }
+                    >
+                      Linked quote
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -2074,9 +2196,17 @@ export default function ProjectDetailsPage() {
                 value={
                   metrics.overdue
                 }
+                warning={
+                  metrics.overdue >
+                  0
+                }
               />
             </div>
           </section>
+
+          {/* =================================================
+              PROJECT TASKS
+          ================================================= */}
 
           <section
             className={
@@ -2114,77 +2244,61 @@ export default function ProjectDetailsPage() {
             {tasks.length ===
             0 ? (
               <div
-                style={
-                  emptyStateStyle
+                className={
+                  styles.emptyState
                 }
               >
-                <strong>
+                <span
+                  className={
+                    styles.emptyIcon
+                  }
+                >
+                  ✓
+                </span>
+
+                <h3>
                   No visible tasks
-                </strong>
+                </h3>
 
                 <p>
                   There are no tasks available within your current Task permissions.
+                  You can add a task or generate the default delivery template.
                 </p>
               </div>
             ) : (
               <div
-                style={{
-                  overflowX:
-                    "auto",
-                }}
+                className={
+                  styles.taskTableWrapper
+                }
               >
                 <table
-                  style={
-                    tableStyle
+                  className={
+                    styles.taskTable
                   }
                 >
                   <thead>
                     <tr>
-                      <th
-                        style={
-                          tableHeaderStyle
-                        }
-                      >
+                      <th>
                         Task
                       </th>
 
-                      <th
-                        style={
-                          tableHeaderStyle
-                        }
-                      >
+                      <th>
                         Assignee
                       </th>
 
-                      <th
-                        style={
-                          tableHeaderStyle
-                        }
-                      >
+                      <th>
                         Status
                       </th>
 
-                      <th
-                        style={
-                          tableHeaderStyle
-                        }
-                      >
+                      <th>
                         Priority
                       </th>
 
-                      <th
-                        style={
-                          tableHeaderStyle
-                        }
-                      >
+                      <th>
                         Due
                       </th>
 
-                      <th
-                        style={
-                          tableHeaderStyle
-                        }
-                      >
+                      <th>
                         Actions
                       </th>
                     </tr>
@@ -2199,58 +2313,92 @@ export default function ProjectDetailsPage() {
                           editingTaskId ===
                           task.id;
 
+                        const overdue =
+                          isTaskOverdue(
+                            task
+                          );
+
                         return (
                           <tr
                             key={
                               task.id
                             }
+                            className={
+                              editing
+                                ? styles.editRow
+                                : ""
+                            }
                           >
-                            <td
-                              style={
-                                tableCellStyle
-                              }
-                            >
-                              {editing ? (
-                                <input
-                                  name="task_name"
-                                  value={
-                                    taskEditForm.task_name
+                            <td>
+                              <div
+                                className={
+                                  styles.taskIdentity
+                                }
+                              >
+                                <span
+                                  className={
+                                    styles.taskIcon
                                   }
-                                  onChange={
-                                    handleTaskEditChange
-                                  }
-                                  style={
-                                    inputStyle
-                                  }
-                                />
-                              ) : (
-                                <>
-                                  <strong>
-                                    {
-                                      task.task_name
-                                    }
-                                  </strong>
+                                >
+                                  ✓
+                                </span>
 
-                                  {task.description && (
-                                    <div
-                                      style={
-                                        tableDescriptionStyle
-                                      }
-                                    >
-                                      {
-                                        task.description
-                                      }
-                                    </div>
+                                <div
+                                  className={
+                                    styles.taskIdentityCopy
+                                  }
+                                >
+                                  {editing &&
+                                  taskAccess.canEdit ? (
+                                    <>
+                                      <input
+                                        name="task_name"
+                                        value={
+                                          taskEditForm.task_name
+                                        }
+                                        onChange={
+                                          handleTaskEditChange
+                                        }
+                                        style={
+                                          inputStyle
+                                        }
+                                      />
+
+                                      <textarea
+                                        name="description"
+                                        rows={3}
+                                        value={
+                                          taskEditForm.description
+                                        }
+                                        onChange={
+                                          handleTaskEditChange
+                                        }
+                                        style={{
+                                          ...textareaStyle,
+                                          marginTop:
+                                            "8px",
+                                        }}
+                                      />
+                                    </>
+                                  ) : (
+                                    <>
+                                      <strong>
+                                        {
+                                          task.task_name
+                                        }
+                                      </strong>
+
+                                      <small>
+                                        {task.description ||
+                                          "No task description"}
+                                      </small>
+                                    </>
                                   )}
-                                </>
-                              )}
+                                </div>
+                              </div>
                             </td>
 
-                            <td
-                              style={
-                                tableCellStyle
-                              }
-                            >
+                            <td>
                               {editing &&
                               taskAccess.canAssign ? (
                                 <select
@@ -2261,8 +2409,8 @@ export default function ProjectDetailsPage() {
                                   onChange={
                                     handleTaskEditChange
                                   }
-                                  style={
-                                    inputStyle
+                                  className={
+                                    styles.statusSelect
                                   }
                                 >
                                   <option value="">
@@ -2295,11 +2443,7 @@ export default function ProjectDetailsPage() {
                               )}
                             </td>
 
-                            <td
-                              style={
-                                tableCellStyle
-                              }
-                            >
+                            <td>
                               {editing &&
                               taskAccess.canEdit ? (
                                 <select
@@ -2310,8 +2454,8 @@ export default function ProjectDetailsPage() {
                                   onChange={
                                     handleTaskEditChange
                                   }
-                                  style={
-                                    inputStyle
+                                  className={
+                                    styles.statusSelect
                                   }
                                 >
                                   {TASK_STATUS_OPTIONS.map(
@@ -2343,11 +2487,7 @@ export default function ProjectDetailsPage() {
                               )}
                             </td>
 
-                            <td
-                              style={
-                                tableCellStyle
-                              }
-                            >
+                            <td>
                               {editing &&
                               taskAccess.canEdit ? (
                                 <select
@@ -2358,8 +2498,8 @@ export default function ProjectDetailsPage() {
                                   onChange={
                                     handleTaskEditChange
                                   }
-                                  style={
-                                    inputStyle
+                                  className={
+                                    styles.statusSelect
                                   }
                                 >
                                   {TASK_PRIORITY_OPTIONS.map(
@@ -2387,11 +2527,7 @@ export default function ProjectDetailsPage() {
                               )}
                             </td>
 
-                            <td
-                              style={
-                                tableCellStyle
-                              }
-                            >
+                            <td>
                               {editing &&
                               taskAccess.canEdit ? (
                                 <input
@@ -2408,20 +2544,36 @@ export default function ProjectDetailsPage() {
                                   }
                                 />
                               ) : (
-                                formatDate(
-                                  task.due_date
-                                )
+                                <>
+                                  <span
+                                    className={`${styles.taskDate} ${
+                                      overdue
+                                        ? styles.taskDateOverdue
+                                        : ""
+                                    }`}
+                                  >
+                                    {formatDate(
+                                      task.due_date
+                                    )}
+                                  </span>
+
+                                  {overdue && (
+                                    <span
+                                      className={
+                                        styles.overdueLabel
+                                      }
+                                    >
+                                      Overdue
+                                    </span>
+                                  )}
+                                </>
                               )}
                             </td>
 
-                            <td
-                              style={
-                                tableCellStyle
-                              }
-                            >
+                            <td>
                               <div
-                                style={
-                                  actionRowStyle
+                                className={
+                                  styles.taskActions
                                 }
                               >
                                 {editing ? (
@@ -2430,6 +2582,9 @@ export default function ProjectDetailsPage() {
                                       type="button"
                                       className={
                                         styles.primaryButton
+                                      }
+                                      disabled={
+                                        savingTask
                                       }
                                       onClick={() =>
                                         saveTask(
@@ -2459,7 +2614,7 @@ export default function ProjectDetailsPage() {
                                       <button
                                         type="button"
                                         className={
-                                          styles.secondaryButton
+                                          styles.smallButton
                                         }
                                         onClick={() =>
                                           startTaskEdit(
@@ -2472,14 +2627,15 @@ export default function ProjectDetailsPage() {
                                     )}
 
                                     {taskAccess.canEdit &&
-                                      normaliseStatus(
-                                        task.status
-                                      ) !==
-                                        "completed" && (
+                                      !COMPLETED_TASK_STATUSES.includes(
+                                        normaliseStatus(
+                                          task.status
+                                        )
+                                      ) && (
                                         <button
                                           type="button"
                                           className={
-                                            styles.secondaryButton
+                                            styles.successButton
                                           }
                                           onClick={() =>
                                             quickTaskStatus(
@@ -2496,7 +2652,7 @@ export default function ProjectDetailsPage() {
                                       <button
                                         type="button"
                                         className={
-                                          styles.secondaryButton
+                                          styles.dangerButton
                                         }
                                         onClick={() =>
                                           deleteTask(
@@ -2521,73 +2677,216 @@ export default function ProjectDetailsPage() {
             )}
           </section>
 
+          {/* =================================================
+              INFORMATION + PROGRESS
+          ================================================= */}
+
           <section
             className={
-              styles.panel
+              styles.workspaceGrid
             }
           >
-            <div
+            <section
               className={
-                styles.panelHeader
+                styles.panel
               }
             >
-              <h3>
-                Project information
-              </h3>
-            </div>
+              <div
+                className={
+                  styles.panelHeader
+                }
+              >
+                <div>
+                  <h3>
+                    Project information
+                  </h3>
 
-            <div
+                  <p>
+                    Delivery ownership, customer and commercial information.
+                  </p>
+                </div>
+              </div>
+
+              <div
+                className={
+                  styles.detailList
+                }
+              >
+                <DetailRow
+                  label="Owner"
+                  value={
+                    project.owner
+                      ?.full_name ||
+                    "Unassigned"
+                  }
+                />
+
+                <DetailRow
+                  label="Customer"
+                  value={
+                    customerName
+                  }
+                />
+
+                <DetailRow
+                  label="Project value"
+                  value={
+                    formatProjectAmount(
+                      project.amount
+                    )
+                  }
+                />
+
+                <DetailRow
+                  label="Start date"
+                  value={
+                    formatDate(
+                      project.start_date
+                    )
+                  }
+                />
+
+                <DetailRow
+                  label="Due date"
+                  value={
+                    formatDate(
+                      project.due_date
+                    )
+                  }
+                />
+
+                <DetailRow
+                  label="Status"
+                  customValue={
+                    <StatusBadge
+                      status={
+                        project.status ||
+                        "Planning"
+                      }
+                    />
+                  }
+                />
+
+                {quote?.quote_number && (
+                  <DetailRow
+                    label="Source quote"
+                    customValue={
+                      <Link
+                        href={`/quotes/${quote.id}`}
+                      >
+                        {quote.quote_number} →
+                      </Link>
+                    }
+                  />
+                )}
+              </div>
+            </section>
+
+            <section
               className={
-                styles.detailList
+                styles.panel
               }
             >
-              <DetailRow
-                label="Owner"
-                value={
-                  project.owner
-                    ?.full_name ||
-                  "Unassigned"
+              <div
+                className={
+                  styles.panelHeader
                 }
-              />
+              >
+                <div>
+                  <h3>
+                    Delivery progress
+                  </h3>
 
-              <DetailRow
-                label="Customer"
-                value={
-                  customer?.company ||
-                  customer?.customer_name ||
-                  "Not linked"
-                }
-              />
+                  <p>
+                    Current task completion and delivery health.
+                  </p>
+                </div>
+              </div>
 
-              <DetailRow
-                label="Project value"
-                value={
-                  formatProjectAmount(
-                    project.amount
-                  )
+              <div
+                className={
+                  styles.progressOverview
                 }
-              />
+              >
+                <div
+                  className={
+                    styles.progressHeader
+                  }
+                >
+                  <strong>
+                    {metrics.progress}%
+                  </strong>
 
-              <DetailRow
-                label="Start date"
-                value={
-                  formatDate(
-                    project.start_date
-                  )
-                }
-              />
+                  <span>
+                    {metrics.completed} of {metrics.total} tasks completed
+                  </span>
+                </div>
 
-              <DetailRow
-                label="Due date"
-                value={
-                  formatDate(
-                    project.due_date
-                  )
-                }
-              />
-            </div>
+                <div
+                  className={
+                    styles.progressTrack
+                  }
+                >
+                  <div
+                    className={
+                      styles.progressFill
+                    }
+                    style={{
+                      width:
+                        `${metrics.progress}%`,
+                    }}
+                  />
+                </div>
+
+                <div
+                  className={
+                    styles.progressMetrics
+                  }
+                >
+                  <ProgressMetric
+                    label="Tasks"
+                    value={
+                      metrics.total
+                    }
+                  />
+
+                  <ProgressMetric
+                    label="Completed"
+                    value={
+                      metrics.completed
+                    }
+                  />
+
+                  <ProgressMetric
+                    label="Blocked"
+                    value={
+                      metrics.blocked
+                    }
+                    warning={
+                      metrics.blocked >
+                      0
+                    }
+                  />
+
+                  <ProgressMetric
+                    label="Overdue"
+                    value={
+                      metrics.overdue
+                    }
+                    danger={
+                      metrics.overdue >
+                      0
+                    }
+                  />
+                </div>
+              </div>
+            </section>
           </section>
 
+          {/* =================================================
+              LINKED INVOICES
+          ================================================= */}
+
           <section
             className={
               styles.panel
@@ -2598,32 +2897,71 @@ export default function ProjectDetailsPage() {
                 styles.panelHeader
               }
             >
-              <h3>
-                Linked invoices
-              </h3>
+              <div>
+                <h3>
+                  Linked invoices
+                </h3>
+
+                <p>
+                  Finance records generated from this project.
+                </p>
+              </div>
             </div>
 
             {invoices.length ===
             0 ? (
               <div
-                style={
-                  emptyStateStyle
+                className={
+                  styles.emptyState
                 }
               >
-                No linked invoices.
+                <span
+                  className={
+                    styles.emptyIcon
+                  }
+                >
+                  £
+                </span>
+
+                <h3>
+                  No linked invoices
+                </h3>
+
+                <p>
+                  When the project is completed, use Generate invoice to create the customer invoice.
+                </p>
               </div>
             ) : (
               <div
-                style={{
-                  overflowX:
-                    "auto",
-                }}
+                className={
+                  styles.taskTableWrapper
+                }
               >
                 <table
-                  style={
-                    tableStyle
+                  className={
+                    styles.taskTable
                   }
                 >
+                  <thead>
+                    <tr>
+                      <th>
+                        Invoice
+                      </th>
+
+                      <th>
+                        Amount
+                      </th>
+
+                      <th>
+                        Status
+                      </th>
+
+                      <th>
+                        Due date
+                      </th>
+                    </tr>
+                  </thead>
+
                   <tbody>
                     {invoices.map(
                       (
@@ -2634,11 +2972,7 @@ export default function ProjectDetailsPage() {
                             invoice.id
                           }
                         >
-                          <td
-                            style={
-                              tableCellStyle
-                            }
-                          >
+                          <td>
                             <Link
                               href={`/invoices/${invoice.id}`}
                             >
@@ -2648,27 +2982,27 @@ export default function ProjectDetailsPage() {
                             </Link>
                           </td>
 
-                          <td
-                            style={
-                              tableCellStyle
-                            }
-                          >
-                            {invoice.total_amount ||
-                              invoice.amount ||
-                              "Not set"}
+                          <td>
+                            {formatProjectAmount(
+                              invoice.total_amount ||
+                                invoice.amount ||
+                                invoice.subtotal
+                            )}
                           </td>
 
-                          <td
-                            style={
-                              tableCellStyle
-                            }
-                          >
+                          <td>
                             <StatusBadge
                               status={
                                 invoice.status ||
                                 "Draft Invoice"
                               }
                             />
+                          </td>
+
+                          <td>
+                            {formatDate(
+                              invoice.due_date
+                            )}
                           </td>
                         </tr>
                       )
@@ -2696,16 +3030,23 @@ function TaskField({
   type = "text",
 }) {
   return (
-    <label
-      style={
-        fieldStyle
+    <div
+      className={
+        styles.field
       }
     >
-      <span>
+      <label
+        htmlFor={
+          name
+        }
+      >
         {label}
-      </span>
+      </label>
 
       <input
+        id={
+          name
+        }
         name={
           name
         }
@@ -2713,16 +3054,14 @@ function TaskField({
           type
         }
         value={
-          value
+          value ||
+          ""
         }
         onChange={
           onChange
         }
-        style={
-          inputStyle
-        }
       />
-    </label>
+    </div>
   );
 }
 
@@ -2734,27 +3073,32 @@ function TaskSelect({
   options,
 }) {
   return (
-    <label
-      style={
-        fieldStyle
+    <div
+      className={
+        styles.field
       }
     >
-      <span>
+      <label
+        htmlFor={
+          name
+        }
+      >
         {label}
-      </span>
+      </label>
 
       <select
+        id={
+          name
+        }
         name={
           name
         }
         value={
-          value
+          value ||
+          ""
         }
         onChange={
           onChange
-        }
-        style={
-          inputStyle
         }
       >
         {options.map(
@@ -2774,19 +3118,59 @@ function TaskSelect({
           )
         )}
       </select>
-    </label>
+    </div>
+  );
+}
+
+function DetailRow({
+  label,
+  value,
+  customValue,
+}) {
+  return (
+    <div
+      className={
+        styles.detailRow
+      }
+    >
+      <span>
+        {label}
+      </span>
+
+      {customValue || (
+        <strong
+          className={
+            value &&
+            value !==
+              "Not set" &&
+            value !==
+              "Not linked" &&
+            value !==
+              "Unassigned"
+              ? ""
+              : styles.emptyValue
+          }
+        >
+          {value ||
+            "Not set"}
+        </strong>
+      )}
+    </div>
   );
 }
 
 function HeroMetric({
   label,
   value,
+  warning = false,
 }) {
   return (
     <div
-      className={
-        styles.heroMetric
-      }
+      className={`${styles.heroMetric} ${
+        warning
+          ? styles.heroMetricWarning
+          : ""
+      }`}
     >
       <span>
         {label}
@@ -2799,23 +3183,30 @@ function HeroMetric({
   );
 }
 
-function DetailRow({
+function ProgressMetric({
   label,
   value,
+  warning = false,
+  danger = false,
 }) {
   return (
     <div
-      className={
-        styles.detailRow
-      }
+      className={`${styles.progressMetric} ${
+        warning
+          ? styles.progressMetricWarning
+          : ""
+      } ${
+        danger
+          ? styles.progressMetricDanger
+          : ""
+      }`}
     >
       <span>
         {label}
       </span>
 
       <strong>
-        {value ||
-          "Not available"}
+        {value}
       </strong>
     </div>
   );
@@ -2854,6 +3245,52 @@ function LoadingState() {
 // HELPERS
 // =========================================================
 
+function buildAccess(
+  source
+) {
+  return {
+    isOwner:
+      Boolean(
+        source?.isOwner
+      ),
+
+    canViewAll:
+      Boolean(
+        source?.canViewAll
+      ),
+
+    canViewTeam:
+      Boolean(
+        source?.canViewTeam
+      ),
+
+    canViewOwn:
+      Boolean(
+        source?.canViewOwn
+      ),
+
+    canCreate:
+      Boolean(
+        source?.canCreate
+      ),
+
+    canEdit:
+      Boolean(
+        source?.canEdit
+      ),
+
+    canDelete:
+      Boolean(
+        source?.canDelete
+      ),
+
+    canAssign:
+      Boolean(
+        source?.canAssign
+      ),
+  };
+}
+
 function normaliseStatus(
   value
 ) {
@@ -2868,34 +3305,58 @@ function normaliseStatus(
 function normaliseDateInput(
   value
 ) {
-  if (!value) {
+  if (
+    !value
+  ) {
     return "";
   }
 
-  return String(
-    value
-  ).slice(
-    0,
-    10
-  );
+  const text =
+    String(
+      value
+    );
+
+  if (
+    /^\d{4}-\d{2}-\d{2}$/.test(
+      text
+    )
+  ) {
+    return text;
+  }
+
+  const date =
+    new Date(
+      value
+    );
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return "";
+  }
+
+  return date
+    .toISOString()
+    .slice(
+      0,
+      10
+    );
 }
 
 function formatDate(
   value
 ) {
-  if (!value) {
+  if (
+    !value
+  ) {
     return "Not set";
   }
 
   const date =
     new Date(
-      String(
-        value
-      ).includes(
-        "T"
-      )
-        ? value
-        : `${value}T12:00:00`
+      value
     );
 
   if (
@@ -2925,69 +3386,105 @@ function isTaskOverdue(
   task
 ) {
   if (
-    !task.due_date ||
+    !task?.due_date
+  ) {
+    return false;
+  }
+
+  if (
     COMPLETED_TASK_STATUSES.includes(
       normaliseStatus(
         task.status
       )
+    ) ||
+    normaliseStatus(
+      task.status
+    ) ===
+      "cancelled"
+  ) {
+    return false;
+  }
+
+  const due =
+    new Date(
+      task.due_date
+    );
+
+  if (
+    Number.isNaN(
+      due.getTime()
     )
   ) {
     return false;
   }
 
-  const date =
-    new Date(
-      `${String(
-        task.due_date
-      ).slice(
-        0,
-        10
-      )}T23:59:59`
-    );
-
-  return (
-    !Number.isNaN(
-      date.getTime()
-    ) &&
-    date <
-      new Date()
+  due.setHours(
+    23,
+    59,
+    59,
+    999
   );
+
+  return due.getTime() <
+    Date.now();
 }
 
 function sortTasks(
-  first,
-  second
+  a,
+  b
 ) {
-  const firstDone =
+  const aCompleted =
     COMPLETED_TASK_STATUSES.includes(
       normaliseStatus(
-        first.status
+        a.status
       )
     );
 
-  const secondDone =
+  const bCompleted =
     COMPLETED_TASK_STATUSES.includes(
       normaliseStatus(
-        second.status
+        b.status
       )
     );
 
   if (
-    firstDone !==
-    secondDone
+    aCompleted !==
+    bCompleted
   ) {
-    return firstDone
+    return aCompleted
       ? 1
       : -1;
   }
 
+  const aDue =
+    a.due_date
+      ? new Date(
+          a.due_date
+        ).getTime()
+      : Number.MAX_SAFE_INTEGER;
+
+  const bDue =
+    b.due_date
+      ? new Date(
+          b.due_date
+        ).getTime()
+      : Number.MAX_SAFE_INTEGER;
+
+  if (
+    aDue !==
+    bDue
+  ) {
+    return aDue -
+      bDue;
+  }
+
   return String(
-    first.due_date ||
-      "9999"
+    a.task_name ||
+      ""
   ).localeCompare(
     String(
-      second.due_date ||
-        "9999"
+      b.task_name ||
+        ""
     )
   );
 }
@@ -2996,14 +3493,19 @@ function getMoneyValue(
   value
 ) {
   const parsed =
-    Number(
+    Number.parseFloat(
       String(
         value ||
           ""
-      ).replace(
-        /[^0-9.-]/g,
-        ""
       )
+        .replace(
+          /,/g,
+          ""
+        )
+        .replace(
+          /[^0-9.-]/g,
+          ""
+        )
     );
 
   return Number.isFinite(
@@ -3016,7 +3518,14 @@ function getMoneyValue(
 function formatProjectAmount(
   value
 ) {
-  if (!value) {
+  if (
+    value ===
+      null ||
+    value ===
+      undefined ||
+    value ===
+      ""
+  ) {
     return "Not set";
   }
 
@@ -3040,110 +3549,41 @@ function formatProjectAmount(
 }
 
 // =========================================================
-// SMALL INLINE STYLES
+// INLINE FALLBACK STYLES FOR TASK EDIT CONTROLS
 // =========================================================
-
-const fieldStyle = {
-  display:
-    "grid",
-  gap:
-    "7px",
-  fontSize:
-    "13px",
-  fontWeight:
-    700,
-};
 
 const inputStyle = {
   width:
     "100%",
+
   minHeight:
     "40px",
+
   padding:
     "8px 10px",
+
   border:
     "1px solid #d8dee8",
+
   borderRadius:
     "8px",
+
   background:
     "#ffffff",
+
   fontFamily:
     "inherit",
+
   fontSize:
     "13px",
 };
 
 const textareaStyle = {
   ...inputStyle,
+
   minHeight:
     "90px",
+
   resize:
     "vertical",
-};
-
-const formGridStyle = {
-  display:
-    "grid",
-  gridTemplateColumns:
-    "repeat(auto-fit, minmax(220px, 1fr))",
-  gap:
-    "14px",
-};
-
-const tableStyle = {
-  width:
-    "100%",
-  borderCollapse:
-    "collapse",
-  fontSize:
-    "13px",
-};
-
-const tableHeaderStyle = {
-  padding:
-    "11px 12px",
-  textAlign:
-    "left",
-  borderBottom:
-    "1px solid #e5e7eb",
-  fontSize:
-    "11px",
-};
-
-const tableCellStyle = {
-  padding:
-    "12px",
-  borderBottom:
-    "1px solid #eef1f5",
-  verticalAlign:
-    "top",
-};
-
-const tableDescriptionStyle = {
-  marginTop:
-    "4px",
-  maxWidth:
-    "420px",
-  opacity:
-    0.7,
-  fontSize:
-    "11px",
-};
-
-const actionRowStyle = {
-  display:
-    "flex",
-  flexWrap:
-    "wrap",
-  gap:
-    "6px",
-};
-
-const emptyStateStyle = {
-  padding:
-    "28px 20px",
-  textAlign:
-    "center",
-  fontSize:
-    "13px",
 };
