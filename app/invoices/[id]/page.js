@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useMemo,
   useState,
 } from "react";
 
@@ -31,6 +32,24 @@ const STATUS_OPTIONS = [
   "Cancelled",
 ];
 
+const PAYMENT_METHODS = [
+  "Bank Transfer",
+  "Card",
+  "Cash",
+  "Cheque",
+  "Direct Debit",
+  "Other",
+];
+
+const EMPTY_PAYMENT_FORM = {
+  amount: "",
+  payment_date: "",
+  payment_method:
+    "Bank Transfer",
+  reference: "",
+  notes: "",
+};
+
 // =========================================================
 // PAGE
 // =========================================================
@@ -48,103 +67,102 @@ export default function InvoiceDetailsPage() {
   const [
     invoice,
     setInvoice,
-  ] =
-    useState(null);
+  ] = useState(null);
 
   const [
     draftInvoice,
     setDraftInvoice,
-  ] =
-    useState(null);
+  ] = useState(null);
 
   const [
     settings,
     setSettings,
-  ] =
-    useState(null);
+  ] = useState(null);
 
   const [
     employees,
     setEmployees,
-  ] =
-    useState([]);
+  ] = useState([]);
 
   const [
     recipientEmail,
     setRecipientEmail,
-  ] =
-    useState("");
+  ] = useState("");
+
+  const [
+    payments,
+    setPayments,
+  ] = useState([]);
+
+  const [
+    paymentSummary,
+    setPaymentSummary,
+  ] = useState(null);
+
+  const [
+    showPaymentForm,
+    setShowPaymentForm,
+  ] = useState(false);
+
+  const [
+    paymentForm,
+    setPaymentForm,
+  ] = useState(
+    EMPTY_PAYMENT_FORM
+  );
+
+  const [
+    savingPayment,
+    setSavingPayment,
+  ] = useState(false);
 
   const [
     access,
     setAccess,
-  ] =
-    useState({
-      isOwner:
-        false,
-
-      canEdit:
-        false,
-
-      canDelete:
-        false,
-
-      canAssign:
-        false,
-
-      canSend:
-        false,
-
-      canApprove:
-        false,
-
-      permissions:
-        [],
-    });
+  ] = useState({
+    isOwner: false,
+    canEdit: false,
+    canDelete: false,
+    canAssign: false,
+    canSend: false,
+    canApprove: false,
+    permissions: [],
+  });
 
   const [
     loading,
     setLoading,
-  ] =
-    useState(true);
+  ] = useState(true);
 
   const [
     editing,
     setEditing,
-  ] =
-    useState(false);
+  ] = useState(false);
 
   const [
     saving,
     setSaving,
-  ] =
-    useState(false);
+  ] = useState(false);
 
   const [
     deleting,
     setDeleting,
-  ] =
-    useState(false);
+  ] = useState(false);
 
   const [
     errorMessage,
     setErrorMessage,
-  ] =
-    useState("");
+  ] = useState("");
 
   // =======================================================
   // LOAD
   // =======================================================
 
   useEffect(() => {
-    if (
-      invoiceId
-    ) {
+    if (invoiceId) {
       loadInvoice();
     }
-  }, [
-    invoiceId,
-  ]);
+  }, [invoiceId]);
 
   async function loadInvoice() {
     try {
@@ -154,37 +172,49 @@ export default function InvoiceDetailsPage() {
       const [
         invoiceResponse,
         settingsResponse,
+        paymentsResponse,
       ] =
         await Promise.all([
           fetch(
             `/api/invoices/${invoiceId}`,
             {
-              cache:
-                "no-store",
+              cache: "no-store",
             }
           ),
 
           fetch(
             "/api/company-settings",
             {
-              cache:
-                "no-store",
+              cache: "no-store",
+            }
+          ),
+
+          fetch(
+            `/api/invoices/${invoiceId}/payments`,
+            {
+              cache: "no-store",
             }
           ),
         ]);
 
       const invoiceData =
-        await invoiceResponse.json();
+        await readJsonResponse(
+          invoiceResponse
+        );
 
-      let settingsData =
-        null;
-
-      if (
+      const settingsData =
         settingsResponse.ok
-      ) {
-        settingsData =
-          await settingsResponse.json();
-      }
+          ? await readJsonResponse(
+              settingsResponse
+            )
+          : null;
+
+      const paymentsData =
+        paymentsResponse.ok
+          ? await readJsonResponse(
+              paymentsResponse
+            )
+          : null;
 
       if (
         !invoiceResponse.ok
@@ -195,14 +225,16 @@ export default function InvoiceDetailsPage() {
         );
       }
 
-      setInvoice(
+      const nextInvoice =
         invoiceData.invoice ||
-          null
+        null;
+
+      setInvoice(
+        nextInvoice
       );
 
       setDraftInvoice(
-        invoiceData.invoice ||
-          null
+        nextInvoice
       );
 
       setEmployees(
@@ -225,54 +257,46 @@ export default function InvoiceDetailsPage() {
       setAccess({
         isOwner:
           Boolean(
-            invoiceData
-              .access
+            invoiceData.access
               ?.isOwner
           ),
 
         canEdit:
           Boolean(
-            invoiceData
-              .access
+            invoiceData.access
               ?.canEdit
           ),
 
         canDelete:
           Boolean(
-            invoiceData
-              .access
+            invoiceData.access
               ?.canDelete
           ),
 
         canAssign:
           Boolean(
-            invoiceData
-              .access
+            invoiceData.access
               ?.canAssign
           ),
 
         canSend:
           Boolean(
-            invoiceData
-              .access
+            invoiceData.access
               ?.canSend
           ),
 
         canApprove:
           Boolean(
-            invoiceData
-              .access
+            invoiceData.access
               ?.canApprove
           ),
 
         permissions:
           Array.isArray(
-            invoiceData
-              .access
+            invoiceData.access
               ?.permissions
           )
-            ? invoiceData
-                .access
+            ? invoiceData.access
                 .permissions
             : [],
       });
@@ -281,6 +305,26 @@ export default function InvoiceDetailsPage() {
         settingsData ||
           null
       );
+
+      if (
+        paymentsData
+      ) {
+        setPayments(
+          Array.isArray(
+            paymentsData.payments
+          )
+            ? paymentsData.payments
+            : []
+        );
+
+        setPaymentSummary(
+          paymentsData.summary ||
+            null
+        );
+      } else {
+        setPayments([]);
+        setPaymentSummary(null);
+      }
     } catch (error) {
       console.error(
         "Invoice loading error:",
@@ -288,9 +332,9 @@ export default function InvoiceDetailsPage() {
       );
 
       setInvoice(null);
-
       setDraftInvoice(null);
-
+      setPayments([]);
+      setPaymentSummary(null);
       setRecipientEmail("");
 
       setErrorMessage(
@@ -335,17 +379,12 @@ export default function InvoiceDetailsPage() {
     const {
       name,
       value,
-    } =
-      event.target;
+    } = event.target;
 
     setDraftInvoice(
-      (
-        current
-      ) => ({
+      (current) => ({
         ...current,
-
-        [name]:
-          value,
+        [name]: value,
       })
     );
   }
@@ -361,8 +400,7 @@ export default function InvoiceDetailsPage() {
       await fetch(
         `/api/invoices/${invoiceId}`,
         {
-          method:
-            "PATCH",
+          method: "PATCH",
 
           headers: {
             "Content-Type":
@@ -377,7 +415,9 @@ export default function InvoiceDetailsPage() {
       );
 
     const data =
-      await response.json();
+      await readJsonResponse(
+        response
+      );
 
     if (
       !response.ok
@@ -392,13 +432,11 @@ export default function InvoiceDetailsPage() {
   }
 
   // =======================================================
-  // SAVE
+  // SAVE INVOICE
   // =======================================================
 
   async function saveInvoice() {
-    if (
-      !draftInvoice
-    ) {
+    if (!draftInvoice) {
       return;
     }
 
@@ -497,6 +535,8 @@ export default function InvoiceDetailsPage() {
         data.message ||
           "Invoice updated successfully."
       );
+
+      await loadInvoice();
     } catch (error) {
       console.error(
         "Invoice save error:",
@@ -543,9 +583,9 @@ export default function InvoiceDetailsPage() {
         setDraftInvoice(
           data.invoice
         );
-      } else {
-        await loadInvoice();
       }
+
+      await loadInvoice();
     } catch (error) {
       console.error(
         "Invoice status error:",
@@ -558,6 +598,246 @@ export default function InvoiceDetailsPage() {
       );
     } finally {
       setSaving(false);
+    }
+  }
+
+  // =======================================================
+  // PAYMENT FORM
+  // =======================================================
+
+  function openPaymentForm({
+    payRemaining = false,
+  } = {}) {
+    if (
+      !access.canEdit ||
+      !invoice
+    ) {
+      return;
+    }
+
+    const outstanding =
+      paymentSummary
+        ?.outstanding_amount ??
+      parseMoney(
+        invoice.total_amount ||
+          invoice.amount
+      );
+
+    setPaymentForm({
+      ...EMPTY_PAYMENT_FORM,
+
+      amount:
+        payRemaining
+          ? String(
+              Number(
+                outstanding ||
+                  0
+              ).toFixed(2)
+            )
+          : "",
+
+      payment_date:
+        getTodayDateInput(),
+    });
+
+    setShowPaymentForm(
+      true
+    );
+  }
+
+  function closePaymentForm() {
+    if (
+      savingPayment
+    ) {
+      return;
+    }
+
+    setShowPaymentForm(
+      false
+    );
+
+    setPaymentForm(
+      EMPTY_PAYMENT_FORM
+    );
+  }
+
+  function handlePaymentChange(
+    event
+  ) {
+    const {
+      name,
+      value,
+    } = event.target;
+
+    setPaymentForm(
+      (current) => ({
+        ...current,
+        [name]: value,
+      })
+    );
+  }
+
+  // =======================================================
+  // RECORD PAYMENT
+  // =======================================================
+
+  async function recordPayment(
+    event
+  ) {
+    event.preventDefault();
+
+    if (
+      savingPayment
+    ) {
+      return;
+    }
+
+    const amount =
+      Number.parseFloat(
+        String(
+          paymentForm.amount ||
+            ""
+        )
+          .replace(/,/g, "")
+          .replace(
+            /[^0-9.-]/g,
+            ""
+          )
+      );
+
+    if (
+      !Number.isFinite(
+        amount
+      ) ||
+      amount <= 0
+    ) {
+      alert(
+        "Please enter a payment amount greater than £0."
+      );
+
+      return;
+    }
+
+    if (
+      !paymentForm
+        .payment_date
+    ) {
+      alert(
+        "Please select a payment date."
+      );
+
+      return;
+    }
+
+    try {
+      setSavingPayment(
+        true
+      );
+
+      const response =
+        await fetch(
+          `/api/invoices/${invoiceId}/payments`,
+          {
+            method:
+              "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify({
+                amount,
+
+                payment_date:
+                  paymentForm.payment_date,
+
+                payment_method:
+                  paymentForm.payment_method,
+
+                reference:
+                  paymentForm.reference.trim(),
+
+                notes:
+                  paymentForm.notes.trim(),
+              }),
+          }
+        );
+
+      const data =
+        await readJsonResponse(
+          response
+        );
+
+      if (
+        !response.ok
+      ) {
+        throw new Error(
+          data.error ||
+            "Unable to record payment."
+        );
+      }
+
+      if (
+        data.invoice
+      ) {
+        setInvoice(
+          data.invoice
+        );
+
+        setDraftInvoice(
+          data.invoice
+        );
+      }
+
+      if (
+        data.summary
+      ) {
+        setPaymentSummary(
+          data.summary
+        );
+      }
+
+      if (
+        data.payment
+      ) {
+        setPayments(
+          (current) => [
+            data.payment,
+            ...current,
+          ]
+        );
+      }
+
+      setShowPaymentForm(
+        false
+      );
+
+      setPaymentForm(
+        EMPTY_PAYMENT_FORM
+      );
+
+      alert(
+        data.message ||
+          "Payment recorded successfully."
+      );
+
+      await loadInvoice();
+    } catch (error) {
+      console.error(
+        "Invoice payment error:",
+        error
+      );
+
+      alert(
+        error.message ||
+          "Unable to record payment."
+      );
+    } finally {
+      setSavingPayment(
+        false
+      );
     }
   }
 
@@ -581,9 +861,7 @@ export default function InvoiceDetailsPage() {
         }?\n\nSent or paid invoices cannot be deleted.`
       );
 
-    if (
-      !confirmed
-    ) {
+    if (!confirmed) {
       return;
     }
 
@@ -600,7 +878,9 @@ export default function InvoiceDetailsPage() {
         );
 
       const data =
-        await response.json();
+        await readJsonResponse(
+          response
+        );
 
       if (
         !response.ok
@@ -648,9 +928,7 @@ export default function InvoiceDetailsPage() {
   // STATES
   // =======================================================
 
-  if (
-    loading
-  ) {
+  if (loading) {
     return (
       <ProtectedRoute>
         <AppLayout
@@ -663,9 +941,7 @@ export default function InvoiceDetailsPage() {
     );
   }
 
-  if (
-    errorMessage
-  ) {
+  if (errorMessage) {
     return (
       <ProtectedRoute>
         <AppLayout
@@ -683,9 +959,7 @@ export default function InvoiceDetailsPage() {
               </strong>
 
               <p>
-                {
-                  errorMessage
-                }
+                {errorMessage}
               </p>
             </div>
 
@@ -831,9 +1105,56 @@ export default function InvoiceDetailsPage() {
     visibleInvoice.amount ||
     "£0.00";
 
+  const totalNumber =
+    paymentSummary
+      ?.invoice_total ??
+    parseMoney(
+      totalAmount
+    );
+
+  const paidNumber =
+    paymentSummary
+      ?.paid_amount ??
+    0;
+
+  const outstandingNumber =
+    paymentSummary
+      ?.outstanding_amount ??
+    Math.max(
+      0,
+      totalNumber -
+        paidNumber
+    );
+
+  const totalDisplay =
+    paymentSummary
+      ?.invoice_total_display ||
+    formatCurrency(
+      totalNumber
+    );
+
+  const paidDisplay =
+    paymentSummary
+      ?.paid_amount_display ||
+    formatCurrency(
+      paidNumber
+    );
+
+  const outstandingDisplay =
+    paymentSummary
+      ?.outstanding_amount_display ||
+    formatCurrency(
+      outstandingNumber
+    );
+
   const displayStatus =
     getDisplayStatus(
       visibleInvoice
+    );
+
+  const normalStatus =
+    normaliseStatus(
+      invoice.status
     );
 
   const canSend =
@@ -842,10 +1163,23 @@ export default function InvoiceDetailsPage() {
         access.isOwner ||
         access.canSend
       ) &&
-      normaliseStatus(
-        invoice.status
-      ) !==
+      normalStatus !==
         "cancelled"
+    );
+
+  const canRecordPayment =
+    Boolean(
+      access.canEdit &&
+      ![
+        "cancelled",
+        "paid",
+        "draft",
+        "draft invoice",
+      ].includes(
+        normalStatus
+      ) &&
+      outstandingNumber >
+        0.009
     );
 
   // =======================================================
@@ -927,7 +1261,7 @@ export default function InvoiceDetailsPage() {
                       ""
                     } from ${companyName}`}
                     recordLabel="invoice"
-                    onSent={(
+                    onSent={async (
                       data
                     ) => {
                       if (
@@ -940,9 +1274,9 @@ export default function InvoiceDetailsPage() {
                         setDraftInvoice(
                           data.invoice
                         );
-                      } else {
-                        loadInvoice();
                       }
+
+                      await loadInvoice();
                     }}
                   />
                 )}
@@ -1103,16 +1437,58 @@ export default function InvoiceDetailsPage() {
               }
             >
               <span>
-                Total due
+                Outstanding
               </span>
 
               <strong>
                 {
-                  totalAmount
+                  outstandingDisplay
                 }
               </strong>
+
+              {paidNumber >
+                0 && (
+                <small
+                  style={
+                    detailStyles.totalBoxHelper
+                  }
+                >
+                  {paidDisplay} paid
+                </small>
+              )}
             </div>
           </section>
+
+          {/* PAYMENT SUMMARY */}
+
+          {!editing && (
+            <section
+              style={
+                detailStyles.paymentMetrics
+              }
+            >
+              <MetricCard
+                label="Invoice total"
+                value={
+                  totalDisplay
+                }
+              />
+
+              <MetricCard
+                label="Paid"
+                value={
+                  paidDisplay
+                }
+              />
+
+              <MetricCard
+                label="Outstanding"
+                value={
+                  outstandingDisplay
+                }
+              />
+            </section>
+          )}
 
           {/* EDIT */}
 
@@ -1227,9 +1603,7 @@ export default function InvoiceDetailsPage() {
                         }
                       >
                         {STATUS_OPTIONS.map(
-                          (
-                            item
-                          ) => (
+                          (item) => (
                             <option
                               key={
                                 item
@@ -1237,14 +1611,28 @@ export default function InvoiceDetailsPage() {
                               value={
                                 item
                               }
-                            >
-                              {
-                                item
+                              disabled={
+                                item ===
+                                  "Paid" ||
+                                item ===
+                                  "Partially Paid"
                               }
+                            >
+                              {item}
                             </option>
                           )
                         )}
                       </select>
+
+                      <small
+                        style={
+                          detailStyles.fieldHelp
+                        }
+                      >
+                        Paid statuses are
+                        controlled automatically
+                        from recorded payments.
+                      </small>
                     </label>
                   </>
                 )}
@@ -1277,9 +1665,7 @@ export default function InvoiceDetailsPage() {
                       </option>
 
                       {employees.map(
-                        (
-                          employee
-                        ) => (
+                        (employee) => (
                           <option
                             key={
                               employee.id
@@ -1306,7 +1692,6 @@ export default function InvoiceDetailsPage() {
                   <label
                     style={{
                       ...detailStyles.field,
-
                       gridColumn:
                         "1 / -1",
                     }}
@@ -1335,7 +1720,7 @@ export default function InvoiceDetailsPage() {
             </section>
           )}
 
-          {/* INFO + PAYMENT STATUS */}
+          {/* INFO + PAYMENT */}
 
           {!editing && (
             <section
@@ -1445,8 +1830,8 @@ export default function InvoiceDetailsPage() {
                   </h3>
 
                   <p>
-                    Update invoice
-                    lifecycle status.
+                    Track money received
+                    against this invoice.
                   </p>
                 </div>
 
@@ -1461,107 +1846,268 @@ export default function InvoiceDetailsPage() {
                     }
                   />
 
-                  <strong
+                  <div
                     style={
-                      detailStyles.statusAmount
+                      detailStyles.balanceGrid
                     }
                   >
-                    {
-                      totalAmount
-                    }
-                  </strong>
+                    <BalanceLine
+                      label="Invoice total"
+                      value={
+                        totalDisplay
+                      }
+                    />
 
-                  <p>
+                    <BalanceLine
+                      label="Paid"
+                      value={
+                        paidDisplay
+                      }
+                    />
+
+                    <BalanceLine
+                      label="Outstanding"
+                      value={
+                        outstandingDisplay
+                      }
+                      strong
+                    />
+                  </div>
+
+                  <p
+                    style={
+                      detailStyles.statusDue
+                    }
+                  >
                     Due{" "}
                     {formatDate(
                       invoice.due_date
                     )}
                   </p>
 
-                  {access.canEdit && (
+                  {canRecordPayment && (
                     <div
                       style={
                         detailStyles.statusActions
                       }
                     >
-                      {normaliseStatus(
-                        invoice.status
-                      ) !==
-                        "paid" && (
-                        <button
-                          type="button"
-                          style={
-                            detailStyles.primaryButton
-                          }
-                          disabled={
-                            saving
-                          }
-                          onClick={() =>
-                            updateStatus(
-                              "Paid"
-                            )
-                          }
-                        >
-                          Mark paid
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        style={
+                          detailStyles.primaryButton
+                        }
+                        onClick={() =>
+                          openPaymentForm()
+                        }
+                      >
+                        + Record payment
+                      </button>
 
-                      {normaliseStatus(
-                        invoice.status
-                      ) !==
-                        "partially paid" &&
-                        normaliseStatus(
-                          invoice.status
-                        ) !==
-                          "paid" && (
-                          <button
-                            type="button"
-                            style={
-                              detailStyles.secondaryButton
-                            }
-                            disabled={
-                              saving
-                            }
-                            onClick={() =>
-                              updateStatus(
-                                "Partially Paid"
-                              )
-                            }
-                          >
-                            Mark partially
-                            paid
-                          </button>
-                        )}
-
-                      {normaliseStatus(
-                        invoice.status
-                      ) !==
-                        "cancelled" &&
-                        normaliseStatus(
-                          invoice.status
-                        ) !==
-                          "paid" && (
-                          <button
-                            type="button"
-                            style={
-                              detailStyles.secondaryButton
-                            }
-                            disabled={
-                              saving
-                            }
-                            onClick={() =>
-                              updateStatus(
-                                "Cancelled"
-                              )
-                            }
-                          >
-                            Cancel invoice
-                          </button>
-                        )}
+                      <button
+                        type="button"
+                        style={
+                          detailStyles.secondaryButton
+                        }
+                        onClick={() =>
+                          openPaymentForm({
+                            payRemaining:
+                              true,
+                          })
+                        }
+                      >
+                        Pay remaining
+                      </button>
                     </div>
                   )}
+
+                  {access.canEdit &&
+                    normalStatus !==
+                      "cancelled" &&
+                    normalStatus !==
+                      "paid" && (
+                      <button
+                        type="button"
+                        style={
+                          detailStyles.cancelInvoiceButton
+                        }
+                        disabled={
+                          saving
+                        }
+                        onClick={() =>
+                          updateStatus(
+                            "Cancelled"
+                          )
+                        }
+                      >
+                        Cancel invoice
+                      </button>
+                    )}
                 </div>
               </section>
+            </section>
+          )}
+
+          {/* PAYMENT HISTORY */}
+
+          {!editing && (
+            <section
+              style={
+                detailStyles.panel
+              }
+            >
+              <div
+                style={
+                  detailStyles.paymentHistoryHeader
+                }
+              >
+                <div>
+                  <span
+                    style={
+                      detailStyles.eyebrow
+                    }
+                  >
+                    Finance activity
+                  </span>
+
+                  <h3
+                    style={
+                      detailStyles.sectionTitle
+                    }
+                  >
+                    Payment history
+                  </h3>
+
+                  <p
+                    style={
+                      detailStyles.sectionDescription
+                    }
+                  >
+                    Payments recorded
+                    against this invoice.
+                  </p>
+                </div>
+
+                <span
+                  style={
+                    detailStyles.countBadge
+                  }
+                >
+                  {payments.length}{" "}
+                  {payments.length === 1
+                    ? "payment"
+                    : "payments"}
+                </span>
+              </div>
+
+              {payments.length ===
+              0 ? (
+                <div
+                  style={
+                    detailStyles.emptyPayments
+                  }
+                >
+                  <span
+                    style={
+                      detailStyles.paymentEmptyIcon
+                    }
+                  >
+                    £
+                  </span>
+
+                  <strong>
+                    No payments recorded
+                  </strong>
+
+                  <p>
+                    Record a customer
+                    payment when funds
+                    are received.
+                  </p>
+                </div>
+              ) : (
+                <div
+                  style={
+                    detailStyles.paymentTable
+                  }
+                >
+                  <div
+                    style={
+                      detailStyles.paymentTableHeader
+                    }
+                  >
+                    <span>
+                      Date
+                    </span>
+
+                    <span>
+                      Method
+                    </span>
+
+                    <span>
+                      Reference
+                    </span>
+
+                    <span>
+                      Recorded by
+                    </span>
+
+                    <span
+                      style={{
+                        textAlign:
+                          "right",
+                      }}
+                    >
+                      Amount
+                    </span>
+                  </div>
+
+                  {payments.map(
+                    (payment) => (
+                      <div
+                        key={
+                          payment.id
+                        }
+                        style={
+                          detailStyles.paymentTableRow
+                        }
+                      >
+                        <span>
+                          {formatDate(
+                            payment.payment_date
+                          )}
+                        </span>
+
+                        <span>
+                          {payment.payment_method ||
+                            "Not specified"}
+                        </span>
+
+                        <span>
+                          {payment.reference ||
+                            "—"}
+                        </span>
+
+                        <span>
+                          {payment.recorded_by
+                            ?.full_name ||
+                            "Unknown"}
+                        </span>
+
+                        <strong
+                          style={{
+                            textAlign:
+                              "right",
+                          }}
+                        >
+                          {formatCurrency(
+                            payment.amount
+                          )}
+                        </strong>
+                      </div>
+                    )
+                  )}
+                </div>
+              )}
             </section>
           )}
 
@@ -1621,38 +2167,28 @@ export default function InvoiceDetailsPage() {
                         detailStyles.companyName
                       }
                     >
-                      {
-                        companyName
-                      }
+                      {companyName}
                     </strong>
 
                     <p>
-                      {
-                        companyAddress
-                      }
+                      {companyAddress}
                     </p>
 
                     {companyWebsite && (
                       <p>
-                        {
-                          companyWebsite
-                        }
+                        {companyWebsite}
                       </p>
                     )}
 
                     {companyEmail && (
                       <p>
-                        {
-                          companyEmail
-                        }
+                        {companyEmail}
                       </p>
                     )}
 
                     {companyPhone && (
                       <p>
-                        {
-                          companyPhone
-                        }
+                        {companyPhone}
                       </p>
                     )}
                   </div>
@@ -1752,9 +2288,7 @@ export default function InvoiceDetailsPage() {
                     </span>
 
                     <span>
-                      {
-                        subtotal
-                      }
+                      {subtotal}
                     </span>
                   </div>
                 </section>
@@ -1800,9 +2334,7 @@ export default function InvoiceDetailsPage() {
                   </h3>
 
                   <p>
-                    {
-                      paymentTerms
-                    }
+                    {paymentTerms}
                   </p>
                 </section>
 
@@ -1822,36 +2354,28 @@ export default function InvoiceDetailsPage() {
                     {bankName && (
                       <p>
                         Bank:{" "}
-                        {
-                          bankName
-                        }
+                        {bankName}
                       </p>
                     )}
 
                     {bankAccountName && (
                       <p>
                         Account name:{" "}
-                        {
-                          bankAccountName
-                        }
+                        {bankAccountName}
                       </p>
                     )}
 
                     {bankSortCode && (
                       <p>
                         Sort code:{" "}
-                        {
-                          bankSortCode
-                        }
+                        {bankSortCode}
                       </p>
                     )}
 
                     {bankAccountNumber && (
                       <p>
                         Account number:{" "}
-                        {
-                          bankAccountNumber
-                        }
+                        {bankAccountNumber}
                       </p>
                     )}
                   </section>
@@ -1876,9 +2400,7 @@ export default function InvoiceDetailsPage() {
                     {vatNumber && (
                       <span>
                         VAT No:{" "}
-                        {
-                          vatNumber
-                        }
+                        {vatNumber}
                       </span>
                     )}
                   </footer>
@@ -1887,6 +2409,345 @@ export default function InvoiceDetailsPage() {
             </section>
           )}
         </div>
+
+        {/* PAYMENT DRAWER */}
+
+        {showPaymentForm && (
+          <div
+            style={
+              detailStyles.drawerOverlay
+            }
+          >
+            <button
+              type="button"
+              aria-label="Close payment form"
+              style={
+                detailStyles.drawerBackdrop
+              }
+              onClick={
+                closePaymentForm
+              }
+            />
+
+            <aside
+              style={
+                detailStyles.drawer
+              }
+            >
+              <form
+                onSubmit={
+                  recordPayment
+                }
+                style={
+                  detailStyles.drawerForm
+                }
+              >
+                <div
+                  style={
+                    detailStyles.drawerHeader
+                  }
+                >
+                  <div>
+                    <span
+                      style={
+                        detailStyles.eyebrow
+                      }
+                    >
+                      Payment
+                    </span>
+
+                    <h2
+                      style={
+                        detailStyles.drawerTitle
+                      }
+                    >
+                      Record payment
+                    </h2>
+
+                    <p
+                      style={
+                        detailStyles.drawerDescription
+                      }
+                    >
+                      Record money received
+                      against{" "}
+                      {invoice.invoice_number}.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    style={
+                      detailStyles.drawerClose
+                    }
+                    onClick={
+                      closePaymentForm
+                    }
+                    disabled={
+                      savingPayment
+                    }
+                  >
+                    ×
+                  </button>
+                </div>
+
+                <div
+                  style={
+                    detailStyles.drawerContent
+                  }
+                >
+                  <div
+                    style={
+                      detailStyles.drawerSummary
+                    }
+                  >
+                    <DrawerMetric
+                      label="Invoice total"
+                      value={
+                        totalDisplay
+                      }
+                    />
+
+                    <DrawerMetric
+                      label="Already paid"
+                      value={
+                        paidDisplay
+                      }
+                    />
+
+                    <DrawerMetric
+                      label="Outstanding"
+                      value={
+                        outstandingDisplay
+                      }
+                      strong
+                    />
+                  </div>
+
+                  <label
+                    style={
+                      detailStyles.field
+                    }
+                  >
+                    <span>
+                      Payment amount *
+                    </span>
+
+                    <div
+                      style={
+                        detailStyles.moneyInputWrap
+                      }
+                    >
+                      <span
+                        style={
+                          detailStyles.moneyPrefix
+                        }
+                      >
+                        £
+                      </span>
+
+                      <input
+                        name="amount"
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        value={
+                          paymentForm.amount
+                        }
+                        onChange={
+                          handlePaymentChange
+                        }
+                        placeholder="0.00"
+                        required
+                        style={{
+                          ...detailStyles.input,
+                          paddingLeft:
+                            "34px",
+                        }}
+                      />
+                    </div>
+                  </label>
+
+                  <label
+                    style={
+                      detailStyles.field
+                    }
+                  >
+                    <span>
+                      Payment date *
+                    </span>
+
+                    <input
+                      name="payment_date"
+                      type="date"
+                      value={
+                        paymentForm.payment_date
+                      }
+                      onChange={
+                        handlePaymentChange
+                      }
+                      required
+                      style={
+                        detailStyles.input
+                      }
+                    />
+                  </label>
+
+                  <label
+                    style={
+                      detailStyles.field
+                    }
+                  >
+                    <span>
+                      Payment method
+                    </span>
+
+                    <select
+                      name="payment_method"
+                      value={
+                        paymentForm.payment_method
+                      }
+                      onChange={
+                        handlePaymentChange
+                      }
+                      style={
+                        detailStyles.input
+                      }
+                    >
+                      {PAYMENT_METHODS.map(
+                        (method) => (
+                          <option
+                            key={
+                              method
+                            }
+                            value={
+                              method
+                            }
+                          >
+                            {method}
+                          </option>
+                        )
+                      )}
+                    </select>
+                  </label>
+
+                  <label
+                    style={
+                      detailStyles.field
+                    }
+                  >
+                    <span>
+                      Reference
+                    </span>
+
+                    <input
+                      name="reference"
+                      value={
+                        paymentForm.reference
+                      }
+                      onChange={
+                        handlePaymentChange
+                      }
+                      placeholder="Example: BANK-001"
+                      style={
+                        detailStyles.input
+                      }
+                    />
+                  </label>
+
+                  <label
+                    style={
+                      detailStyles.field
+                    }
+                  >
+                    <span>
+                      Notes
+                    </span>
+
+                    <textarea
+                      name="notes"
+                      rows={5}
+                      value={
+                        paymentForm.notes
+                      }
+                      onChange={
+                        handlePaymentChange
+                      }
+                      placeholder="Optional payment notes"
+                      style={
+                        detailStyles.textarea
+                      }
+                    />
+                  </label>
+
+                  <div
+                    style={
+                      detailStyles.drawerInfo
+                    }
+                  >
+                    <span
+                      style={
+                        detailStyles.drawerInfoIcon
+                      }
+                    >
+                      ✓
+                    </span>
+
+                    <div>
+                      <strong>
+                        Automatic status
+                      </strong>
+
+                      <p>
+                        SaiNal One will
+                        calculate the
+                        remaining balance.
+                        The invoice becomes
+                        Partially Paid or
+                        Paid automatically.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  style={
+                    detailStyles.drawerFooter
+                  }
+                >
+                  <button
+                    type="button"
+                    style={
+                      detailStyles.secondaryButton
+                    }
+                    onClick={
+                      closePaymentForm
+                    }
+                    disabled={
+                      savingPayment
+                    }
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="submit"
+                    style={
+                      detailStyles.primaryButton
+                    }
+                    disabled={
+                      savingPayment
+                    }
+                  >
+                    {savingPayment
+                      ? "Recording..."
+                      : "Record payment"}
+                  </button>
+                </div>
+              </form>
+            </aside>
+          </div>
+        )}
       </AppLayout>
     </ProtectedRoute>
   );
@@ -1914,12 +2775,8 @@ function EditField({
       </span>
 
       <input
-        name={
-          name
-        }
-        type={
-          type
-        }
+        name={name}
+        type={type}
         value={
           value ||
           ""
@@ -1983,6 +2840,81 @@ function TotalRow({
   );
 }
 
+function MetricCard({
+  label,
+  value,
+}) {
+  return (
+    <div
+      style={
+        detailStyles.metricCard
+      }
+    >
+      <span>
+        {label}
+      </span>
+
+      <strong>
+        {value}
+      </strong>
+    </div>
+  );
+}
+
+function BalanceLine({
+  label,
+  value,
+  strong = false,
+}) {
+  return (
+    <div
+      style={{
+        ...detailStyles.balanceLine,
+
+        ...(strong
+          ? detailStyles.balanceStrong
+          : {}),
+      }}
+    >
+      <span>
+        {label}
+      </span>
+
+      <strong>
+        {value}
+      </strong>
+    </div>
+  );
+}
+
+function DrawerMetric({
+  label,
+  value,
+  strong = false,
+}) {
+  return (
+    <div
+      style={
+        detailStyles.drawerMetric
+      }
+    >
+      <span>
+        {label}
+      </span>
+
+      <strong
+        style={
+          strong
+            ? detailStyles.drawerMetricStrong
+            : undefined
+        }
+      >
+        {value}
+      </strong>
+    </div>
+  );
+}
+
 function LoadingState() {
   return (
     <section
@@ -1993,10 +2925,7 @@ function LoadingState() {
       {Array.from({
         length: 6,
       }).map(
-        (
-          _,
-          index
-        ) => (
+        (_, index) => (
           <div
             key={
               index
@@ -2026,19 +2955,60 @@ function normaliseStatus(
     .toLowerCase();
 }
 
+function parseMoney(
+  value
+) {
+  const cleaned =
+    String(
+      value ||
+        ""
+    )
+      .replace(/,/g, "")
+      .replace(
+        /[^0-9.-]/g,
+        ""
+      );
+
+  const parsed =
+    Number.parseFloat(
+      cleaned
+    );
+
+  return Number.isFinite(
+    parsed
+  )
+    ? parsed
+    : 0;
+}
+
+function formatCurrency(
+  value
+) {
+  return new Intl.NumberFormat(
+    "en-GB",
+    {
+      style: "currency",
+      currency: "GBP",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }
+  ).format(
+    Number(
+      value ||
+        0
+    )
+  );
+}
+
 function formatDate(
   value
 ) {
-  if (
-    !value
-  ) {
+  if (!value) {
     return "Not set";
   }
 
   const date =
-    new Date(
-      value
-    );
+    new Date(value);
 
   if (
     Number.isNaN(
@@ -2051,14 +3021,9 @@ function formatDate(
   return date.toLocaleDateString(
     "en-GB",
     {
-      day:
-        "2-digit",
-
-      month:
-        "short",
-
-      year:
-        "numeric",
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
     }
   );
 }
@@ -2066,25 +3031,19 @@ function formatDate(
 function toDateInput(
   value
 ) {
-  if (
-    !value
-  ) {
+  if (!value) {
     return "";
   }
 
   const date =
-    new Date(
-      value
-    );
+    new Date(value);
 
   if (
     Number.isNaN(
       date.getTime()
     )
   ) {
-    return String(
-      value
-    ).slice(
+    return String(value).slice(
       0,
       10
     );
@@ -2092,25 +3051,34 @@ function toDateInput(
 
   return date
     .toISOString()
-    .slice(
-      0,
-      10
+    .slice(0, 10);
+}
+
+function getTodayDateInput() {
+  const now =
+    new Date();
+
+  const local =
+    new Date(
+      now.getTime() -
+        now.getTimezoneOffset() *
+          60000
     );
+
+  return local
+    .toISOString()
+    .slice(0, 10);
 }
 
 function isOverdue(
   dueDate
 ) {
-  if (
-    !dueDate
-  ) {
+  if (!dueDate) {
     return false;
   }
 
   const date =
-    new Date(
-      dueDate
-    );
+    new Date(dueDate);
 
   if (
     Number.isNaN(
@@ -2139,9 +3107,7 @@ function getDisplayStatus(
       "paid",
       "cancelled",
       "overdue",
-    ].includes(
-      status
-    ) &&
+    ].includes(status) &&
     isOverdue(
       invoice.due_date
     )
@@ -2155,632 +3121,513 @@ function getDisplayStatus(
   );
 }
 
+async function readJsonResponse(
+  response
+) {
+  const text =
+    await response.text();
+
+  if (!text) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(
+      text
+    );
+  } catch {
+    return {
+      error:
+        "The server returned an invalid response.",
+    };
+  }
+}
+
 // =========================================================
 // STYLES
 // =========================================================
 
 const detailStyles = {
   page: {
-    display:
-      "grid",
-
-    gap:
-      "20px",
-
-    color:
-      "#28251f",
-
-    fontSize:
-      "13px",
+    display: "grid",
+    gap: "20px",
+    color: "#28251f",
+    fontSize: "13px",
   },
 
   header: {
-    display:
-      "flex",
-
+    display: "flex",
     justifyContent:
       "space-between",
-
     alignItems:
       "flex-start",
-
-    gap:
-      "24px",
+    gap: "24px",
   },
 
   backLink: {
     display:
       "inline-block",
-
-    marginBottom:
-      "12px",
-
-    color:
-      "#8d6b05",
-
-    fontSize:
-      "11px",
-
-    fontWeight:
-      750,
-
-    textDecoration:
-      "none",
+    marginBottom: "12px",
+    color: "#8d6b05",
+    fontSize: "11px",
+    fontWeight: 750,
+    textDecoration: "none",
   },
 
   eyebrow: {
-    display:
-      "block",
-
-    marginBottom:
-      "6px",
-
-    color:
-      "#9b7507",
-
-    fontSize:
-      "10px",
-
-    fontWeight:
-      800,
-
-    letterSpacing:
-      "1px",
-
+    display: "block",
+    marginBottom: "6px",
+    color: "#9b7507",
+    fontSize: "10px",
+    fontWeight: 800,
+    letterSpacing: "1px",
     textTransform:
       "uppercase",
   },
 
   heading: {
-    margin:
-      0,
-
-    fontSize:
-      "27px",
+    margin: 0,
+    fontSize: "27px",
   },
 
   description: {
-    margin:
-      "6px 0 0",
-
-    color:
-      "#7c786e",
-
-    fontSize:
-      "13px",
+    margin: "6px 0 0",
+    color: "#7c786e",
+    fontSize: "13px",
   },
 
   actions: {
-    display:
-      "flex",
-
-    flexWrap:
-      "wrap",
-
+    display: "flex",
+    flexWrap: "wrap",
     justifyContent:
       "flex-end",
-
-    gap:
-      "9px",
+    gap: "9px",
   },
 
   primaryButton: {
-    minHeight:
-      "39px",
-
-    padding:
-      "0 15px",
-
+    minHeight: "39px",
+    padding: "0 15px",
     border:
       "1px solid #b78800",
-
-    borderRadius:
-      "10px",
-
-    background:
-      "#dca900",
-
-    color:
-      "#17130a",
-
-    fontSize:
-      "12px",
-
-    fontWeight:
-      750,
-
-    cursor:
-      "pointer",
+    borderRadius: "10px",
+    background: "#dca900",
+    color: "#17130a",
+    fontSize: "12px",
+    fontWeight: 750,
+    cursor: "pointer",
   },
 
   secondaryButton: {
-    minHeight:
-      "39px",
-
-    padding:
-      "0 15px",
-
+    minHeight: "39px",
+    padding: "0 15px",
     border:
       "1px solid #ddd9cf",
-
-    borderRadius:
-      "10px",
-
-    background:
-      "#ffffff",
-
-    color:
-      "#413d36",
-
-    fontSize:
-      "12px",
-
-    fontWeight:
-      700,
-
-    cursor:
-      "pointer",
+    borderRadius: "10px",
+    background: "#ffffff",
+    color: "#413d36",
+    fontSize: "12px",
+    fontWeight: 700,
+    cursor: "pointer",
   },
 
   dangerButton: {
-    minHeight:
-      "39px",
-
-    padding:
-      "0 15px",
-
+    minHeight: "39px",
+    padding: "0 15px",
     border:
       "1px solid #e1b9b9",
-
-    borderRadius:
-      "10px",
-
-    background:
-      "#fff7f7",
-
-    color:
-      "#a13e3e",
-
-    fontSize:
-      "12px",
-
-    fontWeight:
-      700,
-
-    cursor:
-      "pointer",
+    borderRadius: "10px",
+    background: "#fff7f7",
+    color: "#a13e3e",
+    fontSize: "12px",
+    fontWeight: 700,
+    cursor: "pointer",
   },
 
   hero: {
-    display:
-      "flex",
-
+    display: "flex",
     justifyContent:
       "space-between",
-
-    alignItems:
-      "center",
-
-    gap:
-      "25px",
-
-    padding:
-      "22px",
-
+    alignItems: "center",
+    gap: "25px",
+    padding: "22px",
     border:
       "1px solid #dedbd2",
-
-    borderRadius:
-      "16px",
-
-    background:
-      "#ffffff",
+    borderRadius: "16px",
+    background: "#ffffff",
   },
 
   identity: {
-    display:
-      "flex",
-
-    alignItems:
-      "center",
-
-    gap:
-      "14px",
+    display: "flex",
+    alignItems: "center",
+    gap: "14px",
   },
 
   invoiceIcon: {
-    display:
-      "grid",
-
-    width:
-      "48px",
-
-    height:
-      "48px",
-
-    placeItems:
-      "center",
-
-    borderRadius:
-      "12px",
-
-    background:
-      "#29271f",
-
-    color:
-      "#e2b83a",
-
-    fontSize:
-      "20px",
-
-    fontWeight:
-      800,
+    display: "grid",
+    width: "48px",
+    height: "48px",
+    placeItems: "center",
+    borderRadius: "12px",
+    background: "#29271f",
+    color: "#e2b83a",
+    fontSize: "20px",
+    fontWeight: 800,
   },
 
   smallLabel: {
-    color:
-      "#9b7507",
-
-    fontSize:
-      "10px",
-
-    fontWeight:
-      800,
-
+    color: "#9b7507",
+    fontSize: "10px",
+    fontWeight: 800,
     textTransform:
       "uppercase",
   },
 
   heroTitle: {
-    margin:
-      "4px 0 8px",
-
-    fontSize:
-      "20px",
+    margin: "4px 0 8px",
+    fontSize: "20px",
   },
 
   meta: {
-    display:
-      "flex",
-
-    flexWrap:
-      "wrap",
-
-    gap:
-      "8px",
-
-    alignItems:
-      "center",
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "8px",
+    alignItems: "center",
   },
 
   metaBadge: {
-    padding:
-      "5px 8px",
-
-    borderRadius:
-      "999px",
-
-    background:
-      "#f4f1ea",
-
-    color:
-      "#686359",
-
-    fontSize:
-      "10px",
-
-    fontWeight:
-      650,
+    padding: "5px 8px",
+    borderRadius: "999px",
+    background: "#f4f1ea",
+    color: "#686359",
+    fontSize: "10px",
+    fontWeight: 650,
   },
 
   totalBox: {
-    display:
-      "grid",
+    display: "grid",
+    minWidth: "190px",
+    gap: "5px",
+    padding: "15px 18px",
+    borderRadius: "12px",
+    background: "#f8efd4",
+    textAlign: "right",
+  },
 
-    minWidth:
-      "190px",
+  totalBoxHelper: {
+    color: "#776c4f",
+    fontSize: "10px",
+  },
 
-    gap:
-      "5px",
+  paymentMetrics: {
+    display: "grid",
+    gridTemplateColumns:
+      "repeat(3, minmax(0, 1fr))",
+    gap: "12px",
+  },
 
-    padding:
-      "15px 18px",
-
-    borderRadius:
-      "12px",
-
-    background:
-      "#f8efd4",
-
-    textAlign:
-      "right",
+  metricCard: {
+    display: "grid",
+    gap: "7px",
+    padding: "16px 18px",
+    border:
+      "1px solid #e2dfd7",
+    borderRadius: "13px",
+    background: "#ffffff",
   },
 
   panel: {
-    overflow:
-      "hidden",
-
+    overflow: "hidden",
     border:
       "1px solid #dedbd2",
-
-    borderRadius:
-      "15px",
-
-    background:
-      "#ffffff",
+    borderRadius: "15px",
+    background: "#ffffff",
   },
 
   panelHeader: {
-    padding:
-      "18px 20px",
-
+    padding: "18px 20px",
     borderBottom:
       "1px solid #ece9e2",
   },
 
   formGrid: {
-    display:
-      "grid",
-
+    display: "grid",
     gridTemplateColumns:
       "repeat(2, minmax(0, 1fr))",
-
-    gap:
-      "15px",
-
-    padding:
-      "20px",
+    gap: "15px",
+    padding: "20px",
   },
 
   field: {
-    display:
-      "grid",
+    display: "grid",
+    gap: "7px",
+    color: "#3e3a33",
+    fontSize: "12px",
+    fontWeight: 700,
+  },
 
-    gap:
-      "7px",
-
-    color:
-      "#3e3a33",
-
-    fontSize:
-      "12px",
-
-    fontWeight:
-      700,
+  fieldHelp: {
+    color: "#918b80",
+    fontSize: "10px",
+    fontWeight: 500,
   },
 
   input: {
-    minHeight:
-      "42px",
-
-    padding:
-      "0 11px",
-
+    width: "100%",
+    boxSizing:
+      "border-box",
+    minHeight: "42px",
+    padding: "0 11px",
     border:
       "1px solid #dcd8ce",
-
-    borderRadius:
-      "9px",
-
-    background:
-      "#ffffff",
-
-    fontSize:
-      "13px",
+    borderRadius: "9px",
+    background: "#ffffff",
+    fontSize: "13px",
   },
 
   textarea: {
-    padding:
-      "11px",
-
+    width: "100%",
+    boxSizing:
+      "border-box",
+    padding: "11px",
     border:
       "1px solid #dcd8ce",
-
-    borderRadius:
-      "9px",
-
-    resize:
-      "vertical",
-
-    fontFamily:
-      "inherit",
-
-    fontSize:
-      "13px",
+    borderRadius: "9px",
+    resize: "vertical",
+    fontFamily: "inherit",
+    fontSize: "13px",
   },
 
   twoColumn: {
-    display:
-      "grid",
-
+    display: "grid",
     gridTemplateColumns:
       "repeat(2, minmax(0, 1fr))",
-
-    gap:
-      "16px",
+    gap: "16px",
   },
 
   detailList: {
-    display:
-      "grid",
-
+    display: "grid",
     padding:
       "5px 20px 15px",
   },
 
   detailRow: {
-    display:
-      "flex",
-
+    display: "flex",
     justifyContent:
       "space-between",
-
-    gap:
-      "20px",
-
-    padding:
-      "13px 0",
-
+    gap: "20px",
+    padding: "13px 0",
     borderBottom:
       "1px solid #efede7",
-
-    fontSize:
-      "12px",
+    fontSize: "12px",
   },
 
   statusPanel: {
-    display:
-      "grid",
-
-    justifyItems:
-      "start",
-
-    gap:
-      "15px",
-
-    padding:
-      "20px",
+    display: "grid",
+    alignContent: "start",
+    gap: "15px",
+    padding: "20px",
   },
 
-  statusAmount: {
-    fontSize:
-      "25px",
+  balanceGrid: {
+    display: "grid",
+    width: "100%",
+    gap: "2px",
+    border:
+      "1px solid #ece8de",
+    borderRadius: "11px",
+    overflow: "hidden",
+  },
+
+  balanceLine: {
+    display: "flex",
+    justifyContent:
+      "space-between",
+    padding: "11px 13px",
+    background: "#ffffff",
+  },
+
+  balanceStrong: {
+    background: "#faf5e6",
+    color: "#7f5f00",
+    fontSize: "14px",
+  },
+
+  statusDue: {
+    margin: 0,
+    color: "#706b62",
   },
 
   statusActions: {
-    display:
-      "flex",
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "8px",
+  },
 
-    flexWrap:
-      "wrap",
+  cancelInvoiceButton: {
+    width: "fit-content",
+    padding: "8px 0",
+    border: 0,
+    background:
+      "transparent",
+    color: "#a05151",
+    fontSize: "11px",
+    fontWeight: 700,
+    cursor: "pointer",
+  },
 
-    gap:
-      "8px",
+  paymentHistoryHeader: {
+    display: "flex",
+    justifyContent:
+      "space-between",
+    alignItems: "center",
+    gap: "20px",
+    padding: "18px 20px",
+    borderBottom:
+      "1px solid #ece9e2",
+  },
+
+  sectionTitle: {
+    margin: 0,
+    fontSize: "17px",
+  },
+
+  sectionDescription: {
+    margin: "5px 0 0",
+    color: "#817c73",
+    fontSize: "11px",
+  },
+
+  countBadge: {
+    padding: "6px 10px",
+    borderRadius: "999px",
+    background: "#f6edcc",
+    color: "#8a6700",
+    fontSize: "10px",
+    fontWeight: 750,
+  },
+
+  emptyPayments: {
+    display: "grid",
+    justifyItems: "center",
+    gap: "8px",
+    padding: "38px 20px",
+    textAlign: "center",
+  },
+
+  paymentEmptyIcon: {
+    display: "grid",
+    width: "42px",
+    height: "42px",
+    placeItems: "center",
+    borderRadius: "11px",
+    background: "#f5edcf",
+    color: "#987000",
+    fontSize: "17px",
+    fontWeight: 800,
+  },
+
+  paymentTable: {
+    display: "grid",
+  },
+
+  paymentTableHeader: {
+    display: "grid",
+    gridTemplateColumns:
+      "1fr 1.2fr 1.2fr 1.2fr .8fr",
+    gap: "15px",
+    padding: "11px 20px",
+    borderBottom:
+      "1px solid #ece9e2",
+    background: "#faf9f6",
+    color: "#777268",
+    fontSize: "9px",
+    fontWeight: 800,
+    letterSpacing: ".6px",
+    textTransform:
+      "uppercase",
+  },
+
+  paymentTableRow: {
+    display: "grid",
+    gridTemplateColumns:
+      "1fr 1.2fr 1.2fr 1.2fr .8fr",
+    gap: "15px",
+    padding: "14px 20px",
+    borderBottom:
+      "1px solid #efede7",
+    alignItems: "center",
+    fontSize: "11px",
   },
 
   documentCard: {
-    overflow:
-      "hidden",
-
+    overflow: "hidden",
     border:
       "1px solid #dedbd2",
-
-    borderRadius:
-      "16px",
-
-    background:
-      "#f4f2ed",
+    borderRadius: "16px",
+    background: "#f4f2ed",
   },
 
   documentToolbar: {
-    display:
-      "flex",
-
+    display: "flex",
     justifyContent:
       "space-between",
-
-    alignItems:
-      "center",
-
-    padding:
-      "17px 20px",
-
+    alignItems: "center",
+    padding: "17px 20px",
     borderBottom:
       "1px solid #dedbd2",
-
-    background:
-      "#ffffff",
+    background: "#ffffff",
   },
 
   document: {
     width:
       "min(900px, calc(100% - 50px))",
-
-    minHeight:
-      "950px",
-
-    margin:
-      "28px auto",
-
-    padding:
-      "45px",
-
+    minHeight: "950px",
+    margin: "28px auto",
+    padding: "45px",
+    boxSizing:
+      "border-box",
     border:
       "1px solid #dedbd2",
-
-    background:
-      "#ffffff",
-
+    background: "#ffffff",
     boxShadow:
       "0 16px 40px rgba(38,31,13,.08)",
   },
 
   documentHeader: {
-    display:
-      "flex",
-
+    display: "flex",
     justifyContent:
       "space-between",
-
-    gap:
-      "30px",
-
-    paddingBottom:
-      "24px",
-
+    gap: "30px",
+    paddingBottom: "24px",
     borderBottom:
       "3px solid #c99b17",
   },
 
   companyName: {
-    fontSize:
-      "18px",
+    fontSize: "18px",
   },
 
   invoiceTitle: {
-    margin:
-      0,
-
-    color:
-      "#936c00",
-
-    letterSpacing:
-      "2px",
+    margin: 0,
+    color: "#936c00",
+    letterSpacing: "2px",
   },
 
   documentMeta: {
-    display:
-      "grid",
-
+    display: "grid",
     gridTemplateColumns:
       "1fr auto",
-
-    gap:
-      "40px",
-
-    padding:
-      "28px 0",
+    gap: "40px",
+    padding: "28px 0",
   },
 
   docLabel: {
-    display:
-      "block",
-
-    marginBottom:
-      "6px",
-
-    color:
-      "#987100",
-
-    fontSize:
-      "10px",
-
-    fontWeight:
-      800,
-
-    letterSpacing:
-      ".6px",
-
+    display: "block",
+    marginBottom: "6px",
+    color: "#987100",
+    fontSize: "10px",
+    fontWeight: 800,
+    letterSpacing: ".6px",
     textTransform:
       "uppercase",
   },
@@ -2788,247 +3635,286 @@ const detailStyles = {
   invoiceTable: {
     border:
       "1px solid #dfdcd3",
-
-    borderRadius:
-      "10px",
-
-    overflow:
-      "hidden",
+    borderRadius: "10px",
+    overflow: "hidden",
   },
 
   invoiceTableHeader: {
-    display:
-      "grid",
-
+    display: "grid",
     gridTemplateColumns:
       "1fr auto",
-
-    gap:
-      "20px",
-
-    padding:
-      "12px 15px",
-
-    background:
-      "#f5f2eb",
+    gap: "20px",
+    padding: "12px 15px",
+    background: "#f5f2eb",
   },
 
   invoiceTableRow: {
-    display:
-      "grid",
-
+    display: "grid",
     gridTemplateColumns:
       "1fr auto",
-
-    gap:
-      "20px",
-
-    padding:
-      "15px",
+    gap: "20px",
+    padding: "15px",
   },
 
   totals: {
-    display:
-      "grid",
-
-    width:
-      "360px",
-
-    maxWidth:
-      "100%",
-
+    display: "grid",
+    width: "360px",
+    maxWidth: "100%",
     margin:
       "25px 0 25px auto",
   },
 
   totalRow: {
-    display:
-      "flex",
-
+    display: "flex",
     justifyContent:
       "space-between",
-
-    padding:
-      "9px 0",
-
+    padding: "9px 0",
     borderBottom:
       "1px solid #ece9e1",
   },
 
   grandTotal: {
-    marginTop:
-      "4px",
-
-    padding:
-      "13px",
-
-    borderBottom:
-      0,
-
-    borderRadius:
-      "9px",
-
-    background:
-      "#f7efd5",
-
-    color:
-      "#805f00",
-
-    fontSize:
-      "16px",
+    marginTop: "4px",
+    padding: "13px",
+    borderBottom: 0,
+    borderRadius: "9px",
+    background: "#f7efd5",
+    color: "#805f00",
+    fontSize: "16px",
   },
 
   documentSection: {
-    marginTop:
-      "28px",
-
-    paddingTop:
-      "18px",
-
+    marginTop: "28px",
+    paddingTop: "18px",
     borderTop:
       "1px solid #ece9e1",
-
-    lineHeight:
-      1.7,
+    lineHeight: 1.7,
   },
 
   documentFooter: {
-    display:
-      "flex",
-
+    display: "flex",
     justifyContent:
       "space-between",
-
-    gap:
-      "20px",
-
-    marginTop:
-      "40px",
-
-    paddingTop:
-      "16px",
-
+    gap: "20px",
+    marginTop: "40px",
+    paddingTop: "16px",
     borderTop:
       "1px solid #dedbd2",
+    color: "#8f8a80",
+    fontSize: "10px",
+  },
 
-    color:
-      "#8f8a80",
+  drawerOverlay: {
+    position: "fixed",
+    inset: 0,
+    zIndex: 9999,
+    display: "flex",
+    justifyContent:
+      "flex-end",
+  },
 
-    fontSize:
-      "10px",
+  drawerBackdrop: {
+    position: "absolute",
+    inset: 0,
+    width: "100%",
+    height: "100%",
+    padding: 0,
+    border: 0,
+    background:
+      "rgba(28,26,20,.28)",
+    backdropFilter:
+      "blur(2px)",
+  },
+
+  drawer: {
+    position: "relative",
+    zIndex: 2,
+    width:
+      "min(470px, 100vw)",
+    height: "100vh",
+    background: "#ffffff",
+    borderLeft:
+      "1px solid #ddd8cb",
+    boxShadow:
+      "-20px 0 55px rgba(32,28,18,.15)",
+  },
+
+  drawerForm: {
+    height: "100%",
+    display: "grid",
+    gridTemplateRows:
+      "auto minmax(0,1fr) auto",
+  },
+
+  drawerHeader: {
+    display: "flex",
+    justifyContent:
+      "space-between",
+    gap: "20px",
+    padding: "24px",
+    borderBottom:
+      "1px solid #ebe7de",
+    background: "#fffdf8",
+  },
+
+  drawerTitle: {
+    margin: 0,
+    fontSize: "22px",
+  },
+
+  drawerDescription: {
+    margin: "6px 0 0",
+    color: "#7b776d",
+    fontSize: "12px",
+    lineHeight: 1.5,
+  },
+
+  drawerClose: {
+    width: "36px",
+    height: "36px",
+    padding: 0,
+    flex: "0 0 36px",
+    border:
+      "1px solid #ded9ce",
+    borderRadius: "10px",
+    background: "#ffffff",
+    color: "#575248",
+    fontSize: "23px",
+    cursor: "pointer",
+  },
+
+  drawerContent: {
+    display: "grid",
+    alignContent: "start",
+    gap: "19px",
+    padding: "24px",
+    overflowY: "auto",
+  },
+
+  drawerSummary: {
+    display: "grid",
+    border:
+      "1px solid #e5e0d4",
+    borderRadius: "12px",
+    overflow: "hidden",
+  },
+
+  drawerMetric: {
+    display: "flex",
+    justifyContent:
+      "space-between",
+    gap: "20px",
+    padding: "11px 13px",
+    borderBottom:
+      "1px solid #ece8de",
+    fontSize: "11px",
+  },
+
+  drawerMetricStrong: {
+    color: "#8b6700",
+    fontSize: "14px",
+  },
+
+  moneyInputWrap: {
+    position: "relative",
+  },
+
+  moneyPrefix: {
+    position: "absolute",
+    left: "13px",
+    top: "50%",
+    transform:
+      "translateY(-50%)",
+    zIndex: 2,
+    color: "#847c68",
+    fontWeight: 750,
+  },
+
+  drawerInfo: {
+    display: "grid",
+    gridTemplateColumns:
+      "38px 1fr",
+    gap: "11px",
+    padding: "14px",
+    border:
+      "1px solid #eadfbd",
+    borderRadius: "11px",
+    background: "#fbf7e9",
+  },
+
+  drawerInfoIcon: {
+    display: "grid",
+    width: "38px",
+    height: "38px",
+    placeItems: "center",
+    borderRadius: "9px",
+    background: "#f2e5b6",
+    color: "#8c6800",
+    fontWeight: 800,
+  },
+
+  drawerFooter: {
+    display: "flex",
+    justifyContent:
+      "flex-end",
+    gap: "10px",
+    padding: "17px 24px",
+    borderTop:
+      "1px solid #e8e3d8",
+    background: "#ffffff",
   },
 
   error: {
-    display:
-      "flex",
-
+    display: "flex",
     justifyContent:
       "space-between",
-
-    gap:
-      "20px",
-
-    padding:
-      "20px",
-
+    gap: "20px",
+    padding: "20px",
     border:
       "1px solid #efcaca",
-
-    borderRadius:
-      "14px",
-
-    background:
-      "#fff7f7",
-
-    color:
-      "#a13e3e",
+    borderRadius: "14px",
+    background: "#fff7f7",
+    color: "#a13e3e",
   },
 
   notFound: {
-    display:
-      "grid",
-
-    minHeight:
-      "360px",
-
-    placeItems:
-      "center",
-
-    alignContent:
-      "center",
-
-    gap:
-      "10px",
-
-    textAlign:
-      "center",
+    display: "grid",
+    minHeight: "360px",
+    placeItems: "center",
+    alignContent: "center",
+    gap: "10px",
+    textAlign: "center",
   },
 
   bigIcon: {
-    display:
-      "grid",
-
-    width:
-      "55px",
-
-    height:
-      "55px",
-
-    placeItems:
-      "center",
-
-    borderRadius:
-      "14px",
-
-    background:
-      "#f5edcf",
-
-    color:
-      "#987000",
-
-    fontSize:
-      "22px",
+    display: "grid",
+    width: "55px",
+    height: "55px",
+    placeItems: "center",
+    borderRadius: "14px",
+    background: "#f5edcf",
+    color: "#987000",
+    fontSize: "22px",
   },
 
   primaryLink: {
-    padding:
-      "11px 15px",
-
-    borderRadius:
-      "9px",
-
-    background:
-      "#dca900",
-
-    color:
-      "#17130a",
-
-    fontSize:
-      "12px",
-
-    fontWeight:
-      750,
-
-    textDecoration:
-      "none",
+    padding: "11px 15px",
+    borderRadius: "9px",
+    background: "#dca900",
+    color: "#17130a",
+    fontSize: "12px",
+    fontWeight: 750,
+    textDecoration: "none",
   },
 
   loading: {
-    display:
-      "grid",
-
-    gap:
-      "11px",
+    display: "grid",
+    gap: "11px",
   },
 
   loadingRow: {
-    height:
-      "72px",
-
-    borderRadius:
-      "12px",
-
-    background:
-      "#eeece6",
+    height: "72px",
+    borderRadius: "12px",
+    background: "#eeece6",
   },
 };
