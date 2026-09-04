@@ -1,6 +1,6 @@
 .page {
   display: grid;
-  gap: 20px;
+  gap: 18px;
 }
 
 /* =========================================================
@@ -16,40 +16,39 @@
 
 .pageHeaderCopy {
   display: grid;
-  gap: 6px;
+  gap: 5px;
 }
 
 .eyebrow {
   color: #9c7507;
-  font-size: 10px;
+  font-size: var(--font-label);
   font-weight: 900;
-  letter-spacing: 1.2px;
+  letter-spacing: 1.1px;
   text-transform: uppercase;
 }
 
 .pageHeader h2 {
   margin: 0;
   color: #25221d;
-  font-size: 28px;
-  letter-spacing: -0.75px;
+  font-size: var(--font-workspace-title);
+  line-height: 1.2;
+  letter-spacing: -0.6px;
 }
 
 .pageHeader p {
-  max-width: 680px;
+  max-width: 720px;
   margin: 0;
   color: #817d74;
-  font-size: 12px;
+  font-size: var(--font-helper);
   line-height: 1.55;
 }
 
-.employeeContext {
-  margin-top: 4px;
-  color: #918d84;
-  font-size: 10px;
-}
-
-.employeeContext strong {
-  color: #514d45;
+.headerActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 9px;
 }
 
 /* =========================================================
@@ -58,17 +57,19 @@
 
 .primaryButton,
 .secondaryButton,
+.scheduleCallButton,
 .clearButton,
-.openButton,
+.smallButton,
+.saveButton,
+.completeButton,
 .deleteButton {
   display: inline-flex;
-  min-height: 42px;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  border-radius: 11px;
+  gap: 7px;
+  border-radius: 10px;
   font: inherit;
-  font-size: 11px;
+  font-size: var(--font-button);
   font-weight: 800;
   cursor: pointer;
   transition:
@@ -79,7 +80,8 @@
 }
 
 .primaryButton {
-  padding: 0 17px;
+  min-height: 41px;
+  padding: 0 16px;
   border: 1px solid #bd8b06;
   background:
     linear-gradient(
@@ -91,25 +93,40 @@
 }
 
 .primaryButton:hover:not(:disabled) {
-  transform:
-    translateY(-1px);
+  transform: translateY(-1px);
 }
 
 .secondaryButton {
+  min-height: 41px;
   padding: 0 15px;
   border: 1px solid #dedbd2;
   background: #ffffff;
   color: #514e47;
 }
 
-.secondaryButton:hover:not(:disabled) {
+.secondaryButton:hover:not(:disabled),
+.smallButton:hover:not(:disabled) {
   border-color: #ceb24f;
   background: #fbf7ea;
   color: #8c6800;
 }
 
+.scheduleCallButton {
+  min-height: 41px;
+  padding: 0 15px;
+  border: 1px solid #bddbc8;
+  background: #f3faf5;
+  color: #397451;
+}
+
+.scheduleCallButton:hover {
+  border-color: #8fc0a1;
+  background: #eaf6ee;
+}
+
 .primaryButton:disabled,
 .secondaryButton:disabled,
+.saveButton:disabled,
 .deleteButton:disabled {
   cursor: wait;
   opacity: 0.65;
@@ -125,38 +142,56 @@
 .loadingPanel,
 .errorPanel {
   border: 1px solid #dfdcd3;
-  border-radius: 18px;
+  border-radius: 16px;
   background: #ffffff;
   box-shadow:
-    0 10px 30px
-    rgba(43, 36, 17, 0.05);
+    0 8px 24px
+    rgba(43, 36, 17, 0.04);
 }
 
 /* =========================================================
-   FOLLOW-UP FORM
+   FORM
 ========================================================= */
 
 .formPanel {
-  padding: 23px;
+  padding: 22px;
 }
 
 .formHeading {
-  margin-bottom: 20px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 19px;
 }
 
 .formHeading h3 {
-  margin: 0;
+  margin: 4px 0 0;
   color: #28251f;
-  font-size: 18px;
+  font-size: var(--font-section-title);
 }
 
 .formHeading p {
   margin: 5px 0 0;
   color: #908c83;
-  font-size: 10px;
+  font-size: var(--font-helper);
 }
 
-.followUpForm {
+.formActivityBadge {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #f5edcf;
+  color: #8b6900;
+  font-size: var(--font-label);
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.activityForm {
   display: grid;
   gap: 18px;
 }
@@ -165,7 +200,7 @@
   display: grid;
   grid-template-columns:
     repeat(
-      2,
+      3,
       minmax(0, 1fr)
     );
   gap: 15px;
@@ -177,13 +212,12 @@
 }
 
 .fieldFull {
-  grid-column:
-    1 / -1;
+  grid-column: 1 / -1;
 }
 
-.field label {
+.field > span {
   color: #4b4841;
-  font-size: 10px;
+  font-size: var(--font-helper);
   font-weight: 800;
 }
 
@@ -197,35 +231,58 @@
   background: #ffffff;
   color: #292721;
   font: inherit;
-  font-size: 12px;
+  font-size: var(--font-input);
 }
 
 .field input,
 .field select {
-  height: 44px;
-  padding:
-    0 13px;
+  height: 42px;
+  padding: 0 12px;
 }
 
 .field textarea {
-  padding: 13px;
+  min-height: 94px;
+  padding: 12px;
   resize: vertical;
-  line-height: 1.6;
+  line-height: 1.55;
 }
 
 .field input:focus,
 .field select:focus,
-.field textarea:focus {
+.field textarea:focus,
+.inlineInput:focus,
+.inlineTextarea:focus {
   border-color: #c69a1d;
   box-shadow:
-    0 0 0 4px
-    rgba(198, 154, 29, 0.11);
+    0 0 0 3px
+    rgba(198, 154, 29, 0.1);
+}
+
+.generalContext {
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  min-height: 66px;
+  padding: 10px 12px;
+  border: 1px dashed #d9d5cc;
+  border-radius: 10px;
+  background: #fbfaf7;
+}
+
+.generalContext strong {
+  color: #514d45;
+  font-size: var(--font-input);
+}
+
+.generalContext span {
+  color: #918d84;
+  font-size: var(--font-helper);
 }
 
 .formActions {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 9px;
 }
 
 /* =========================================================
@@ -236,10 +293,10 @@
   display: grid;
   grid-template-columns:
     repeat(
-      4,
+      5,
       minmax(0, 1fr)
     );
-  gap: 14px;
+  gap: 12px;
 }
 
 .summaryCard {
@@ -249,11 +306,12 @@
   position: relative;
   display: grid;
   min-width: 0;
-  gap: 7px;
+  gap: 5px;
   overflow: hidden;
-  padding: 18px;
+  min-height: 112px;
+  padding: 15px 16px;
   border: 1px solid #dfdcd3;
-  border-radius: 16px;
+  border-radius: 14px;
   background: #ffffff;
 }
 
@@ -261,13 +319,10 @@
   position: absolute;
   right: -24px;
   bottom: -31px;
-  width: 82px;
-  height: 82px;
+  width: 78px;
+  height: 78px;
   border-radius: 50%;
-  background:
-    var(
-      --summary-soft
-    );
+  background: var(--summary-soft);
   content: "";
 }
 
@@ -275,45 +330,34 @@
   position: relative;
   z-index: 1;
   display: grid;
-  width: 37px;
-  height: 37px;
+  width: 33px;
+  height: 33px;
   place-items: center;
-  border-radius: 11px;
-  background:
-    var(
-      --summary-soft
-    );
-  color:
-    var(
-      --summary-colour
-    );
-  font-size: 15px;
+  border-radius: 10px;
+  background: var(--summary-soft);
+  color: var(--summary-colour);
+  font-size: 14px;
   font-weight: 900;
 }
 
 .summaryLabel,
-.summaryCard strong,
-.summaryCard small {
+.summaryCard strong {
   position: relative;
   z-index: 1;
 }
 
 .summaryLabel {
   color: #817d74;
-  font-size: 9px;
+  font-size: var(--font-label);
   font-weight: 800;
-  letter-spacing: 0.45px;
+  letter-spacing: 0.35px;
   text-transform: uppercase;
 }
 
 .summaryCard strong {
   color: #28251f;
-  font-size: 27px;
-}
-
-.summaryCard small {
-  color: #a29e95;
-  font-size: 9px;
+  font-size: 25px;
+  line-height: 1;
 }
 
 .summaryGold {
@@ -344,28 +388,25 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 15px;
-  padding: 15px;
+  gap: 14px;
+  padding: 12px;
 }
 
 .searchBox {
   display: flex;
-  width:
-    min(
-      470px,
-      100%
-    );
-  height: 43px;
+  width: min(500px, 100%);
+  height: 41px;
   align-items: center;
-  gap: 9px;
-  padding:
-    0 12px;
+  gap: 8px;
+  padding: 0 11px;
   border: 1px solid #dedbd2;
-  border-radius: 11px;
+  border-radius: 10px;
+  background: #ffffff;
 }
 
 .searchBox span {
   color: #99958c;
+  font-size: 14px;
 }
 
 .searchBox input {
@@ -373,7 +414,9 @@
   border: 0;
   outline: none;
   background: transparent;
+  color: #302d27;
   font: inherit;
+  font-size: var(--font-input);
 }
 
 .filters {
@@ -381,23 +424,24 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
-  gap: 9px;
+  gap: 8px;
 }
 
 .filterSelect {
-  height: 43px;
-  min-width: 140px;
-  padding:
-    0 12px;
+  height: 41px;
+  min-width: 145px;
+  padding: 0 11px;
   border: 1px solid #dedbd2;
-  border-radius: 11px;
+  border-radius: 10px;
   background: #ffffff;
+  color: #39362f;
+  font: inherit;
+  font-size: var(--font-input);
 }
 
 .clearButton {
-  min-height: 40px;
-  padding:
-    0 12px;
+  min-height: 38px;
+  padding: 0 9px;
   border: 0;
   background: transparent;
   color: #9a7100;
@@ -416,32 +460,28 @@
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  padding:
-    19px 21px;
-  border-bottom:
-    1px solid #ebe8e1;
+  padding: 18px 20px;
+  border-bottom: 1px solid #ebe8e1;
 }
 
 .tableHeading h3 {
   margin: 0;
   color: #29261f;
-  font-size: 16px;
+  font-size: var(--font-panel-title);
 }
 
 .tableHeading p {
-  margin:
-    4px 0 0;
+  margin: 4px 0 0;
   color: #969289;
-  font-size: 9px;
+  font-size: var(--font-helper);
 }
 
 .resultCount {
-  padding:
-    6px 9px;
+  padding: 6px 9px;
   border-radius: 999px;
   background: #f5edcf;
   color: #8d6900;
-  font-size: 9px;
+  font-size: var(--font-label);
   font-weight: 850;
 }
 
@@ -450,124 +490,152 @@
 }
 
 /* =========================================================
-   MY WORK TABLE
+   ACTIVITY TABLE
 ========================================================= */
 
-.followUpTable {
+.activityTable {
   width: 100%;
-  min-width: 1420px;
+  min-width: 1180px;
   border-collapse: collapse;
 }
 
-.followUpTable th {
-  padding:
-    13px 16px;
-  border-bottom:
-    1px solid #e9e6df;
+.activityTable th {
+  padding: 12px 14px;
+  border-bottom: 1px solid #e9e6df;
   background: #faf9f6;
   color: #8c887f;
-  font-size: 9px;
+  font-size: var(--font-label);
   font-weight: 800;
   text-align: left;
   text-transform: uppercase;
   white-space: nowrap;
 }
 
-.followUpTable td {
-  padding:
-    16px;
-  border-bottom:
-    1px solid #efede7;
+.activityTable td {
+  padding: 14px;
+  border-bottom: 1px solid #efede7;
   color: #4f4b44;
-  font-size: 11px;
+  font-size: var(--font-table);
+  line-height: 1.45;
   vertical-align: middle;
 }
 
-.followUpTable
-tbody
-tr:last-child
-td {
+.activityTable tbody tr:last-child td {
   border-bottom: 0;
 }
 
-.followUpTable
-tbody
-tr:hover {
+.activityTable tbody tr:hover {
   background: #fcfaf5;
 }
 
 /* =========================================================
-   WORK IDENTITY
+   ACTIVITY TYPE
 ========================================================= */
 
-.followUpIdentity {
-  display: flex;
-  min-width: 245px;
-  align-items: center;
-  gap: 11px;
-}
-
-.followUpIcon {
-  display: grid;
-  width: 40px;
-  height: 40px;
+.followUpOnlyIcon {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
   place-items: center;
-  flex: 0 0 40px;
-  border-radius: 12px;
-  background: #292720;
-  color: #deb840;
-  font-weight: 850;
+  border-radius: 8px;
+  background: #f4f1e9;
+  color: #9a7300;
+  font-size: 12px;
+  font-weight: 900;
 }
 
-.taskWorkIcon {
-  background: #292720;
-  color: #deb840;
+.activityTypeBadge {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: #f2f0ea;
+  color: #625e56;
+  font-size: var(--font-label);
+  font-weight: 800;
+  white-space: nowrap;
 }
 
-.followUpWorkIcon {
-  background: #f5edcf;
-  color: #927000;
+.typeCall {
+  background: #e7f3eb;
+  color: #397451;
 }
 
-.followUpIdentityCopy {
+.typeMeeting {
+  background: #e8eef6;
+  color: #416d95;
+}
+
+.typeDemo {
+  background: #f7efd5;
+  color: #8f6900;
+}
+
+.typeEmail {
+  background: #eeeaf7;
+  color: #695598;
+}
+
+/* =========================================================
+   ACTIVITY IDENTITY
+========================================================= */
+
+.activityIdentity {
   display: grid;
-  min-width: 0;
+  min-width: 250px;
   gap: 3px;
 }
 
-.followUpLink {
+.activityIdentity strong {
   overflow: hidden;
   color: #28251f;
+  font-size: var(--font-table);
   font-weight: 850;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.followUpLink:hover {
-  color: #947000;
+.activityIdentity small {
+  display: block;
+  overflow: hidden;
+  max-width: 360px;
+  color: #99958c;
+  font-size: var(--font-meta);
+  line-height: 1.45;
+  text-overflow: ellipsis;
 }
 
-.followUpIdentityCopy small {
-  color: #99958c;
-  font-size: 9px;
+.outcomeText {
+  color: #397451;
+  font-size: var(--font-meta);
+  font-weight: 800;
 }
 
 /* =========================================================
-   RELATED TYPE
+   RELATED
 ========================================================= */
 
-.typeBadge {
-  display: inline-flex;
-  min-height: 27px;
-  align-items: center;
-  padding:
-    0 9px;
-  border-radius: 999px;
-  background: #f2f0ea;
-  color: #6f6a61;
-  font-size: 9px;
-  font-weight: 750;
-  white-space: nowrap;
+.relatedIdentity {
+  display: grid;
+  min-width: 150px;
+  gap: 2px;
+}
+
+.relatedIdentity strong {
+  color: #39362f;
+  font-size: var(--font-table);
+}
+
+.relatedIdentity small {
+  color: #99958c;
+  font-size: var(--font-meta);
+}
+
+.relatedText {
+  color: #716c63;
+  font-size: var(--font-table);
 }
 
 /* =========================================================
@@ -576,76 +644,36 @@ tr:hover {
 
 .assigneeCell {
   display: grid;
-  min-width: 125px;
-  gap: 3px;
+  min-width: 135px;
+  gap: 2px;
 }
 
 .assigneeCell strong {
   overflow: hidden;
-  max-width: 170px;
+  max-width: 180px;
   color: #39362f;
-  font-size: 10px;
+  font-size: var(--font-table);
+  font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .assigneeCell small {
   overflow: hidden;
-  max-width: 170px;
+  max-width: 180px;
   color: #99958c;
-  font-size: 8px;
+  font-size: var(--font-meta);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 /* =========================================================
-   PRIORITY
+   DATE
 ========================================================= */
 
-.priorityBadge {
-  display: inline-flex;
-  min-height: 27px;
-  align-items: center;
-  justify-content: center;
-  padding:
-    0 9px;
-  border-radius: 999px;
-  font-size: 9px;
-  font-weight: 800;
-  white-space: nowrap;
-}
-
-.priorityLow {
-  background: #eef2ee;
-  color: #617064;
-}
-
-.priorityMedium {
-  background: #f2f0ea;
-  color: #69655d;
-}
-
-.priorityHigh {
-  background: #faefd1;
-  color: #906900;
-}
-
-.priorityUrgent {
-  background: #f9e3e3;
-  color: #a14545;
-}
-
-.notApplicable {
-  color: #aaa69d;
-}
-
-/* =========================================================
-   DUE DATE
-========================================================= */
-
-.dueDateCell {
+.dateCell {
   display: flex;
-  min-width: 125px;
+  min-width: 145px;
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
@@ -653,34 +681,58 @@ tr:hover {
 
 .dateText {
   color: #858178;
+  font-size: var(--font-helper);
   white-space: nowrap;
 }
 
 .dateTextOverdue {
   color: #a14545;
+  font-size: var(--font-helper);
   font-weight: 800;
+  white-space: nowrap;
 }
 
 .overdueLabel {
   display: inline-flex;
-  padding:
-    5px 8px;
+  padding: 4px 7px;
   border-radius: 999px;
   background: #f9e3e3;
   color: #a14545;
-  font-size: 8px;
+  font-size: var(--font-meta);
   font-weight: 850;
 }
 
-.todayLabel {
-  display: inline-flex;
-  padding:
-    5px 8px;
-  border-radius: 999px;
-  background: #e5eef7;
-  color: #3d6f9e;
-  font-size: 8px;
-  font-weight: 850;
+/* =========================================================
+   EDIT FIELDS
+========================================================= */
+
+.editStack {
+  display: grid;
+  min-width: 200px;
+  gap: 7px;
+}
+
+.inlineInput,
+.inlineTextarea {
+  width: 100%;
+  border: 1px solid #ddd9cf;
+  border-radius: 9px;
+  outline: none;
+  background: #ffffff;
+  color: #302d27;
+  font: inherit;
+  font-size: var(--font-input);
+}
+
+.inlineInput {
+  min-height: 37px;
+  padding: 0 9px;
+}
+
+.inlineTextarea {
+  min-height: 68px;
+  padding: 9px;
+  resize: vertical;
 }
 
 /* =========================================================
@@ -689,31 +741,43 @@ tr:hover {
 
 .actionCell {
   display: flex;
-  min-width: 215px;
+  min-width: 210px;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
 }
 
-.statusSelect {
-  height: 35px;
-  min-width: 115px;
-  padding:
-    0 9px;
-  border: 1px solid #ddd9cf;
-  border-radius: 9px;
-  outline: none;
+.smallButton,
+.saveButton,
+.completeButton,
+.deleteButton {
+  min-height: 34px;
+  padding: 0 10px;
+}
+
+.smallButton {
+  border: 1px solid #dedbd2;
   background: #ffffff;
+  color: #514e47;
 }
 
-.statusSelect:focus {
-  border-color: #c69a1d;
+.saveButton {
+  border: 1px solid #bd8b06;
+  background: #dca900;
+  color: #1b1a16;
+}
+
+.completeButton {
+  border: 1px solid #bddbc8;
+  background: #f1f9f4;
+  color: #397451;
+}
+
+.completeButton:hover {
+  background: #e7f4eb;
 }
 
 .deleteButton {
-  min-height: 35px;
-  margin-left: 0;
-  padding:
-    0 11px;
   border: 1px solid #e4bcbc;
   background: #fff4f4;
   color: #a14545;
@@ -724,76 +788,42 @@ tr:hover {
 }
 
 /* =========================================================
-   OPEN LINKS
-========================================================= */
-
-.openCell {
-  display: grid;
-  min-width: 120px;
-  gap: 5px;
-}
-
-.openButton {
-  min-height: 34px;
-  padding:
-    0 12px;
-  border: 1px solid #ded9ca;
-  background: #fbf8ef;
-  color: #8c6800;
-  white-space: nowrap;
-  text-decoration: none;
-}
-
-.openButton:hover {
-  border-color: #caa63b;
-  background: #f7efd5;
-}
-
-.sourceLink {
-  color: #8f8a80;
-  font-size: 8px;
-  font-weight: 750;
-  text-align: center;
-}
-
-.sourceLink:hover {
-  color: #947000;
-}
-
-/* =========================================================
    EMPTY
 ========================================================= */
 
 .emptyState {
   display: grid;
-  min-height: 280px;
+  min-height: 250px;
   place-items: center;
   align-content: center;
-  gap: 9px;
+  gap: 8px;
   padding: 30px;
   text-align: center;
 }
 
 .emptyIcon {
   display: grid;
-  width: 56px;
-  height: 56px;
+  width: 52px;
+  height: 52px;
   place-items: center;
-  border-radius: 16px;
+  border-radius: 15px;
   background: #f5edcf;
   color: #997100;
-  font-size: 22px;
+  font-size: 20px;
 }
 
 .emptyState h3 {
   margin: 0;
+  color: #29261f;
+  font-size: var(--font-panel-title);
 }
 
 .emptyState p {
-  max-width: 430px;
+  max-width: 440px;
   margin: 0;
   color: #97938a;
-  font-size: 10px;
+  font-size: var(--font-helper);
+  line-height: 1.55;
 }
 
 /* =========================================================
@@ -802,13 +832,13 @@ tr:hover {
 
 .loadingPanel {
   display: grid;
-  gap: 14px;
-  padding: 22px;
+  gap: 12px;
+  padding: 20px;
 }
 
 .loadingRow {
-  height: 66px;
-  border-radius: 11px;
+  height: 62px;
+  border-radius: 10px;
   background:
     linear-gradient(
       90deg,
@@ -816,8 +846,7 @@ tr:hover {
       #f6f4ef 50%,
       #ece9e2 75%
     );
-  background-size:
-    200% 100%;
+  background-size: 200% 100%;
   animation:
     loadingPulse
     1.4s
@@ -826,13 +855,11 @@ tr:hover {
 
 @keyframes loadingPulse {
   from {
-    background-position:
-      200% 0;
+    background-position: 200% 0;
   }
 
   to {
-    background-position:
-      -200% 0;
+    background-position: -200% 0;
   }
 }
 
@@ -849,10 +876,9 @@ tr:hover {
 }
 
 .errorPanel p {
-  margin:
-    5px 0 0;
+  margin: 5px 0 0;
   color: #a16262;
-  font-size: 10px;
+  font-size: var(--font-helper);
 }
 
 /* =========================================================
@@ -862,6 +888,22 @@ tr:hover {
 @media (
   max-width: 1250px
 ) {
+  .formGrid {
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
+  }
+
+  .summaryGrid {
+    grid-template-columns:
+      repeat(
+        3,
+        minmax(0, 1fr)
+      );
+  }
+
   .toolbarPanel {
     align-items: stretch;
     flex-direction: column;
@@ -877,13 +919,13 @@ tr:hover {
 }
 
 @media (
-  max-width: 1100px
+  max-width: 900px
 ) {
   .summaryGrid {
     grid-template-columns:
       repeat(
         2,
-        1fr
+        minmax(0, 1fr)
       );
   }
 }
@@ -892,15 +934,19 @@ tr:hover {
   max-width: 720px
 ) {
   .pageHeader,
+  .formHeading,
   .filters {
     align-items: stretch;
     flex-direction: column;
   }
 
+  .headerActions {
+    justify-content: flex-start;
+  }
+
   .summaryGrid,
   .formGrid {
-    grid-template-columns:
-      1fr;
+    grid-template-columns: 1fr;
   }
 
   .fieldFull {
@@ -908,8 +954,7 @@ tr:hover {
   }
 
   .formActions {
-    flex-direction:
-      column-reverse;
+    flex-direction: column-reverse;
   }
 
   .formActions button,
@@ -923,223 +968,14 @@ tr:hover {
     align-items: flex-start;
     flex-direction: column;
   }
-}
 
-/* =========================================================
-   SaiNal One Typography — My Work
-========================================================= */
-
-.eyebrow {
-  font-size:
-    var(
-      --font-label
-    );
-}
-
-.pageHeader h2 {
-  font-size:
-    var(
-      --font-workspace-title
-    );
-  line-height: 1.2;
-}
-
-.pageHeader p,
-.employeeContext {
-  font-size:
-    var(
-      --font-helper
-    );
-}
-
-.primaryButton,
-.secondaryButton,
-.clearButton,
-.openButton,
-.deleteButton {
-  font-size:
-    var(
-      --font-button
-    );
-}
-
-.formHeading h3 {
-  font-size:
-    var(
-      --font-section-title
-    );
-}
-
-.formHeading p {
-  font-size:
-    var(
-      --font-helper
-    );
-}
-
-.field label {
-  font-size:
-    var(
-      --font-helper
-    );
-}
-
-.field input,
-.field select,
-.field textarea,
-.searchBox input,
-.filterSelect,
-.statusSelect {
-  font-size:
-    var(
-      --font-input
-    );
-}
-
-.summaryLabel {
-  font-size:
-    var(
-      --font-label
-    );
-}
-
-.summaryCard strong {
-  font-size: 30px;
-}
-
-.summaryCard small {
-  font-size:
-    var(
-      --font-helper
-    );
-}
-
-.tableHeading h3 {
-  font-size:
-    var(
-      --font-panel-title
-    );
-}
-
-.tableHeading p {
-  font-size:
-    var(
-      --font-helper
-    );
-}
-
-.resultCount {
-  font-size:
-    var(
-      --font-label
-    );
-}
-
-.followUpTable th {
-  font-size:
-    var(
-      --font-label
-    );
-}
-
-.followUpTable td {
-  font-size:
-    var(
-      --font-table
-    );
-  line-height: 1.5;
-}
-
-.followUpLink {
-  font-size:
-    var(
-      --font-table
-    );
-}
-
-.followUpIdentityCopy small,
-.assigneeCell small {
-  font-size:
-    var(
-      --font-meta
-    );
-}
-
-.typeBadge,
-.priorityBadge {
-  font-size:
-    var(
-      --font-label
-    );
-}
-
-.dateText {
-  font-size:
-    var(
-      --font-helper
-    );
-}
-
-.overdueLabel,
-.todayLabel {
-  font-size:
-    var(
-      --font-meta
-    );
-}
-
-.emptyState h3 {
-  font-size:
-    var(
-      --font-panel-title
-    );
-}
-
-.emptyState p,
-.errorPanel p {
-  font-size:
-    var(
-      --font-helper
-    );
-}
-
-/* =========================================================
-   SAINAL ONE
-   OPERATIONS TYPOGRAPHY FINALISATION
-   MY WORK / FOLLOW-UPS
-========================================================= */
-
-.followUpIdentityCopy small,
-.assigneeCell small {
-  font-size: 11px;
-}
-
-.assigneeCell strong {
-  font-size: 13px;
-}
-
-.overdueLabel,
-.todayLabel,
-.sourceLink {
-  font-size: 11px;
-}
-
-.typeBadge,
-.priorityBadge {
-  font-size: 11px;
-}
-
-.dateText {
-  font-size: 12px;
-}
-
-@media (max-width: 720px) {
   .field input,
   .field select,
   .field textarea,
   .searchBox input,
   .filterSelect,
-  .statusSelect {
+  .inlineInput,
+  .inlineTextarea {
     font-size: 16px;
   }
 }
