@@ -16,9 +16,20 @@ import StatusBadge from "../../components/StatusBadge";
 
 const STATUS_OPTIONS = [
   "Pending",
+  "Scheduled",
   "In Progress",
   "Completed",
+  "No Answer",
+  "Rescheduled",
   "Cancelled",
+];
+
+const ACTIVITY_TYPES = [
+  "Follow-up",
+  "Call",
+  "Meeting",
+  "Demo",
+  "Email",
 ];
 
 const RELATED_TYPES = [
@@ -31,25 +42,69 @@ const RELATED_TYPES = [
   "Invoice",
 ];
 
+const SCHEDULED_ACTIVITY_TYPES =
+  new Set([
+    "Call",
+    "Meeting",
+    "Demo",
+  ]);
+
 const EMPTY_FORM = {
-  title: "",
-  note: "",
-  due_date: "",
-  status: "Pending",
-  related_type: "General",
-  related_id: "",
-  assigned_employee_id: "",
+  activity_type:
+    "Follow-up",
+
+  title:
+    "",
+
+  note:
+    "",
+
+  due_date:
+    "",
+
+  scheduled_at:
+    "",
+
+  status:
+    "Pending",
+
+  related_type:
+    "General",
+
+  related_id:
+    "",
+
+  assigned_employee_id:
+    "",
+
+  outcome:
+    "",
 };
 
 const EMPTY_ACCESS = {
-  isOwner: false,
-  canViewAll: false,
-  canViewTeam: false,
-  canViewOwn: false,
-  canCreate: false,
-  canEdit: false,
-  canDelete: false,
-  canAssign: false,
+  isOwner:
+    false,
+
+  canViewAll:
+    false,
+
+  canViewTeam:
+    false,
+
+  canViewOwn:
+    false,
+
+  canCreate:
+    false,
+
+  canEdit:
+    false,
+
+  canDelete:
+    false,
+
+  canAssign:
+    false,
 };
 
 // =========================================================
@@ -60,190 +115,215 @@ export default function FollowUpsPage() {
   const [
     followUps,
     setFollowUps,
-  ] = useState([]);
+  ] =
+    useState([]);
+
+  const [
+    leads,
+    setLeads,
+  ] =
+    useState([]);
 
   const [
     employees,
     setEmployees,
-  ] = useState([]);
+  ] =
+    useState([]);
 
   const [
     currentEmployee,
     setCurrentEmployee,
-  ] = useState(null);
+  ] =
+    useState(null);
 
   const [
     access,
     setAccess,
-  ] = useState(
-    EMPTY_ACCESS
-  );
+  ] =
+    useState(
+      EMPTY_ACCESS
+    );
 
   const [
     loading,
     setLoading,
-  ] = useState(true);
+  ] =
+    useState(true);
 
   const [
     errorMessage,
     setErrorMessage,
-  ] = useState("");
+  ] =
+    useState("");
 
   const [
     showForm,
     setShowForm,
-  ] = useState(false);
+  ] =
+    useState(false);
 
   const [
     saving,
     setSaving,
-  ] = useState(false);
+  ] =
+    useState(false);
 
   const [
     form,
     setForm,
-  ] = useState(
-    EMPTY_FORM
-  );
+  ] =
+    useState(
+      EMPTY_FORM
+    );
 
   const [
     editingId,
     setEditingId,
-  ] = useState(null);
+  ] =
+    useState(null);
 
   const [
     editForm,
     setEditForm,
-  ] = useState(
-    EMPTY_FORM
-  );
+  ] =
+    useState(
+      EMPTY_FORM
+    );
 
   const [
     search,
     setSearch,
-  ] = useState("");
+  ] =
+    useState("");
 
   const [
     statusFilter,
     setStatusFilter,
-  ] = useState("All");
+  ] =
+    useState("All");
+
+  const [
+    activityFilter,
+    setActivityFilter,
+  ] =
+    useState("All");
 
   // =======================================================
   // LOAD
   // =======================================================
 
   useEffect(() => {
-    loadFollowUps();
+    loadPageData();
   }, []);
 
-  async function loadFollowUps() {
+  async function loadPageData() {
     try {
-      setLoading(true);
-      setErrorMessage("");
+      setLoading(
+        true
+      );
 
-      const response =
-        await fetch(
-          "/api/follow-ups",
-          {
-            cache:
-              "no-store",
-          }
+      setErrorMessage(
+        ""
+      );
+
+      const [
+        followUpResponse,
+        leadsResponse,
+      ] =
+        await Promise.all([
+          fetch(
+            "/api/follow-ups",
+            {
+              cache:
+                "no-store",
+            }
+          ),
+
+          fetch(
+            "/api/leads",
+            {
+              cache:
+                "no-store",
+            }
+          ),
+        ]);
+
+      const followUpData =
+        await safeJson(
+          followUpResponse
         );
 
-      const data =
-        await response.json();
+      const leadsData =
+        await safeJson(
+          leadsResponse
+        );
 
-      if (!response.ok) {
+      if (
+        !followUpResponse.ok
+      ) {
         throw new Error(
-          data.error ||
+          followUpData.error ||
             "Unable to load follow-ups."
         );
       }
 
       setFollowUps(
         Array.isArray(
-          data.followUps
+          followUpData.followUps
         )
-          ? data.followUps
+          ? followUpData.followUps
           : []
       );
 
       setEmployees(
         Array.isArray(
-          data.employees
+          followUpData.employees
         )
-          ? data.employees
+          ? followUpData.employees
           : []
       );
 
       setCurrentEmployee(
-        data.currentEmployee ||
+        followUpData.currentEmployee ||
           null
       );
 
-      setAccess({
-        isOwner:
-          Boolean(
-            data.access
-              ?.isOwner
-          ),
+      setAccess(
+        buildAccess(
+          followUpData.access
+        )
+      );
 
-        canViewAll:
-          Boolean(
-            data.access
-              ?.canViewAll
-          ),
-
-        canViewTeam:
-          Boolean(
-            data.access
-              ?.canViewTeam
-          ),
-
-        canViewOwn:
-          Boolean(
-            data.access
-              ?.canViewOwn
-          ),
-
-        canCreate:
-          Boolean(
-            data.access
-              ?.canCreate
-          ),
-
-        canEdit:
-          Boolean(
-            data.access
-              ?.canEdit
-          ),
-
-        canDelete:
-          Boolean(
-            data.access
-              ?.canDelete
-          ),
-
-        canAssign:
-          Boolean(
-            data.access
-              ?.canAssign
-          ),
-      });
+      setLeads(
+        leadsResponse.ok &&
+          Array.isArray(
+            leadsData.leads
+          )
+          ? leadsData.leads
+          : []
+      );
     } catch (error) {
       console.error(
         "Follow-up loading error:",
         error
       );
 
-      setFollowUps([]);
+      setFollowUps(
+        []
+      );
+
+      setLeads(
+        []
+      );
 
       setErrorMessage(
         error.message ||
           "Unable to load follow-ups."
       );
     } finally {
-      setLoading(false);
+      setLoading(
+        false
+      );
     }
   }
 
@@ -251,22 +331,49 @@ export default function FollowUpsPage() {
   // CREATE
   // =======================================================
 
-  function openCreateForm() {
+  function openCreateForm(
+    activityType =
+      "Follow-up"
+  ) {
+    const scheduled =
+      SCHEDULED_ACTIVITY_TYPES.has(
+        activityType
+      );
+
     setForm({
       ...EMPTY_FORM,
+
+      activity_type:
+        activityType,
+
+      status:
+        scheduled
+          ? "Scheduled"
+          : "Pending",
+
+      related_type:
+        activityType ===
+        "Call"
+          ? "Lead"
+          : "General",
 
       assigned_employee_id:
         access.canAssign
           ? currentEmployee
-              ?.id || ""
+              ?.id ||
+            ""
           : "",
     });
 
-    setShowForm(true);
+    setShowForm(
+      true
+    );
   }
 
   function closeCreateForm() {
-    setShowForm(false);
+    setShowForm(
+      false
+    );
 
     setForm(
       EMPTY_FORM
@@ -283,12 +390,54 @@ export default function FollowUpsPage() {
       event.target;
 
     setForm(
-      (current) => ({
-        ...current,
+      (
+        current
+      ) => {
+        const next = {
+          ...current,
 
-        [name]:
-          value,
-      })
+          [name]:
+            value,
+        };
+
+        if (
+          name ===
+          "activity_type"
+        ) {
+          const scheduled =
+            SCHEDULED_ACTIVITY_TYPES.has(
+              value
+            );
+
+          next.status =
+            scheduled
+              ? "Scheduled"
+              : "Pending";
+
+          if (
+            value ===
+              "Call" &&
+            current.related_type ===
+              "General"
+          ) {
+            next.related_type =
+              "Lead";
+
+            next.related_id =
+              "";
+          }
+        }
+
+        if (
+          name ===
+          "related_type"
+        ) {
+          next.related_id =
+            "";
+        }
+
+        return next;
+      }
     );
   }
 
@@ -298,28 +447,66 @@ export default function FollowUpsPage() {
     event.preventDefault();
 
     if (
-      !form.title.trim()
+      !form.title
+        .trim()
     ) {
       alert(
-        "Follow-up title is required."
+        "Activity title is required."
+      );
+
+      return;
+    }
+
+    if (
+      form.related_type ===
+        "Lead" &&
+      !form.related_id
+    ) {
+      alert(
+        "Please select a lead."
+      );
+
+      return;
+    }
+
+    if (
+      SCHEDULED_ACTIVITY_TYPES.has(
+        form.activity_type
+      ) &&
+      !form.scheduled_at
+    ) {
+      alert(
+        `${form.activity_type} date and time are required.`
       );
 
       return;
     }
 
     try {
-      setSaving(true);
+      setSaving(
+        true
+      );
 
       const payload = {
+        activity_type:
+          form.activity_type,
+
         title:
-          form.title.trim(),
+          form.title
+            .trim(),
 
         note:
-          form.note.trim(),
+          form.note
+            .trim(),
 
         due_date:
           form.due_date ||
           null,
+
+        scheduled_at:
+          toIsoDateTime(
+            form.scheduled_at
+          ),
 
         status:
           form.status,
@@ -328,7 +515,13 @@ export default function FollowUpsPage() {
           form.related_type,
 
         related_id:
-          form.related_id.trim() ||
+          form.related_id
+            .trim() ||
+          null,
+
+        outcome:
+          form.outcome
+            .trim() ||
           null,
       };
 
@@ -360,25 +553,36 @@ export default function FollowUpsPage() {
         );
 
       const data =
-        await response.json();
+        await safeJson(
+          response
+        );
 
-      if (!response.ok) {
+      if (
+        !response.ok
+      ) {
         throw new Error(
           data.error ||
-            "Unable to create follow-up."
+            "Unable to create activity."
         );
       }
 
       closeCreateForm();
 
-      await loadFollowUps();
+      await loadPageData();
+
+      alert(
+        data.message ||
+          "Activity created successfully."
+      );
     } catch (error) {
       alert(
         error.message ||
-          "Unable to create follow-up."
+          "Unable to create activity."
       );
     } finally {
-      setSaving(false);
+      setSaving(
+        false
+      );
     }
   }
 
@@ -386,24 +590,40 @@ export default function FollowUpsPage() {
   // EDIT
   // =======================================================
 
-  function startEdit(item) {
+  function startEdit(
+    item,
+    nextStatus =
+      null
+  ) {
     setEditingId(
       item.id
     );
 
     setEditForm({
+      activity_type:
+        item.activity_type ||
+        "Follow-up",
+
       title:
-        item.title || "",
+        item.title ||
+        "",
 
       note:
-        item.note || "",
+        item.note ||
+        "",
 
       due_date:
         normaliseDateInput(
           item.due_date
         ),
 
+      scheduled_at:
+        normaliseDateTimeInput(
+          item.scheduled_at
+        ),
+
       status:
+        nextStatus ||
         item.status ||
         "Pending",
 
@@ -418,11 +638,17 @@ export default function FollowUpsPage() {
       assigned_employee_id:
         item.assigned_employee_id ||
         "",
+
+      outcome:
+        item.outcome ||
+        "",
     });
   }
 
   function cancelEdit() {
-    setEditingId(null);
+    setEditingId(
+      null
+    );
 
     setEditForm(
       EMPTY_FORM
@@ -439,12 +665,26 @@ export default function FollowUpsPage() {
       event.target;
 
     setEditForm(
-      (current) => ({
-        ...current,
+      (
+        current
+      ) => {
+        const next = {
+          ...current,
 
-        [name]:
-          value,
-      })
+          [name]:
+            value,
+        };
+
+        if (
+          name ===
+          "related_type"
+        ) {
+          next.related_id =
+            "";
+        }
+
+        return next;
+      }
     );
   }
 
@@ -452,22 +692,70 @@ export default function FollowUpsPage() {
     id
   ) {
     try {
-      setSaving(true);
+      setSaving(
+        true
+      );
 
       const payload = {};
 
       if (
         access.canEdit
       ) {
+        if (
+          !editForm.title
+            .trim()
+        ) {
+          alert(
+            "Activity title is required."
+          );
+
+          return;
+        }
+
+        if (
+          editForm.related_type ===
+            "Lead" &&
+          !editForm.related_id
+        ) {
+          alert(
+            "Please select a lead."
+          );
+
+          return;
+        }
+
+        if (
+          SCHEDULED_ACTIVITY_TYPES.has(
+            editForm.activity_type
+          ) &&
+          !editForm.scheduled_at
+        ) {
+          alert(
+            `${editForm.activity_type} date and time are required.`
+          );
+
+          return;
+        }
+
+        payload.activity_type =
+          editForm.activity_type;
+
         payload.title =
-          editForm.title.trim();
+          editForm.title
+            .trim();
 
         payload.note =
-          editForm.note.trim();
+          editForm.note
+            .trim();
 
         payload.due_date =
           editForm.due_date ||
           null;
+
+        payload.scheduled_at =
+          toIsoDateTime(
+            editForm.scheduled_at
+          );
 
         payload.status =
           editForm.status;
@@ -476,7 +764,13 @@ export default function FollowUpsPage() {
           editForm.related_type;
 
         payload.related_id =
-          editForm.related_id.trim() ||
+          editForm.related_id
+            .trim() ||
+          null;
+
+        payload.outcome =
+          editForm.outcome
+            .trim() ||
           null;
       }
 
@@ -508,34 +802,41 @@ export default function FollowUpsPage() {
         );
 
       const data =
-        await response.json();
+        await safeJson(
+          response
+        );
 
-      if (!response.ok) {
+      if (
+        !response.ok
+      ) {
         throw new Error(
           data.error ||
-            "Unable to update follow-up."
+            "Unable to update activity."
         );
       }
 
       cancelEdit();
 
-      await loadFollowUps();
+      await loadPageData();
     } catch (error) {
       alert(
         error.message ||
-          "Unable to update follow-up."
+          "Unable to update activity."
       );
     } finally {
-      setSaving(false);
+      setSaving(
+        false
+      );
     }
   }
 
   // =======================================================
-  // QUICK COMPLETE
+  // QUICK STATUS
   // =======================================================
 
-  async function completeFollowUp(
-    item
+  async function patchStatus(
+    item,
+    status
   ) {
     if (
       !access.canEdit
@@ -558,27 +859,30 @@ export default function FollowUpsPage() {
 
             body:
               JSON.stringify({
-                status:
-                  "Completed",
+                status,
               }),
           }
         );
 
       const data =
-        await response.json();
+        await safeJson(
+          response
+        );
 
-      if (!response.ok) {
+      if (
+        !response.ok
+      ) {
         throw new Error(
           data.error ||
-            "Unable to complete follow-up."
+            "Unable to update activity."
         );
       }
 
-      await loadFollowUps();
+      await loadPageData();
     } catch (error) {
       alert(
         error.message ||
-          "Unable to complete follow-up."
+          "Unable to update activity."
       );
     }
   }
@@ -595,7 +899,9 @@ export default function FollowUpsPage() {
         `Delete "${item.title}"?`
       );
 
-    if (!confirmed) {
+    if (
+      !confirmed
+    ) {
       return;
     }
 
@@ -610,20 +916,24 @@ export default function FollowUpsPage() {
         );
 
       const data =
-        await response.json();
+        await safeJson(
+          response
+        );
 
-      if (!response.ok) {
+      if (
+        !response.ok
+      ) {
         throw new Error(
           data.error ||
-            "Unable to delete follow-up."
+            "Unable to delete activity."
         );
       }
 
-      await loadFollowUps();
+      await loadPageData();
     } catch (error) {
       alert(
         error.message ||
-          "Unable to delete follow-up."
+          "Unable to delete activity."
       );
     }
   }
@@ -633,55 +943,87 @@ export default function FollowUpsPage() {
   // =======================================================
 
   const filtered =
-    useMemo(() => {
-      const query =
-        search
-          .trim()
-          .toLowerCase();
+    useMemo(
+      () => {
+        const query =
+          search
+            .trim()
+            .toLowerCase();
 
-      return followUps.filter(
-        (item) => {
-          const matchesSearch =
-            !query ||
-            [
-              item.title,
-              item.note,
-              item.related_type,
-              item.status,
-              item.assigned_employee
-                ?.full_name,
-            ].some(
-              (value) =>
-                String(
-                  value || ""
-                )
-                  .toLowerCase()
-                  .includes(
-                    query
-                  )
-            );
-
-          const matchesStatus =
-            statusFilter ===
-              "All" ||
-            normalise(
-              item.status
-            ) ===
-              normalise(
-                statusFilter
+        return followUps.filter(
+          (
+            item
+          ) => {
+            const lead =
+              getLeadForItem(
+                item,
+                leads
               );
 
-          return (
-            matchesSearch &&
-            matchesStatus
-          );
-        }
-      );
-    }, [
-      followUps,
-      search,
-      statusFilter,
-    ]);
+            const matchesSearch =
+              !query ||
+              [
+                item.title,
+                item.note,
+                item.activity_type,
+                item.related_type,
+                item.status,
+                item.outcome,
+                item.assigned_employee
+                  ?.full_name,
+                lead?.name,
+                lead?.company,
+              ].some(
+                (
+                  value
+                ) =>
+                  String(
+                    value ||
+                      ""
+                  )
+                    .toLowerCase()
+                    .includes(
+                      query
+                    )
+              );
+
+            const matchesStatus =
+              statusFilter ===
+                "All" ||
+              normalise(
+                item.status
+              ) ===
+                normalise(
+                  statusFilter
+                );
+
+            const matchesActivity =
+              activityFilter ===
+                "All" ||
+              normalise(
+                item.activity_type ||
+                  "Follow-up"
+              ) ===
+                normalise(
+                  activityFilter
+                );
+
+            return (
+              matchesSearch &&
+              matchesStatus &&
+              matchesActivity
+            );
+          }
+        );
+      },
+      [
+        followUps,
+        leads,
+        search,
+        statusFilter,
+        activityFilter,
+      ]
+    );
 
   // =======================================================
   // METRICS
@@ -689,10 +1031,14 @@ export default function FollowUpsPage() {
 
   const pendingCount =
     followUps.filter(
-      (item) =>
+      (
+        item
+      ) =>
         [
           "pending",
+          "scheduled",
           "in progress",
+          "rescheduled",
         ].includes(
           normalise(
             item.status
@@ -700,9 +1046,22 @@ export default function FollowUpsPage() {
         )
     ).length;
 
+  const callsCount =
+    followUps.filter(
+      (
+        item
+      ) =>
+        normalise(
+          item.activity_type
+        ) ===
+        "call"
+    ).length;
+
   const completedCount =
     followUps.filter(
-      (item) =>
+      (
+        item
+      ) =>
         normalise(
           item.status
         ) ===
@@ -722,13 +1081,17 @@ export default function FollowUpsPage() {
     <ProtectedRoute>
       <AppLayout
         title="Follow-ups"
-        description="Manage customer and operational follow-up activity."
+        description="Manage calls, meetings, reminders and customer follow-up activity."
       >
         <div
           style={
             styles.page
           }
         >
+          {/* =================================================
+              HEADER
+          ================================================= */}
+
           <section
             style={
               styles.header
@@ -740,7 +1103,7 @@ export default function FollowUpsPage() {
                   styles.eyebrow
                 }
               >
-                Delivery workspace
+                Activity workspace
               </span>
 
               <h2
@@ -748,7 +1111,7 @@ export default function FollowUpsPage() {
                   styles.heading
                 }
               >
-                Follow-up centre
+                Activity centre
               </h2>
 
               <p
@@ -756,32 +1119,53 @@ export default function FollowUpsPage() {
                   styles.description
                 }
               >
-                Track actions,
-                reminders and
-                customer follow-ups
-                assigned across your
-                organisation.
+                Schedule calls with leads, manage meetings and demos,
+                and keep every follow-up visible to the right employee.
               </p>
             </div>
 
             {access.canCreate && (
-              <button
-                type="button"
+              <div
                 style={
-                  styles.primaryButton
-                }
-                onClick={
-                  showForm
-                    ? closeCreateForm
-                    : openCreateForm
+                  styles.headerActions
                 }
               >
-                {showForm
-                  ? "Close form"
-                  : "+ Add follow-up"}
-              </button>
+                <button
+                  type="button"
+                  style={
+                    styles.callButton
+                  }
+                  onClick={() =>
+                    openCreateForm(
+                      "Call"
+                    )
+                  }
+                >
+                  ☎ Schedule call
+                </button>
+
+                <button
+                  type="button"
+                  style={
+                    styles.primaryButton
+                  }
+                  onClick={() =>
+                    showForm
+                      ? closeCreateForm()
+                      : openCreateForm()
+                  }
+                >
+                  {showForm
+                    ? "Close form"
+                    : "+ Add activity"}
+                </button>
+              </div>
             )}
           </section>
+
+          {/* =================================================
+              CREATE FORM
+          ================================================= */}
 
           {showForm &&
             access.canCreate && (
@@ -790,9 +1174,45 @@ export default function FollowUpsPage() {
                   styles.panel
                 }
               >
-                <h3>
-                  Create follow-up
-                </h3>
+                <div
+                  style={
+                    styles.formHeader
+                  }
+                >
+                  <div>
+                    <span
+                      style={
+                        styles.eyebrow
+                      }
+                    >
+                      New activity
+                    </span>
+
+                    <h3
+                      style={
+                        styles.formTitle
+                      }
+                    >
+                      {form.activity_type ===
+                      "Call"
+                        ? "Schedule a call"
+                        : `Create ${form.activity_type.toLowerCase()}`}
+                    </h3>
+                  </div>
+
+                  <span
+                    style={
+                      styles.activityChip
+                    }
+                  >
+                    {activityIcon(
+                      form.activity_type
+                    )}{" "}
+                    {
+                      form.activity_type
+                    }
+                  </span>
+                </div>
 
                 <form
                   onSubmit={
@@ -804,6 +1224,20 @@ export default function FollowUpsPage() {
                       styles.formGrid
                     }
                   >
+                    <SelectField
+                      label="Activity type"
+                      name="activity_type"
+                      value={
+                        form.activity_type
+                      }
+                      onChange={
+                        handleFormChange
+                      }
+                      options={
+                        ACTIVITY_TYPES
+                      }
+                    />
+
                     <Field
                       label="Title"
                       name="title"
@@ -813,31 +1247,10 @@ export default function FollowUpsPage() {
                       onChange={
                         handleFormChange
                       }
-                    />
-
-                    <Field
-                      label="Due date"
-                      name="due_date"
-                      type="date"
-                      value={
-                        form.due_date
-                      }
-                      onChange={
-                        handleFormChange
-                      }
-                    />
-
-                    <SelectField
-                      label="Status"
-                      name="status"
-                      value={
-                        form.status
-                      }
-                      onChange={
-                        handleFormChange
-                      }
-                      options={
-                        STATUS_OPTIONS
+                      placeholder={
+                        activityTitlePlaceholder(
+                          form.activity_type
+                        )
                       }
                     />
 
@@ -855,73 +1268,120 @@ export default function FollowUpsPage() {
                       }
                     />
 
-                    <Field
-                      label="Related record ID"
-                      name="related_id"
+                    {form.related_type ===
+                    "Lead" ? (
+                      <LeadField
+                        label="Lead"
+                        value={
+                          form.related_id
+                        }
+                        onChange={
+                          handleFormChange
+                        }
+                        leads={
+                          leads
+                        }
+                      />
+                    ) : form.related_type ===
+                      "General" ? (
+                      <div
+                        style={
+                          styles.fieldHintCard
+                        }
+                      >
+                        <strong>
+                          General activity
+                        </strong>
+
+                        <span>
+                          No CRM record will be linked.
+                        </span>
+                      </div>
+                    ) : (
+                      <Field
+                        label="Related record ID"
+                        name="related_id"
+                        value={
+                          form.related_id
+                        }
+                        onChange={
+                          handleFormChange
+                        }
+                        placeholder="Record UUID"
+                      />
+                    )}
+
+                    {SCHEDULED_ACTIVITY_TYPES.has(
+                      form.activity_type
+                    ) ? (
+                      <Field
+                        label="Scheduled date & time"
+                        name="scheduled_at"
+                        type="datetime-local"
+                        value={
+                          form.scheduled_at
+                        }
+                        onChange={
+                          handleFormChange
+                        }
+                      />
+                    ) : (
+                      <Field
+                        label="Due date"
+                        name="due_date"
+                        type="date"
+                        value={
+                          form.due_date
+                        }
+                        onChange={
+                          handleFormChange
+                        }
+                      />
+                    )}
+
+                    <SelectField
+                      label="Status"
+                      name="status"
                       value={
-                        form.related_id
+                        form.status
                       }
                       onChange={
                         handleFormChange
                       }
+                      options={
+                        STATUS_OPTIONS
+                      }
                     />
 
                     {access.canAssign && (
-                      <label
-                        style={
-                          styles.field
+                      <EmployeeField
+                        value={
+                          form.assigned_employee_id
                         }
-                      >
-                        <span>
-                          Assigned employee
-                        </span>
-
-                        <select
-                          name="assigned_employee_id"
-                          value={
-                            form.assigned_employee_id
-                          }
-                          onChange={
-                            handleFormChange
-                          }
-                          style={
-                            styles.input
-                          }
-                        >
-                          <option value="">
-                            Assign to me
-                          </option>
-
-                          {employees.map(
-                            (employee) => (
-                              <option
-                                key={
-                                  employee.id
-                                }
-                                value={
-                                  employee.id
-                                }
-                              >
-                                {
-                                  employee.full_name
-                                }
-                              </option>
-                            )
-                          )}
-                        </select>
-                      </label>
+                        onChange={
+                          handleFormChange
+                        }
+                        employees={
+                          employees
+                        }
+                        emptyLabel="Assign to me"
+                      />
                     )}
                   </div>
 
                   <label
                     style={{
                       ...styles.field,
+
                       marginTop:
                         "14px",
                     }}
                   >
                     <span>
-                      Notes
+                      {form.activity_type ===
+                      "Call"
+                        ? "Call agenda / notes"
+                        : "Notes"}
                     </span>
 
                     <textarea
@@ -936,6 +1396,7 @@ export default function FollowUpsPage() {
                       style={
                         styles.textarea
                       }
+                      placeholder="Add context, agenda or next steps..."
                     />
                   </label>
 
@@ -967,12 +1428,19 @@ export default function FollowUpsPage() {
                     >
                       {saving
                         ? "Saving..."
-                        : "Save follow-up"}
+                        : form.activity_type ===
+                            "Call"
+                          ? "Schedule call"
+                          : "Save activity"}
                     </button>
                   </div>
                 </form>
               </section>
             )}
+
+          {/* =================================================
+              SUMMARY
+          ================================================= */}
 
           <section
             style={
@@ -980,14 +1448,21 @@ export default function FollowUpsPage() {
             }
           >
             <Summary
-              label="Visible follow-ups"
+              label="Visible activities"
               value={
                 followUps.length
               }
             />
 
             <Summary
-              label="Pending"
+              label="Calls"
+              value={
+                callsCount
+              }
+            />
+
+            <Summary
+              label="Open / scheduled"
               value={
                 pendingCount
               }
@@ -998,6 +1473,10 @@ export default function FollowUpsPage() {
               value={
                 overdueCount
               }
+              danger={
+                overdueCount >
+                0
+              }
             />
 
             <Summary
@@ -1005,8 +1484,16 @@ export default function FollowUpsPage() {
               value={
                 completedCount
               }
+              success={
+                completedCount >
+                0
+              }
             />
           </section>
+
+          {/* =================================================
+              FILTERS
+          ================================================= */}
 
           <section
             style={
@@ -1015,7 +1502,7 @@ export default function FollowUpsPage() {
           >
             <input
               type="search"
-              placeholder="Search follow-ups, assignee, status or related record..."
+              placeholder="Search activity, lead, company, assignee or status..."
               value={
                 search
               }
@@ -1031,41 +1518,90 @@ export default function FollowUpsPage() {
               }
             />
 
-            <select
-              value={
-                statusFilter
-              }
-              onChange={(
-                event
-              ) =>
-                setStatusFilter(
-                  event.target.value
-                )
-              }
+            <div
               style={
-                styles.filter
+                styles.toolbarFilters
               }
             >
-              <option value="All">
-                All statuses
-              </option>
+              <select
+                value={
+                  activityFilter
+                }
+                onChange={(
+                  event
+                ) =>
+                  setActivityFilter(
+                    event.target.value
+                  )
+                }
+                style={
+                  styles.filter
+                }
+              >
+                <option value="All">
+                  All activity types
+                </option>
 
-              {STATUS_OPTIONS.map(
-                (status) => (
-                  <option
-                    key={
-                      status
-                    }
-                    value={
-                      status
-                    }
-                  >
-                    {status}
-                  </option>
-                )
-              )}
-            </select>
+                {ACTIVITY_TYPES.map(
+                  (
+                    type
+                  ) => (
+                    <option
+                      key={
+                        type
+                      }
+                      value={
+                        type
+                      }
+                    >
+                      {type}
+                    </option>
+                  )
+                )}
+              </select>
+
+              <select
+                value={
+                  statusFilter
+                }
+                onChange={(
+                  event
+                ) =>
+                  setStatusFilter(
+                    event.target.value
+                  )
+                }
+                style={
+                  styles.filter
+                }
+              >
+                <option value="All">
+                  All statuses
+                </option>
+
+                {STATUS_OPTIONS.map(
+                  (
+                    status
+                  ) => (
+                    <option
+                      key={
+                        status
+                      }
+                      value={
+                        status
+                      }
+                    >
+                      {status}
+                    </option>
+                  )
+                )}
+              </select>
+            </div>
           </section>
+
+          {/* =================================================
+              RECORDS
+          ================================================= */}
 
           {loading ? (
             <div
@@ -1073,7 +1609,7 @@ export default function FollowUpsPage() {
                 styles.panel
               }
             >
-              Loading follow-ups...
+              Loading activities...
             </div>
           ) : errorMessage ? (
             <section
@@ -1083,11 +1619,13 @@ export default function FollowUpsPage() {
             >
               <div>
                 <strong>
-                  Unable to load follow-ups
+                  Unable to load activities
                 </strong>
 
                 <p>
-                  {errorMessage}
+                  {
+                    errorMessage
+                  }
                 </p>
               </div>
 
@@ -1097,7 +1635,7 @@ export default function FollowUpsPage() {
                   styles.secondaryButton
                 }
                 onClick={
-                  loadFollowUps
+                  loadPageData
                 }
               >
                 Try again
@@ -1115,11 +1653,19 @@ export default function FollowUpsPage() {
                 }
               >
                 <div>
-                  <h3>
-                    Follow-up records
+                  <h3
+                    style={
+                      styles.formTitle
+                    }
+                  >
+                    Activity records
                   </h3>
 
-                  <p>
+                  <p
+                    style={
+                      styles.panelDescription
+                    }
+                  >
                     {
                       filtered.length
                     }{" "}
@@ -1139,7 +1685,13 @@ export default function FollowUpsPage() {
                     styles.empty
                   }
                 >
-                  No follow-ups found.
+                  <strong>
+                    No activities found.
+                  </strong>
+
+                  <span>
+                    Schedule a call or add a follow-up to get started.
+                  </span>
                 </div>
               ) : (
                 <div
@@ -1160,7 +1712,7 @@ export default function FollowUpsPage() {
                             styles.th
                           }
                         >
-                          Follow-up
+                          Type
                         </th>
 
                         <th
@@ -1168,7 +1720,15 @@ export default function FollowUpsPage() {
                             styles.th
                           }
                         >
-                          Related
+                          Activity
+                        </th>
+
+                        <th
+                          style={
+                            styles.th
+                          }
+                        >
+                          Related to
                         </th>
 
                         <th
@@ -1184,7 +1744,7 @@ export default function FollowUpsPage() {
                             styles.th
                           }
                         >
-                          Due
+                          Schedule / due
                         </th>
 
                         <th
@@ -1207,10 +1767,22 @@ export default function FollowUpsPage() {
 
                     <tbody>
                       {filtered.map(
-                        (item) => {
+                        (
+                          item
+                        ) => {
                           const editing =
                             editingId ===
                             item.id;
+
+                          const lead =
+                            getLeadForItem(
+                              item,
+                              leads
+                            );
+
+                          const itemType =
+                            item.activity_type ||
+                            "Follow-up";
 
                           return (
                             <tr
@@ -1218,6 +1790,44 @@ export default function FollowUpsPage() {
                                 item.id
                               }
                             >
+                              <td
+                                style={
+                                  styles.td
+                                }
+                              >
+                                {editing &&
+                                access.canEdit ? (
+                                  <SelectFieldInline
+                                    name="activity_type"
+                                    value={
+                                      editForm.activity_type
+                                    }
+                                    onChange={
+                                      handleEditChange
+                                    }
+                                    options={
+                                      ACTIVITY_TYPES
+                                    }
+                                  />
+                                ) : (
+                                  <span
+                                    style={
+                                      styles.typeBadge
+                                    }
+                                  >
+                                    <span>
+                                      {activityIcon(
+                                        itemType
+                                      )}
+                                    </span>
+
+                                    {
+                                      itemType
+                                    }
+                                  </span>
+                                )}
+                              </td>
+
                               <td
                                 style={
                                   styles.td
@@ -1249,9 +1859,27 @@ export default function FollowUpsPage() {
                                       }
                                       style={{
                                         ...styles.textarea,
+
                                         marginTop:
                                           "7px",
                                       }}
+                                    />
+
+                                    <input
+                                      name="outcome"
+                                      value={
+                                        editForm.outcome
+                                      }
+                                      onChange={
+                                        handleEditChange
+                                      }
+                                      style={{
+                                        ...styles.input,
+
+                                        marginTop:
+                                          "7px",
+                                      }}
+                                      placeholder="Outcome / result"
                                     />
                                   </>
                                 ) : (
@@ -1268,7 +1896,22 @@ export default function FollowUpsPage() {
                                           styles.note
                                         }
                                       >
-                                        {item.note}
+                                        {
+                                          item.note
+                                        }
+                                      </small>
+                                    )}
+
+                                    {item.outcome && (
+                                      <small
+                                        style={
+                                          styles.outcome
+                                        }
+                                      >
+                                        Outcome:{" "}
+                                        {
+                                          item.outcome
+                                        }
                                       </small>
                                     )}
                                   </>
@@ -1282,18 +1925,70 @@ export default function FollowUpsPage() {
                               >
                                 {editing &&
                                 access.canEdit ? (
-                                  <SelectFieldInline
-                                    name="related_type"
-                                    value={
-                                      editForm.related_type
+                                  <div
+                                    style={
+                                      styles.inlineStack
                                     }
-                                    onChange={
-                                      handleEditChange
+                                  >
+                                    <SelectFieldInline
+                                      name="related_type"
+                                      value={
+                                        editForm.related_type
+                                      }
+                                      onChange={
+                                        handleEditChange
+                                      }
+                                      options={
+                                        RELATED_TYPES
+                                      }
+                                    />
+
+                                    {editForm.related_type ===
+                                    "Lead" ? (
+                                      <LeadFieldInline
+                                        value={
+                                          editForm.related_id
+                                        }
+                                        onChange={
+                                          handleEditChange
+                                        }
+                                        leads={
+                                          leads
+                                        }
+                                      />
+                                    ) : editForm.related_type !==
+                                      "General" ? (
+                                      <input
+                                        name="related_id"
+                                        value={
+                                          editForm.related_id
+                                        }
+                                        onChange={
+                                          handleEditChange
+                                        }
+                                        style={
+                                          styles.input
+                                        }
+                                        placeholder="Record UUID"
+                                      />
+                                    ) : null}
+                                  </div>
+                                ) : lead ? (
+                                  <div
+                                    style={
+                                      styles.relatedIdentity
                                     }
-                                    options={
-                                      RELATED_TYPES
-                                    }
-                                  />
+                                  >
+                                    <strong>
+                                      {lead.name ||
+                                        "Lead"}
+                                    </strong>
+
+                                    <small>
+                                      {lead.company ||
+                                        "No company"}
+                                    </small>
+                                  </div>
                                 ) : (
                                   item.related_type ||
                                   "General"
@@ -1307,39 +2002,17 @@ export default function FollowUpsPage() {
                               >
                                 {editing &&
                                 access.canAssign ? (
-                                  <select
-                                    name="assigned_employee_id"
+                                  <EmployeeFieldInline
                                     value={
                                       editForm.assigned_employee_id
                                     }
                                     onChange={
                                       handleEditChange
                                     }
-                                    style={
-                                      styles.input
+                                    employees={
+                                      employees
                                     }
-                                  >
-                                    <option value="">
-                                      Unassigned
-                                    </option>
-
-                                    {employees.map(
-                                      (employee) => (
-                                        <option
-                                          key={
-                                            employee.id
-                                          }
-                                          value={
-                                            employee.id
-                                          }
-                                        >
-                                          {
-                                            employee.full_name
-                                          }
-                                        </option>
-                                      )
-                                    )}
-                                  </select>
+                                  />
                                 ) : (
                                   item.assigned_employee
                                     ?.full_name ||
@@ -1354,19 +2027,51 @@ export default function FollowUpsPage() {
                               >
                                 {editing &&
                                 access.canEdit ? (
-                                  <input
-                                    type="date"
-                                    name="due_date"
-                                    value={
-                                      editForm.due_date
-                                    }
-                                    onChange={
-                                      handleEditChange
-                                    }
+                                  SCHEDULED_ACTIVITY_TYPES.has(
+                                    editForm.activity_type
+                                  ) ? (
+                                    <input
+                                      type="datetime-local"
+                                      name="scheduled_at"
+                                      value={
+                                        editForm.scheduled_at
+                                      }
+                                      onChange={
+                                        handleEditChange
+                                      }
+                                      style={
+                                        styles.input
+                                      }
+                                    />
+                                  ) : (
+                                    <input
+                                      type="date"
+                                      name="due_date"
+                                      value={
+                                        editForm.due_date
+                                      }
+                                      onChange={
+                                        handleEditChange
+                                      }
+                                      style={
+                                        styles.input
+                                      }
+                                    />
+                                  )
+                                ) : item.scheduled_at ? (
+                                  <span
                                     style={
-                                      styles.input
+                                      isScheduledPast(
+                                        item
+                                      )
+                                        ? styles.overdue
+                                        : {}
                                     }
-                                  />
+                                  >
+                                    {formatDateTime(
+                                      item.scheduled_at
+                                    )}
+                                  </span>
                                 ) : (
                                   <span
                                     style={
@@ -1430,13 +2135,18 @@ export default function FollowUpsPage() {
                                         style={
                                           styles.primaryButtonSmall
                                         }
+                                        disabled={
+                                          saving
+                                        }
                                         onClick={() =>
                                           saveFollowUp(
                                             item.id
                                           )
                                         }
                                       >
-                                        Save
+                                        {saving
+                                          ? "Saving..."
+                                          : "Save"}
                                       </button>
 
                                       <button
@@ -1474,19 +2184,82 @@ export default function FollowUpsPage() {
                                         normalise(
                                           item.status
                                         ) !==
-                                          "completed" && (
+                                          "completed" &&
+                                        normalise(
+                                          item.status
+                                        ) !==
+                                          "cancelled" && (
+                                          <button
+                                            type="button"
+                                            style={
+                                              styles.completeButtonSmall
+                                            }
+                                            onClick={() =>
+                                              patchStatus(
+                                                item,
+                                                "Completed"
+                                              )
+                                            }
+                                          >
+                                            Complete
+                                          </button>
+                                        )}
+
+                                      {access.canEdit &&
+                                        normalise(
+                                          itemType
+                                        ) ===
+                                          "call" &&
+                                        ![
+                                          "completed",
+                                          "cancelled",
+                                          "no answer",
+                                        ].includes(
+                                          normalise(
+                                            item.status
+                                          )
+                                        ) && (
                                           <button
                                             type="button"
                                             style={
                                               styles.secondaryButtonSmall
                                             }
                                             onClick={() =>
-                                              completeFollowUp(
-                                                item
+                                              patchStatus(
+                                                item,
+                                                "No Answer"
                                               )
                                             }
                                           >
-                                            Complete
+                                            No answer
+                                          </button>
+                                        )}
+
+                                      {access.canEdit &&
+                                        SCHEDULED_ACTIVITY_TYPES.has(
+                                          itemType
+                                        ) &&
+                                        ![
+                                          "completed",
+                                          "cancelled",
+                                        ].includes(
+                                          normalise(
+                                            item.status
+                                          )
+                                        ) && (
+                                          <button
+                                            type="button"
+                                            style={
+                                              styles.secondaryButtonSmall
+                                            }
+                                            onClick={() =>
+                                              startEdit(
+                                                item,
+                                                "Rescheduled"
+                                              )
+                                            }
+                                          >
+                                            Reschedule
                                           </button>
                                         )}
 
@@ -1526,7 +2299,7 @@ export default function FollowUpsPage() {
 }
 
 // =========================================================
-// COMPONENTS
+// FORM COMPONENTS
 // =========================================================
 
 function Field({
@@ -1535,6 +2308,7 @@ function Field({
   value,
   onChange,
   type = "text",
+  placeholder = "",
 }) {
   return (
     <label
@@ -1554,10 +2328,14 @@ function Field({
           type
         }
         value={
-          value
+          value ||
+          ""
         }
         onChange={
           onChange
+        }
+        placeholder={
+          placeholder
         }
         style={
           styles.input
@@ -1614,7 +2392,8 @@ function SelectFieldInline({
         name
       }
       value={
-        value
+        value ||
+        ""
       }
       onChange={
         onChange
@@ -1624,7 +2403,9 @@ function SelectFieldInline({
       }
     >
       {options.map(
-        (option) => (
+        (
+          option
+        ) => (
           <option
             key={
               option
@@ -1641,15 +2422,184 @@ function SelectFieldInline({
   );
 }
 
+function LeadField({
+  label,
+  value,
+  onChange,
+  leads,
+}) {
+  return (
+    <label
+      style={
+        styles.field
+      }
+    >
+      <span>
+        {label}
+      </span>
+
+      <LeadFieldInline
+        value={
+          value
+        }
+        onChange={
+          onChange
+        }
+        leads={
+          leads
+        }
+      />
+    </label>
+  );
+}
+
+function LeadFieldInline({
+  value,
+  onChange,
+  leads,
+}) {
+  return (
+    <select
+      name="related_id"
+      value={
+        value ||
+        ""
+      }
+      onChange={
+        onChange
+      }
+      style={
+        styles.input
+      }
+    >
+      <option value="">
+        Select a lead
+      </option>
+
+      {leads.map(
+        (
+          lead
+        ) => (
+          <option
+            key={
+              lead.id
+            }
+            value={
+              lead.id
+            }
+          >
+            {lead.name ||
+              "Unnamed lead"}
+            {lead.company
+              ? ` — ${lead.company}`
+              : ""}
+          </option>
+        )
+      )}
+    </select>
+  );
+}
+
+function EmployeeField({
+  value,
+  onChange,
+  employees,
+  emptyLabel,
+}) {
+  return (
+    <label
+      style={
+        styles.field
+      }
+    >
+      <span>
+        Assigned employee
+      </span>
+
+      <EmployeeFieldInline
+        value={
+          value
+        }
+        onChange={
+          onChange
+        }
+        employees={
+          employees
+        }
+        emptyLabel={
+          emptyLabel
+        }
+      />
+    </label>
+  );
+}
+
+function EmployeeFieldInline({
+  value,
+  onChange,
+  employees,
+  emptyLabel =
+    "Unassigned",
+}) {
+  return (
+    <select
+      name="assigned_employee_id"
+      value={
+        value ||
+        ""
+      }
+      onChange={
+        onChange
+      }
+      style={
+        styles.input
+      }
+    >
+      <option value="">
+        {emptyLabel}
+      </option>
+
+      {employees.map(
+        (
+          employee
+        ) => (
+          <option
+            key={
+              employee.id
+            }
+            value={
+              employee.id
+            }
+          >
+            {
+              employee.full_name
+            }
+          </option>
+        )
+      )}
+    </select>
+  );
+}
+
 function Summary({
   label,
   value,
+  danger = false,
+  success = false,
 }) {
   return (
     <article
-      style={
-        styles.summary
-      }
+      style={{
+        ...styles.summary,
+
+        ...(danger
+          ? styles.summaryDanger
+          : {}),
+
+        ...(success
+          ? styles.summarySuccess
+          : {}),
+      }}
     >
       <span>
         {label}
@@ -1663,38 +2613,172 @@ function Summary({
 }
 
 // =========================================================
+// ACCESS
+// =========================================================
+
+function buildAccess(
+  source
+) {
+  return {
+    isOwner:
+      Boolean(
+        source?.isOwner
+      ),
+
+    canViewAll:
+      Boolean(
+        source?.canViewAll
+      ),
+
+    canViewTeam:
+      Boolean(
+        source?.canViewTeam
+      ),
+
+    canViewOwn:
+      Boolean(
+        source?.canViewOwn
+      ),
+
+    canCreate:
+      Boolean(
+        source?.canCreate
+      ),
+
+    canEdit:
+      Boolean(
+        source?.canEdit
+      ),
+
+    canDelete:
+      Boolean(
+        source?.canDelete
+      ),
+
+    canAssign:
+      Boolean(
+        source?.canAssign
+      ),
+  };
+}
+
+// =========================================================
 // HELPERS
 // =========================================================
 
-function normalise(value) {
+async function safeJson(
+  response
+) {
+  try {
+    return await response.json();
+  } catch {
+    return {};
+  }
+}
+
+function normalise(
+  value
+) {
   return String(
-    value || ""
+    value ||
+      ""
   )
     .trim()
     .toLowerCase();
 }
 
-function normaliseDateInput(value) {
-  if (!value) {
+function normaliseDateInput(
+  value
+) {
+  return value
+    ? String(
+        value
+      ).slice(
+        0,
+        10
+      )
+    : "";
+}
+
+function normaliseDateTimeInput(
+  value
+) {
+  if (
+    !value
+  ) {
     return "";
   }
 
-  return String(
-    value
-  ).slice(
-    0,
-    10
-  );
+  const date =
+    new Date(
+      value
+    );
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return "";
+  }
+
+  const pad = (
+    part
+  ) =>
+    String(
+      part
+    ).padStart(
+      2,
+      "0"
+    );
+
+  return `${date.getFullYear()}-${pad(
+    date.getMonth() +
+      1
+  )}-${pad(
+    date.getDate()
+  )}T${pad(
+    date.getHours()
+  )}:${pad(
+    date.getMinutes()
+  )}`;
 }
 
-function formatDate(value) {
-  if (!value) {
+function toIsoDateTime(
+  value
+) {
+  if (
+    !value
+  ) {
+    return null;
+  }
+
+  const date =
+    new Date(
+      value
+    );
+
+  return Number.isNaN(
+    date.getTime()
+  )
+    ? null
+    : date.toISOString();
+}
+
+function formatDate(
+  value
+) {
+  if (
+    !value
+  ) {
     return "Not set";
   }
 
   const date =
     new Date(
-      `${String(value).slice(
+      `${String(
+        value
+      ).slice(
         0,
         10
       )}T12:00:00`
@@ -1723,8 +2807,54 @@ function formatDate(value) {
   );
 }
 
-function isOverdue(item) {
+function formatDateTime(
+  value
+) {
   if (
+    !value
+  ) {
+    return "Not scheduled";
+  }
+
+  const date =
+    new Date(
+      value
+    );
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return "Not scheduled";
+  }
+
+  return date.toLocaleString(
+    "en-GB",
+    {
+      day:
+        "2-digit",
+
+      month:
+        "short",
+
+      year:
+        "numeric",
+
+      hour:
+        "2-digit",
+
+      minute:
+        "2-digit",
+    }
+  );
+}
+
+function isOverdue(
+  item
+) {
+  if (
+    item.scheduled_at ||
     !item.due_date ||
     [
       "completed",
@@ -1757,18 +2887,133 @@ function isOverdue(item) {
   );
 }
 
+function isScheduledPast(
+  item
+) {
+  if (
+    !item.scheduled_at ||
+    [
+      "completed",
+      "cancelled",
+      "no answer",
+    ].includes(
+      normalise(
+        item.status
+      )
+    )
+  ) {
+    return false;
+  }
+
+  const scheduled =
+    new Date(
+      item.scheduled_at
+    );
+
+  return (
+    !Number.isNaN(
+      scheduled.getTime()
+    ) &&
+    scheduled <
+      new Date()
+  );
+}
+
+function getLeadForItem(
+  item,
+  leads
+) {
+  if (
+    normalise(
+      item.related_type
+    ) !==
+      "lead" ||
+    !item.related_id
+  ) {
+    return null;
+  }
+
+  return (
+    leads.find(
+      (
+        lead
+      ) =>
+        String(
+          lead.id
+        ) ===
+        String(
+          item.related_id
+        )
+    ) ||
+    null
+  );
+}
+
+function activityIcon(
+  type
+) {
+  switch (
+    normalise(
+      type
+    )
+  ) {
+    case "call":
+      return "☎";
+
+    case "meeting":
+      return "◫";
+
+    case "demo":
+      return "▶";
+
+    case "email":
+      return "✉";
+
+    default:
+      return "✓";
+  }
+}
+
+function activityTitlePlaceholder(
+  type
+) {
+  switch (
+    normalise(
+      type
+    )
+  ) {
+    case "call":
+      return "e.g. Discovery call";
+
+    case "meeting":
+      return "e.g. Customer review meeting";
+
+    case "demo":
+      return "e.g. Product demo";
+
+    case "email":
+      return "e.g. Send proposal follow-up";
+
+    default:
+      return "e.g. Follow up on proposal";
+  }
+}
+
 // =========================================================
-// SELF-CONTAINED STYLES
+// STYLES
 // =========================================================
 
 const styles = {
   page: {
     display:
       "grid",
+
     gap:
       "20px",
+
     color:
       "#27241f",
+
     fontSize:
       "13px",
   },
@@ -1776,27 +3021,50 @@ const styles = {
   header: {
     display:
       "flex",
+
     justifyContent:
       "space-between",
+
     alignItems:
       "flex-start",
+
     gap:
       "20px",
+  },
+
+  headerActions: {
+    display:
+      "flex",
+
+    flexWrap:
+      "wrap",
+
+    justifyContent:
+      "flex-end",
+
+    gap:
+      "8px",
   },
 
   eyebrow: {
     display:
       "block",
+
     marginBottom:
       "7px",
+
     color:
       "#9a7300",
+
     fontSize:
       "10px",
+
     fontWeight:
       800,
+
     letterSpacing:
       "1px",
+
     textTransform:
       "uppercase",
   },
@@ -1804,6 +3072,7 @@ const styles = {
   heading: {
     margin:
       0,
+
     fontSize:
       "27px",
   },
@@ -1811,12 +3080,16 @@ const styles = {
   description: {
     maxWidth:
       "720px",
+
     margin:
       "7px 0 0",
+
     color:
       "#7d786e",
+
     fontSize:
       "13px",
+
     lineHeight:
       1.6,
   },
@@ -1824,10 +3097,13 @@ const styles = {
   panel: {
     padding:
       "20px",
+
     border:
       "1px solid #dfdbd1",
+
     borderRadius:
       "15px",
+
     background:
       "#ffffff",
   },
@@ -1835,17 +3111,54 @@ const styles = {
   panelHeader: {
     display:
       "flex",
+
     justifyContent:
       "space-between",
+
     marginBottom:
       "15px",
+  },
+
+  panelDescription: {
+    margin:
+      "5px 0 0",
+
+    color:
+      "#817d74",
+
+    fontSize:
+      "12px",
+  },
+
+  formHeader: {
+    display:
+      "flex",
+
+    alignItems:
+      "flex-start",
+
+    justifyContent:
+      "space-between",
+
+    gap:
+      "16px",
+
+    marginBottom:
+      "18px",
+  },
+
+  formTitle: {
+    margin:
+      0,
   },
 
   formGrid: {
     display:
       "grid",
+
     gridTemplateColumns:
       "repeat(auto-fit, minmax(220px, 1fr))",
+
     gap:
       "14px",
   },
@@ -1853,29 +3166,68 @@ const styles = {
   field: {
     display:
       "grid",
+
     gap:
       "7px",
+
     fontSize:
       "12px",
+
     fontWeight:
       700,
+  },
+
+  fieldHintCard: {
+    display:
+      "grid",
+
+    alignContent:
+      "center",
+
+    gap:
+      "4px",
+
+    minHeight:
+      "64px",
+
+    padding:
+      "10px 12px",
+
+    border:
+      "1px dashed #d9d5cc",
+
+    borderRadius:
+      "8px",
+
+    color:
+      "#7d786e",
+
+    background:
+      "#fbfaf7",
   },
 
   input: {
     width:
       "100%",
+
     minHeight:
       "40px",
+
     padding:
       "8px 10px",
+
     border:
       "1px solid #d9d5cc",
+
     borderRadius:
       "8px",
+
     background:
       "#ffffff",
+
     fontFamily:
       "inherit",
+
     fontSize:
       "13px",
   },
@@ -1883,29 +3235,50 @@ const styles = {
   textarea: {
     width:
       "100%",
+
     minHeight:
       "90px",
+
     padding:
       "9px 10px",
+
     border:
       "1px solid #d9d5cc",
+
     borderRadius:
       "8px",
+
     resize:
       "vertical",
+
     fontFamily:
       "inherit",
+
     fontSize:
       "13px",
+  },
+
+  inlineStack: {
+    display:
+      "grid",
+
+    gap:
+      "7px",
+
+    minWidth:
+      "190px",
   },
 
   actions: {
     display:
       "flex",
+
     justifyContent:
       "flex-end",
+
     gap:
       "8px",
+
     marginTop:
       "18px",
   },
@@ -1913,18 +3286,51 @@ const styles = {
   primaryButton: {
     minHeight:
       "40px",
+
     padding:
       "0 15px",
+
     border:
       "1px solid #b88800",
+
     borderRadius:
       "9px",
+
     background:
       "#dca900",
+
     color:
       "#17130a",
+
     fontWeight:
       750,
+
+    cursor:
+      "pointer",
+  },
+
+  callButton: {
+    minHeight:
+      "40px",
+
+    padding:
+      "0 15px",
+
+    border:
+      "1px solid #c9decf",
+
+    borderRadius:
+      "9px",
+
+    background:
+      "#f3faf5",
+
+    color:
+      "#397451",
+
+    fontWeight:
+      800,
+
     cursor:
       "pointer",
   },
@@ -1932,25 +3338,68 @@ const styles = {
   secondaryButton: {
     minHeight:
       "40px",
+
     padding:
       "0 15px",
+
     border:
       "1px solid #ddd8cf",
+
     borderRadius:
       "9px",
+
     background:
       "#ffffff",
+
     fontWeight:
       700,
+
     cursor:
       "pointer",
+  },
+
+  activityChip: {
+    display:
+      "inline-flex",
+
+    alignItems:
+      "center",
+
+    gap:
+      "6px",
+
+    minHeight:
+      "30px",
+
+    padding:
+      "0 10px",
+
+    borderRadius:
+      "999px",
+
+    color:
+      "#755b00",
+
+    background:
+      "#f7efd1",
+
+    fontSize:
+      "10px",
+
+    fontWeight:
+      800,
+
+    whiteSpace:
+      "nowrap",
   },
 
   summaryGrid: {
     display:
       "grid",
+
     gridTemplateColumns:
-      "repeat(4, minmax(0, 1fr))",
+      "repeat(auto-fit, minmax(150px, 1fr))",
+
     gap:
       "14px",
   },
@@ -1958,48 +3407,95 @@ const styles = {
   summary: {
     display:
       "grid",
+
     gap:
       "10px",
+
     minHeight:
-      "115px",
+      "105px",
+
     padding:
       "17px",
+
     border:
       "1px solid #dfdbd1",
+
     borderRadius:
       "14px",
+
     background:
       "#ffffff",
+  },
+
+  summaryDanger: {
+    border:
+      "1px solid #efcaca",
+
+    background:
+      "#fff8f8",
+  },
+
+  summarySuccess: {
+    border:
+      "1px solid #cfe4d6",
+
+    background:
+      "#f7fbf8",
   },
 
   toolbar: {
     display:
       "flex",
+
     justifyContent:
       "space-between",
+
     gap:
       "12px",
+
     padding:
       "12px",
+
     border:
       "1px solid #dfdbd1",
+
     borderRadius:
       "13px",
+
     background:
       "#ffffff",
+  },
+
+  toolbarFilters: {
+    display:
+      "flex",
+
+    gap:
+      "8px",
+
+    flexWrap:
+      "wrap",
+
+    justifyContent:
+      "flex-end",
   },
 
   search: {
     width:
       "520px",
+
     maxWidth:
       "100%",
+
     minHeight:
       "40px",
+
     padding:
       "0 11px",
+
     border:
       "1px solid #ddd8cf",
+
     borderRadius:
       "9px",
   },
@@ -2007,12 +3503,16 @@ const styles = {
   filter: {
     minHeight:
       "40px",
+
     padding:
       "0 11px",
+
     border:
       "1px solid #ddd8cf",
+
     borderRadius:
       "9px",
+
     background:
       "#ffffff",
   },
@@ -2020,8 +3520,10 @@ const styles = {
   table: {
     width:
       "100%",
+
     borderCollapse:
       "collapse",
+
     fontSize:
       "12px",
   },
@@ -2029,58 +3531,170 @@ const styles = {
   th: {
     padding:
       "11px 12px",
+
     borderBottom:
       "1px solid #e7e3dc",
+
     textAlign:
       "left",
+
     fontSize:
       "10px",
+
     textTransform:
       "uppercase",
+
+    whiteSpace:
+      "nowrap",
   },
 
   td: {
     padding:
       "13px 12px",
+
     borderBottom:
       "1px solid #efede7",
+
     verticalAlign:
       "top",
+  },
+
+  typeBadge: {
+    display:
+      "inline-flex",
+
+    alignItems:
+      "center",
+
+    gap:
+      "6px",
+
+    minHeight:
+      "28px",
+
+    padding:
+      "0 9px",
+
+    borderRadius:
+      "999px",
+
+    color:
+      "#615b4d",
+
+    background:
+      "#f4f1e9",
+
+    fontSize:
+      "10px",
+
+    fontWeight:
+      800,
+
+    whiteSpace:
+      "nowrap",
+  },
+
+  relatedIdentity: {
+    display:
+      "grid",
+
+    gap:
+      "3px",
   },
 
   note: {
     display:
       "block",
+
     maxWidth:
-      "360px",
+      "340px",
+
     marginTop:
       "4px",
+
     color:
       "#858078",
+
+    lineHeight:
+      1.5,
+  },
+
+  outcome: {
+    display:
+      "block",
+
+    maxWidth:
+      "340px",
+
+    marginTop:
+      "5px",
+
+    color:
+      "#397451",
+
+    fontWeight:
+      700,
   },
 
   rowActions: {
     display:
       "flex",
+
     flexWrap:
       "wrap",
+
     gap:
       "6px",
+
+    minWidth:
+      "180px",
   },
 
   primaryButtonSmall: {
     padding:
       "7px 10px",
+
     border:
       "1px solid #b88800",
+
     borderRadius:
       "7px",
+
     background:
       "#dca900",
+
     fontSize:
       "11px",
+
     fontWeight:
       700,
+
+    cursor:
+      "pointer",
+  },
+
+  completeButtonSmall: {
+    padding:
+      "7px 10px",
+
+    border:
+      "1px solid #c9decf",
+
+    borderRadius:
+      "7px",
+
+    background:
+      "#f3faf5",
+
+    color:
+      "#397451",
+
+    fontSize:
+      "11px",
+
+    fontWeight:
+      800,
+
     cursor:
       "pointer",
   },
@@ -2088,16 +3702,22 @@ const styles = {
   secondaryButtonSmall: {
     padding:
       "7px 10px",
+
     border:
       "1px solid #ddd8cf",
+
     borderRadius:
       "7px",
+
     background:
       "#ffffff",
+
     fontSize:
       "11px",
+
     fontWeight:
       700,
+
     cursor:
       "pointer",
   },
@@ -2105,18 +3725,25 @@ const styles = {
   dangerButtonSmall: {
     padding:
       "7px 10px",
+
     border:
       "1px solid #e2baba",
+
     borderRadius:
       "7px",
+
     background:
       "#fff7f7",
+
     color:
       "#a23f3f",
+
     fontSize:
       "11px",
+
     fontWeight:
       700,
+
     cursor:
       "pointer",
   },
@@ -2124,15 +3751,24 @@ const styles = {
   overdue: {
     color:
       "#b43b3b",
+
     fontWeight:
       800,
   },
 
   empty: {
+    display:
+      "grid",
+
+    gap:
+      "6px",
+
     padding:
       "35px 20px",
+
     textAlign:
       "center",
+
     color:
       "#817d74",
   },
@@ -2140,18 +3776,25 @@ const styles = {
   error: {
     display:
       "flex",
+
     justifyContent:
       "space-between",
+
     gap:
       "20px",
+
     padding:
       "20px",
+
     border:
       "1px solid #efcaca",
+
     borderRadius:
       "14px",
+
     background:
       "#fff7f7",
+
     color:
       "#9f3c3c",
   },
