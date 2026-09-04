@@ -25,9 +25,20 @@ import {
 
 const ALLOWED_STATUSES = [
   "Pending",
+  "Scheduled",
   "In Progress",
   "Completed",
+  "No Answer",
+  "Rescheduled",
   "Cancelled",
+];
+
+const ALLOWED_ACTIVITY_TYPES = [
+  "Follow-up",
+  "Call",
+  "Meeting",
+  "Demo",
+  "Email",
 ];
 
 const ALLOWED_RELATED_TYPES = [
@@ -113,7 +124,8 @@ const RELATED_CONFIG = {
 // =========================================================
 
 function cleanText(value) {
-  return typeof value === "string"
+  return typeof value ===
+    "string"
     ? value.trim()
     : "";
 }
@@ -122,18 +134,25 @@ function cleanNullableText(value) {
   const cleaned =
     cleanText(value);
 
-  return cleaned || null;
+  return cleaned ||
+    null;
 }
 
 function normalise(value) {
-  return String(value || "")
+  return String(
+    value ||
+      ""
+  )
     .trim()
     .toLowerCase();
 }
 
 function isUuid(value) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    String(value || "")
+    String(
+      value ||
+        ""
+    )
   );
 }
 
@@ -143,7 +162,24 @@ function isDateValue(value) {
   }
 
   return /^\d{4}-\d{2}-\d{2}$/.test(
-    String(value)
+    String(
+      value
+    )
+  );
+}
+
+function isDateTimeValue(value) {
+  if (!value) {
+    return true;
+  }
+
+  const date =
+    new Date(
+      value
+    );
+
+  return !Number.isNaN(
+    date.getTime()
   );
 }
 
@@ -454,6 +490,13 @@ export async function GET(
         )
       );
 
+    const activityType =
+      cleanText(
+        url.searchParams.get(
+          "activity_type"
+        )
+      );
+
     let query =
       supabase
         .from(
@@ -464,6 +507,10 @@ export async function GET(
           "organization_id",
           organizationId
         );
+
+    // =====================================================
+    // RECORD ACCESS
+    // =====================================================
 
     if (
       !permissions.canViewAll &&
@@ -493,6 +540,10 @@ export async function GET(
         );
     }
 
+    // =====================================================
+    // SCOPE
+    // =====================================================
+
     if (
       scope ===
       "mine"
@@ -518,6 +569,10 @@ export async function GET(
       );
     }
 
+    // =====================================================
+    // RELATED FILTERS
+    // =====================================================
+
     if (
       relatedType
     ) {
@@ -538,11 +593,35 @@ export async function GET(
         );
     }
 
+    // =====================================================
+    // ACTIVITY TYPE FILTER
+    // =====================================================
+
+    if (
+      activityType
+    ) {
+      query =
+        query.ilike(
+          "activity_type",
+          activityType
+        );
+    }
+
     const {
       data,
       error,
     } =
       await query
+        .order(
+          "scheduled_at",
+          {
+            ascending:
+              true,
+
+            nullsFirst:
+              false,
+          }
+        )
         .order(
           "due_date",
           {
@@ -577,6 +656,10 @@ export async function GET(
           [],
       });
 
+    // =====================================================
+    // ASSIGNABLE EMPLOYEES
+    // =====================================================
+
     let employees = [];
 
     if (
@@ -593,6 +676,12 @@ export async function GET(
       followUps,
 
       employees,
+
+      activityTypes:
+        ALLOWED_ACTIVITY_TYPES,
+
+      statuses:
+        ALLOWED_STATUSES,
 
       currentEmployee:
         access.employee,
@@ -663,6 +752,37 @@ export async function POST(
     const body =
       await request.json();
 
+    // =====================================================
+    // ACTIVITY TYPE
+    // =====================================================
+
+    const activityType =
+      cleanText(
+        body.activity_type
+      ) ||
+      "Follow-up";
+
+    if (
+      !ALLOWED_ACTIVITY_TYPES.includes(
+        activityType
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Invalid activity type.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
+    // =====================================================
+    // TITLE
+    // =====================================================
+
     const title =
       cleanText(
         body.title
@@ -681,11 +801,26 @@ export async function POST(
       );
     }
 
+    // =====================================================
+    // STATUS
+    // =====================================================
+
+    const defaultStatus =
+      [
+        "Call",
+        "Meeting",
+        "Demo",
+      ].includes(
+        activityType
+      )
+        ? "Scheduled"
+        : "Pending";
+
     const status =
       cleanText(
         body.status
       ) ||
-      "Pending";
+      defaultStatus;
 
     if (
       !ALLOWED_STATUSES.includes(
@@ -703,6 +838,10 @@ export async function POST(
         }
       );
     }
+
+    // =====================================================
+    // RELATED TYPE
+    // =====================================================
 
     const relatedType =
       cleanText(
@@ -732,6 +871,10 @@ export async function POST(
         body.related_id
       );
 
+    // =====================================================
+    // DUE DATE
+    // =====================================================
+
     const dueDate =
       body.due_date ||
       null;
@@ -752,6 +895,100 @@ export async function POST(
         }
       );
     }
+
+    // =====================================================
+    // SCHEDULED DATE / TIME
+    // =====================================================
+
+    const scheduledAt =
+      cleanNullableText(
+        body.scheduled_at
+      );
+
+    if (
+      scheduledAt &&
+      !isDateTimeValue(
+        scheduledAt
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Scheduled date and time are not valid.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
+    /*
+     * Calls, Meetings and Demos should normally
+     * have a scheduled time.
+     */
+    if (
+      [
+        "Call",
+        "Meeting",
+        "Demo",
+      ].includes(
+        activityType
+      ) &&
+      !scheduledAt
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            `${activityType} date and time are required.`,
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
+    // =====================================================
+    // COMPLETED DATE
+    // =====================================================
+
+    let completedAt =
+      cleanNullableText(
+        body.completed_at
+      );
+
+    if (
+      completedAt &&
+      !isDateTimeValue(
+        completedAt
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Completed date and time are not valid.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
+    if (
+      status ===
+        "Completed" &&
+      !completedAt
+    ) {
+      completedAt =
+        new Date()
+          .toISOString();
+    }
+
+    // =====================================================
+    // SERVER / ORGANISATION
+    // =====================================================
 
     const supabase =
       createAdminSupabaseClient();
@@ -861,6 +1098,10 @@ export async function POST(
         employee.id;
     }
 
+    // =====================================================
+    // INSERT
+    // =====================================================
+
     const now =
       new Date()
         .toISOString();
@@ -879,6 +1120,9 @@ export async function POST(
             organization_id:
               organizationId,
 
+            activity_type:
+              activityType,
+
             related_type:
               relatedType,
 
@@ -894,6 +1138,17 @@ export async function POST(
 
             due_date:
               dueDate,
+
+            scheduled_at:
+              scheduledAt,
+
+            completed_at:
+              completedAt,
+
+            outcome:
+              cleanNullableText(
+                body.outcome
+              ),
 
             status,
 
@@ -916,6 +1171,10 @@ export async function POST(
       );
     }
 
+    // =====================================================
+    // ENRICH ASSIGNEE
+    // =====================================================
+
     const [
       formattedFollowUp,
     ] =
@@ -928,13 +1187,23 @@ export async function POST(
         ],
       });
 
+    // =====================================================
+    // RESPONSE
+    // =====================================================
+
+    const createdLabel =
+      activityType ===
+      "Follow-up"
+        ? "Follow-up"
+        : activityType;
+
     return NextResponse.json(
       {
         followUp:
           formattedFollowUp,
 
         message:
-          "Follow-up created successfully.",
+          `${createdLabel} created successfully.`,
       },
       {
         status:
