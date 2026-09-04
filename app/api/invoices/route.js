@@ -46,12 +46,10 @@ function cleanText(value) {
 function forbidden(message) {
   return NextResponse.json(
     {
-      error:
-        message,
+      error: message,
     },
     {
-      status:
-        403,
+      status: 403,
     }
   );
 }
@@ -60,11 +58,8 @@ function getPermissions(access) {
   return getRecordPermissions(
     access,
     {
-      prefix:
-        "invoices",
-
-      module:
-        "Invoices",
+      prefix: "invoices",
+      module: "Invoices",
     }
   );
 }
@@ -99,8 +94,7 @@ function formatDateForDatabase(date) {
 
   const month =
     String(
-      date.getUTCMonth() +
-        1
+      date.getUTCMonth() + 1
     ).padStart(
       2,
       "0"
@@ -119,8 +113,7 @@ function formatDateForDatabase(date) {
 
 function getDefaultDueDate(
   createdAt,
-  days =
-    DEFAULT_DUE_DAYS
+  days = DEFAULT_DUE_DAYS
 ) {
   const date =
     new Date(
@@ -163,12 +156,8 @@ async function validateRelatedRecord({
     error,
   } =
     await supabase
-      .from(
-        table
-      )
-      .select(
-        "id"
-      )
+      .from(table)
+      .select("id")
       .eq(
         "id",
         recordId
@@ -201,8 +190,7 @@ async function validateRelatedRecord({
 function parseMoney(value) {
   const cleaned =
     String(
-      value ||
-        ""
+      value || ""
     )
       .replace(
         /,/g,
@@ -225,12 +213,21 @@ function parseMoney(value) {
     : 0;
 }
 
+function roundMoney(value) {
+  return Math.round(
+    (
+      Number(value || 0) +
+      Number.EPSILON
+    ) *
+      100
+  ) / 100;
+}
+
 function parseVatRate(value) {
   const parsed =
     Number.parseFloat(
       String(
-        value ||
-          0
+        value || 0
       )
         .replace(
           "%",
@@ -250,38 +247,27 @@ function formatCurrency(value) {
   return new Intl.NumberFormat(
     "en-GB",
     {
-      style:
-        "currency",
-
-      currency:
-        "GBP",
-
-      minimumFractionDigits:
-        2,
-
-      maximumFractionDigits:
-        2,
+      style: "currency",
+      currency: "GBP",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }
   ).format(
-    value ||
-      0
+    value || 0
   );
 }
 
 function formatVatRate(value) {
   const number =
     Number(
-      value ||
-        0
+      value || 0
     );
 
-  return `${Number.isInteger(
-    number
-  )
-    ? number
-    : number.toFixed(
-        2
-      )}%`;
+  return `${
+    Number.isInteger(number)
+      ? number
+      : number.toFixed(2)
+  }%`;
 }
 
 // =========================================================
@@ -296,9 +282,7 @@ function generateInvoiceNumber() {
   const suffix =
     Date.now()
       .toString()
-      .slice(
-        -6
-      );
+      .slice(-6);
 
   return `SNI-${year}-${suffix}`;
 }
@@ -313,21 +297,189 @@ async function attachOwners({
   invoices,
 }) {
   return Promise.all(
-    (
-      invoices ||
-      []
-    ).map(
-      (
-        invoice
-      ) =>
+    (invoices || []).map(
+      (invoice) =>
         attachRecordOwner({
           supabase,
           organizationId,
-
-          record:
-            invoice,
+          record: invoice,
         })
     )
+  );
+}
+
+// =========================================================
+// PAYMENT SUMMARY
+// =========================================================
+
+async function loadInvoicePayments({
+  supabase,
+  organizationId,
+  invoices,
+}) {
+  const invoiceIds =
+    (invoices || [])
+      .map(
+        (invoice) =>
+          invoice.id
+      )
+      .filter(Boolean);
+
+  if (
+    invoiceIds.length === 0
+  ) {
+    return [];
+  }
+
+  const {
+    data,
+    error,
+  } =
+    await supabase
+      .from(
+        "invoice_payments"
+      )
+      .select(
+        `
+          id,
+          invoice_id,
+          amount,
+          payment_date,
+          payment_method,
+          reference,
+          notes,
+          recorded_by_employee_id,
+          created_at
+        `
+      )
+      .eq(
+        "organization_id",
+        organizationId
+      )
+      .in(
+        "invoice_id",
+        invoiceIds
+      )
+      .order(
+        "payment_date",
+        {
+          ascending: false,
+        }
+      )
+      .order(
+        "created_at",
+        {
+          ascending: false,
+        }
+      );
+
+  if (error) {
+    throw new Error(
+      error.message
+    );
+  }
+
+  return data || [];
+}
+
+function enrichInvoicesWithPayments({
+  invoices,
+  payments,
+}) {
+  const paymentsByInvoice =
+    new Map();
+
+  for (
+    const payment of
+    payments || []
+  ) {
+    if (
+      !paymentsByInvoice.has(
+        payment.invoice_id
+      )
+    ) {
+      paymentsByInvoice.set(
+        payment.invoice_id,
+        []
+      );
+    }
+
+    paymentsByInvoice
+      .get(
+        payment.invoice_id
+      )
+      .push(
+        payment
+      );
+  }
+
+  return (invoices || []).map(
+    (invoice) => {
+      const invoicePayments =
+        paymentsByInvoice.get(
+          invoice.id
+        ) || [];
+
+      const total =
+        roundMoney(
+          parseMoney(
+            invoice.total_amount ||
+              invoice.amount ||
+              invoice.subtotal
+          )
+        );
+
+      const paid =
+        roundMoney(
+          invoicePayments.reduce(
+            (
+              runningTotal,
+              payment
+            ) =>
+              runningTotal +
+              parseMoney(
+                payment.amount
+              ),
+            0
+          )
+        );
+
+      const outstanding =
+        roundMoney(
+          Math.max(
+            0,
+            total - paid
+          )
+        );
+
+      return {
+        ...invoice,
+
+        payment_summary: {
+          total,
+          paid,
+          outstanding,
+
+          total_display:
+            formatCurrency(
+              total
+            ),
+
+          paid_display:
+            formatCurrency(
+              paid
+            ),
+
+          outstanding_display:
+            formatCurrency(
+              outstanding
+            ),
+
+          payment_count:
+            invoicePayments.length,
+        },
+      };
+    }
   );
 }
 
@@ -340,9 +492,7 @@ export async function GET() {
     const access =
       await getServerAccess();
 
-    if (
-      !access.employee
-    ) {
+    if (!access.employee) {
       return NextResponse.json(
         {
           error:
@@ -379,12 +529,8 @@ export async function GET() {
 
     let query =
       supabase
-        .from(
-          "invoices"
-        )
-        .select(
-          "*"
-        )
+        .from("invoices")
+        .select("*")
         .eq(
           "organization_id",
           organizationId
@@ -401,7 +547,6 @@ export async function GET() {
       const teamIds =
         await getTeamEmployeeIds({
           supabase,
-
           employee:
             access.employee,
         });
@@ -423,34 +568,55 @@ export async function GET() {
     }
 
     const {
-      data:
-        invoiceRows,
+      data: invoiceRows,
       error,
     } =
       await query.order(
         "created_at",
         {
-          ascending:
-            false,
+          ascending: false,
         }
       );
 
-    if (
-      error
-    ) {
+    if (error) {
       throw new Error(
         error.message
       );
     }
 
-    const invoices =
+    // =====================================================
+    // OWNER DETAILS
+    // =====================================================
+
+    const invoicesWithOwners =
       await attachOwners({
         supabase,
         organizationId,
-
         invoices:
-          invoiceRows ||
-          [],
+          invoiceRows || [],
+      });
+
+    // =====================================================
+    // PAYMENT RECORDS
+    // =====================================================
+
+    const payments =
+      await loadInvoicePayments({
+        supabase,
+        organizationId,
+        invoices:
+          invoicesWithOwners,
+      });
+
+    // =====================================================
+    // PAYMENT SUMMARIES
+    // =====================================================
+
+    const invoices =
+      enrichInvoicesWithPayments({
+        invoices:
+          invoicesWithOwners,
+        payments,
       });
 
     // =====================================================
@@ -469,6 +635,10 @@ export async function GET() {
         });
     }
 
+    // =====================================================
+    // RESPONSE
+    // =====================================================
+
     return NextResponse.json({
       invoices,
 
@@ -483,9 +653,7 @@ export async function GET() {
           permissions,
         }),
     });
-  } catch (
-    error
-  ) {
+  } catch (error) {
     console.error(
       "Invoices GET error:",
       error
@@ -498,8 +666,7 @@ export async function GET() {
           "Failed to fetch invoices.",
       },
       {
-        status:
-          500,
+        status: 500,
       }
     );
   }
@@ -516,9 +683,7 @@ export async function POST(
     const access =
       await getServerAccess();
 
-    if (
-      !access.employee
-    ) {
+    if (!access.employee) {
       return NextResponse.json(
         {
           error:
@@ -571,8 +736,7 @@ export async function POST(
             "Client and service are required.",
         },
         {
-          status:
-            400,
+          status: 400,
         }
       );
     }
@@ -602,8 +766,7 @@ export async function POST(
             "New invoices must start as Draft Invoice or Draft.",
         },
         {
-          status:
-            400,
+          status: 400,
         }
       );
     }
@@ -611,15 +774,6 @@ export async function POST(
     // =====================================================
     // CREATED / DUE DATES
     // =====================================================
-
-    /*
-     * created_at is now explicitly set.
-     *
-     * If the user supplies a due date we use it.
-     *
-     * If no due date is supplied we automatically
-     * calculate 14 days after the invoice creation date.
-     */
 
     const createdAt =
       getCreatedAt();
@@ -641,8 +795,7 @@ export async function POST(
             "Due date must use YYYY-MM-DD format.",
         },
         {
-          status:
-            400,
+          status: 400,
         }
       );
     }
@@ -669,8 +822,7 @@ export async function POST(
       );
 
     if (
-      subtotal <
-      0
+      subtotal < 0
     ) {
       return NextResponse.json(
         {
@@ -678,17 +830,14 @@ export async function POST(
             "Subtotal cannot be negative.",
         },
         {
-          status:
-            400,
+          status: 400,
         }
       );
     }
 
     if (
-      vatRate <
-        0 ||
-      vatRate >
-        100
+      vatRate < 0 ||
+      vatRate > 100
     ) {
       return NextResponse.json(
         {
@@ -696,8 +845,7 @@ export async function POST(
             "VAT rate must be between 0 and 100.",
         },
         {
-          status:
-            400,
+          status: 400,
         }
       );
     }
@@ -705,8 +853,7 @@ export async function POST(
     const vatAmount =
       subtotal *
       (
-        vatRate /
-        100
+        vatRate / 100
       );
 
     const totalAmount =
@@ -758,8 +905,7 @@ export async function POST(
               "The selected invoice owner is not valid.",
           },
           {
-            status:
-              400,
+            status: 400,
           }
         );
       }
@@ -768,22 +914,18 @@ export async function POST(
         await validateRecordOwner({
           supabase,
           organizationId,
-
           employeeId:
             requestedOwnerId,
         });
 
-      if (
-        !owner
-      ) {
+      if (!owner) {
         return NextResponse.json(
           {
             error:
               "The selected invoice owner is not valid.",
           },
           {
-            status:
-              400,
+            status: 400,
           }
         );
       }
@@ -824,13 +966,10 @@ export async function POST(
     await validateRelatedRecord({
       supabase,
       organizationId,
-
       table:
         "customers",
-
       recordId:
         customerId,
-
       label:
         "Customer",
     });
@@ -842,13 +981,10 @@ export async function POST(
     await validateRelatedRecord({
       supabase,
       organizationId,
-
       table:
         "projects",
-
       recordId:
         projectId,
-
       label:
         "Project",
     });
@@ -860,13 +996,10 @@ export async function POST(
     await validateRelatedRecord({
       supabase,
       organizationId,
-
       table:
         "quotes",
-
       recordId:
         quoteId,
-
       label:
         "Quote",
     });
@@ -886,15 +1019,12 @@ export async function POST(
     // =====================================================
 
     const {
-      data:
-        invoice,
+      data: invoice,
       error:
         createError,
     } =
       await supabase
-        .from(
-          "invoices"
-        )
+        .from("invoices")
         .insert([
           {
             organization_id:
@@ -946,15 +1076,9 @@ export async function POST(
 
             status,
 
-            /*
-             * Explicit invoice creation date.
-             */
             created_at:
               createdAt,
 
-            /*
-             * User-selected date or automatic +14 days.
-             */
             due_date:
               dueDate,
 
@@ -984,7 +1108,6 @@ export async function POST(
       await attachRecordOwner({
         supabase,
         organizationId,
-
         record:
           invoice,
       });
@@ -1002,13 +1125,10 @@ export async function POST(
           "Invoice created successfully.",
       },
       {
-        status:
-          201,
+        status: 201,
       }
     );
-  } catch (
-    error
-  ) {
+  } catch (error) {
     console.error(
       "Invoice POST error:",
       error
@@ -1027,9 +1147,7 @@ export async function POST(
         "must start as",
         "yyyy-mm-dd",
       ].some(
-        (
-          word
-        ) =>
+        (word) =>
           message
             .toLowerCase()
             .includes(
