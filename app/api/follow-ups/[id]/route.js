@@ -24,9 +24,20 @@ import {
 
 const ALLOWED_STATUSES = [
   "Pending",
+  "Scheduled",
   "In Progress",
   "Completed",
+  "No Answer",
+  "Rescheduled",
   "Cancelled",
+];
+
+const ALLOWED_ACTIVITY_TYPES = [
+  "Follow-up",
+  "Call",
+  "Meeting",
+  "Demo",
+  "Email",
 ];
 
 const ALLOWED_RELATED_TYPES = [
@@ -122,12 +133,23 @@ function cleanNullableText(value) {
   const cleaned =
     cleanText(value);
 
-  return cleaned || null;
+  return cleaned ||
+    null;
+}
+
+function normalise(value) {
+  return String(
+    value || ""
+  )
+    .trim()
+    .toLowerCase();
 }
 
 function isUuid(value) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    String(value || "")
+    String(
+      value || ""
+    )
   );
 }
 
@@ -138,6 +160,21 @@ function isDateValue(value) {
 
   return /^\d{4}-\d{2}-\d{2}$/.test(
     String(value)
+  );
+}
+
+function isDateTimeValue(value) {
+  if (!value) {
+    return true;
+  }
+
+  const date =
+    new Date(
+      value
+    );
+
+  return !Number.isNaN(
+    date.getTime()
   );
 }
 
@@ -520,6 +557,12 @@ export async function GET(
 
       employees,
 
+      activityTypes:
+        ALLOWED_ACTIVITY_TYPES,
+
+      statuses:
+        ALLOWED_STATUSES,
+
       currentEmployee:
         access.employee,
 
@@ -642,9 +685,13 @@ export async function PATCH(
       await request.json();
 
     const editableFields = [
+      "activity_type",
       "title",
       "note",
       "due_date",
+      "scheduled_at",
+      "completed_at",
+      "outcome",
       "status",
       "related_type",
       "related_id",
@@ -653,17 +700,21 @@ export async function PATCH(
     const wantsEdit =
       editableFields.some(
         (field) =>
-          Object.prototype.hasOwnProperty.call(
-            body,
-            field
-          )
+          Object.prototype
+            .hasOwnProperty
+            .call(
+              body,
+              field
+            )
       );
 
     const wantsAssignment =
-      Object.prototype.hasOwnProperty.call(
-        body,
-        "assigned_employee_id"
-      );
+      Object.prototype
+        .hasOwnProperty
+        .call(
+          body,
+          "assigned_employee_id"
+        );
 
     if (
       wantsEdit &&
@@ -705,11 +756,63 @@ export async function PATCH(
           .toISOString(),
     };
 
+    // =====================================================
+    // ACTIVITY TYPE
+    // =====================================================
+
+    const nextActivityType =
+      Object.prototype
+        .hasOwnProperty
+        .call(
+          body,
+          "activity_type"
+        )
+        ? cleanText(
+            body.activity_type
+          )
+        : followUp.activity_type ||
+          "Follow-up";
+
     if (
-      Object.prototype.hasOwnProperty.call(
-        body,
-        "title"
+      !ALLOWED_ACTIVITY_TYPES.includes(
+        nextActivityType
       )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Invalid activity type.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
+    if (
+      Object.prototype
+        .hasOwnProperty
+        .call(
+          body,
+          "activity_type"
+        )
+    ) {
+      updates.activity_type =
+        nextActivityType;
+    }
+
+    // =====================================================
+    // TITLE
+    // =====================================================
+
+    if (
+      Object.prototype
+        .hasOwnProperty
+        .call(
+          body,
+          "title"
+        )
     ) {
       const title =
         cleanText(
@@ -733,11 +836,17 @@ export async function PATCH(
         title;
     }
 
+    // =====================================================
+    // NOTES
+    // =====================================================
+
     if (
-      Object.prototype.hasOwnProperty.call(
-        body,
-        "note"
-      )
+      Object.prototype
+        .hasOwnProperty
+        .call(
+          body,
+          "note"
+        )
     ) {
       updates.note =
         cleanNullableText(
@@ -745,11 +854,35 @@ export async function PATCH(
         );
     }
 
+    // =====================================================
+    // OUTCOME
+    // =====================================================
+
     if (
-      Object.prototype.hasOwnProperty.call(
-        body,
-        "due_date"
-      )
+      Object.prototype
+        .hasOwnProperty
+        .call(
+          body,
+          "outcome"
+        )
+    ) {
+      updates.outcome =
+        cleanNullableText(
+          body.outcome
+        );
+    }
+
+    // =====================================================
+    // DUE DATE
+    // =====================================================
+
+    if (
+      Object.prototype
+        .hasOwnProperty
+        .call(
+          body,
+          "due_date"
+        )
     ) {
       const dueDate =
         body.due_date ||
@@ -776,21 +909,152 @@ export async function PATCH(
         dueDate;
     }
 
+    // =====================================================
+    // SCHEDULED DATE / TIME
+    // =====================================================
+
+    const nextScheduledAt =
+      Object.prototype
+        .hasOwnProperty
+        .call(
+          body,
+          "scheduled_at"
+        )
+        ? cleanNullableText(
+            body.scheduled_at
+          )
+        : followUp.scheduled_at ||
+          null;
+
     if (
-      Object.prototype.hasOwnProperty.call(
-        body,
-        "status"
+      nextScheduledAt &&
+      !isDateTimeValue(
+        nextScheduledAt
       )
     ) {
+      return NextResponse.json(
+        {
+          error:
+            "Scheduled date and time are not valid.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
+    if (
+      Object.prototype
+        .hasOwnProperty
+        .call(
+          body,
+          "scheduled_at"
+        )
+    ) {
+      updates.scheduled_at =
+        nextScheduledAt;
+    }
+
+    /*
+     * Calls, Meetings and Demos require a
+     * scheduled date/time.
+     */
+    if (
+      [
+        "Call",
+        "Meeting",
+        "Demo",
+      ].includes(
+        nextActivityType
+      ) &&
+      !nextScheduledAt
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            `${nextActivityType} date and time are required.`,
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
+    // =====================================================
+    // STATUS
+    // =====================================================
+
+    const nextStatus =
+      Object.prototype
+        .hasOwnProperty
+        .call(
+          body,
+          "status"
+        )
+        ? cleanText(
+            body.status
+          )
+        : followUp.status ||
+          "Pending";
+
+    if (
+      !ALLOWED_STATUSES.includes(
+        nextStatus
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Invalid follow-up status.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
+    if (
+      Object.prototype
+        .hasOwnProperty
+        .call(
+          body,
+          "status"
+        )
+    ) {
+      updates.status =
+        nextStatus;
+    }
+
+    // =====================================================
+    // COMPLETED DATE
+    // =====================================================
+
+    if (
+      Object.prototype
+        .hasOwnProperty
+        .call(
+          body,
+          "completed_at"
+        )
+    ) {
+      const completedAt =
+        cleanNullableText(
+          body.completed_at
+        );
+
       if (
-        !ALLOWED_STATUSES.includes(
-          body.status
+        completedAt &&
+        !isDateTimeValue(
+          completedAt
         )
       ) {
         return NextResponse.json(
           {
             error:
-              "Invalid follow-up status.",
+              "Completed date and time are not valid.",
           },
           {
             status:
@@ -799,8 +1063,74 @@ export async function PATCH(
         );
       }
 
-      updates.status =
-        body.status;
+      updates.completed_at =
+        completedAt;
+    }
+
+    /*
+     * Automatically record when the activity
+     * becomes Completed.
+     */
+    if (
+      nextStatus ===
+        "Completed" &&
+      normalise(
+        followUp.status
+      ) !==
+        "completed" &&
+      !Object.prototype
+        .hasOwnProperty
+        .call(
+          body,
+          "completed_at"
+        )
+    ) {
+      updates.completed_at =
+        new Date()
+          .toISOString();
+    }
+
+    /*
+     * If a previously completed activity is
+     * reopened/rescheduled, clear completed_at.
+     */
+    if (
+      nextStatus !==
+        "Completed" &&
+      normalise(
+        followUp.status
+      ) ===
+        "completed" &&
+      !Object.prototype
+        .hasOwnProperty
+        .call(
+          body,
+          "completed_at"
+        )
+    ) {
+      updates.completed_at =
+        null;
+    }
+
+    // =====================================================
+    // RESCHEDULE RULE
+    // =====================================================
+
+    if (
+      nextStatus ===
+        "Rescheduled" &&
+      !nextScheduledAt
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "A new scheduled date and time are required when rescheduling an activity.",
+        },
+        {
+          status:
+            400,
+        }
+      );
     }
 
     // =====================================================
@@ -808,16 +1138,20 @@ export async function PATCH(
     // =====================================================
 
     const wantsRelatedType =
-      Object.prototype.hasOwnProperty.call(
-        body,
-        "related_type"
-      );
+      Object.prototype
+        .hasOwnProperty
+        .call(
+          body,
+          "related_type"
+        );
 
     const wantsRelatedId =
-      Object.prototype.hasOwnProperty.call(
-        body,
-        "related_id"
-      );
+      Object.prototype
+        .hasOwnProperty
+        .call(
+          body,
+          "related_id"
+        );
 
     if (
       wantsRelatedType ||
@@ -900,6 +1234,10 @@ export async function PATCH(
       }
     }
 
+    // =====================================================
+    // ASSIGNEE
+    // =====================================================
+
     if (
       wantsAssignment
     ) {
@@ -955,6 +1293,10 @@ export async function PATCH(
       }
     }
 
+    // =====================================================
+    // UPDATE
+    // =====================================================
+
     const {
       data:
         updatedFollowUp,
@@ -994,12 +1336,17 @@ export async function PATCH(
           updatedFollowUp,
       });
 
+    const activityLabel =
+      updatedFollowUp
+        .activity_type ||
+      "Follow-up";
+
     return NextResponse.json({
       followUp:
         formattedFollowUp,
 
       message:
-        "Follow-up updated successfully.",
+        `${activityLabel} updated successfully.`,
     });
   } catch (error) {
     console.error(
@@ -1144,7 +1491,10 @@ export async function DELETE(
 
     return NextResponse.json({
       message:
-        "Follow-up deleted successfully.",
+        `${
+          followUp.activity_type ||
+          "Follow-up"
+        } deleted successfully.`,
     });
   } catch (error) {
     console.error(
