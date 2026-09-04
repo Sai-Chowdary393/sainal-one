@@ -39,6 +39,9 @@ const NON_ISSUED_INVOICE_STATUSES =
     "cancelled",
   ]);
 
+const REOPEN_ACTION =
+  "reopen";
+
 // =========================================================
 // HELPERS
 // =========================================================
@@ -82,6 +85,17 @@ function forbidden(message) {
     },
     {
       status: 403,
+    }
+  );
+}
+
+function conflict(message) {
+  return NextResponse.json(
+    {
+      error: message,
+    },
+    {
+      status: 409,
     }
   );
 }
@@ -683,14 +697,6 @@ function buildProjectFinancialSummary({
       )
     );
 
-  /*
-   * Only issued invoices count as actual invoiced revenue.
-   *
-   * Excluded:
-   * - Draft
-   * - Draft Invoice
-   * - Cancelled
-   */
   const issuedInvoices =
     (invoices || [])
       .filter(
@@ -728,10 +734,6 @@ function buildProjectFinancialSummary({
       )
     );
 
-  /*
-   * Only payments against issued invoices
-   * contribute to the project finance summary.
-   */
   const validPayments =
     (payments || [])
       .filter(
@@ -1339,6 +1341,152 @@ export async function PATCH(
     const body =
       await request.json();
 
+    const action =
+      cleanText(
+        body.action
+      ).toLowerCase();
+
+    const projectIsCompleted =
+      normaliseStatus(
+        project.status
+      ) ===
+      "completed";
+
+    // =====================================================
+    // COMPLETED PROJECT LOCK / CONTROLLED REOPEN
+    // =====================================================
+
+    if (
+      projectIsCompleted
+    ) {
+      if (
+        action !==
+        REOPEN_ACTION
+      ) {
+        return conflict(
+          "This project is completed and delivery is locked. Reopen the project before making changes."
+        );
+      }
+
+      if (
+        !permissions.canEdit
+      ) {
+        return forbidden(
+          "You do not have permission to reopen projects."
+        );
+      }
+
+      const suppliedKeys =
+        Object.keys(
+          body || {}
+        );
+
+      const hasExtraChanges =
+        suppliedKeys.some(
+          (key) =>
+            key !==
+            "action"
+        );
+
+      if (
+        hasExtraChanges
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "A completed project can only be reopened. Other changes must be made after reopening.",
+          },
+          {
+            status: 400,
+          }
+        );
+      }
+
+      const {
+        data:
+          reopenedProject,
+        error:
+          reopenError,
+      } =
+        await supabase
+          .from("projects")
+          .update({
+            status:
+              "In Progress",
+          })
+          .eq(
+            "id",
+            id
+          )
+          .eq(
+            "organization_id",
+            organizationId
+          )
+          .select()
+          .single();
+
+      if (
+        reopenError
+      ) {
+        throw new Error(
+          reopenError.message
+        );
+      }
+
+      const formattedProject =
+        await attachRecordOwner({
+          supabase,
+          organizationId,
+          record:
+            reopenedProject,
+        });
+
+      return NextResponse.json({
+        project:
+          formattedProject,
+
+        message:
+          "Project reopened successfully.",
+      });
+    }
+
+    // =====================================================
+    // REOPEN ONLY APPLIES TO COMPLETED PROJECTS
+    // =====================================================
+
+    if (
+      action ===
+      REOPEN_ACTION
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Only completed projects can be reopened.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
+    if (
+      action
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Unsupported project action.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
+    // =====================================================
+    // NORMAL PROJECT UPDATE
+    // =====================================================
+
     const editableFields = [
       "project_name",
       "description",
@@ -1778,6 +1926,17 @@ export async function DELETE(
     if (!visible) {
       return forbidden(
         "You do not have permission to delete this project."
+      );
+    }
+
+    if (
+      normaliseStatus(
+        project.status
+      ) ===
+      "completed"
+    ) {
+      return conflict(
+        "Completed projects are locked and cannot be deleted. Reopen the project first if changes are required."
       );
     }
 
