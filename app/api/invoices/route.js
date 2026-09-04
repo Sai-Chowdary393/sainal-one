@@ -189,9 +189,7 @@ async function validateRelatedRecord({
 
 function parseMoney(value) {
   const cleaned =
-    String(
-      value || ""
-    )
+    String(value || "")
       .replace(
         /,/g,
         ""
@@ -478,6 +476,12 @@ function enrichInvoicesWithPayments({
           payment_count:
             invoicePayments.length,
         },
+
+        // Individual payment records are exposed so
+        // the dashboard can calculate revenue by
+        // the actual payment date.
+        payments:
+          invoicePayments,
       };
     }
   );
@@ -588,7 +592,7 @@ export async function GET() {
     // OWNER DETAILS
     // =====================================================
 
-    const invoicesWithOwners =
+    const ownedInvoices =
       await attachOwners({
         supabase,
         organizationId,
@@ -600,23 +604,24 @@ export async function GET() {
     // PAYMENT RECORDS
     // =====================================================
 
-    const payments =
+    const invoicePayments =
       await loadInvoicePayments({
         supabase,
         organizationId,
         invoices:
-          invoicesWithOwners,
+          ownedInvoices,
       });
 
     // =====================================================
-    // PAYMENT SUMMARIES
+    // PAYMENT SUMMARIES + INDIVIDUAL PAYMENTS
     // =====================================================
 
     const invoices =
       enrichInvoicesWithPayments({
         invoices:
-          invoicesWithOwners,
-        payments,
+          ownedInvoices,
+        payments:
+          invoicePayments,
       });
 
     // =====================================================
@@ -744,10 +749,6 @@ export async function POST(
     // =====================================================
     // STATUS
     // =====================================================
-
-    /*
-     * Every newly-created invoice starts as a draft.
-     */
 
     const status =
       cleanText(
