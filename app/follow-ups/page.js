@@ -10,6 +10,8 @@ import AppLayout from "../../components/layout/AppLayout";
 import ProtectedRoute from "../../components/ProtectedRoute";
 import StatusBadge from "../../components/StatusBadge";
 
+import styles from "./follow-ups.module.css";
+
 // =========================================================
 // CONSTANTS
 // =========================================================
@@ -263,7 +265,7 @@ export default function FollowUpsPage() {
       ) {
         throw new Error(
           followUpData.error ||
-            "Unable to load follow-ups."
+            "Unable to load activities."
         );
       }
 
@@ -304,7 +306,7 @@ export default function FollowUpsPage() {
       );
     } catch (error) {
       console.error(
-        "Follow-up loading error:",
+        "Activity loading error:",
         error
       );
 
@@ -318,7 +320,7 @@ export default function FollowUpsPage() {
 
       setErrorMessage(
         error.message ||
-          "Unable to load follow-ups."
+          "Unable to load activities."
       );
     } finally {
       setLoading(
@@ -441,7 +443,7 @@ export default function FollowUpsPage() {
     );
   }
 
-  async function createFollowUp(
+  async function createActivity(
     event
   ) {
     event.preventDefault();
@@ -492,12 +494,10 @@ export default function FollowUpsPage() {
           form.activity_type,
 
         title:
-          form.title
-            .trim(),
+          form.title.trim(),
 
         note:
-          form.note
-            .trim(),
+          form.note.trim(),
 
         due_date:
           form.due_date ||
@@ -688,7 +688,7 @@ export default function FollowUpsPage() {
     );
   }
 
-  async function saveFollowUp(
+  async function saveActivity(
     id
   ) {
     try {
@@ -741,12 +741,10 @@ export default function FollowUpsPage() {
           editForm.activity_type;
 
         payload.title =
-          editForm.title
-            .trim();
+          editForm.title.trim();
 
         payload.note =
-          editForm.note
-            .trim();
+          editForm.note.trim();
 
         payload.due_date =
           editForm.due_date ||
@@ -891,7 +889,7 @@ export default function FollowUpsPage() {
   // DELETE
   // =======================================================
 
-  async function deleteFollowUp(
+  async function deleteActivity(
     item
   ) {
     const confirmed =
@@ -1029,7 +1027,7 @@ export default function FollowUpsPage() {
   // METRICS
   // =======================================================
 
-  const pendingCount =
+  const openCount =
     followUps.filter(
       (
         item
@@ -1070,7 +1068,7 @@ export default function FollowUpsPage() {
 
   const overdueCount =
     followUps.filter(
-      isOverdue
+      isActivityOverdue
     ).length;
 
   // =======================================================
@@ -1084,7 +1082,7 @@ export default function FollowUpsPage() {
         description="Manage calls, meetings, reminders and customer follow-up activity."
       >
         <div
-          style={
+          className={
             styles.page
           }
         >
@@ -1093,47 +1091,43 @@ export default function FollowUpsPage() {
           ================================================= */}
 
           <section
-            style={
-              styles.header
+            className={
+              styles.pageHeader
             }
           >
-            <div>
+            <div
+              className={
+                styles.pageHeaderCopy
+              }
+            >
               <span
-                style={
+                className={
                   styles.eyebrow
                 }
               >
                 Activity workspace
               </span>
 
-              <h2
-                style={
-                  styles.heading
-                }
-              >
+              <h2>
                 Activity centre
               </h2>
 
-              <p
-                style={
-                  styles.description
-                }
-              >
+              <p>
                 Schedule calls with leads, manage meetings and demos,
-                and keep every follow-up visible to the right employee.
+                and keep follow-up activity visible to the right employee.
               </p>
             </div>
 
             {access.canCreate && (
               <div
-                style={
+                className={
                   styles.headerActions
                 }
               >
                 <button
                   type="button"
-                  style={
-                    styles.callButton
+                  className={
+                    styles.scheduleCallButton
                   }
                   onClick={() =>
                     openCreateForm(
@@ -1141,12 +1135,16 @@ export default function FollowUpsPage() {
                     )
                   }
                 >
-                  ☎ Schedule call
+                  <span>
+                    ☎
+                  </span>
+
+                  Schedule call
                 </button>
 
                 <button
                   type="button"
-                  style={
+                  className={
                     styles.primaryButton
                   }
                   onClick={() =>
@@ -1170,61 +1168,57 @@ export default function FollowUpsPage() {
           {showForm &&
             access.canCreate && (
               <section
-                style={
-                  styles.panel
+                className={
+                  styles.formPanel
                 }
               >
                 <div
-                  style={
-                    styles.formHeader
+                  className={
+                    styles.formHeading
                   }
                 >
                   <div>
                     <span
-                      style={
+                      className={
                         styles.eyebrow
                       }
                     >
                       New activity
                     </span>
 
-                    <h3
-                      style={
-                        styles.formTitle
-                      }
-                    >
+                    <h3>
                       {form.activity_type ===
                       "Call"
                         ? "Schedule a call"
                         : `Create ${form.activity_type.toLowerCase()}`}
                     </h3>
+
+                    <p>
+                      Add the activity details, related record and owner.
+                    </p>
                   </div>
 
-                  <span
-                    style={
-                      styles.activityChip
-                    }
-                  >
-                    {activityIcon(
-                      form.activity_type
-                    )}{" "}
-                    {
+                  <ActivityBadge
+                    type={
                       form.activity_type
                     }
-                  </span>
+                  />
                 </div>
 
                 <form
+                  className={
+                    styles.activityForm
+                  }
                   onSubmit={
-                    createFollowUp
+                    createActivity
                   }
                 >
                   <div
-                    style={
+                    className={
                       styles.formGrid
                     }
                   >
-                    <SelectField
+                    <FormSelect
                       label="Activity type"
                       name="activity_type"
                       value={
@@ -1238,7 +1232,7 @@ export default function FollowUpsPage() {
                       }
                     />
 
-                    <Field
+                    <FormField
                       label="Title"
                       name="title"
                       value={
@@ -1254,7 +1248,7 @@ export default function FollowUpsPage() {
                       }
                     />
 
-                    <SelectField
+                    <FormSelect
                       label="Related type"
                       name="related_type"
                       value={
@@ -1270,7 +1264,7 @@ export default function FollowUpsPage() {
 
                     {form.related_type ===
                     "Lead" ? (
-                      <LeadField
+                      <LeadSelect
                         label="Lead"
                         value={
                           form.related_id
@@ -1285,8 +1279,8 @@ export default function FollowUpsPage() {
                     ) : form.related_type ===
                       "General" ? (
                       <div
-                        style={
-                          styles.fieldHintCard
+                        className={
+                          styles.generalContext
                         }
                       >
                         <strong>
@@ -1298,7 +1292,7 @@ export default function FollowUpsPage() {
                         </span>
                       </div>
                     ) : (
-                      <Field
+                      <FormField
                         label="Related record ID"
                         name="related_id"
                         value={
@@ -1314,7 +1308,7 @@ export default function FollowUpsPage() {
                     {SCHEDULED_ACTIVITY_TYPES.has(
                       form.activity_type
                     ) ? (
-                      <Field
+                      <FormField
                         label="Scheduled date & time"
                         name="scheduled_at"
                         type="datetime-local"
@@ -1326,7 +1320,7 @@ export default function FollowUpsPage() {
                         }
                       />
                     ) : (
-                      <Field
+                      <FormField
                         label="Due date"
                         name="due_date"
                         type="date"
@@ -1339,7 +1333,7 @@ export default function FollowUpsPage() {
                       />
                     )}
 
-                    <SelectField
+                    <FormSelect
                       label="Status"
                       name="status"
                       value={
@@ -1354,7 +1348,7 @@ export default function FollowUpsPage() {
                     />
 
                     {access.canAssign && (
-                      <EmployeeField
+                      <EmployeeSelect
                         value={
                           form.assigned_employee_id
                         }
@@ -1367,47 +1361,39 @@ export default function FollowUpsPage() {
                         emptyLabel="Assign to me"
                       />
                     )}
+
+                    <label
+                      className={`${styles.field} ${styles.fieldFull}`}
+                    >
+                      <span>
+                        {form.activity_type ===
+                        "Call"
+                          ? "Call agenda / notes"
+                          : "Notes"}
+                      </span>
+
+                      <textarea
+                        name="note"
+                        rows={4}
+                        value={
+                          form.note
+                        }
+                        onChange={
+                          handleFormChange
+                        }
+                        placeholder="Add context, agenda or next steps..."
+                      />
+                    </label>
                   </div>
 
-                  <label
-                    style={{
-                      ...styles.field,
-
-                      marginTop:
-                        "14px",
-                    }}
-                  >
-                    <span>
-                      {form.activity_type ===
-                      "Call"
-                        ? "Call agenda / notes"
-                        : "Notes"}
-                    </span>
-
-                    <textarea
-                      name="note"
-                      rows={4}
-                      value={
-                        form.note
-                      }
-                      onChange={
-                        handleFormChange
-                      }
-                      style={
-                        styles.textarea
-                      }
-                      placeholder="Add context, agenda or next steps..."
-                    />
-                  </label>
-
                   <div
-                    style={
-                      styles.actions
+                    className={
+                      styles.formActions
                     }
                   >
                     <button
                       type="button"
-                      style={
+                      className={
                         styles.secondaryButton
                       }
                       onClick={
@@ -1419,7 +1405,7 @@ export default function FollowUpsPage() {
 
                     <button
                       type="submit"
-                      style={
+                      className={
                         styles.primaryButton
                       }
                       disabled={
@@ -1443,87 +1429,99 @@ export default function FollowUpsPage() {
           ================================================= */}
 
           <section
-            style={
+            className={
               styles.summaryGrid
             }
           >
-            <Summary
+            <SummaryCard
               label="Visible activities"
               value={
                 followUps.length
               }
+              icon="◎"
+              tone="gold"
             />
 
-            <Summary
+            <SummaryCard
               label="Calls"
               value={
                 callsCount
               }
+              icon="☎"
+              tone="blue"
             />
 
-            <Summary
+            <SummaryCard
               label="Open / scheduled"
               value={
-                pendingCount
+                openCount
               }
+              icon="◷"
+              tone="gold"
             />
 
-            <Summary
+            <SummaryCard
               label="Overdue"
               value={
                 overdueCount
               }
-              danger={
-                overdueCount >
-                0
-              }
+              icon="!"
+              tone="red"
             />
 
-            <Summary
+            <SummaryCard
               label="Completed"
               value={
                 completedCount
               }
-              success={
-                completedCount >
-                0
-              }
+              icon="✓"
+              tone="green"
             />
           </section>
 
           {/* =================================================
-              FILTERS
+              TOOLBAR
           ================================================= */}
 
           <section
-            style={
-              styles.toolbar
+            className={
+              styles.toolbarPanel
             }
           >
-            <input
-              type="search"
-              placeholder="Search activity, lead, company, assignee or status..."
-              value={
-                search
+            <label
+              className={
+                styles.searchBox
               }
-              onChange={(
-                event
-              ) =>
-                setSearch(
-                  event.target.value
-                )
-              }
-              style={
-                styles.search
-              }
-            />
+            >
+              <span>
+                ⌕
+              </span>
+
+              <input
+                type="search"
+                placeholder="Search activity, lead, company, assignee or status..."
+                value={
+                  search
+                }
+                onChange={(
+                  event
+                ) =>
+                  setSearch(
+                    event.target.value
+                  )
+                }
+              />
+            </label>
 
             <div
-              style={
-                styles.toolbarFilters
+              className={
+                styles.filters
               }
             >
               <select
+                className={
+                  styles.filterSelect
+                }
                 value={
                   activityFilter
                 }
@@ -1533,9 +1531,6 @@ export default function FollowUpsPage() {
                   setActivityFilter(
                     event.target.value
                   )
-                }
-                style={
-                  styles.filter
                 }
               >
                 <option value="All">
@@ -1561,6 +1556,9 @@ export default function FollowUpsPage() {
               </select>
 
               <select
+                className={
+                  styles.filterSelect
+                }
                 value={
                   statusFilter
                 }
@@ -1570,9 +1568,6 @@ export default function FollowUpsPage() {
                   setStatusFilter(
                     event.target.value
                   )
-                }
-                style={
-                  styles.filter
                 }
               >
                 <option value="All">
@@ -1596,6 +1591,34 @@ export default function FollowUpsPage() {
                   )
                 )}
               </select>
+
+              {(search ||
+                statusFilter !==
+                  "All" ||
+                activityFilter !==
+                  "All") && (
+                <button
+                  type="button"
+                  className={
+                    styles.clearButton
+                  }
+                  onClick={() => {
+                    setSearch(
+                      ""
+                    );
+
+                    setStatusFilter(
+                      "All"
+                    );
+
+                    setActivityFilter(
+                      "All"
+                    );
+                  }}
+                >
+                  Clear
+                </button>
+              )}
             </div>
           </section>
 
@@ -1604,17 +1627,33 @@ export default function FollowUpsPage() {
           ================================================= */}
 
           {loading ? (
-            <div
-              style={
-                styles.panel
+            <section
+              className={
+                styles.loadingPanel
               }
             >
-              Loading activities...
-            </div>
+              <div
+                className={
+                  styles.loadingRow
+                }
+              />
+
+              <div
+                className={
+                  styles.loadingRow
+                }
+              />
+
+              <div
+                className={
+                  styles.loadingRow
+                }
+              />
+            </section>
           ) : errorMessage ? (
             <section
-              style={
-                styles.error
+              className={
+                styles.errorPanel
               }
             >
               <div>
@@ -1631,7 +1670,7 @@ export default function FollowUpsPage() {
 
               <button
                 type="button"
-                style={
+                className={
                   styles.secondaryButton
                 }
                 onClick={
@@ -1643,123 +1682,100 @@ export default function FollowUpsPage() {
             </section>
           ) : (
             <section
-              style={
-                styles.panel
+              className={
+                styles.tablePanel
               }
             >
               <div
-                style={
-                  styles.panelHeader
+                className={
+                  styles.tableHeading
                 }
               >
                 <div>
-                  <h3
-                    style={
-                      styles.formTitle
-                    }
-                  >
+                  <h3>
                     Activity records
                   </h3>
 
-                  <p
-                    style={
-                      styles.panelDescription
-                    }
-                  >
-                    {
-                      filtered.length
-                    }{" "}
-                    visible record
-                    {filtered.length ===
-                    1
-                      ? ""
-                      : "s"}
+                  <p>
+                    Calls, meetings, reminders and customer follow-up activity.
                   </p>
                 </div>
+
+                <span
+                  className={
+                    styles.resultCount
+                  }
+                >
+                  {filtered.length}{" "}
+                  record
+                  {filtered.length ===
+                  1
+                    ? ""
+                    : "s"}
+                </span>
               </div>
 
               {filtered.length ===
               0 ? (
                 <div
-                  style={
-                    styles.empty
+                  className={
+                    styles.emptyState
                   }
                 >
-                  <strong>
-                    No activities found.
-                  </strong>
-
-                  <span>
-                    Schedule a call or add a follow-up to get started.
+                  <span
+                    className={
+                      styles.emptyIcon
+                    }
+                  >
+                    ◷
                   </span>
+
+                  <h3>
+                    No activities found
+                  </h3>
+
+                  <p>
+                    Schedule a call or add an activity to start tracking customer follow-up work.
+                  </p>
                 </div>
               ) : (
                 <div
-                  style={{
-                    overflowX:
-                      "auto",
-                  }}
+                  className={
+                    styles.tableWrapper
+                  }
                 >
                   <table
-                    style={
-                      styles.table
+                    className={
+                      styles.activityTable
                     }
                   >
                     <thead>
                       <tr>
-                        <th
-                          style={
-                            styles.th
-                          }
-                        >
-                          Type
+                        <th>
+                          Activity type
                         </th>
 
-                        <th
-                          style={
-                            styles.th
-                          }
-                        >
+                        <th>
                           Activity
                         </th>
 
-                        <th
-                          style={
-                            styles.th
-                          }
-                        >
+                        <th>
                           Related to
                         </th>
 
-                        <th
-                          style={
-                            styles.th
-                          }
-                        >
+                        <th>
                           Assignee
                         </th>
 
-                        <th
-                          style={
-                            styles.th
-                          }
-                        >
+                        <th>
                           Schedule / due
                         </th>
 
-                        <th
-                          style={
-                            styles.th
-                          }
-                        >
+                        <th>
                           Status
                         </th>
 
-                        <th
-                          style={
-                            styles.th
-                          }
-                        >
+                        <th>
                           Actions
                         </th>
                       </tr>
@@ -1790,14 +1806,14 @@ export default function FollowUpsPage() {
                                 item.id
                               }
                             >
-                              <td
-                                style={
-                                  styles.td
-                                }
-                              >
+                              {/* =====================================
+                                  TYPE
+                              ===================================== */}
+
+                              <td>
                                 {editing &&
                                 access.canEdit ? (
-                                  <SelectFieldInline
+                                  <InlineSelect
                                     name="activity_type"
                                     value={
                                       editForm.activity_type
@@ -1810,33 +1826,30 @@ export default function FollowUpsPage() {
                                     }
                                   />
                                 ) : (
-                                  <span
-                                    style={
-                                      styles.typeBadge
-                                    }
-                                  >
-                                    <span>
-                                      {activityIcon(
-                                        itemType
-                                      )}
-                                    </span>
-
-                                    {
+                                  <ActivityTypeCell
+                                    type={
                                       itemType
                                     }
-                                  </span>
+                                  />
                                 )}
                               </td>
 
-                              <td
-                                style={
-                                  styles.td
-                                }
-                              >
+                              {/* =====================================
+                                  ACTIVITY
+                              ===================================== */}
+
+                              <td>
                                 {editing &&
                                 access.canEdit ? (
-                                  <>
+                                  <div
+                                    className={
+                                      styles.editStack
+                                    }
+                                  >
                                     <input
+                                      className={
+                                        styles.inlineInput
+                                      }
                                       name="title"
                                       value={
                                         editForm.title
@@ -1844,12 +1857,12 @@ export default function FollowUpsPage() {
                                       onChange={
                                         handleEditChange
                                       }
-                                      style={
-                                        styles.input
-                                      }
                                     />
 
                                     <textarea
+                                      className={
+                                        styles.inlineTextarea
+                                      }
                                       name="note"
                                       value={
                                         editForm.note
@@ -1857,15 +1870,12 @@ export default function FollowUpsPage() {
                                       onChange={
                                         handleEditChange
                                       }
-                                      style={{
-                                        ...styles.textarea,
-
-                                        marginTop:
-                                          "7px",
-                                      }}
                                     />
 
                                     <input
+                                      className={
+                                        styles.inlineInput
+                                      }
                                       name="outcome"
                                       value={
                                         editForm.outcome
@@ -1873,17 +1883,15 @@ export default function FollowUpsPage() {
                                       onChange={
                                         handleEditChange
                                       }
-                                      style={{
-                                        ...styles.input,
-
-                                        marginTop:
-                                          "7px",
-                                      }}
                                       placeholder="Outcome / result"
                                     />
-                                  </>
+                                  </div>
                                 ) : (
-                                  <>
+                                  <div
+                                    className={
+                                      styles.activityIdentity
+                                    }
+                                  >
                                     <strong>
                                       {
                                         item.title
@@ -1891,11 +1899,7 @@ export default function FollowUpsPage() {
                                     </strong>
 
                                     {item.note && (
-                                      <small
-                                        style={
-                                          styles.note
-                                        }
-                                      >
+                                      <small>
                                         {
                                           item.note
                                         }
@@ -1903,34 +1907,34 @@ export default function FollowUpsPage() {
                                     )}
 
                                     {item.outcome && (
-                                      <small
-                                        style={
-                                          styles.outcome
+                                      <span
+                                        className={
+                                          styles.outcomeText
                                         }
                                       >
                                         Outcome:{" "}
                                         {
                                           item.outcome
                                         }
-                                      </small>
+                                      </span>
                                     )}
-                                  </>
+                                  </div>
                                 )}
                               </td>
 
-                              <td
-                                style={
-                                  styles.td
-                                }
-                              >
+                              {/* =====================================
+                                  RELATED
+                              ===================================== */}
+
+                              <td>
                                 {editing &&
                                 access.canEdit ? (
                                   <div
-                                    style={
-                                      styles.inlineStack
+                                    className={
+                                      styles.editStack
                                     }
                                   >
-                                    <SelectFieldInline
+                                    <InlineSelect
                                       name="related_type"
                                       value={
                                         editForm.related_type
@@ -1945,7 +1949,7 @@ export default function FollowUpsPage() {
 
                                     {editForm.related_type ===
                                     "Lead" ? (
-                                      <LeadFieldInline
+                                      <LeadSelectInline
                                         value={
                                           editForm.related_id
                                         }
@@ -1959,6 +1963,9 @@ export default function FollowUpsPage() {
                                     ) : editForm.related_type !==
                                       "General" ? (
                                       <input
+                                        className={
+                                          styles.inlineInput
+                                        }
                                         name="related_id"
                                         value={
                                           editForm.related_id
@@ -1966,16 +1973,13 @@ export default function FollowUpsPage() {
                                         onChange={
                                           handleEditChange
                                         }
-                                        style={
-                                          styles.input
-                                        }
                                         placeholder="Record UUID"
                                       />
                                     ) : null}
                                   </div>
                                 ) : lead ? (
                                   <div
-                                    style={
+                                    className={
                                       styles.relatedIdentity
                                     }
                                   >
@@ -1990,19 +1994,25 @@ export default function FollowUpsPage() {
                                     </small>
                                   </div>
                                 ) : (
-                                  item.related_type ||
-                                  "General"
+                                  <span
+                                    className={
+                                      styles.relatedText
+                                    }
+                                  >
+                                    {item.related_type ||
+                                      "General"}
+                                  </span>
                                 )}
                               </td>
 
-                              <td
-                                style={
-                                  styles.td
-                                }
-                              >
+                              {/* =====================================
+                                  ASSIGNEE
+                              ===================================== */}
+
+                              <td>
                                 {editing &&
                                 access.canAssign ? (
-                                  <EmployeeFieldInline
+                                  <EmployeeSelectInline
                                     value={
                                       editForm.assigned_employee_id
                                     }
@@ -2014,23 +2024,43 @@ export default function FollowUpsPage() {
                                     }
                                   />
                                 ) : (
-                                  item.assigned_employee
-                                    ?.full_name ||
-                                  "Unassigned"
+                                  <div
+                                    className={
+                                      styles.assigneeCell
+                                    }
+                                  >
+                                    <strong>
+                                      {item.assigned_employee
+                                        ?.full_name ||
+                                        "Unassigned"}
+                                    </strong>
+
+                                    {item.assigned_employee
+                                      ?.job_title && (
+                                      <small>
+                                        {
+                                          item.assigned_employee.job_title
+                                        }
+                                      </small>
+                                    )}
+                                  </div>
                                 )}
                               </td>
 
-                              <td
-                                style={
-                                  styles.td
-                                }
-                              >
+                              {/* =====================================
+                                  DATE
+                              ===================================== */}
+
+                              <td>
                                 {editing &&
                                 access.canEdit ? (
                                   SCHEDULED_ACTIVITY_TYPES.has(
                                     editForm.activity_type
                                   ) ? (
                                     <input
+                                      className={
+                                        styles.inlineInput
+                                      }
                                       type="datetime-local"
                                       name="scheduled_at"
                                       value={
@@ -2039,12 +2069,12 @@ export default function FollowUpsPage() {
                                       onChange={
                                         handleEditChange
                                       }
-                                      style={
-                                        styles.input
-                                      }
                                     />
                                   ) : (
                                     <input
+                                      className={
+                                        styles.inlineInput
+                                      }
                                       type="date"
                                       name="due_date"
                                       value={
@@ -2053,50 +2083,25 @@ export default function FollowUpsPage() {
                                       onChange={
                                         handleEditChange
                                       }
-                                      style={
-                                        styles.input
-                                      }
                                     />
                                   )
-                                ) : item.scheduled_at ? (
-                                  <span
-                                    style={
-                                      isScheduledPast(
-                                        item
-                                      )
-                                        ? styles.overdue
-                                        : {}
-                                    }
-                                  >
-                                    {formatDateTime(
-                                      item.scheduled_at
-                                    )}
-                                  </span>
                                 ) : (
-                                  <span
-                                    style={
-                                      isOverdue(
-                                        item
-                                      )
-                                        ? styles.overdue
-                                        : {}
+                                  <DateCell
+                                    item={
+                                      item
                                     }
-                                  >
-                                    {formatDate(
-                                      item.due_date
-                                    )}
-                                  </span>
+                                  />
                                 )}
                               </td>
 
-                              <td
-                                style={
-                                  styles.td
-                                }
-                              >
+                              {/* =====================================
+                                  STATUS
+                              ===================================== */}
+
+                              <td>
                                 {editing &&
                                 access.canEdit ? (
-                                  <SelectFieldInline
+                                  <InlineSelect
                                     name="status"
                                     value={
                                       editForm.status
@@ -2118,28 +2123,28 @@ export default function FollowUpsPage() {
                                 )}
                               </td>
 
-                              <td
-                                style={
-                                  styles.td
-                                }
-                              >
+                              {/* =====================================
+                                  ACTIONS
+                              ===================================== */}
+
+                              <td>
                                 <div
-                                  style={
-                                    styles.rowActions
+                                  className={
+                                    styles.actionCell
                                   }
                                 >
                                   {editing ? (
                                     <>
                                       <button
                                         type="button"
-                                        style={
-                                          styles.primaryButtonSmall
+                                        className={
+                                          styles.saveButton
                                         }
                                         disabled={
                                           saving
                                         }
                                         onClick={() =>
-                                          saveFollowUp(
+                                          saveActivity(
                                             item.id
                                           )
                                         }
@@ -2151,8 +2156,8 @@ export default function FollowUpsPage() {
 
                                       <button
                                         type="button"
-                                        style={
-                                          styles.secondaryButtonSmall
+                                        className={
+                                          styles.smallButton
                                         }
                                         onClick={
                                           cancelEdit
@@ -2167,8 +2172,8 @@ export default function FollowUpsPage() {
                                         access.canAssign) && (
                                         <button
                                           type="button"
-                                          style={
-                                            styles.secondaryButtonSmall
+                                          className={
+                                            styles.smallButton
                                           }
                                           onClick={() =>
                                             startEdit(
@@ -2181,18 +2186,18 @@ export default function FollowUpsPage() {
                                       )}
 
                                       {access.canEdit &&
-                                        normalise(
-                                          item.status
-                                        ) !==
-                                          "completed" &&
-                                        normalise(
-                                          item.status
-                                        ) !==
-                                          "cancelled" && (
+                                        ![
+                                          "completed",
+                                          "cancelled",
+                                        ].includes(
+                                          normalise(
+                                            item.status
+                                          )
+                                        ) && (
                                           <button
                                             type="button"
-                                            style={
-                                              styles.completeButtonSmall
+                                            className={
+                                              styles.completeButton
                                             }
                                             onClick={() =>
                                               patchStatus(
@@ -2221,8 +2226,8 @@ export default function FollowUpsPage() {
                                         ) && (
                                           <button
                                             type="button"
-                                            style={
-                                              styles.secondaryButtonSmall
+                                            className={
+                                              styles.smallButton
                                             }
                                             onClick={() =>
                                               patchStatus(
@@ -2249,8 +2254,8 @@ export default function FollowUpsPage() {
                                         ) && (
                                           <button
                                             type="button"
-                                            style={
-                                              styles.secondaryButtonSmall
+                                            className={
+                                              styles.smallButton
                                             }
                                             onClick={() =>
                                               startEdit(
@@ -2266,11 +2271,11 @@ export default function FollowUpsPage() {
                                       {access.canDelete && (
                                         <button
                                           type="button"
-                                          style={
-                                            styles.dangerButtonSmall
+                                          className={
+                                            styles.deleteButton
                                           }
                                           onClick={() =>
-                                            deleteFollowUp(
+                                            deleteActivity(
                                               item
                                             )
                                           }
@@ -2299,10 +2304,82 @@ export default function FollowUpsPage() {
 }
 
 // =========================================================
+// ACTIVITY TYPE
+// =========================================================
+
+function ActivityTypeCell({
+  type,
+}) {
+  /*
+   * Normal Follow-up records deliberately do not show
+   * the word "Follow-up" repeatedly.
+   *
+   * Calls / Meetings / Demos / Emails remain labelled,
+   * because the type is useful for those records.
+   */
+
+  if (
+    normalise(
+      type
+    ) ===
+    "follow-up"
+  ) {
+    return (
+      <span
+        className={
+          styles.followUpOnlyIcon
+        }
+        title="Follow-up"
+      >
+        ✓
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className={
+        `${styles.activityTypeBadge} ${getActivityTypeClass(
+          type
+        )}`
+      }
+    >
+      <span>
+        {activityIcon(
+          type
+        )}
+      </span>
+
+      {type}
+    </span>
+  );
+}
+
+function ActivityBadge({
+  type,
+}) {
+  return (
+    <span
+      className={
+        styles.formActivityBadge
+      }
+    >
+      <span>
+        {activityIcon(
+          type
+        )}
+      </span>
+
+      {type}
+    </span>
+  );
+}
+
+// =========================================================
 // FORM COMPONENTS
 // =========================================================
 
-function Field({
+function FormField({
   label,
   name,
   value,
@@ -2312,7 +2389,7 @@ function Field({
 }) {
   return (
     <label
-      style={
+      className={
         styles.field
       }
     >
@@ -2337,15 +2414,12 @@ function Field({
         placeholder={
           placeholder
         }
-        style={
-          styles.input
-        }
       />
     </label>
   );
 }
 
-function SelectField({
+function FormSelect({
   label,
   name,
   value,
@@ -2354,7 +2428,7 @@ function SelectField({
 }) {
   return (
     <label
-      style={
+      className={
         styles.field
       }
     >
@@ -2362,67 +2436,40 @@ function SelectField({
         {label}
       </span>
 
-      <SelectFieldInline
+      <select
         name={
           name
         }
         value={
-          value
+          value ||
+          ""
         }
         onChange={
           onChange
         }
-        options={
-          options
-        }
-      />
+      >
+        {options.map(
+          (
+            option
+          ) => (
+            <option
+              key={
+                option
+              }
+              value={
+                option
+              }
+            >
+              {option}
+            </option>
+          )
+        )}
+      </select>
     </label>
   );
 }
 
-function SelectFieldInline({
-  name,
-  value,
-  onChange,
-  options,
-}) {
-  return (
-    <select
-      name={
-        name
-      }
-      value={
-        value ||
-        ""
-      }
-      onChange={
-        onChange
-      }
-      style={
-        styles.input
-      }
-    >
-      {options.map(
-        (
-          option
-        ) => (
-          <option
-            key={
-              option
-            }
-            value={
-              option
-            }
-          >
-            {option}
-          </option>
-        )
-      )}
-    </select>
-  );
-}
-
-function LeadField({
+function LeadSelect({
   label,
   value,
   onChange,
@@ -2430,7 +2477,7 @@ function LeadField({
 }) {
   return (
     <label
-      style={
+      className={
         styles.field
       }
     >
@@ -2438,7 +2485,7 @@ function LeadField({
         {label}
       </span>
 
-      <LeadFieldInline
+      <LeadSelectInline
         value={
           value
         }
@@ -2453,13 +2500,16 @@ function LeadField({
   );
 }
 
-function LeadFieldInline({
+function LeadSelectInline({
   value,
   onChange,
   leads,
 }) {
   return (
     <select
+      className={
+        styles.inlineInput
+      }
       name="related_id"
       value={
         value ||
@@ -2467,9 +2517,6 @@ function LeadFieldInline({
       }
       onChange={
         onChange
-      }
-      style={
-        styles.input
       }
     >
       <option value="">
@@ -2500,7 +2547,7 @@ function LeadFieldInline({
   );
 }
 
-function EmployeeField({
+function EmployeeSelect({
   value,
   onChange,
   employees,
@@ -2508,7 +2555,7 @@ function EmployeeField({
 }) {
   return (
     <label
-      style={
+      className={
         styles.field
       }
     >
@@ -2516,33 +2563,53 @@ function EmployeeField({
         Assigned employee
       </span>
 
-      <EmployeeFieldInline
+      <select
+        name="assigned_employee_id"
         value={
-          value
+          value ||
+          ""
         }
         onChange={
           onChange
         }
-        employees={
-          employees
-        }
-        emptyLabel={
-          emptyLabel
-        }
-      />
+      >
+        <option value="">
+          {emptyLabel}
+        </option>
+
+        {employees.map(
+          (
+            employee
+          ) => (
+            <option
+              key={
+                employee.id
+              }
+              value={
+                employee.id
+              }
+            >
+              {
+                employee.full_name
+              }
+            </option>
+          )
+        )}
+      </select>
     </label>
   );
 }
 
-function EmployeeFieldInline({
+function EmployeeSelectInline({
   value,
   onChange,
   employees,
-  emptyLabel =
-    "Unassigned",
 }) {
   return (
     <select
+      className={
+        styles.inlineInput
+      }
       name="assigned_employee_id"
       value={
         value ||
@@ -2551,12 +2618,9 @@ function EmployeeFieldInline({
       onChange={
         onChange
       }
-      style={
-        styles.input
-      }
     >
       <option value="">
-        {emptyLabel}
+        Unassigned
       </option>
 
       {employees.map(
@@ -2581,27 +2645,87 @@ function EmployeeFieldInline({
   );
 }
 
-function Summary({
-  label,
+function InlineSelect({
+  name,
   value,
-  danger = false,
-  success = false,
+  onChange,
+  options,
 }) {
   return (
-    <article
-      style={{
-        ...styles.summary,
-
-        ...(danger
-          ? styles.summaryDanger
-          : {}),
-
-        ...(success
-          ? styles.summarySuccess
-          : {}),
-      }}
+    <select
+      className={
+        styles.inlineInput
+      }
+      name={
+        name
+      }
+      value={
+        value ||
+        ""
+      }
+      onChange={
+        onChange
+      }
     >
-      <span>
+      {options.map(
+        (
+          option
+        ) => (
+          <option
+            key={
+              option
+            }
+            value={
+              option
+            }
+          >
+            {option}
+          </option>
+        )
+      )}
+    </select>
+  );
+}
+
+// =========================================================
+// SUMMARY
+// =========================================================
+
+function SummaryCard({
+  label,
+  value,
+  icon,
+  tone,
+}) {
+  const toneClass =
+    tone ===
+    "red"
+      ? styles.summaryRed
+      : tone ===
+          "blue"
+        ? styles.summaryBlue
+        : tone ===
+            "green"
+          ? styles.summaryGreen
+          : styles.summaryGold;
+
+  return (
+    <article
+      className={`${styles.summaryCard} ${toneClass}`}
+    >
+      <span
+        className={
+          styles.summaryIcon
+        }
+      >
+        {icon}
+      </span>
+
+      <span
+        className={
+          styles.summaryLabel
+        }
+      >
         {label}
       </span>
 
@@ -2609,6 +2733,88 @@ function Summary({
         {value}
       </strong>
     </article>
+  );
+}
+
+// =========================================================
+// DATE CELL
+// =========================================================
+
+function DateCell({
+  item,
+}) {
+  if (
+    item.scheduled_at
+  ) {
+    const overdue =
+      isScheduledPast(
+        item
+      );
+
+    return (
+      <div
+        className={
+          styles.dateCell
+        }
+      >
+        <span
+          className={
+            overdue
+              ? styles.dateTextOverdue
+              : styles.dateText
+          }
+        >
+          {formatDateTime(
+            item.scheduled_at
+          )}
+        </span>
+
+        {overdue && (
+          <span
+            className={
+              styles.overdueLabel
+            }
+          >
+            Missed
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  const overdue =
+    isActivityOverdue(
+      item
+    );
+
+  return (
+    <div
+      className={
+        styles.dateCell
+      }
+    >
+      <span
+        className={
+          overdue
+            ? styles.dateTextOverdue
+            : styles.dateText
+        }
+      >
+        {formatDate(
+          item.due_date
+        )}
+      </span>
+
+      {overdue && (
+        <span
+          className={
+            styles.overdueLabel
+          }
+        >
+          Overdue
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -2850,7 +3056,7 @@ function formatDateTime(
   );
 }
 
-function isOverdue(
+function isActivityOverdue(
   item
 ) {
   if (
@@ -2859,6 +3065,7 @@ function isOverdue(
     [
       "completed",
       "cancelled",
+      "no answer",
     ].includes(
       normalise(
         item.status
@@ -2974,6 +3181,31 @@ function activityIcon(
   }
 }
 
+function getActivityTypeClass(
+  type
+) {
+  switch (
+    normalise(
+      type
+    )
+  ) {
+    case "call":
+      return styles.typeCall;
+
+    case "meeting":
+      return styles.typeMeeting;
+
+    case "demo":
+      return styles.typeDemo;
+
+    case "email":
+      return styles.typeEmail;
+
+    default:
+      return "";
+  }
+}
+
 function activityTitlePlaceholder(
   type
 ) {
@@ -2998,804 +3230,3 @@ function activityTitlePlaceholder(
       return "e.g. Follow up on proposal";
   }
 }
-
-// =========================================================
-// STYLES
-// =========================================================
-
-const styles = {
-  page: {
-    display:
-      "grid",
-
-    gap:
-      "20px",
-
-    color:
-      "#27241f",
-
-    fontSize:
-      "13px",
-  },
-
-  header: {
-    display:
-      "flex",
-
-    justifyContent:
-      "space-between",
-
-    alignItems:
-      "flex-start",
-
-    gap:
-      "20px",
-  },
-
-  headerActions: {
-    display:
-      "flex",
-
-    flexWrap:
-      "wrap",
-
-    justifyContent:
-      "flex-end",
-
-    gap:
-      "8px",
-  },
-
-  eyebrow: {
-    display:
-      "block",
-
-    marginBottom:
-      "7px",
-
-    color:
-      "#9a7300",
-
-    fontSize:
-      "10px",
-
-    fontWeight:
-      800,
-
-    letterSpacing:
-      "1px",
-
-    textTransform:
-      "uppercase",
-  },
-
-  heading: {
-    margin:
-      0,
-
-    fontSize:
-      "27px",
-  },
-
-  description: {
-    maxWidth:
-      "720px",
-
-    margin:
-      "7px 0 0",
-
-    color:
-      "#7d786e",
-
-    fontSize:
-      "13px",
-
-    lineHeight:
-      1.6,
-  },
-
-  panel: {
-    padding:
-      "20px",
-
-    border:
-      "1px solid #dfdbd1",
-
-    borderRadius:
-      "15px",
-
-    background:
-      "#ffffff",
-  },
-
-  panelHeader: {
-    display:
-      "flex",
-
-    justifyContent:
-      "space-between",
-
-    marginBottom:
-      "15px",
-  },
-
-  panelDescription: {
-    margin:
-      "5px 0 0",
-
-    color:
-      "#817d74",
-
-    fontSize:
-      "12px",
-  },
-
-  formHeader: {
-    display:
-      "flex",
-
-    alignItems:
-      "flex-start",
-
-    justifyContent:
-      "space-between",
-
-    gap:
-      "16px",
-
-    marginBottom:
-      "18px",
-  },
-
-  formTitle: {
-    margin:
-      0,
-  },
-
-  formGrid: {
-    display:
-      "grid",
-
-    gridTemplateColumns:
-      "repeat(auto-fit, minmax(220px, 1fr))",
-
-    gap:
-      "14px",
-  },
-
-  field: {
-    display:
-      "grid",
-
-    gap:
-      "7px",
-
-    fontSize:
-      "12px",
-
-    fontWeight:
-      700,
-  },
-
-  fieldHintCard: {
-    display:
-      "grid",
-
-    alignContent:
-      "center",
-
-    gap:
-      "4px",
-
-    minHeight:
-      "64px",
-
-    padding:
-      "10px 12px",
-
-    border:
-      "1px dashed #d9d5cc",
-
-    borderRadius:
-      "8px",
-
-    color:
-      "#7d786e",
-
-    background:
-      "#fbfaf7",
-  },
-
-  input: {
-    width:
-      "100%",
-
-    minHeight:
-      "40px",
-
-    padding:
-      "8px 10px",
-
-    border:
-      "1px solid #d9d5cc",
-
-    borderRadius:
-      "8px",
-
-    background:
-      "#ffffff",
-
-    fontFamily:
-      "inherit",
-
-    fontSize:
-      "13px",
-  },
-
-  textarea: {
-    width:
-      "100%",
-
-    minHeight:
-      "90px",
-
-    padding:
-      "9px 10px",
-
-    border:
-      "1px solid #d9d5cc",
-
-    borderRadius:
-      "8px",
-
-    resize:
-      "vertical",
-
-    fontFamily:
-      "inherit",
-
-    fontSize:
-      "13px",
-  },
-
-  inlineStack: {
-    display:
-      "grid",
-
-    gap:
-      "7px",
-
-    minWidth:
-      "190px",
-  },
-
-  actions: {
-    display:
-      "flex",
-
-    justifyContent:
-      "flex-end",
-
-    gap:
-      "8px",
-
-    marginTop:
-      "18px",
-  },
-
-  primaryButton: {
-    minHeight:
-      "40px",
-
-    padding:
-      "0 15px",
-
-    border:
-      "1px solid #b88800",
-
-    borderRadius:
-      "9px",
-
-    background:
-      "#dca900",
-
-    color:
-      "#17130a",
-
-    fontWeight:
-      750,
-
-    cursor:
-      "pointer",
-  },
-
-  callButton: {
-    minHeight:
-      "40px",
-
-    padding:
-      "0 15px",
-
-    border:
-      "1px solid #c9decf",
-
-    borderRadius:
-      "9px",
-
-    background:
-      "#f3faf5",
-
-    color:
-      "#397451",
-
-    fontWeight:
-      800,
-
-    cursor:
-      "pointer",
-  },
-
-  secondaryButton: {
-    minHeight:
-      "40px",
-
-    padding:
-      "0 15px",
-
-    border:
-      "1px solid #ddd8cf",
-
-    borderRadius:
-      "9px",
-
-    background:
-      "#ffffff",
-
-    fontWeight:
-      700,
-
-    cursor:
-      "pointer",
-  },
-
-  activityChip: {
-    display:
-      "inline-flex",
-
-    alignItems:
-      "center",
-
-    gap:
-      "6px",
-
-    minHeight:
-      "30px",
-
-    padding:
-      "0 10px",
-
-    borderRadius:
-      "999px",
-
-    color:
-      "#755b00",
-
-    background:
-      "#f7efd1",
-
-    fontSize:
-      "10px",
-
-    fontWeight:
-      800,
-
-    whiteSpace:
-      "nowrap",
-  },
-
-  summaryGrid: {
-    display:
-      "grid",
-
-    gridTemplateColumns:
-      "repeat(auto-fit, minmax(150px, 1fr))",
-
-    gap:
-      "14px",
-  },
-
-  summary: {
-    display:
-      "grid",
-
-    gap:
-      "10px",
-
-    minHeight:
-      "105px",
-
-    padding:
-      "17px",
-
-    border:
-      "1px solid #dfdbd1",
-
-    borderRadius:
-      "14px",
-
-    background:
-      "#ffffff",
-  },
-
-  summaryDanger: {
-    border:
-      "1px solid #efcaca",
-
-    background:
-      "#fff8f8",
-  },
-
-  summarySuccess: {
-    border:
-      "1px solid #cfe4d6",
-
-    background:
-      "#f7fbf8",
-  },
-
-  toolbar: {
-    display:
-      "flex",
-
-    justifyContent:
-      "space-between",
-
-    gap:
-      "12px",
-
-    padding:
-      "12px",
-
-    border:
-      "1px solid #dfdbd1",
-
-    borderRadius:
-      "13px",
-
-    background:
-      "#ffffff",
-  },
-
-  toolbarFilters: {
-    display:
-      "flex",
-
-    gap:
-      "8px",
-
-    flexWrap:
-      "wrap",
-
-    justifyContent:
-      "flex-end",
-  },
-
-  search: {
-    width:
-      "520px",
-
-    maxWidth:
-      "100%",
-
-    minHeight:
-      "40px",
-
-    padding:
-      "0 11px",
-
-    border:
-      "1px solid #ddd8cf",
-
-    borderRadius:
-      "9px",
-  },
-
-  filter: {
-    minHeight:
-      "40px",
-
-    padding:
-      "0 11px",
-
-    border:
-      "1px solid #ddd8cf",
-
-    borderRadius:
-      "9px",
-
-    background:
-      "#ffffff",
-  },
-
-  table: {
-    width:
-      "100%",
-
-    borderCollapse:
-      "collapse",
-
-    fontSize:
-      "12px",
-  },
-
-  th: {
-    padding:
-      "11px 12px",
-
-    borderBottom:
-      "1px solid #e7e3dc",
-
-    textAlign:
-      "left",
-
-    fontSize:
-      "10px",
-
-    textTransform:
-      "uppercase",
-
-    whiteSpace:
-      "nowrap",
-  },
-
-  td: {
-    padding:
-      "13px 12px",
-
-    borderBottom:
-      "1px solid #efede7",
-
-    verticalAlign:
-      "top",
-  },
-
-  typeBadge: {
-    display:
-      "inline-flex",
-
-    alignItems:
-      "center",
-
-    gap:
-      "6px",
-
-    minHeight:
-      "28px",
-
-    padding:
-      "0 9px",
-
-    borderRadius:
-      "999px",
-
-    color:
-      "#615b4d",
-
-    background:
-      "#f4f1e9",
-
-    fontSize:
-      "10px",
-
-    fontWeight:
-      800,
-
-    whiteSpace:
-      "nowrap",
-  },
-
-  relatedIdentity: {
-    display:
-      "grid",
-
-    gap:
-      "3px",
-  },
-
-  note: {
-    display:
-      "block",
-
-    maxWidth:
-      "340px",
-
-    marginTop:
-      "4px",
-
-    color:
-      "#858078",
-
-    lineHeight:
-      1.5,
-  },
-
-  outcome: {
-    display:
-      "block",
-
-    maxWidth:
-      "340px",
-
-    marginTop:
-      "5px",
-
-    color:
-      "#397451",
-
-    fontWeight:
-      700,
-  },
-
-  rowActions: {
-    display:
-      "flex",
-
-    flexWrap:
-      "wrap",
-
-    gap:
-      "6px",
-
-    minWidth:
-      "180px",
-  },
-
-  primaryButtonSmall: {
-    padding:
-      "7px 10px",
-
-    border:
-      "1px solid #b88800",
-
-    borderRadius:
-      "7px",
-
-    background:
-      "#dca900",
-
-    fontSize:
-      "11px",
-
-    fontWeight:
-      700,
-
-    cursor:
-      "pointer",
-  },
-
-  completeButtonSmall: {
-    padding:
-      "7px 10px",
-
-    border:
-      "1px solid #c9decf",
-
-    borderRadius:
-      "7px",
-
-    background:
-      "#f3faf5",
-
-    color:
-      "#397451",
-
-    fontSize:
-      "11px",
-
-    fontWeight:
-      800,
-
-    cursor:
-      "pointer",
-  },
-
-  secondaryButtonSmall: {
-    padding:
-      "7px 10px",
-
-    border:
-      "1px solid #ddd8cf",
-
-    borderRadius:
-      "7px",
-
-    background:
-      "#ffffff",
-
-    fontSize:
-      "11px",
-
-    fontWeight:
-      700,
-
-    cursor:
-      "pointer",
-  },
-
-  dangerButtonSmall: {
-    padding:
-      "7px 10px",
-
-    border:
-      "1px solid #e2baba",
-
-    borderRadius:
-      "7px",
-
-    background:
-      "#fff7f7",
-
-    color:
-      "#a23f3f",
-
-    fontSize:
-      "11px",
-
-    fontWeight:
-      700,
-
-    cursor:
-      "pointer",
-  },
-
-  overdue: {
-    color:
-      "#b43b3b",
-
-    fontWeight:
-      800,
-  },
-
-  empty: {
-    display:
-      "grid",
-
-    gap:
-      "6px",
-
-    padding:
-      "35px 20px",
-
-    textAlign:
-      "center",
-
-    color:
-      "#817d74",
-  },
-
-  error: {
-    display:
-      "flex",
-
-    justifyContent:
-      "space-between",
-
-    gap:
-      "20px",
-
-    padding:
-      "20px",
-
-    border:
-      "1px solid #efcaca",
-
-    borderRadius:
-      "14px",
-
-    background:
-      "#fff7f7",
-
-    color:
-      "#9f3c3c",
-  },
-};
