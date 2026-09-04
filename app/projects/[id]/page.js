@@ -226,6 +226,11 @@ export default function ProjectDetailsPage() {
   ] = useState(false);
 
   const [
+    reopeningProject,
+    setReopeningProject,
+  ] = useState(false);
+
+  const [
     showTaskForm,
     setShowTaskForm,
   ] = useState(false);
@@ -1312,6 +1317,97 @@ export default function ProjectDetailsPage() {
   }
 
   // =======================================================
+  // REOPEN PROJECT
+  // =======================================================
+
+  async function reopenProject() {
+    if (
+      !project ||
+      !access.canEdit ||
+      reopeningProject
+    ) {
+      return;
+    }
+
+    const confirmed =
+      window.confirm(
+        "Reopen this project? Delivery editing and task actions will become available again."
+      );
+
+    if (
+      !confirmed
+    ) {
+      return;
+    }
+
+    try {
+      setReopeningProject(
+        true
+      );
+
+      const response =
+        await fetch(
+          `/api/projects/${encodeURIComponent(
+            project.id
+          )}`,
+          {
+            method:
+              "PATCH",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify({
+                action:
+                  "reopen",
+              }),
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (
+        !response.ok
+      ) {
+        throw new Error(
+          data.error ||
+            "Failed to reopen project."
+        );
+      }
+
+      setShowEditForm(
+        false
+      );
+
+      setShowTaskForm(
+        false
+      );
+
+      cancelTaskEdit();
+
+      await fetchProjectDetails();
+
+      alert(
+        data.message ||
+          "Project reopened successfully."
+      );
+    } catch (error) {
+      alert(
+        error.message ||
+          "Unable to reopen project."
+      );
+    } finally {
+      setReopeningProject(
+        false
+      );
+    }
+  }
+
+  // =======================================================
   // DELETE PROJECT
   // =======================================================
 
@@ -1697,6 +1793,10 @@ export default function ProjectDetailsPage() {
       project.status
     );
 
+  const projectCompleted =
+    projectStatus ===
+    "completed";
+
   const allTasksCompleted =
     metrics.total > 0 &&
     metrics.completed ===
@@ -1769,7 +1869,7 @@ export default function ProjectDetailsPage() {
                 styles.headerActions
               }
             >
-              {taskAccess.canCreate && (
+              {!projectCompleted && taskAccess.canCreate && (
                 <button
                   type="button"
                   className={
@@ -1787,7 +1887,7 @@ export default function ProjectDetailsPage() {
                 </button>
               )}
 
-              {taskAccess.canCreate && (
+              {!projectCompleted && taskAccess.canCreate && (
                 <button
                   type="button"
                   className={
@@ -1806,7 +1906,7 @@ export default function ProjectDetailsPage() {
                 </button>
               )}
 
-              {access.canEdit && (
+              {!projectCompleted && access.canEdit && (
                 <button
                   type="button"
                   className={
@@ -1824,10 +1924,7 @@ export default function ProjectDetailsPage() {
                 </button>
               )}
 
-              {normaliseStatus(
-                project.status
-              ) ===
-                "completed" && (
+              {projectCompleted && (
                 <button
                   type="button"
                   className={
@@ -1846,7 +1943,7 @@ export default function ProjectDetailsPage() {
                 </button>
               )}
 
-              {access.canDelete && (
+              {!projectCompleted && access.canDelete && (
                 <button
                   type="button"
                   className={
@@ -1871,7 +1968,8 @@ export default function ProjectDetailsPage() {
               ADD TASK
           ================================================= */}
 
-          {showTaskForm &&
+          {!projectCompleted &&
+            showTaskForm &&
             taskAccess.canCreate && (
               <section
                 className={
@@ -2066,7 +2164,8 @@ export default function ProjectDetailsPage() {
               EDIT PROJECT
           ================================================= */}
 
-          {showEditForm &&
+          {!projectCompleted &&
+            showEditForm &&
             access.canEdit && (
               <section
                 className={
@@ -2271,6 +2370,81 @@ export default function ProjectDetailsPage() {
                 </form>
               </section>
             )}
+
+          {/* =================================================
+              COMPLETED PROJECT LOCK
+          ================================================= */}
+
+          {projectCompleted && (
+            <section
+              className={
+                styles.panel
+              }
+              style={
+                completionStyles.lockedPanel
+              }
+            >
+              <div
+                style={
+                  completionStyles.content
+                }
+              >
+                <span
+                  style={
+                    completionStyles.lockIcon
+                  }
+                >
+                  ✓
+                </span>
+
+                <div>
+                  <span
+                    style={
+                      completionStyles.eyebrow
+                    }
+                  >
+                    Project completed
+                  </span>
+
+                  <h3
+                    style={
+                      completionStyles.title
+                    }
+                  >
+                    Delivery locked
+                  </h3>
+
+                  <p
+                    style={
+                      completionStyles.description
+                    }
+                  >
+                    This project is complete. Project details and delivery tasks are read-only.
+                    Invoicing remains available. Reopen the project if further delivery work is required.
+                  </p>
+                </div>
+              </div>
+
+              {access.canEdit && (
+                <button
+                  type="button"
+                  className={
+                    styles.secondaryButton
+                  }
+                  disabled={
+                    reopeningProject
+                  }
+                  onClick={
+                    reopenProject
+                  }
+                >
+                  {reopeningProject
+                    ? "Reopening..."
+                    : "Reopen project"}
+                </button>
+              )}
+            </section>
+          )}
 
           {/* =================================================
               PROJECT HERO
@@ -2534,7 +2708,8 @@ export default function ProjectDetailsPage() {
                                     styles.taskIdentityCopy
                                   }
                                 >
-                                  {editing &&
+                                  {!projectCompleted &&
+                                  editing &&
                                   taskAccess.canEdit ? (
                                     <>
                                       <input
@@ -2586,7 +2761,8 @@ export default function ProjectDetailsPage() {
                             </td>
 
                             <td>
-                              {editing &&
+                              {!projectCompleted &&
+                              editing &&
                               taskAccess.canAssign ? (
                                 <select
                                   name="assigned_employee_id"
@@ -2631,7 +2807,8 @@ export default function ProjectDetailsPage() {
                             </td>
 
                             <td>
-                              {editing &&
+                              {!projectCompleted &&
+                              editing &&
                               taskAccess.canEdit ? (
                                 <select
                                   name="status"
@@ -2675,7 +2852,8 @@ export default function ProjectDetailsPage() {
                             </td>
 
                             <td>
-                              {editing &&
+                              {!projectCompleted &&
+                              editing &&
                               taskAccess.canEdit ? (
                                 <select
                                   name="priority"
@@ -2715,7 +2893,8 @@ export default function ProjectDetailsPage() {
                             </td>
 
                             <td>
-                              {editing &&
+                              {!projectCompleted &&
+                              editing &&
                               taskAccess.canEdit ? (
                                 <input
                                   type="date"
@@ -2763,7 +2942,15 @@ export default function ProjectDetailsPage() {
                                   styles.taskActions
                                 }
                               >
-                                {editing ? (
+                                {projectCompleted ? (
+                                  <span
+                                    style={
+                                      completionStyles.lockedBadge
+                                    }
+                                  >
+                                    Locked
+                                  </span>
+                                ) : editing ? (
                                   <>
                                     <button
                                       type="button"
@@ -4262,6 +4449,90 @@ const textareaStyle = {
 // =========================================================
 
 const completionStyles = {
+  lockedPanel: {
+    display:
+      "flex",
+
+    alignItems:
+      "center",
+
+    justifyContent:
+      "space-between",
+
+    gap:
+      "18px",
+
+    border:
+      "1px solid #cfe4d6",
+
+    background:
+      "#f7fbf8",
+  },
+
+  lockIcon: {
+    width:
+      "40px",
+
+    height:
+      "40px",
+
+    flex:
+      "0 0 40px",
+
+    display:
+      "grid",
+
+    placeItems:
+      "center",
+
+    borderRadius:
+      "11px",
+
+    color:
+      "#397451",
+
+    background:
+      "#e8f5ec",
+
+    fontSize:
+      "18px",
+
+    fontWeight:
+      900,
+  },
+
+  lockedBadge: {
+    display:
+      "inline-flex",
+
+    alignItems:
+      "center",
+
+    minHeight:
+      "28px",
+
+    padding:
+      "0 10px",
+
+    borderRadius:
+      "999px",
+
+    color:
+      "#6f6a61",
+
+    background:
+      "#f1efe9",
+
+    fontSize:
+      "10px",
+
+    fontWeight:
+      800,
+
+    whiteSpace:
+      "nowrap",
+  },
+
   panel: {
     display:
       "flex",
