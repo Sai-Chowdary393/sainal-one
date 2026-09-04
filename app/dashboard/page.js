@@ -21,14 +21,12 @@ const COMPLETED_STATUSES = [
   "done",
 ];
 
-const PAID_STATUSES = [
-  "paid",
-];
-
-const OVERDUE_STATUSES = [
-  "overdue",
-  "late",
-];
+const NON_ISSUED_INVOICE_STATUSES =
+  new Set([
+    "draft",
+    "draft invoice",
+    "cancelled",
+  ]);
 
 const ACTIVE_PROJECT_STATUSES = [
   "planning",
@@ -436,37 +434,121 @@ export default function Dashboard() {
     );
   }
 
-  function isPaid(
-    status
+  function isIssuedInvoice(
+    invoice
   ) {
-    return PAID_STATUSES.includes(
+    return !NON_ISSUED_INVOICE_STATUSES.has(
       normaliseStatus(
-        status
+        invoice?.status
       )
+    );
+  }
+
+  function getInvoiceTotal(
+    invoice
+  ) {
+    return getMoneyValue(
+      invoice?.payment_summary
+        ?.total ??
+        invoice?.total_amount ??
+        invoice?.amount ??
+        invoice?.subtotal
+    );
+  }
+
+  function getInvoicePaid(
+    invoice
+  ) {
+    return getMoneyValue(
+      invoice?.payment_summary
+        ?.paid
+    );
+  }
+
+  function getInvoiceOutstanding(
+    invoice
+  ) {
+    if (
+      invoice?.payment_summary &&
+      invoice.payment_summary
+        .outstanding !==
+        undefined
+    ) {
+      return getMoneyValue(
+        invoice.payment_summary
+          .outstanding
+      );
+    }
+
+    return Math.max(
+      0,
+      getInvoiceTotal(
+        invoice
+      ) -
+        getInvoicePaid(
+          invoice
+        )
+    );
+  }
+
+  function isPaidInvoice(
+    invoice
+  ) {
+    if (
+      !isIssuedInvoice(
+        invoice
+      )
+    ) {
+      return false;
+    }
+
+    return (
+      getInvoiceTotal(
+        invoice
+      ) >
+        0 &&
+      getInvoiceOutstanding(
+        invoice
+      ) <=
+        0.009
+    );
+  }
+
+  function isPartiallyPaidInvoice(
+    invoice
+  ) {
+    if (
+      !isIssuedInvoice(
+        invoice
+      )
+    ) {
+      return false;
+    }
+
+    return (
+      getInvoicePaid(
+        invoice
+      ) >
+        0 &&
+      getInvoiceOutstanding(
+        invoice
+      ) >
+        0.009
     );
   }
 
   function isOverdueInvoice(
     invoice
   ) {
-    const status =
-      normaliseStatus(
-        invoice.status
-      );
-
     if (
-      OVERDUE_STATUSES.includes(
-        status
-      )
-    ) {
-      return true;
-    }
-
-    if (
-      isPaid(
-        status
+      !isIssuedInvoice(
+        invoice
       ) ||
-      !invoice.due_date
+      getInvoiceOutstanding(
+        invoice
+      ) <=
+        0.009 ||
+      !invoice?.due_date
     ) {
       return false;
     }
@@ -595,61 +677,91 @@ export default function Dashboard() {
       0
     );
 
-  const paidInvoices =
+  const issuedInvoices =
+    invoices.filter(
+      isIssuedInvoice
+    );
+
+  const draftInvoices =
     invoices.filter(
       (
         invoice
       ) =>
-        isPaid(
-          invoice.status
+        [
+          "draft",
+          "draft invoice",
+        ].includes(
+          normaliseStatus(
+            invoice.status
+          )
         )
+    );
+
+  const paidInvoices =
+    issuedInvoices.filter(
+      isPaidInvoice
+    );
+
+  const partiallyPaidInvoices =
+    issuedInvoices.filter(
+      isPartiallyPaidInvoice
     );
 
   const overdueInvoices =
-    invoices.filter(
+    issuedInvoices.filter(
       isOverdueInvoice
     );
 
-  const pendingInvoices =
-    invoices.filter(
+  const unpaidInvoices =
+    issuedInvoices.filter(
       (
         invoice
       ) =>
-        !isPaid(
-          invoice.status
-        ) &&
-        !isOverdueInvoice(
+        getInvoicePaid(
           invoice
-        )
+        ) <=
+          0.009 &&
+        getInvoiceOutstanding(
+          invoice
+        ) >
+          0.009
     );
 
-  const paidRevenue =
-    paidInvoices.reduce(
+  const totalInvoiced =
+    issuedInvoices.reduce(
       (
         total,
         invoice
       ) =>
         total +
-        getMoneyValue(
-          invoice.total_amount ||
-            invoice.amount
+        getInvoiceTotal(
+          invoice
         ),
       0
     );
 
-  const pendingPayments =
-    [
-      ...pendingInvoices,
-      ...overdueInvoices,
-    ].reduce(
+  const revenueReceived =
+    issuedInvoices.reduce(
       (
         total,
         invoice
       ) =>
         total +
-        getMoneyValue(
-          invoice.total_amount ||
-            invoice.amount
+        getInvoicePaid(
+          invoice
+        ),
+      0
+    );
+
+  const outstandingPayments =
+    issuedInvoices.reduce(
+      (
+        total,
+        invoice
+      ) =>
+        total +
+        getInvoiceOutstanding(
+          invoice
         ),
       0
     );
@@ -717,13 +829,13 @@ export default function Dashboard() {
         );
 
   const invoicePaidRate =
-    totalInvoices ===
+    issuedInvoices.length ===
     0
       ? 0
       : Math.round(
           (
             paidInvoices.length /
-            totalInvoices
+            issuedInvoices.length
           ) *
             100
         );
@@ -855,7 +967,7 @@ export default function Dashboard() {
         }
 
         return [
-          `${paidInvoices.length} visible invoices are currently paid.`,
+          `${formatCurrency(revenueReceived)} has been received across visible issued invoices.`,
           `${pendingTasks} visible tasks still require attention.`,
           `${activeProjectsCount} visible projects are currently active.`,
           `${totalLeads} visible leads are available in your pipeline.`,
@@ -863,7 +975,7 @@ export default function Dashboard() {
       },
       [
         aiInsights,
-        paidInvoices.length,
+        revenueReceived,
         pendingTasks,
         activeProjectsCount,
         totalLeads,
@@ -1015,13 +1127,13 @@ export default function Dashboard() {
             >
               <KpiCard
                 icon="£"
-                label="Paid revenue"
+                label="Revenue received"
                 value={
                   formatCurrency(
-                    paidRevenue
+                    revenueReceived
                   )
                 }
-                supporting={`${paidInvoices.length} paid invoices`}
+                supporting={`${formatCurrency(totalInvoiced)} issued · ${paidInvoices.length} paid`}
                 tone="gold"
                 href="/invoices"
               />
@@ -1072,13 +1184,13 @@ export default function Dashboard() {
 
               <KpiCard
                 icon="!"
-                label="Pending payments"
+                label="Outstanding"
                 value={
                   formatCurrency(
-                    pendingPayments
+                    outstandingPayments
                   )
                 }
-                supporting={`${overdueInvoices.length} overdue`}
+                supporting={`${partiallyPaidInvoices.length} partially paid · ${overdueInvoices.length} overdue`}
                 tone={
                   overdueInvoices.length >
                   0
@@ -1096,7 +1208,7 @@ export default function Dashboard() {
             >
               <ChartPanel
                 title="Revenue trend"
-                description="Visible paid invoice value during the last six months"
+                description="Actual payments received during the last six months"
                 actionHref="/invoices"
                 actionText="View invoices"
               >
@@ -1130,8 +1242,8 @@ export default function Dashboard() {
               }
             >
               <ChartPanel
-                title="Invoice status"
-                description={`${totalInvoices} visible invoices`}
+                title="Invoice payment status"
+                description={`${issuedInvoices.length} issued · ${draftInvoices.length} draft`}
                 actionHref="/invoices"
                 actionText="View invoices"
               >
@@ -1139,14 +1251,14 @@ export default function Dashboard() {
                   paid={
                     paidInvoices.length
                   }
-                  pending={
-                    pendingInvoices.length
+                  partial={
+                    partiallyPaidInvoices.length
                   }
-                  overdue={
-                    overdueInvoices.length
+                  unpaid={
+                    unpaidInvoices.length
                   }
                   total={
-                    totalInvoices
+                    issuedInvoices.length
                   }
                 />
               </ChartPanel>
@@ -1183,7 +1295,7 @@ export default function Dashboard() {
                     value={
                       invoicePaidRate
                     }
-                    detail={`${paidInvoices.length} of ${totalInvoices} paid`}
+                    detail={`${paidInvoices.length} of ${issuedInvoices.length} issued invoices paid`}
                   />
                 </div>
               </ChartPanel>
@@ -1982,8 +2094,8 @@ function PipelineBarChart({
 
 function InvoiceDonutChart({
   paid,
-  pending,
-  overdue,
+  partial,
+  unpaid,
   total,
 }) {
   const safeTotal =
@@ -1999,9 +2111,9 @@ function InvoiceDonutChart({
     ) *
     100;
 
-  const pendingPercentage =
+  const partialPercentage =
     (
-      pending /
+      partial /
       safeTotal
     ) *
     100;
@@ -2014,11 +2126,11 @@ function InvoiceDonutChart({
           #3f8f67 0% ${paidPercentage}%,
           #d3a42c ${paidPercentage}% ${
             paidPercentage +
-            pendingPercentage
+            partialPercentage
           }%,
           #b95050 ${
             paidPercentage +
-            pendingPercentage
+            partialPercentage
           }% 100%
         )`;
 
@@ -2047,7 +2159,7 @@ function InvoiceDonutChart({
           </strong>
 
           <span>
-            Invoices
+            Issued
           </span>
         </div>
       </div>
@@ -2066,17 +2178,17 @@ function InvoiceDonutChart({
         />
 
         <LegendItem
-          label="Pending"
+          label="Partially paid"
           value={
-            pending
+            partial
           }
           type="pending"
         />
 
         <LegendItem
-          label="Overdue"
+          label="Unpaid"
           value={
-            overdue
+            unpaid
           }
           type="overdue"
         />
@@ -2482,54 +2594,84 @@ function buildMonthlyRevenueData(
     (
       invoice
     ) => {
-      const dateValue =
-        invoice.paid_date ||
-        invoice.invoice_date ||
-        invoice.updated_at ||
-        invoice.created_at;
-
-      if (
-        !dateValue ||
-        !isPaidStatus(
+      const invoiceStatus =
+        normaliseText(
           invoice.status
+        );
+
+      if (
+        [
+          "draft",
+          "draft invoice",
+          "cancelled",
+        ].includes(
+          invoiceStatus
         )
       ) {
         return;
       }
 
-      const invoiceDate =
-        new Date(
-          dateValue
-        );
-
-      if (
-        Number.isNaN(
-          invoiceDate.getTime()
+      const payments =
+        Array.isArray(
+          invoice.payments
         )
-      ) {
-        return;
-      }
+          ? invoice.payments
+          : [];
 
-      const matchingMonth =
-        months.find(
-          (
-            month
-          ) =>
-            month.year ===
-              invoiceDate.getFullYear() &&
-            month.month ===
-              invoiceDate.getMonth()
-        );
+      payments.forEach(
+        (
+          payment
+        ) => {
+          const dateValue =
+            payment.payment_date ||
+            payment.created_at;
 
-      if (
-        matchingMonth
-      ) {
-        matchingMonth.value +=
-          getMoneyValue(
-            invoice.total_amount ||
-              invoice.amount
-          );
-      }
+          if (
+            !dateValue
+          ) {
+            return;
+          }
+
+          const paymentDate =
+            new Date(
+              String(
+                dateValue
+              ).includes(
+                "T"
+              )
+                ? dateValue
+                : `${dateValue}T12:00:00`
+            );
+
+          if (
+            Number.isNaN(
+              paymentDate.getTime()
+            )
+          ) {
+            return;
+          }
+
+          const matchingMonth =
+            months.find(
+              (
+                month
+              ) =>
+                month.year ===
+                  paymentDate.getFullYear() &&
+                month.month ===
+                  paymentDate.getMonth()
+            );
+
+          if (
+            matchingMonth
+          ) {
+            matchingMonth.value +=
+              getMoneyValue(
+                payment.amount
+              );
+          }
+        }
+      );
     }
   );
 
@@ -2545,17 +2687,6 @@ function normaliseText(
   )
     .trim()
     .toLowerCase();
-}
-
-function isPaidStatus(
-  status
-) {
-  return (
-    normaliseText(
-      status
-    ) ===
-    "paid"
-  );
 }
 
 function formatDate(
