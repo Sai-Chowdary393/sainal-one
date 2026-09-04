@@ -1213,7 +1213,8 @@ export default function ProjectDetailsPage() {
       );
     }
   }
-    // =======================================================
+
+  // =======================================================
   // DELETE PROJECT
   // =======================================================
 
@@ -2748,6 +2749,7 @@ export default function ProjectDetailsPage() {
               </div>
             )}
           </section>
+
           {/* =================================================
               INFORMATION + PROGRESS
           ================================================= */}
@@ -4068,159 +4070,290 @@ const textareaStyle = {
 
 const financeStyles = {
   eyebrow: {
-    display: "block",
-    marginBottom: "4px",
-    color: "#9b7508",
-    fontSize: "9px",
-    fontWeight: 800,
-    letterSpacing: "0.7px",
-    textTransform: "uppercase",
+    display:
+      "block",
+
+    marginBottom:
+      "5px",
+
+    color:
+      "#9b7508",
+
+    fontSize:
+      "10px",
+
+    fontWeight:
+      900,
+
+    letterSpacing:
+      "0.8px",
+
+    textTransform:
+      "uppercase",
   },
 
   grid: {
-    display: "grid",
+    display:
+      "grid",
+
     gridTemplateColumns:
-      "repeat(auto-fit, minmax(180px, 1fr))",
-    gap: "10px",
-    marginTop: "14px",
+      "repeat(auto-fit, minmax(190px, 1fr))",
+
+    gap:
+      "12px",
+
+    marginTop:
+      "18px",
   },
 
   metric: {
-    display: "grid",
-    alignContent: "start",
-    gap: "6px",
-    minHeight: "92px",
-    padding: "14px 16px",
-    border: "1px solid #e4e0d7",
-    borderRadius: "12px",
-    background: "#ffffff",
+    display:
+      "grid",
+
+    gap:
+      "7px",
+
+    minHeight:
+      "110px",
+
+    padding:
+      "16px",
+
+    border:
+      "1px solid #e4e0d7",
+
+    borderRadius:
+      "13px",
+
+    background:
+      "#ffffff",
   },
 
   metricSuccess: {
-    border: "1px solid #cfe4d6",
-    background: "#f7fbf8",
+    border:
+      "1px solid #cfe4d6",
+
+    background:
+      "#f6fbf8",
   },
 
   metricWarning: {
-    border: "1px solid #eadcb3",
-    background: "#fffaf0",
+    border:
+      "1px solid #eadcb3",
+
+    background:
+      "#fffaf0",
   },
 
   metricLabel: {
-    color: "#89857c",
-    fontSize: "9px",
-    fontWeight: 800,
-    letterSpacing: "0.3px",
-    textTransform: "uppercase",
+    color:
+      "#89857c",
+
+    fontSize:
+      "10px",
+
+    fontWeight:
+      800,
+
+    textTransform:
+      "uppercase",
   },
 
   metricValue: {
-    color: "#302d27",
-    fontSize: "19px",
-    fontWeight: 800,
-    lineHeight: 1.15,
+    color:
+      "#302d27",
+
+    fontSize:
+      "22px",
+
+    lineHeight:
+      1.2,
   },
 
   metricValueSuccess: {
-    color: "#397451",
+    color:
+      "#397451",
   },
 
   metricValueWarning: {
-    color: "#946b00",
+    color:
+      "#946b00",
   },
 
   metricHelper: {
-    color: "#969188",
-    fontSize: "9px",
-    fontWeight: 500,
-    lineHeight: 1.4,
+    color:
+      "#98948b",
+
+    fontSize:
+      "10px",
+
+    lineHeight:
+      1.5,
   },
 
   healthBadge: {
-    minHeight: "26px",
-    display: "inline-flex",
-    alignItems: "center",
-    padding: "0 9px",
-    borderRadius: "999px",
-    fontSize: "9px",
-    fontWeight: 800,
-    whiteSpace: "nowrap",
+    minHeight:
+      "29px",
+
+    display:
+      "inline-flex",
+
+    alignItems:
+      "center",
+
+    padding:
+      "0 10px",
+
+    borderRadius:
+      "999px",
+
+    fontSize:
+      "10px",
+
+    fontWeight:
+      800,
+
+    whiteSpace:
+      "nowrap",
   },
 
   healthSuccess: {
-    color: "#397451",
-    background: "#e8f5ec",
+    color:
+      "#397451",
+
+    background:
+      "#e8f5ec",
   },
 
   healthWarning: {
-    color: "#8d6800",
-    background: "#f8efd1",
+    color:
+      "#8d6800",
+
+    background:
+      "#f8efd1",
   },
 
   healthNeutral: {
-    color: "#69655c",
-    background: "#f1efe9",
+    color:
+      "#69655c",
+
+    background:
+      "#f1efe9",
   },
 
   infoBar: {
-    display: "grid",
+    display:
+      "grid",
+
     gridTemplateColumns:
-      "34px minmax(0, 1fr)",
-    alignItems: "start",
-    gap: "11px",
-    marginTop: "12px",
-    padding: "12px 14px",
-    border: "1px solid #e8dfc2",
-    borderRadius: "10px",
-    background: "#fbf8ef",
+      "38px minmax(0, 1fr)",
+
+    alignItems:
+      "start",
+
+    gap:
+      "12px",
+
+    marginTop:
+      "15px",
+
+    padding:
+      "14px",
+
+    border:
+      "1px solid #e8dfc2",
+
+    borderRadius:
+      "11px",
+
+    background:
+      "#fbf8ef",
   },
 
   infoIcon: {
-    width: "34px",
-    height: "34px",
-    display: "grid",
-    placeItems: "center",
-    borderRadius: "9px",
-    color: "#967000",
-    background: "#f2e5b6",
-    fontSize: "12px",
-    fontWeight: 900,
+    width:
+      "38px",
+
+    height:
+      "38px",
+
+    display:
+      "grid",
+
+    placeItems:
+      "center",
+
+    borderRadius:
+      "10px",
+
+    color:
+      "#967000",
+
+    background:
+      "#f2e5b6",
+
+    fontWeight:
+      900,
   },
 
   invoiceLink: {
-    display: "block",
-    width: "fit-content",
-    color: "#8e6900",
-    fontSize: "11px",
-    fontWeight: 800,
-    textDecoration: "none",
+    display:
+      "block",
+
+    width:
+      "fit-content",
+
+    color:
+      "#8e6900",
+
+    fontWeight:
+      800,
+
+    textDecoration:
+      "none",
   },
 
   invoiceMeta: {
-    display: "block",
-    marginTop: "3px",
-    color: "#99948a",
-    fontSize: "8px",
-    lineHeight: 1.3,
+    display:
+      "block",
+
+    marginTop:
+      "4px",
+
+    color:
+      "#99948a",
+
+    fontSize:
+      "9px",
   },
 
   moneyCell: {
-    fontSize: "11px",
-    fontWeight: 700,
-    whiteSpace: "nowrap",
+    fontWeight:
+      750,
+
+    whiteSpace:
+      "nowrap",
   },
 
   paidCell: {
-    color: "#397451",
-    fontSize: "11px",
-    fontWeight: 800,
-    whiteSpace: "nowrap",
+    color:
+      "#397451",
+
+    fontWeight:
+      800,
+
+    whiteSpace:
+      "nowrap",
   },
 
   outstandingCell: {
-    color: "#986d00",
-    fontSize: "11px",
-    fontWeight: 800,
-    whiteSpace: "nowrap",
+    color:
+      "#986d00",
+
+    fontWeight:
+      800,
+
+    whiteSpace:
+      "nowrap",
   },
 };
