@@ -32,6 +32,13 @@ const ALLOWED_STATUSES = [
   "Cancelled",
 ];
 
+const NON_ISSUED_INVOICE_STATUSES =
+  new Set([
+    "draft",
+    "draft invoice",
+    "cancelled",
+  ]);
+
 // =========================================================
 // HELPERS
 // =========================================================
@@ -43,7 +50,9 @@ function cleanText(value) {
     : "";
 }
 
-function cleanNullableText(value) {
+function cleanNullableText(
+  value
+) {
   const cleaned =
     cleanText(value);
 
@@ -69,13 +78,72 @@ function isDateValue(value) {
 function forbidden(message) {
   return NextResponse.json(
     {
-      error:
-        message,
+      error: message,
     },
     {
-      status:
-        403,
+      status: 403,
     }
+  );
+}
+
+function normaliseStatus(value) {
+  return String(
+    value || ""
+  )
+    .trim()
+    .toLowerCase();
+}
+
+function parseMoney(value) {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+    return 0;
+  }
+
+  const cleaned =
+    String(value)
+      .replace(/,/g, "")
+      .replace(
+        /[^0-9.-]/g,
+        ""
+      );
+
+  const parsed =
+    Number.parseFloat(
+      cleaned
+    );
+
+  return Number.isFinite(
+    parsed
+  )
+    ? parsed
+    : 0;
+}
+
+function roundMoney(value) {
+  return Math.round(
+    (
+      Number(value || 0) +
+      Number.EPSILON
+    ) *
+      100
+  ) / 100;
+}
+
+function formatCurrency(value) {
+  return new Intl.NumberFormat(
+    "en-GB",
+    {
+      style: "currency",
+      currency: "GBP",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }
+  ).format(
+    Number(value || 0)
   );
 }
 
@@ -85,11 +153,8 @@ function getProjectPermissions(
   return getRecordPermissions(
     access,
     {
-      prefix:
-        "projects",
-
-      module:
-        "Projects",
+      prefix: "projects",
+      module: "Projects",
     }
   );
 }
@@ -100,11 +165,8 @@ function getTaskPermissions(
   return getRecordPermissions(
     access,
     {
-      prefix:
-        "tasks",
-
-      module:
-        "Tasks",
+      prefix: "tasks",
+      module: "Tasks",
     }
   );
 }
@@ -115,11 +177,8 @@ function getCustomerPermissions(
   return getRecordPermissions(
     access,
     {
-      prefix:
-        "customers",
-
-      module:
-        "Customers",
+      prefix: "customers",
+      module: "Customers",
     }
   );
 }
@@ -130,11 +189,8 @@ function getQuotePermissions(
   return getRecordPermissions(
     access,
     {
-      prefix:
-        "quotes",
-
-      module:
-        "Quotes",
+      prefix: "quotes",
+      module: "Quotes",
     }
   );
 }
@@ -145,11 +201,8 @@ function getInvoicePermissions(
   return getRecordPermissions(
     access,
     {
-      prefix:
-        "invoices",
-
-      module:
-        "Invoices",
+      prefix: "invoices",
+      module: "Invoices",
     }
   );
 }
@@ -178,9 +231,7 @@ async function loadProject({
     error,
   } =
     await supabase
-      .from(
-        "projects"
-      )
+      .from("projects")
       .select("*")
       .eq(
         "id",
@@ -229,9 +280,7 @@ async function loadProjectTasks({
 
   let query =
     supabase
-      .from(
-        "tasks"
-      )
+      .from("tasks")
       .select("*")
       .eq(
         "organization_id",
@@ -249,7 +298,6 @@ async function loadProjectTasks({
     const teamIds =
       await getTeamEmployeeIds({
         supabase,
-
         employee:
           access.employee,
       });
@@ -271,16 +319,13 @@ async function loadProjectTasks({
   }
 
   const {
-    data:
-      taskRows,
-    error:
-      taskError,
+    data: taskRows,
+    error: taskError,
   } =
     await query.order(
       "created_at",
       {
-        ascending:
-          true,
+        ascending: true,
       }
     );
 
@@ -292,10 +337,7 @@ async function loadProjectTasks({
 
   const employeeIds = [
     ...new Set(
-      (
-        taskRows ||
-        []
-      )
+      (taskRows || [])
         .map(
           (task) =>
             task.assigned_employee_id
@@ -308,19 +350,15 @@ async function loadProjectTasks({
     new Map();
 
   if (
-    employeeIds.length >
-    0
+    employeeIds.length > 0
   ) {
     const {
-      data:
-        taskEmployees,
+      data: taskEmployees,
       error:
         taskEmployeesError,
     } =
       await supabase
-        .from(
-          "employees"
-        )
+        .from("employees")
         .select(
           `
             id,
@@ -349,35 +387,30 @@ async function loadProjectTasks({
 
     employeeMap =
       new Map(
-        (
-          taskEmployees ||
-          []
-        ).map(
-          (employee) => [
-            employee.id,
-            employee,
-          ]
-        )
+        (taskEmployees || [])
+          .map(
+            (employee) => [
+              employee.id,
+              employee,
+            ]
+          )
       );
   }
 
   const tasks =
-    (
-      taskRows ||
-      []
-    ).map(
-      (task) => ({
-        ...task,
+    (taskRows || [])
+      .map(
+        (task) => ({
+          ...task,
 
-        assigned_employee:
-          task.assigned_employee_id
-            ? employeeMap.get(
-                task.assigned_employee_id
-              ) ||
-              null
-            : null,
-      })
-    );
+          assigned_employee:
+            task.assigned_employee_id
+              ? employeeMap.get(
+                  task.assigned_employee_id
+                ) || null
+              : null,
+        })
+      );
 
   return {
     tasks,
@@ -408,8 +441,7 @@ async function loadVisibleRelatedRecord({
   }
 
   const {
-    data:
-      record,
+    data: record,
     error,
   } =
     await supabase
@@ -435,16 +467,9 @@ async function loadVisibleRelatedRecord({
     return null;
   }
 
-  /*
-   * We need the ownership field for record visibility.
-   * When a custom select is used below, we separately
-   * load the security record first.
-   */
   const {
-    data:
-      securityRecord,
-    error:
-      securityError,
+    data: securityRecord,
+    error: securityError,
   } =
     await supabase
       .from(table)
@@ -476,7 +501,6 @@ async function loadVisibleRelatedRecord({
       supabase,
       access,
       permissions,
-
       record:
         securityRecord,
     });
@@ -511,9 +535,7 @@ async function loadVisibleInvoices({
 
   let query =
     supabase
-      .from(
-        "invoices"
-      )
+      .from("invoices")
       .select("*")
       .eq(
         "organization_id",
@@ -531,7 +553,6 @@ async function loadVisibleInvoices({
     const teamIds =
       await getTeamEmployeeIds({
         supabase,
-
         employee:
           access.employee,
       });
@@ -559,8 +580,7 @@ async function loadVisibleInvoices({
     await query.order(
       "created_at",
       {
-        ascending:
-          false,
+        ascending: false,
       }
     );
 
@@ -571,6 +591,342 @@ async function loadVisibleInvoices({
   }
 
   return data || [];
+}
+
+// =========================================================
+// LOAD PAYMENTS FOR VISIBLE PROJECT INVOICES
+// =========================================================
+
+async function loadInvoicePayments({
+  supabase,
+  organizationId,
+  invoices,
+}) {
+  const invoiceIds =
+    (invoices || [])
+      .map(
+        (invoice) =>
+          invoice.id
+      )
+      .filter(Boolean);
+
+  if (
+    invoiceIds.length === 0
+  ) {
+    return [];
+  }
+
+  const {
+    data,
+    error,
+  } =
+    await supabase
+      .from(
+        "invoice_payments"
+      )
+      .select(
+        `
+          id,
+          invoice_id,
+          amount,
+          payment_date,
+          payment_method,
+          reference,
+          notes,
+          recorded_by_employee_id,
+          created_at
+        `
+      )
+      .eq(
+        "organization_id",
+        organizationId
+      )
+      .in(
+        "invoice_id",
+        invoiceIds
+      )
+      .order(
+        "payment_date",
+        {
+          ascending: false,
+        }
+      )
+      .order(
+        "created_at",
+        {
+          ascending: false,
+        }
+      );
+
+  if (error) {
+    throw new Error(
+      error.message
+    );
+  }
+
+  return data || [];
+}
+
+// =========================================================
+// BUILD PROJECT FINANCIAL SUMMARY
+// =========================================================
+
+function buildProjectFinancialSummary({
+  project,
+  invoices,
+  payments,
+}) {
+  const projectValue =
+    roundMoney(
+      parseMoney(
+        project?.amount
+      )
+    );
+
+  /*
+   * Only issued invoices count as actual invoiced revenue.
+   *
+   * Excluded:
+   * - Draft
+   * - Draft Invoice
+   * - Cancelled
+   */
+  const issuedInvoices =
+    (invoices || [])
+      .filter(
+        (invoice) =>
+          !NON_ISSUED_INVOICE_STATUSES
+            .has(
+              normaliseStatus(
+                invoice.status
+              )
+            )
+      );
+
+  const issuedInvoiceIds =
+    new Set(
+      issuedInvoices.map(
+        (invoice) =>
+          invoice.id
+      )
+    );
+
+  const totalInvoiced =
+    roundMoney(
+      issuedInvoices.reduce(
+        (
+          total,
+          invoice
+        ) =>
+          total +
+          parseMoney(
+            invoice.total_amount ||
+              invoice.amount ||
+              invoice.subtotal
+          ),
+        0
+      )
+    );
+
+  /*
+   * Only payments against issued invoices
+   * contribute to the project finance summary.
+   */
+  const validPayments =
+    (payments || [])
+      .filter(
+        (payment) =>
+          issuedInvoiceIds.has(
+            payment.invoice_id
+          )
+      );
+
+  const totalPaid =
+    roundMoney(
+      validPayments.reduce(
+        (
+          total,
+          payment
+        ) =>
+          total +
+          parseMoney(
+            payment.amount
+          ),
+        0
+      )
+    );
+
+  const outstanding =
+    roundMoney(
+      Math.max(
+        0,
+        totalInvoiced -
+          totalPaid
+      )
+    );
+
+  const remainingToInvoice =
+    roundMoney(
+      Math.max(
+        0,
+        projectValue -
+          totalInvoiced
+      )
+    );
+
+  return {
+    project_value:
+      projectValue,
+
+    total_invoiced:
+      totalInvoiced,
+
+    total_paid:
+      totalPaid,
+
+    outstanding,
+
+    remaining_to_invoice:
+      remainingToInvoice,
+
+    project_value_display:
+      formatCurrency(
+        projectValue
+      ),
+
+    total_invoiced_display:
+      formatCurrency(
+        totalInvoiced
+      ),
+
+    total_paid_display:
+      formatCurrency(
+        totalPaid
+      ),
+
+    outstanding_display:
+      formatCurrency(
+        outstanding
+      ),
+
+    remaining_to_invoice_display:
+      formatCurrency(
+        remainingToInvoice
+      ),
+
+    invoice_count:
+      issuedInvoices.length,
+
+    payment_count:
+      validPayments.length,
+  };
+}
+
+// =========================================================
+// ENRICH INVOICE FINANCIALS
+// =========================================================
+
+function enrichInvoicesWithPayments({
+  invoices,
+  payments,
+}) {
+  const paymentsByInvoice =
+    new Map();
+
+  for (
+    const payment of
+    payments || []
+  ) {
+    if (
+      !paymentsByInvoice.has(
+        payment.invoice_id
+      )
+    ) {
+      paymentsByInvoice.set(
+        payment.invoice_id,
+        []
+      );
+    }
+
+    paymentsByInvoice
+      .get(
+        payment.invoice_id
+      )
+      .push(
+        payment
+      );
+  }
+
+  return (invoices || [])
+    .map(
+      (invoice) => {
+        const invoicePayments =
+          paymentsByInvoice.get(
+            invoice.id
+          ) || [];
+
+        const total =
+          roundMoney(
+            parseMoney(
+              invoice.total_amount ||
+                invoice.amount ||
+                invoice.subtotal
+            )
+          );
+
+        const paid =
+          roundMoney(
+            invoicePayments.reduce(
+              (
+                runningTotal,
+                payment
+              ) =>
+                runningTotal +
+                parseMoney(
+                  payment.amount
+                ),
+              0
+            )
+          );
+
+        const outstanding =
+          roundMoney(
+            Math.max(
+              0,
+              total -
+                paid
+            )
+          );
+
+        return {
+          ...invoice,
+
+          payment_summary: {
+            total,
+            paid,
+            outstanding,
+
+            total_display:
+              formatCurrency(
+                total
+              ),
+
+            paid_display:
+              formatCurrency(
+                paid
+              ),
+
+            outstanding_display:
+              formatCurrency(
+                outstanding
+              ),
+
+            payment_count:
+              invoicePayments.length,
+          },
+        };
+      }
+    );
 }
 
 // =========================================================
@@ -594,8 +950,7 @@ export async function GET(
             "A valid project ID is required.",
         },
         {
-          status:
-            400,
+          status: 400,
         }
       );
     }
@@ -642,9 +997,7 @@ export async function GET(
       await loadProject({
         supabase,
         organizationId,
-
-        projectId:
-          id,
+        projectId: id,
       });
 
     if (!project) {
@@ -654,8 +1007,7 @@ export async function GET(
             "Project not found.",
         },
         {
-          status:
-            404,
+          status: 404,
         }
       );
     }
@@ -664,10 +1016,8 @@ export async function GET(
       await canViewOwnedRecord({
         supabase,
         access,
-
         permissions:
           projectPermissions,
-
         record:
           project,
       });
@@ -682,8 +1032,7 @@ export async function GET(
       await attachRecordOwner({
         supabase,
         organizationId,
-        record:
-          project,
+        record: project,
       });
 
     const {
@@ -694,13 +1043,11 @@ export async function GET(
         supabase,
         access,
         organizationId,
-
-        projectId:
-          id,
+        projectId: id,
       });
 
     // =====================================================
-    // CUSTOMER — CUSTOMER RBAC
+    // CUSTOMER
     // =====================================================
 
     const customerPermissions =
@@ -735,7 +1082,7 @@ export async function GET(
       });
 
     // =====================================================
-    // QUOTE — QUOTE RBAC
+    // QUOTE
     // =====================================================
 
     const quotePermissions =
@@ -771,18 +1118,54 @@ export async function GET(
       });
 
     // =====================================================
-    // INVOICES — INVOICE RBAC
+    // INVOICES
     // =====================================================
 
-    const invoices =
+    const rawInvoices =
       await loadVisibleInvoices({
         supabase,
         access,
         organizationId,
-
-        projectId:
-          id,
+        projectId: id,
       });
+
+    // =====================================================
+    // PAYMENTS
+    // =====================================================
+
+    const invoicePayments =
+      await loadInvoicePayments({
+        supabase,
+        organizationId,
+        invoices:
+          rawInvoices,
+      });
+
+    // =====================================================
+    // FINANCIALS
+    // =====================================================
+
+    const invoices =
+      enrichInvoicesWithPayments({
+        invoices:
+          rawInvoices,
+
+        payments:
+          invoicePayments,
+      });
+
+    const financialSummary =
+      buildProjectFinancialSummary({
+        project,
+        invoices:
+          rawInvoices,
+        payments:
+          invoicePayments,
+      });
+
+    // =====================================================
+    // ASSIGNABLE EMPLOYEES
+    // =====================================================
 
     let employees = [];
 
@@ -808,6 +1191,10 @@ export async function GET(
         });
     }
 
+    // =====================================================
+    // RESPONSE
+    // =====================================================
+
     return NextResponse.json({
       project:
         formattedProject,
@@ -820,6 +1207,8 @@ export async function GET(
 
       invoices,
 
+      financialSummary,
+
       employees,
 
       taskEmployees,
@@ -830,7 +1219,6 @@ export async function GET(
       access:
         buildClientAccess({
           access,
-
           permissions:
             projectPermissions,
         }),
@@ -838,7 +1226,6 @@ export async function GET(
       taskAccess:
         buildClientAccess({
           access,
-
           permissions:
             taskPermissions,
         }),
@@ -856,8 +1243,7 @@ export async function GET(
           "Unable to load project.",
       },
       {
-        status:
-          500,
+        status: 500,
       }
     );
   }
@@ -884,8 +1270,7 @@ export async function PATCH(
             "A valid project ID is required.",
         },
         {
-          status:
-            400,
+          status: 400,
         }
       );
     }
@@ -922,9 +1307,7 @@ export async function PATCH(
       await loadProject({
         supabase,
         organizationId,
-
-        projectId:
-          id,
+        projectId: id,
       });
 
     if (!project) {
@@ -934,8 +1317,7 @@ export async function PATCH(
             "Project not found.",
         },
         {
-          status:
-            404,
+          status: 404,
         }
       );
     }
@@ -945,8 +1327,7 @@ export async function PATCH(
         supabase,
         access,
         permissions,
-        record:
-          project,
+        record: project,
       });
 
     if (!visible) {
@@ -970,17 +1351,21 @@ export async function PATCH(
     const wantsEdit =
       editableFields.some(
         (field) =>
-          Object.prototype.hasOwnProperty.call(
-            body,
-            field
-          )
+          Object.prototype
+            .hasOwnProperty
+            .call(
+              body,
+              field
+            )
       );
 
     const wantsOwnerChange =
-      Object.prototype.hasOwnProperty.call(
-        body,
-        "owner_employee_id"
-      );
+      Object.prototype
+        .hasOwnProperty
+        .call(
+          body,
+          "owner_employee_id"
+        );
 
     if (
       wantsEdit &&
@@ -1010,8 +1395,7 @@ export async function PATCH(
             "No supported project changes were provided.",
         },
         {
-          status:
-            400,
+          status: 400,
         }
       );
     }
@@ -1019,10 +1403,12 @@ export async function PATCH(
     const updates = {};
 
     if (
-      Object.prototype.hasOwnProperty.call(
-        body,
-        "project_name"
-      )
+      Object.prototype
+        .hasOwnProperty
+        .call(
+          body,
+          "project_name"
+        )
     ) {
       const projectName =
         cleanText(
@@ -1036,8 +1422,7 @@ export async function PATCH(
               "Project name cannot be empty.",
           },
           {
-            status:
-              400,
+            status: 400,
           }
         );
       }
@@ -1047,10 +1432,12 @@ export async function PATCH(
     }
 
     if (
-      Object.prototype.hasOwnProperty.call(
-        body,
-        "description"
-      )
+      Object.prototype
+        .hasOwnProperty
+        .call(
+          body,
+          "description"
+        )
     ) {
       updates.description =
         cleanNullableText(
@@ -1059,10 +1446,12 @@ export async function PATCH(
     }
 
     if (
-      Object.prototype.hasOwnProperty.call(
-        body,
-        "amount"
-      )
+      Object.prototype
+        .hasOwnProperty
+        .call(
+          body,
+          "amount"
+        )
     ) {
       updates.amount =
         cleanNullableText(
@@ -1071,10 +1460,12 @@ export async function PATCH(
     }
 
     if (
-      Object.prototype.hasOwnProperty.call(
-        body,
-        "status"
-      )
+      Object.prototype
+        .hasOwnProperty
+        .call(
+          body,
+          "status"
+        )
     ) {
       if (
         !ALLOWED_STATUSES.includes(
@@ -1087,8 +1478,7 @@ export async function PATCH(
               "Invalid project status.",
           },
           {
-            status:
-              400,
+            status: 400,
           }
         );
       }
@@ -1098,19 +1488,23 @@ export async function PATCH(
     }
 
     const nextStartDate =
-      Object.prototype.hasOwnProperty.call(
-        body,
-        "start_date"
-      )
+      Object.prototype
+        .hasOwnProperty
+        .call(
+          body,
+          "start_date"
+        )
         ? body.start_date ||
           null
         : project.start_date;
 
     const nextDueDate =
-      Object.prototype.hasOwnProperty.call(
-        body,
-        "due_date"
-      )
+      Object.prototype
+        .hasOwnProperty
+        .call(
+          body,
+          "due_date"
+        )
         ? body.due_date ||
           null
         : project.due_date;
@@ -1129,8 +1523,7 @@ export async function PATCH(
             "Project dates must use YYYY-MM-DD format.",
         },
         {
-          status:
-            400,
+          status: 400,
         }
       );
     }
@@ -1138,8 +1531,12 @@ export async function PATCH(
     if (
       nextStartDate &&
       nextDueDate &&
-      String(nextDueDate) <
-        String(nextStartDate)
+      String(
+        nextDueDate
+      ) <
+        String(
+          nextStartDate
+        )
     ) {
       return NextResponse.json(
         {
@@ -1147,27 +1544,30 @@ export async function PATCH(
             "Project due date cannot be before the start date.",
         },
         {
-          status:
-            400,
+          status: 400,
         }
       );
     }
 
     if (
-      Object.prototype.hasOwnProperty.call(
-        body,
-        "start_date"
-      )
+      Object.prototype
+        .hasOwnProperty
+        .call(
+          body,
+          "start_date"
+        )
     ) {
       updates.start_date =
         nextStartDate;
     }
 
     if (
-      Object.prototype.hasOwnProperty.call(
-        body,
-        "due_date"
-      )
+      Object.prototype
+        .hasOwnProperty
+        .call(
+          body,
+          "due_date"
+        )
     ) {
       updates.due_date =
         nextDueDate;
@@ -1196,8 +1596,7 @@ export async function PATCH(
                 "The selected project owner is not valid.",
             },
             {
-              status:
-                400,
+              status: 400,
             }
           );
         }
@@ -1206,7 +1605,6 @@ export async function PATCH(
           await validateRecordOwner({
             supabase,
             organizationId,
-
             employeeId:
               requestedOwnerId,
           });
@@ -1218,8 +1616,7 @@ export async function PATCH(
                 "The selected project owner is not valid.",
             },
             {
-              status:
-                400,
+              status: 400,
             }
           );
         }
@@ -1236,12 +1633,8 @@ export async function PATCH(
         updateError,
     } =
       await supabase
-        .from(
-          "projects"
-        )
-        .update(
-          updates
-        )
+        .from("projects")
+        .update(updates)
         .eq(
           "id",
           id
@@ -1263,7 +1656,6 @@ export async function PATCH(
       await attachRecordOwner({
         supabase,
         organizationId,
-
         record:
           updatedProject,
       });
@@ -1288,8 +1680,7 @@ export async function PATCH(
           "Unable to update project.",
       },
       {
-        status:
-          500,
+        status: 500,
       }
     );
   }
@@ -1316,8 +1707,7 @@ export async function DELETE(
             "A valid project ID is required.",
         },
         {
-          status:
-            400,
+          status: 400,
         }
       );
     }
@@ -1362,9 +1752,7 @@ export async function DELETE(
       await loadProject({
         supabase,
         organizationId,
-
-        projectId:
-          id,
+        projectId: id,
       });
 
     if (!project) {
@@ -1374,8 +1762,7 @@ export async function DELETE(
             "Project not found.",
         },
         {
-          status:
-            404,
+          status: 404,
         }
       );
     }
@@ -1385,8 +1772,7 @@ export async function DELETE(
         supabase,
         access,
         permissions,
-        record:
-          project,
+        record: project,
       });
 
     if (!visible) {
@@ -1401,16 +1787,12 @@ export async function DELETE(
     ] =
       await Promise.all([
         supabase
-          .from(
-            "tasks"
-          )
+          .from("tasks")
           .select(
             "id",
             {
-              count:
-                "exact",
-              head:
-                true,
+              count: "exact",
+              head: true,
             }
           )
           .eq(
@@ -1423,16 +1805,12 @@ export async function DELETE(
           ),
 
         supabase
-          .from(
-            "invoices"
-          )
+          .from("invoices")
           .select(
             "id",
             {
-              count:
-                "exact",
-              head:
-                true,
+              count: "exact",
+              head: true,
             }
           )
           .eq(
@@ -1445,13 +1823,17 @@ export async function DELETE(
           ),
       ]);
 
-    if (tasksResult.error) {
+    if (
+      tasksResult.error
+    ) {
       throw new Error(
         tasksResult.error.message
       );
     }
 
-    if (invoicesResult.error) {
+    if (
+      invoicesResult.error
+    ) {
       throw new Error(
         invoicesResult.error.message
       );
@@ -1459,15 +1841,11 @@ export async function DELETE(
 
     if (
       Number(
-        tasksResult.count ||
-          0
-      ) >
-        0 ||
+        tasksResult.count || 0
+      ) > 0 ||
       Number(
-        invoicesResult.count ||
-          0
-      ) >
-        0
+        invoicesResult.count || 0
+      ) > 0
     ) {
       return NextResponse.json(
         {
@@ -1475,8 +1853,7 @@ export async function DELETE(
             "This project cannot be deleted while tasks or invoices are linked to it. Cancel the project instead.",
         },
         {
-          status:
-            400,
+          status: 400,
         }
       );
     }
@@ -1486,9 +1863,7 @@ export async function DELETE(
         deleteError,
     } =
       await supabase
-        .from(
-          "projects"
-        )
+        .from("projects")
         .delete()
         .eq(
           "id",
@@ -1522,8 +1897,7 @@ export async function DELETE(
           "Unable to delete project.",
       },
       {
-        status:
-          500,
+        status: 500,
       }
     );
   }
