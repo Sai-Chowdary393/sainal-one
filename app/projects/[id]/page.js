@@ -82,32 +82,6 @@ const EMPTY_TASK_FORM = {
   assigned_employee_id: "",
 };
 
-const EMPTY_FINANCIAL_SUMMARY = {
-  project_value: 0,
-  total_invoiced: 0,
-  total_paid: 0,
-  outstanding: 0,
-  remaining_to_invoice: 0,
-
-  project_value_display:
-    "£0.00",
-
-  total_invoiced_display:
-    "£0.00",
-
-  total_paid_display:
-    "£0.00",
-
-  outstanding_display:
-    "£0.00",
-
-  remaining_to_invoice_display:
-    "£0.00",
-
-  invoice_count: 0,
-  payment_count: 0,
-};
-
 // =========================================================
 // PAGE
 // =========================================================
@@ -146,13 +120,6 @@ export default function ProjectDetailsPage() {
     invoices,
     setInvoices,
   ] = useState([]);
-
-  const [
-    financialSummary,
-    setFinancialSummary,
-  ] = useState(
-    EMPTY_FINANCIAL_SUMMARY
-  );
 
   const [
     employees,
@@ -329,12 +296,6 @@ export default function ProjectDetailsPage() {
           : []
       );
 
-      setFinancialSummary({
-        ...EMPTY_FINANCIAL_SUMMARY,
-        ...(data.financialSummary ||
-          {}),
-      });
-
       setEmployees(
         Array.isArray(
           data.employees
@@ -383,10 +344,6 @@ export default function ProjectDetailsPage() {
 
       setProject(
         null
-      );
-
-      setFinancialSummary(
-        EMPTY_FINANCIAL_SUMMARY
       );
 
       setErrorMessage(
@@ -461,7 +418,6 @@ export default function ProjectDetailsPage() {
         current
       ) => ({
         ...current,
-
         [name]:
           value,
       })
@@ -605,13 +561,13 @@ export default function ProjectDetailsPage() {
         populateEditForm(
           data.project
         );
+      } else {
+        await fetchProjectDetails();
       }
 
       setShowEditForm(
         false
       );
-
-      await fetchProjectDetails();
 
       alert(
         data.message ||
@@ -682,7 +638,6 @@ export default function ProjectDetailsPage() {
         current
       ) => ({
         ...current,
-
         [name]:
           value,
       })
@@ -810,6 +765,10 @@ export default function ProjectDetailsPage() {
       return;
     }
 
+    /*
+     * Prevent accidental duplicate template generation.
+     * Manual tasks can still be added using "+ Add task".
+     */
     if (
       tasks.length >
       0
@@ -837,7 +796,6 @@ export default function ProjectDetailsPage() {
         priority:
           "High",
       },
-
       {
         task_name:
           "Confirm delivery plan",
@@ -848,7 +806,6 @@ export default function ProjectDetailsPage() {
         priority:
           "High",
       },
-
       {
         task_name:
           "Complete implementation",
@@ -859,7 +816,6 @@ export default function ProjectDetailsPage() {
         priority:
           "Medium",
       },
-
       {
         task_name:
           "Customer review",
@@ -870,7 +826,6 @@ export default function ProjectDetailsPage() {
         priority:
           "Medium",
       },
-
       {
         task_name:
           "Project handover",
@@ -1019,7 +974,6 @@ export default function ProjectDetailsPage() {
         current
       ) => ({
         ...current,
-
         [name]:
           value,
       })
@@ -1387,7 +1341,7 @@ export default function ProjectDetailsPage() {
   }
 
   // =======================================================
-  // TASK METRICS
+  // METRICS
   // =======================================================
 
   const metrics =
@@ -1554,7 +1508,7 @@ export default function ProjectDetailsPage() {
   }
 
   // =======================================================
-  // DISPLAY DATA
+  // CLEAN DISPLAY HIERARCHY
   // =======================================================
 
   const customerName =
@@ -1567,33 +1521,6 @@ export default function ProjectDetailsPage() {
     project.description ||
     project.project_name ||
     "Project delivery";
-
-  const projectValueDisplay =
-    financialSummary
-      .project_value_display ||
-    formatMoney(
-      project.amount
-    );
-
-  const totalInvoicedDisplay =
-    financialSummary
-      .total_invoiced_display ||
-    "£0.00";
-
-  const totalPaidDisplay =
-    financialSummary
-      .total_paid_display ||
-    "£0.00";
-
-  const outstandingDisplay =
-    financialSummary
-      .outstanding_display ||
-    "£0.00";
-
-  const financeStatus =
-    getFinanceStatus(
-      financialSummary
-    );
 
   // =======================================================
   // PAGE
@@ -2307,7 +2234,8 @@ export default function ProjectDetailsPage() {
                 }
               >
                 {tasks.length} task
-                {tasks.length === 1
+                {tasks.length ===
+                1
                   ? ""
                   : "s"}
               </span>
@@ -2447,7 +2375,6 @@ export default function ProjectDetailsPage() {
                                         }
                                         style={{
                                           ...textareaStyle,
-
                                           marginTop:
                                             "8px",
                                         }}
@@ -2957,160 +2884,6 @@ export default function ProjectDetailsPage() {
           </section>
 
           {/* =================================================
-              PROJECT FINANCIALS
-          ================================================= */}
-
-          <section
-            className={
-              styles.panel
-            }
-          >
-            <div
-              className={
-                styles.panelHeader
-              }
-            >
-              <div>
-                <span
-                  style={
-                    financeStyles.eyebrow
-                  }
-                >
-                  Finance
-                </span>
-
-                <h3>
-                  Project financials
-                </h3>
-
-                <p>
-                  Live invoice and payment position for this project.
-                </p>
-              </div>
-
-              <span
-                style={{
-                  ...financeStyles.healthBadge,
-
-                  ...(financeStatus.tone ===
-                  "success"
-                    ? financeStyles.healthSuccess
-                    : financeStatus.tone ===
-                        "warning"
-                      ? financeStyles.healthWarning
-                      : financeStyles.healthNeutral),
-                }}
-              >
-                {financeStatus.label}
-              </span>
-            </div>
-
-            <div
-              style={
-                financeStyles.grid
-              }
-            >
-              <FinancialMetric
-                label="Project value"
-                value={
-                  projectValueDisplay
-                }
-                helper="Commercial value before invoice VAT"
-              />
-
-              <FinancialMetric
-                label="Issued invoices"
-                value={
-                  totalInvoicedDisplay
-                }
-                helper={`${financialSummary.invoice_count || 0} issued invoice${
-                  Number(
-                    financialSummary.invoice_count ||
-                      0
-                  ) === 1
-                    ? ""
-                    : "s"
-                }`}
-              />
-
-              <FinancialMetric
-                label="Payments received"
-                value={
-                  totalPaidDisplay
-                }
-                helper={`${financialSummary.payment_count || 0} recorded payment${
-                  Number(
-                    financialSummary.payment_count ||
-                      0
-                  ) === 1
-                    ? ""
-                    : "s"
-                }`}
-                success={
-                  Number(
-                    financialSummary.total_paid ||
-                      0
-                  ) > 0
-                }
-              />
-
-              <FinancialMetric
-                label="Outstanding"
-                value={
-                  outstandingDisplay
-                }
-                helper={
-                  Number(
-                    financialSummary.outstanding ||
-                      0
-                  ) >
-                  0
-                    ? "Still due from customer"
-                    : Number(
-                          financialSummary.total_invoiced ||
-                            0
-                        ) >
-                        0
-                      ? "No balance outstanding"
-                      : "No issued invoices yet"
-                }
-                warning={
-                  Number(
-                    financialSummary.outstanding ||
-                      0
-                  ) >
-                  0
-                }
-              />
-            </div>
-
-            <div
-              style={
-                financeStyles.infoBar
-              }
-            >
-              <span
-                style={
-                  financeStyles.infoIcon
-                }
-              >
-                £
-              </span>
-
-              <div>
-                <strong>
-                  Project value and invoice total can be different
-                </strong>
-
-                <p>
-                  Project value represents the commercial amount before invoice VAT.
-                  Issued invoice totals include VAT where applicable.
-                </p>
-              </div>
-            </div>
-          </section>
-
-          {/* =================================================
               LINKED INVOICES
           ================================================= */}
 
@@ -3130,7 +2903,7 @@ export default function ProjectDetailsPage() {
                 </h3>
 
                 <p>
-                  Invoice value, payments and balance linked to this project.
+                  Finance records generated from this project.
                 </p>
               </div>
             </div>
@@ -3176,15 +2949,7 @@ export default function ProjectDetailsPage() {
                       </th>
 
                       <th>
-                        Total
-                      </th>
-
-                      <th>
-                        Paid
-                      </th>
-
-                      <th>
-                        Outstanding
+                        Amount
                       </th>
 
                       <th>
@@ -3201,122 +2966,46 @@ export default function ProjectDetailsPage() {
                     {invoices.map(
                       (
                         invoice
-                      ) => {
-                        const invoiceTotal =
-                          invoice.payment_summary
-                            ?.total_display ||
-                          formatMoney(
-                            invoice.total_amount ||
-                              invoice.amount ||
-                              invoice.subtotal
-                          );
-
-                        const invoicePaid =
-                          invoice.payment_summary
-                            ?.paid_display ||
-                          "£0.00";
-
-                        const invoiceOutstanding =
-                          invoice.payment_summary
-                            ?.outstanding_display ||
-                          formatMoney(
-                            invoice.total_amount ||
-                              invoice.amount ||
-                              invoice.subtotal
-                          );
-
-                        return (
-                          <tr
-                            key={
-                              invoice.id
-                            }
-                          >
-                            <td>
-                              <Link
-                                href={`/invoices/${invoice.id}`}
-                                style={
-                                  financeStyles.invoiceLink
-                                }
-                              >
-                                {invoice.invoice_number ||
-                                  "Invoice"}{" "}
-                                →
-                              </Link>
-
-                              <small
-                                style={
-                                  financeStyles.invoiceMeta
-                                }
-                              >
-                                {invoice.payment_summary
-                                  ?.payment_count ||
-                                  0}{" "}
-                                payment
-                                {Number(
-                                  invoice.payment_summary
-                                    ?.payment_count ||
-                                    0
-                                ) ===
-                                1
-                                  ? ""
-                                  : "s"}
-                              </small>
-                            </td>
-
-                            <td
-                              style={
-                                financeStyles.moneyCell
-                              }
+                      ) => (
+                        <tr
+                          key={
+                            invoice.id
+                          }
+                        >
+                          <td>
+                            <Link
+                              href={`/invoices/${invoice.id}`}
                             >
-                              {
-                                invoiceTotal
-                              }
-                            </td>
+                              {invoice.invoice_number ||
+                                "Invoice"}{" "}
+                              →
+                            </Link>
+                          </td>
 
-                            <td
-                              style={
-                                financeStyles.paidCell
-                              }
-                            >
-                              {
-                                invoicePaid
-                              }
-                            </td>
+                          <td>
+                            {formatProjectAmount(
+                              invoice.total_amount ||
+                                invoice.amount ||
+                                invoice.subtotal
+                            )}
+                          </td>
 
-                            <td
-                              style={
-                                Number(
-                                  invoice.payment_summary
-                                    ?.outstanding ||
-                                    0
-                                ) >
-                                0
-                                  ? financeStyles.outstandingCell
-                                  : financeStyles.moneyCell
+                          <td>
+                            <StatusBadge
+                              status={
+                                invoice.status ||
+                                "Draft Invoice"
                               }
-                            >
-                              {
-                                invoiceOutstanding
-                              }
-                            </td>
+                            />
+                          </td>
 
-                            <td>
-                              <StatusBadge
-                                status={
-                                  invoice.status ||
-                                  "Draft Invoice"
-                                }
-                              />
-                            </td>
-
-                            <td>
-                              {formatDate(
-                                invoice.due_date
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      }
+                          <td>
+                            {formatDate(
+                              invoice.due_date
+                            )}
+                          </td>
+                        </tr>
+                      )
                     )}
                   </tbody>
                 </table>
@@ -3523,62 +3212,6 @@ function ProgressMetric({
   );
 }
 
-function FinancialMetric({
-  label,
-  value,
-  helper,
-  success = false,
-  warning = false,
-}) {
-  return (
-    <div
-      style={{
-        ...financeStyles.metric,
-
-        ...(success
-          ? financeStyles.metricSuccess
-          : {}),
-
-        ...(warning
-          ? financeStyles.metricWarning
-          : {}),
-      }}
-    >
-      <span
-        style={
-          financeStyles.metricLabel
-        }
-      >
-        {label}
-      </span>
-
-      <strong
-        style={{
-          ...financeStyles.metricValue,
-
-          ...(success
-            ? financeStyles.metricValueSuccess
-            : {}),
-
-          ...(warning
-            ? financeStyles.metricValueWarning
-            : {}),
-        }}
-      >
-        {value}
-      </strong>
-
-      <small
-        style={
-          financeStyles.metricHelper
-        }
-      >
-        {helper}
-      </small>
-    </div>
-  );
-}
-
 function LoadingState() {
   return (
     <section
@@ -3587,7 +3220,8 @@ function LoadingState() {
       }
     >
       {Array.from({
-        length: 6,
+        length:
+          6,
       }).map(
         (
           _,
@@ -3608,7 +3242,7 @@ function LoadingState() {
 }
 
 // =========================================================
-// ACCESS HELPERS
+// HELPERS
 // =========================================================
 
 function buildAccess(
@@ -3656,10 +3290,6 @@ function buildAccess(
       ),
   };
 }
-
-// =========================================================
-// GENERAL HELPERS
-// =========================================================
 
 function normaliseStatus(
   value
@@ -3795,10 +3425,8 @@ function isTaskOverdue(
     999
   );
 
-  return (
-    due.getTime() <
-    Date.now()
-  );
+  return due.getTime() <
+    Date.now();
 }
 
 function sortTasks(
@@ -3846,10 +3474,8 @@ function sortTasks(
     aDue !==
     bDue
   ) {
-    return (
-      aDue -
-      bDue
-    );
+    return aDue -
+      bDue;
   }
 
   return String(
@@ -3922,105 +3548,6 @@ function formatProjectAmount(
   );
 }
 
-function formatMoney(
-  value
-) {
-  return new Intl.NumberFormat(
-    "en-GB",
-    {
-      style:
-        "currency",
-
-      currency:
-        "GBP",
-
-      minimumFractionDigits:
-        2,
-
-      maximumFractionDigits:
-        2,
-    }
-  ).format(
-    getMoneyValue(
-      value
-    )
-  );
-}
-
-// =========================================================
-// FINANCE STATUS
-// =========================================================
-
-function getFinanceStatus(
-  summary
-) {
-  const invoiced =
-    Number(
-      summary
-        ?.total_invoiced ||
-        0
-    );
-
-  const paid =
-    Number(
-      summary
-        ?.total_paid ||
-        0
-    );
-
-  const outstanding =
-    Number(
-      summary
-        ?.outstanding ||
-        0
-    );
-
-  if (
-    invoiced <=
-    0
-  ) {
-    return {
-      label:
-        "Not invoiced",
-      tone:
-        "neutral",
-    };
-  }
-
-  if (
-    outstanding <=
-      0.009 &&
-    paid >
-      0
-  ) {
-    return {
-      label:
-        "Paid in full",
-      tone:
-        "success",
-    };
-  }
-
-  if (
-    paid >
-    0
-  ) {
-    return {
-      label:
-        "Partially paid",
-      tone:
-        "warning",
-    };
-  }
-
-  return {
-    label:
-      "Payment outstanding",
-    tone:
-      "warning",
-  };
-}
-
 // =========================================================
 // INLINE FALLBACK STYLES FOR TASK EDIT CONTROLS
 // =========================================================
@@ -4059,301 +3586,4 @@ const textareaStyle = {
 
   resize:
     "vertical",
-};
-
-// =========================================================
-// PROJECT FINANCE STYLES
-//
-// Kept inline deliberately so no CSS replacement is
-// required for this feature.
-// =========================================================
-
-const financeStyles = {
-  eyebrow: {
-    display:
-      "block",
-
-    marginBottom:
-      "5px",
-
-    color:
-      "#9b7508",
-
-    fontSize:
-      "10px",
-
-    fontWeight:
-      900,
-
-    letterSpacing:
-      "0.8px",
-
-    textTransform:
-      "uppercase",
-  },
-
-  grid: {
-    display:
-      "grid",
-
-    gridTemplateColumns:
-      "repeat(auto-fit, minmax(190px, 1fr))",
-
-    gap:
-      "12px",
-
-    marginTop:
-      "18px",
-  },
-
-  metric: {
-    display:
-      "grid",
-
-    gap:
-      "7px",
-
-    minHeight:
-      "110px",
-
-    padding:
-      "16px",
-
-    border:
-      "1px solid #e4e0d7",
-
-    borderRadius:
-      "13px",
-
-    background:
-      "#ffffff",
-  },
-
-  metricSuccess: {
-    border:
-      "1px solid #cfe4d6",
-
-    background:
-      "#f6fbf8",
-  },
-
-  metricWarning: {
-    border:
-      "1px solid #eadcb3",
-
-    background:
-      "#fffaf0",
-  },
-
-  metricLabel: {
-    color:
-      "#89857c",
-
-    fontSize:
-      "10px",
-
-    fontWeight:
-      800,
-
-    textTransform:
-      "uppercase",
-  },
-
-  metricValue: {
-    color:
-      "#302d27",
-
-    fontSize:
-      "22px",
-
-    lineHeight:
-      1.2,
-  },
-
-  metricValueSuccess: {
-    color:
-      "#397451",
-  },
-
-  metricValueWarning: {
-    color:
-      "#946b00",
-  },
-
-  metricHelper: {
-    color:
-      "#98948b",
-
-    fontSize:
-      "10px",
-
-    lineHeight:
-      1.5,
-  },
-
-  healthBadge: {
-    minHeight:
-      "29px",
-
-    display:
-      "inline-flex",
-
-    alignItems:
-      "center",
-
-    padding:
-      "0 10px",
-
-    borderRadius:
-      "999px",
-
-    fontSize:
-      "10px",
-
-    fontWeight:
-      800,
-
-    whiteSpace:
-      "nowrap",
-  },
-
-  healthSuccess: {
-    color:
-      "#397451",
-
-    background:
-      "#e8f5ec",
-  },
-
-  healthWarning: {
-    color:
-      "#8d6800",
-
-    background:
-      "#f8efd1",
-  },
-
-  healthNeutral: {
-    color:
-      "#69655c",
-
-    background:
-      "#f1efe9",
-  },
-
-  infoBar: {
-    display:
-      "grid",
-
-    gridTemplateColumns:
-      "38px minmax(0, 1fr)",
-
-    alignItems:
-      "start",
-
-    gap:
-      "12px",
-
-    marginTop:
-      "15px",
-
-    padding:
-      "14px",
-
-    border:
-      "1px solid #e8dfc2",
-
-    borderRadius:
-      "11px",
-
-    background:
-      "#fbf8ef",
-  },
-
-  infoIcon: {
-    width:
-      "38px",
-
-    height:
-      "38px",
-
-    display:
-      "grid",
-
-    placeItems:
-      "center",
-
-    borderRadius:
-      "10px",
-
-    color:
-      "#967000",
-
-    background:
-      "#f2e5b6",
-
-    fontWeight:
-      900,
-  },
-
-  invoiceLink: {
-    display:
-      "block",
-
-    width:
-      "fit-content",
-
-    color:
-      "#8e6900",
-
-    fontWeight:
-      800,
-
-    textDecoration:
-      "none",
-  },
-
-  invoiceMeta: {
-    display:
-      "block",
-
-    marginTop:
-      "4px",
-
-    color:
-      "#99948a",
-
-    fontSize:
-      "9px",
-  },
-
-  moneyCell: {
-    fontWeight:
-      750,
-
-    whiteSpace:
-      "nowrap",
-  },
-
-  paidCell: {
-    color:
-      "#397451",
-
-    fontWeight:
-      800,
-
-    whiteSpace:
-      "nowrap",
-  },
-
-  outstandingCell: {
-    color:
-      "#986d00",
-
-    fontWeight:
-      800,
-
-    whiteSpace:
-      "nowrap",
-  },
 };
