@@ -72,6 +72,7 @@
   font-size: var(--font-button);
   font-weight: 800;
   cursor: pointer;
+
   transition:
     border-color 150ms ease,
     background 150ms ease,
@@ -83,12 +84,14 @@
   min-height: 41px;
   padding: 0 16px;
   border: 1px solid #bd8b06;
+
   background:
     linear-gradient(
       145deg,
       #dfb83e,
       #c7930a
     );
+
   color: #1b1a16;
 }
 
@@ -144,6 +147,7 @@
   border: 1px solid #dfdcd3;
   border-radius: 16px;
   background: #ffffff;
+
   box-shadow:
     0 8px 24px
     rgba(43, 36, 17, 0.04);
@@ -198,11 +202,13 @@
 
 .formGrid {
   display: grid;
+
   grid-template-columns:
     repeat(
       3,
       minmax(0, 1fr)
     );
+
   gap: 15px;
 }
 
@@ -253,6 +259,7 @@
 .inlineInput:focus,
 .inlineTextarea:focus {
   border-color: #c69a1d;
+
   box-shadow:
     0 0 0 3px
     rgba(198, 154, 29, 0.1);
@@ -291,11 +298,13 @@
 
 .summaryGrid {
   display: grid;
+
   grid-template-columns:
     repeat(
       5,
       minmax(0, 1fr)
     );
+
   gap: 12px;
 }
 
@@ -495,7 +504,7 @@
 
 .activityTable {
   width: 100%;
-  min-width: 1180px;
+  min-width: 1040px;
   border-collapse: collapse;
 }
 
@@ -529,31 +538,56 @@
 }
 
 /* =========================================================
-   ACTIVITY TYPE
+   ACTIVITY
 ========================================================= */
 
-.followUpOnlyIcon {
-  display: inline-grid;
-  width: 28px;
-  height: 28px;
-  place-items: center;
-  border-radius: 8px;
-  background: #f4f1e9;
-  color: #9a7300;
-  font-size: 12px;
-  font-weight: 900;
+.activityIdentity {
+  display: grid;
+  min-width: 300px;
+  gap: 3px;
 }
 
-.activityTypeBadge {
+.activityIdentity strong {
+  overflow: hidden;
+  color: #28251f;
+  font-size: var(--font-table);
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activityIdentity small {
+  display: block;
+  overflow: hidden;
+  max-width: 420px;
+  color: #99958c;
+  font-size: var(--font-meta);
+  line-height: 1.45;
+  text-overflow: ellipsis;
+}
+
+.outcomeText {
+  color: #397451;
+  font-size: var(--font-meta);
+  font-weight: 800;
+}
+
+/* =========================================================
+   ACTIVITY TYPE INSIDE ACTIVITY CELL
+========================================================= */
+
+.activityInlineType {
   display: inline-flex;
-  min-height: 28px;
+  width: max-content;
+  min-height: 23px;
   align-items: center;
-  gap: 6px;
-  padding: 0 9px;
+  gap: 5px;
+  margin-bottom: 2px;
+  padding: 0 7px;
   border-radius: 999px;
   background: #f2f0ea;
   color: #625e56;
-  font-size: var(--font-label);
+  font-size: var(--font-meta);
   font-weight: 800;
   white-space: nowrap;
 }
@@ -576,41 +610,6 @@
 .typeEmail {
   background: #eeeaf7;
   color: #695598;
-}
-
-/* =========================================================
-   ACTIVITY IDENTITY
-========================================================= */
-
-.activityIdentity {
-  display: grid;
-  min-width: 250px;
-  gap: 3px;
-}
-
-.activityIdentity strong {
-  overflow: hidden;
-  color: #28251f;
-  font-size: var(--font-table);
-  font-weight: 850;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.activityIdentity small {
-  display: block;
-  overflow: hidden;
-  max-width: 360px;
-  color: #99958c;
-  font-size: var(--font-meta);
-  line-height: 1.45;
-  text-overflow: ellipsis;
-}
-
-.outcomeText {
-  color: #397451;
-  font-size: var(--font-meta);
-  font-weight: 800;
 }
 
 /* =========================================================
@@ -839,6 +838,7 @@
 .loadingRow {
   height: 62px;
   border-radius: 10px;
+
   background:
     linear-gradient(
       90deg,
@@ -846,7 +846,9 @@
       #f6f4ef 50%,
       #ece9e2 75%
     );
+
   background-size: 200% 100%;
+
   animation:
     loadingPulse
     1.4s
