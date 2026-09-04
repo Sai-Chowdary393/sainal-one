@@ -64,6 +64,16 @@ function cleanNullableText(
     null;
 }
 
+function normaliseStatus(
+  value
+) {
+  return String(
+    value || ""
+  )
+    .trim()
+    .toLowerCase();
+}
+
 function isUuid(
   value
 ) {
@@ -100,6 +110,21 @@ function forbidden(
     {
       status:
         403,
+    }
+  );
+}
+
+function conflict(
+  message
+) {
+  return NextResponse.json(
+    {
+      error:
+        message,
+    },
+    {
+      status:
+        409,
     }
   );
 }
@@ -154,6 +179,69 @@ async function loadTask({
   }
 
   return data;
+}
+
+// =========================================================
+// CHECK PARENT PROJECT LOCK
+// =========================================================
+
+async function isTaskProjectCompleted({
+  supabase,
+  organizationId,
+  task,
+}) {
+  if (
+    !task?.project_id
+  ) {
+    return false;
+  }
+
+  const {
+    data:
+      project,
+    error,
+  } =
+    await supabase
+      .from(
+        "projects"
+      )
+      .select(
+        "id, status"
+      )
+      .eq(
+        "id",
+        task.project_id
+      )
+      .eq(
+        "organization_id",
+        organizationId
+      )
+      .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      error.message
+    );
+  }
+
+  if (!project) {
+    /*
+     * Do not silently treat a missing parent
+     * project as Completed.
+     *
+     * Existing task operations continue to use
+     * their normal validation and organisation
+     * boundaries.
+     */
+    return false;
+  }
+
+  return (
+    normaliseStatus(
+      project.status
+    ) ===
+    "completed"
+  );
 }
 
 // =========================================================
@@ -502,6 +590,27 @@ export async function PATCH(
     if (!visible) {
       return forbidden(
         "You do not have permission to update this task."
+      );
+    }
+
+    // =====================================================
+    // COMPLETED PROJECT LOCK
+    // =====================================================
+
+    const projectCompleted =
+      await isTaskProjectCompleted({
+        supabase,
+        organizationId,
+
+        task:
+          existingTask,
+      });
+
+    if (
+      projectCompleted
+    ) {
+      return conflict(
+        "This task belongs to a completed project and delivery is locked. Reopen the project before editing its tasks."
       );
     }
 
@@ -955,6 +1064,25 @@ export async function DELETE(
     if (!visible) {
       return forbidden(
         "You do not have permission to delete this task."
+      );
+    }
+
+    // =====================================================
+    // COMPLETED PROJECT LOCK
+    // =====================================================
+
+    const projectCompleted =
+      await isTaskProjectCompleted({
+        supabase,
+        organizationId,
+        task,
+      });
+
+    if (
+      projectCompleted
+    ) {
+      return conflict(
+        "This task belongs to a completed project and delivery is locked. Reopen the project before deleting its tasks."
       );
     }
 
