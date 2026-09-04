@@ -361,8 +361,7 @@ export default function FollowUpsPage() {
 
       assigned_employee_id:
         access.canAssign
-          ? currentEmployee
-              ?.id ||
+          ? currentEmployee?.id ||
             ""
           : "",
     });
@@ -449,8 +448,7 @@ export default function FollowUpsPage() {
     event.preventDefault();
 
     if (
-      !form.title
-        .trim()
+      !form.title.trim()
     ) {
       alert(
         "Activity title is required."
@@ -702,8 +700,7 @@ export default function FollowUpsPage() {
         access.canEdit
       ) {
         if (
-          !editForm.title
-            .trim()
+          !editForm.title.trim()
         ) {
           alert(
             "Activity title is required."
@@ -1752,10 +1749,6 @@ export default function FollowUpsPage() {
                     <thead>
                       <tr>
                         <th>
-                          Activity type
-                        </th>
-
-                        <th>
                           Activity
                         </th>
 
@@ -1807,34 +1800,6 @@ export default function FollowUpsPage() {
                               }
                             >
                               {/* =====================================
-                                  TYPE
-                              ===================================== */}
-
-                              <td>
-                                {editing &&
-                                access.canEdit ? (
-                                  <InlineSelect
-                                    name="activity_type"
-                                    value={
-                                      editForm.activity_type
-                                    }
-                                    onChange={
-                                      handleEditChange
-                                    }
-                                    options={
-                                      ACTIVITY_TYPES
-                                    }
-                                  />
-                                ) : (
-                                  <ActivityTypeCell
-                                    type={
-                                      itemType
-                                    }
-                                  />
-                                )}
-                              </td>
-
-                              {/* =====================================
                                   ACTIVITY
                               ===================================== */}
 
@@ -1846,6 +1811,19 @@ export default function FollowUpsPage() {
                                       styles.editStack
                                     }
                                   >
+                                    <InlineSelect
+                                      name="activity_type"
+                                      value={
+                                        editForm.activity_type
+                                      }
+                                      onChange={
+                                        handleEditChange
+                                      }
+                                      options={
+                                        ACTIVITY_TYPES
+                                      }
+                                    />
+
                                     <input
                                       className={
                                         styles.inlineInput
@@ -1887,38 +1865,14 @@ export default function FollowUpsPage() {
                                     />
                                   </div>
                                 ) : (
-                                  <div
-                                    className={
-                                      styles.activityIdentity
+                                  <ActivityIdentity
+                                    item={
+                                      item
                                     }
-                                  >
-                                    <strong>
-                                      {
-                                        item.title
-                                      }
-                                    </strong>
-
-                                    {item.note && (
-                                      <small>
-                                        {
-                                          item.note
-                                        }
-                                      </small>
-                                    )}
-
-                                    {item.outcome && (
-                                      <span
-                                        className={
-                                          styles.outcomeText
-                                        }
-                                      >
-                                        Outcome:{" "}
-                                        {
-                                          item.outcome
-                                        }
-                                      </span>
-                                    )}
-                                  </div>
+                                    type={
+                                      itemType
+                                    }
+                                  />
                                 )}
                               </td>
 
@@ -2304,56 +2258,70 @@ export default function FollowUpsPage() {
 }
 
 // =========================================================
-// ACTIVITY TYPE
+// ACTIVITY IDENTITY
 // =========================================================
 
-function ActivityTypeCell({
+function ActivityIdentity({
+  item,
   type,
 }) {
-  /*
-   * Normal Follow-up records deliberately do not show
-   * the word "Follow-up" repeatedly.
-   *
-   * Calls / Meetings / Demos / Emails remain labelled,
-   * because the type is useful for those records.
-   */
-
-  if (
+  const showType =
     normalise(
       type
-    ) ===
-    "follow-up"
-  ) {
-    return (
-      <span
-        className={
-          styles.followUpOnlyIcon
-        }
-        title="Follow-up"
-      >
-        ✓
-      </span>
-    );
-  }
+    ) !==
+    "follow-up";
 
   return (
-    <span
+    <div
       className={
-        `${styles.activityTypeBadge} ${getActivityTypeClass(
-          type
-        )}`
+        styles.activityIdentity
       }
     >
-      <span>
-        {activityIcon(
-          type
-        )}
-      </span>
+      {showType && (
+        <span
+          className={
+            `${styles.activityInlineType} ${getActivityTypeClass(
+              type
+            )}`
+          }
+        >
+          <span>
+            {activityIcon(
+              type
+            )}
+          </span>
 
-      {type}
-    </span>
+          {type}
+        </span>
+      )}
+
+      <strong>
+        {item.title}
+      </strong>
+
+      {item.note && (
+        <small>
+          {item.note}
+        </small>
+      )}
+
+      {item.outcome && (
+        <span
+          className={
+            styles.outcomeText
+          }
+        >
+          Outcome:{" "}
+          {item.outcome}
+        </span>
+      )}
+    </div>
   );
 }
+
+// =========================================================
+// ACTIVITY BADGE
+// =========================================================
 
 function ActivityBadge({
   type,
