@@ -421,6 +421,21 @@ async function validateProjectForTask({
     );
   }
 
+  // =====================================================
+  // COMPLETED PROJECT LOCK
+  // =====================================================
+
+  if (
+    normalise(
+      project.status
+    ) ===
+    "completed"
+  ) {
+    throw new Error(
+      "This project is completed and delivery is locked. Reopen the project before creating new tasks."
+    );
+  }
+
   return project;
 }
 
@@ -756,16 +771,97 @@ export async function GET(
           projectId,
         });
       } catch (error) {
-        return NextResponse.json(
-          {
-            error:
-              error.message,
-          },
-          {
-            status:
-              403,
-          }
-        );
+        /*
+         * GET access must still allow tasks belonging
+         * to a completed project to be viewed.
+         *
+         * validateProjectForTask also enforces the
+         * creation lock, so for GET we validate the
+         * project directly below instead.
+         */
+
+        const {
+          data:
+            requestedProject,
+          error:
+            projectError,
+        } =
+          await supabase
+            .from(
+              "projects"
+            )
+            .select("*")
+            .eq(
+              "id",
+              projectId
+            )
+            .eq(
+              "organization_id",
+              organizationId
+            )
+            .maybeSingle();
+
+        if (
+          projectError
+        ) {
+          throw new Error(
+            projectError.message
+          );
+        }
+
+        if (
+          !requestedProject
+        ) {
+          return NextResponse.json(
+            {
+              error:
+                "The selected project is not valid.",
+            },
+            {
+              status:
+                404,
+            }
+          );
+        }
+
+        const projectPermissions =
+          getRecordPermissions(
+            access,
+            {
+              prefix:
+                "projects",
+
+              module:
+                "Projects",
+            }
+          );
+
+        const projectVisible =
+          await canViewOwnedRecord({
+            supabase,
+            access,
+
+            permissions:
+              projectPermissions,
+
+            record:
+              requestedProject,
+          });
+
+        if (
+          !projectVisible
+        ) {
+          return NextResponse.json(
+            {
+              error:
+                "You do not have permission to view tasks for this project.",
+            },
+            {
+              status:
+                403,
+            }
+          );
+        }
       }
 
       query =
