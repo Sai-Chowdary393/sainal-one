@@ -1768,11 +1768,7 @@ export async function PATCH(
       );
     }
 
-    const updateValues = {
-      updated_at:
-        new Date()
-          .toISOString(),
-    };
+    const updateValues = {};
 
     // =====================================================
     // NORMAL FIELDS
