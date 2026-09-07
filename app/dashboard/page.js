@@ -21,6 +21,20 @@ const COMPLETED_STATUSES = [
   "done",
 ];
 
+const CLOSED_ACTIVITY_STATUSES =
+  new Set([
+    "completed",
+    "cancelled",
+    "no answer",
+  ]);
+
+const SCHEDULED_ACTIVITY_TYPES =
+  new Set([
+    "call",
+    "meeting",
+    "demo",
+  ]);
+
 const NON_ISSUED_INVOICE_STATUSES =
   new Set([
     "draft",
@@ -73,6 +87,11 @@ export default function Dashboard() {
   ] = useState([]);
 
   const [
+    followUps,
+    setFollowUps,
+  ] = useState([]);
+
+  const [
     aiInsights,
     setAiInsights,
   ] = useState("");
@@ -107,6 +126,7 @@ export default function Dashboard() {
         projectsResponse,
         tasksResponse,
         invoicesResponse,
+        followUpsResponse,
         insightsResponse,
       ] =
         await Promise.all([
@@ -159,6 +179,14 @@ export default function Dashboard() {
           ),
 
           fetch(
+            "/api/follow-ups",
+            {
+              cache:
+                "no-store",
+            }
+          ),
+
+          fetch(
             "/api/ai-insights",
             {
               cache:
@@ -204,14 +232,19 @@ export default function Dashboard() {
           response:
             invoicesResponse,
         },
+        {
+          name:
+            "Activities",
+          response:
+            followUpsResponse,
+        },
       ];
 
       /*
-       * A user may legitimately have no permission for one module.
-       * 403 from that module should not destroy the entire Dashboard.
+       * A user may legitimately have no permission
+       * for one module.
        *
-       * We treat inaccessible modules as an empty collection.
-       * Authentication/server errors still fail the Dashboard.
+       * 403 should not destroy the entire Dashboard.
        */
       for (
         const item of responses
@@ -234,6 +267,7 @@ export default function Dashboard() {
         projectsData,
         tasksData,
         invoicesData,
+        followUpsData,
         insightsData,
       ] =
         await Promise.all([
@@ -259,6 +293,10 @@ export default function Dashboard() {
 
           safeJson(
             invoicesResponse
+          ),
+
+          safeJson(
+            followUpsResponse
           ),
 
           insightsResponse.ok
@@ -339,6 +377,18 @@ export default function Dashboard() {
               invoicesData,
               [
                 "invoices",
+              ]
+            )
+      );
+
+      setFollowUps(
+        followUpsResponse.status ===
+          403
+          ? []
+          : extractRecords(
+              followUpsData,
+              [
+                "followUps",
               ]
             )
       );
@@ -661,9 +711,6 @@ export default function Dashboard() {
   const totalProjects =
     projects.length;
 
-  const totalInvoices =
-    invoices.length;
-
   const pipelineValue =
     quotes.reduce(
       (
@@ -874,6 +921,174 @@ export default function Dashboard() {
       )
     );
 
+  // =======================================================
+  // ACTIVITY INTELLIGENCE
+  // =======================================================
+
+  const now =
+    new Date();
+
+  const todayStart =
+    new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      0,
+      0,
+      0,
+      0
+    );
+
+  const todayEnd =
+    new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      23,
+      59,
+      59,
+      999
+    );
+
+  const openActivities =
+    followUps.filter(
+      (
+        activity
+      ) =>
+        !CLOSED_ACTIVITY_STATUSES.has(
+          normaliseText(
+            activity.status
+          )
+        )
+    );
+
+  const callsToday =
+    openActivities.filter(
+      (
+        activity
+      ) => {
+        if (
+          normaliseText(
+            activity.activity_type
+          ) !==
+            "call" ||
+          !activity.scheduled_at
+        ) {
+          return false;
+        }
+
+        const date =
+          new Date(
+            activity.scheduled_at
+          );
+
+        return (
+          !Number.isNaN(
+            date.getTime()
+          ) &&
+          date >=
+            todayStart &&
+          date <=
+            todayEnd
+        );
+      }
+    );
+
+  const upcomingActivities =
+    openActivities
+      .filter(
+        (
+          activity
+        ) => {
+          if (
+            !activity.scheduled_at
+          ) {
+            return false;
+          }
+
+          const date =
+            new Date(
+              activity.scheduled_at
+            );
+
+          return (
+            !Number.isNaN(
+              date.getTime()
+            ) &&
+            date >=
+              now
+          );
+        }
+      )
+      .sort(
+        (
+          first,
+          second
+        ) =>
+          new Date(
+            first.scheduled_at
+          ).getTime() -
+          new Date(
+            second.scheduled_at
+          ).getTime()
+      );
+
+  const overdueActivities =
+    openActivities.filter(
+      (
+        activity
+      ) =>
+        isActivityOverdue(
+          activity,
+          now
+        )
+    );
+
+  const nextScheduledActivity =
+    upcomingActivities[0] ||
+    null;
+
+  const dashboardActivities =
+    [
+      ...upcomingActivities,
+      ...overdueActivities
+        .filter(
+          (
+            overdue
+          ) =>
+            !upcomingActivities.some(
+              (
+                upcoming
+              ) =>
+                String(
+                  upcoming.id
+                ) ===
+                String(
+                  overdue.id
+                )
+            )
+        )
+        .sort(
+          (
+            first,
+            second
+          ) =>
+            getActivitySortTime(
+              first
+            ) -
+            getActivitySortTime(
+              second
+            )
+        ),
+    ].slice(
+      0,
+      5
+    );
+
+  // =======================================================
+  // RECENT RECORDS
+  // =======================================================
+
   const latestLeads =
     leads.slice(
       0,
@@ -1047,6 +1262,10 @@ export default function Dashboard() {
               styles.dashboard
             }
           >
+            {/* =================================================
+                EXECUTIVE HEADER
+            ================================================= */}
+
             <section
               className={
                 styles.executiveHeader
@@ -1119,6 +1338,10 @@ export default function Dashboard() {
                 </div>
               </div>
             </section>
+
+            {/* =================================================
+                KPI
+            ================================================= */}
 
             <section
               className={
@@ -1201,6 +1424,10 @@ export default function Dashboard() {
               />
             </section>
 
+            {/* =================================================
+                PRIMARY CHARTS
+            ================================================= */}
+
             <section
               className={
                 styles.primaryChartsGrid
@@ -1235,6 +1462,10 @@ export default function Dashboard() {
                 />
               </ChartPanel>
             </section>
+
+            {/* =================================================
+                SECONDARY CHARTS
+            ================================================= */}
 
             <section
               className={
@@ -1373,12 +1604,199 @@ export default function Dashboard() {
                 >
                   View full Business
                   Insights
+
                   <span>
                     →
                   </span>
                 </Link>
               </section>
             </section>
+
+            {/* =================================================
+                TODAY & UPCOMING
+            ================================================= */}
+
+            <section
+              className={
+                styles.operationalSection
+              }
+            >
+              <div
+                className={
+                  styles.sectionHeading
+                }
+              >
+                <div>
+                  <span
+                    className={
+                      styles.eyebrow
+                    }
+                  >
+                    Activity intelligence
+                  </span>
+
+                  <h2>
+                    Today & upcoming
+                  </h2>
+
+                  <p
+                    className={
+                      styles.sectionDescription
+                    }
+                  >
+                    Calls, meetings and follow-ups that need attention.
+                  </p>
+                </div>
+
+                <Link
+                  href="/follow-ups"
+                  className={
+                    styles.sectionAction
+                  }
+                >
+                  Open Activity Centre →
+                </Link>
+              </div>
+
+              <div
+                className={
+                  styles.activityMetricsGrid
+                }
+              >
+                <OperationalMetric
+                  icon="☎"
+                  label="Calls today"
+                  value={
+                    callsToday.length
+                  }
+                  detail={
+                    callsToday.length ===
+                    1
+                      ? "1 call scheduled today"
+                      : `${callsToday.length} calls scheduled today`
+                  }
+                  tone="blue"
+                />
+
+                <OperationalMetric
+                  icon="◷"
+                  label="Upcoming"
+                  value={
+                    upcomingActivities.length
+                  }
+                  detail="Future scheduled activities"
+                  tone="gold"
+                />
+
+                <OperationalMetric
+                  icon="!"
+                  label="Overdue"
+                  value={
+                    overdueActivities.length
+                  }
+                  detail="Activities requiring attention"
+                  tone={
+                    overdueActivities.length >
+                    0
+                      ? "red"
+                      : "green"
+                  }
+                />
+
+                <NextActivityMetric
+                  activity={
+                    nextScheduledActivity
+                  }
+                  leads={
+                    leads
+                  }
+                />
+              </div>
+
+              <section
+                className={
+                  styles.schedulePanel
+                }
+              >
+                <div
+                  className={
+                    styles.schedulePanelHeader
+                  }
+                >
+                  <div>
+                    <h3>
+                      Upcoming activity
+                    </h3>
+
+                    <p>
+                      Your next scheduled calls, meetings and follow-ups.
+                    </p>
+                  </div>
+
+                  <span
+                    className={
+                      styles.scheduleCount
+                    }
+                  >
+                    {
+                      dashboardActivities.length
+                    }{" "}
+                    shown
+                  </span>
+                </div>
+
+                {dashboardActivities.length ===
+                0 ? (
+                  <div
+                    className={
+                      styles.scheduleEmpty
+                    }
+                  >
+                    <span>
+                      ✓
+                    </span>
+
+                    <div>
+                      <strong>
+                        Nothing scheduled
+                      </strong>
+
+                      <p>
+                        No upcoming or overdue activities require attention.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    className={
+                      styles.scheduleList
+                    }
+                  >
+                    {dashboardActivities.map(
+                      (
+                        activity
+                      ) => (
+                        <DashboardActivityRow
+                          key={
+                            activity.id
+                          }
+                          activity={
+                            activity
+                          }
+                          leads={
+                            leads
+                          }
+                        />
+                      )
+                    )}
+                  </div>
+                )}
+              </section>
+            </section>
+
+            {/* =================================================
+                LATEST UPDATES
+            ================================================= */}
 
             <section
               className={
@@ -1627,7 +2045,294 @@ export default function Dashboard() {
 }
 
 // =========================================================
-// COMPONENTS
+// ACTIVITY INTELLIGENCE COMPONENTS
+// =========================================================
+
+function OperationalMetric({
+  icon,
+  label,
+  value,
+  detail,
+  tone,
+}) {
+  const toneClass =
+    tone ===
+    "blue"
+      ? styles.operationalBlue
+      : tone ===
+          "red"
+        ? styles.operationalRed
+        : tone ===
+            "green"
+          ? styles.operationalGreen
+          : styles.operationalGold;
+
+  return (
+    <article
+      className={`${styles.operationalMetric} ${toneClass}`}
+    >
+      <span
+        className={
+          styles.operationalIcon
+        }
+      >
+        {icon}
+      </span>
+
+      <div
+        className={
+          styles.operationalCopy
+        }
+      >
+        <span>
+          {label}
+        </span>
+
+        <strong>
+          {value}
+        </strong>
+
+        <small>
+          {detail}
+        </small>
+      </div>
+    </article>
+  );
+}
+
+function NextActivityMetric({
+  activity,
+  leads,
+}) {
+  if (
+    !activity
+  ) {
+    return (
+      <article
+        className={`${styles.operationalMetric} ${styles.operationalGreen}`}
+      >
+        <span
+          className={
+            styles.operationalIcon
+          }
+        >
+          ✓
+        </span>
+
+        <div
+          className={
+            styles.operationalCopy
+          }
+        >
+          <span>
+            Next activity
+          </span>
+
+          <strong
+            className={
+              styles.nextActivityEmpty
+            }
+          >
+            Clear
+          </strong>
+
+          <small>
+            Nothing currently scheduled
+          </small>
+        </div>
+      </article>
+    );
+  }
+
+  const lead =
+    getLeadForActivity(
+      activity,
+      leads
+    );
+
+  return (
+    <article
+      className={`${styles.operationalMetric} ${styles.operationalPurple}`}
+    >
+      <span
+        className={
+          styles.operationalIcon
+        }
+      >
+        {activityIcon(
+          activity.activity_type
+        )}
+      </span>
+
+      <div
+        className={
+          styles.operationalCopy
+        }
+      >
+        <span>
+          Next activity
+        </span>
+
+        <strong
+          className={
+            styles.nextActivityTitle
+          }
+        >
+          {activity.title ||
+            "Scheduled activity"}
+        </strong>
+
+        <small>
+          {formatActivityDateTime(
+            activity
+          )}
+
+          {lead?.name
+            ? ` · ${lead.name}`
+            : ""}
+        </small>
+      </div>
+    </article>
+  );
+}
+
+function DashboardActivityRow({
+  activity,
+  leads,
+}) {
+  const lead =
+    getLeadForActivity(
+      activity,
+      leads
+    );
+
+  const type =
+    activity.activity_type ||
+    "Follow-up";
+
+  const overdue =
+    isActivityOverdue(
+      activity,
+      new Date()
+    );
+
+  const href =
+    lead?.id
+      ? `/leads/${lead.id}`
+      : "/follow-ups";
+
+  return (
+    <div
+      className={
+        styles.scheduleRow
+      }
+    >
+      <span
+        className={`${styles.scheduleActivityIcon} ${getScheduleToneClass(
+          type
+        )}`}
+      >
+        {activityIcon(
+          type
+        )}
+      </span>
+
+      <div
+        className={
+          styles.scheduleIdentity
+        }
+      >
+        <div
+          className={
+            styles.scheduleTitleRow
+          }
+        >
+          <Link
+            href={
+              href
+            }
+          >
+            {activity.title ||
+              "Activity"}
+          </Link>
+
+          {normaliseText(
+            type
+          ) !==
+            "follow-up" && (
+            <span
+              className={
+                styles.scheduleType
+              }
+            >
+              {type}
+            </span>
+          )}
+        </div>
+
+        <p>
+          {lead?.name ||
+            activity.related_type ||
+            "General"}
+
+          {lead?.company
+            ? ` · ${lead.company}`
+            : ""}
+
+          {activity.assigned_employee
+            ?.full_name
+            ? ` · ${activity.assigned_employee.full_name}`
+            : ""}
+        </p>
+      </div>
+
+      <div
+        className={
+          styles.scheduleDate
+        }
+      >
+        <strong
+          className={
+            overdue
+              ? styles.scheduleDateOverdue
+              : ""
+          }
+        >
+          {formatActivityDateTime(
+            activity
+          )}
+        </strong>
+
+        {overdue && (
+          <span>
+            Overdue
+          </span>
+        )}
+      </div>
+
+      <StatusBadge
+        status={
+          activity.status ||
+          "Pending"
+        }
+      />
+
+      <Link
+        href={
+          href
+        }
+        className={
+          styles.scheduleOpenButton
+        }
+      >
+        Open →
+      </Link>
+    </div>
+  );
+}
+
+// =========================================================
+// EXISTING COMPONENTS
 // =========================================================
 
 function KpiCard({
@@ -2450,6 +3155,200 @@ function DashboardLoading() {
 }
 
 // =========================================================
+// ACTIVITY HELPERS
+// =========================================================
+
+function isActivityOverdue(
+  activity,
+  now
+) {
+  if (
+    !activity ||
+    CLOSED_ACTIVITY_STATUSES.has(
+      normaliseText(
+        activity.status
+      )
+    )
+  ) {
+    return false;
+  }
+
+  if (
+    activity.scheduled_at
+  ) {
+    const scheduled =
+      new Date(
+        activity.scheduled_at
+      );
+
+    return (
+      !Number.isNaN(
+        scheduled.getTime()
+      ) &&
+      scheduled <
+        now
+    );
+  }
+
+  if (
+    activity.due_date
+  ) {
+    const due =
+      new Date(
+        `${String(
+          activity.due_date
+        ).slice(
+          0,
+          10
+        )}T23:59:59`
+      );
+
+    return (
+      !Number.isNaN(
+        due.getTime()
+      ) &&
+      due <
+        now
+    );
+  }
+
+  return false;
+}
+
+function getActivitySortTime(
+  activity
+) {
+  const value =
+    activity?.scheduled_at ||
+    activity?.due_date;
+
+  if (
+    !value
+  ) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  const date =
+    new Date(
+      String(
+        value
+      ).includes(
+        "T"
+      )
+        ? value
+        : `${value}T23:59:59`
+    );
+
+  return Number.isNaN(
+    date.getTime()
+  )
+    ? Number.MAX_SAFE_INTEGER
+    : date.getTime();
+}
+
+function getLeadForActivity(
+  activity,
+  leads
+) {
+  if (
+    normaliseText(
+      activity?.related_type
+    ) !==
+      "lead" ||
+    !activity?.related_id
+  ) {
+    return null;
+  }
+
+  return (
+    leads.find(
+      (
+        lead
+      ) =>
+        String(
+          lead.id
+        ) ===
+        String(
+          activity.related_id
+        )
+    ) ||
+    null
+  );
+}
+
+function activityIcon(
+  type
+) {
+  switch (
+    normaliseText(
+      type
+    )
+  ) {
+    case "call":
+      return "☎";
+
+    case "meeting":
+      return "◫";
+
+    case "demo":
+      return "▶";
+
+    case "email":
+      return "✉";
+
+    default:
+      return "✓";
+  }
+}
+
+function getScheduleToneClass(
+  type
+) {
+  switch (
+    normaliseText(
+      type
+    )
+  ) {
+    case "call":
+      return styles.scheduleCall;
+
+    case "meeting":
+      return styles.scheduleMeeting;
+
+    case "demo":
+      return styles.scheduleDemo;
+
+    case "email":
+      return styles.scheduleEmail;
+
+    default:
+      return styles.scheduleFollowUp;
+  }
+}
+
+function formatActivityDateTime(
+  activity
+) {
+  if (
+    activity?.scheduled_at
+  ) {
+    return formatDateTime(
+      activity.scheduled_at
+    );
+  }
+
+  if (
+    activity?.due_date
+  ) {
+    return `Due ${formatDate(
+      activity.due_date
+    )}`;
+  }
+
+  return "No date set";
+}
+
+// =========================================================
 // SHARED HELPERS
 // =========================================================
 
@@ -2726,6 +3625,49 @@ function formatDate(
 
       year:
         "numeric",
+    }
+  );
+}
+
+function formatDateTime(
+  value
+) {
+  if (
+    !value
+  ) {
+    return "No date set";
+  }
+
+  const date =
+    new Date(
+      value
+    );
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return "No date set";
+  }
+
+  return date.toLocaleString(
+    "en-GB",
+    {
+      day:
+        "2-digit",
+
+      month:
+        "short",
+
+      year:
+        "numeric",
+
+      hour:
+        "2-digit",
+
+      minute:
+        "2-digit",
     }
   );
 }
