@@ -465,24 +465,6 @@ export default function AIAssistantPage() {
                 )}
               </div>
 
-              {errorMessage && (
-                <div
-                  className={
-                    styles.errorBanner
-                  }
-                >
-                  <span>!</span>
-
-                  <div>
-                    <strong>
-                      AI request failed
-                    </strong>
-
-                    <p>{errorMessage}</p>
-                  </div>
-                </div>
-              )}
-
               <div
                 className={
                   styles.composerSection
