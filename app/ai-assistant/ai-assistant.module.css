@@ -1095,3 +1095,87 @@
 @media (max-width: 720px) {
   .promptComposer textarea { font-size: 16px; }
 }
+/* =========================================================
+   AI AGENT CONFIRMATION PLAN
+========================================================= */
+.actionPlan {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid #e3d39d;
+  border-radius: 12px;
+  background: #fffaf0;
+}
+.actionPlanHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+.actionPlanHeader > div { display: grid; gap: 4px; }
+.actionPlanHeader > div > span { color: #997000; font-size: 9px; font-weight: 900; letter-spacing: 0.8px; }
+.actionPlanHeader > div > strong { color: #332f27; font-size: 12px; line-height: 1.45; }
+.actionPlanStatus {
+  display: inline-flex;
+  min-height: 25px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+.actionPlanStatusPending { background: #f2e3af; color: #795900; }
+.actionPlanStatusRunning { background: #e9e4d2; color: #645c42; }
+.actionPlanStatusCompleted { background: #dff1e5; color: #2e7244; }
+.actionPlanStatusCancelled,
+.actionPlanStatusFailed { background: #f6dede; color: #9b4545; }
+.actionPlanList { display: grid; gap: 8px; }
+.actionPlanItem {
+  display: grid;
+  grid-template-columns: 27px minmax(0, 1fr);
+  gap: 10px;
+  align-items: flex-start;
+  padding: 9px 10px;
+  border: 1px solid #ece5cf;
+  border-radius: 9px;
+  background: #ffffff;
+}
+.actionPlanItem > span {
+  display: grid;
+  width: 27px;
+  height: 27px;
+  place-items: center;
+  border-radius: 8px;
+  background: #f3e7bc;
+  color: #8a6700;
+  font-size: 10px;
+  font-weight: 900;
+}
+.actionPlanItem strong { color: #39352d; font-size: 11px; }
+.actionPlanItem p { margin: 3px 0 0; color: #888278; font-size: 10px; line-height: 1.45; }
+.actionPlanReason { margin: 0; color: #7e776b; font-size: 10px; line-height: 1.5; }
+.actionPlanActions { display: flex; justify-content: flex-end; gap: 8px; }
+.actionPlanCancel,
+.actionPlanConfirm {
+  min-height: 35px;
+  padding: 0 12px;
+  border-radius: 9px;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 850;
+  cursor: pointer;
+}
+.actionPlanCancel { border: 1px solid #dcd7cc; background: #ffffff; color: #69645b; }
+.actionPlanConfirm { border: 1px solid #bd8d08; background: linear-gradient(145deg, #dfb83d, #c8940b); color: #1d1b15; }
+.actionPlanCancel:disabled,
+.actionPlanConfirm:disabled { cursor: not-allowed; opacity: 0.55; }
+@media (max-width: 720px) {
+  .actionPlanHeader,
+  .actionPlanActions { align-items: stretch; flex-direction: column; }
+  .actionPlanStatus { width: max-content; }
+  .actionPlanCancel,
+  .actionPlanConfirm { width: 100%; }
+}
