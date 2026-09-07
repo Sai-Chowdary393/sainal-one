@@ -1000,3 +1000,74 @@
   }
 }
 
+/* =========================================================
+   CREATE WITH AI
+========================================================= */
+
+.aiInstructionInput {
+  min-height: 112px !important;
+}
+
+.aiGenerateBox {
+  display: grid;
+  align-content: center;
+  gap: 5px;
+
+  min-height: 96px;
+
+  padding: 12px 14px;
+
+  border: 1px solid #eadcae;
+  border-radius: 10px;
+
+  background: #fffaf0;
+}
+
+.aiGenerateBox strong {
+  color: #37342e;
+
+  font-size: var(--font-helper);
+}
+
+.aiGenerateBox span {
+  color: #817d74;
+
+  font-size: var(--font-meta);
+  line-height: 1.45;
+}
+
+.aiGenerateButton {
+  width: max-content;
+  min-height: 34px;
+
+  margin-top: 3px;
+  padding: 0 12px;
+
+  border: 1px solid #c99b16;
+  border-radius: 9px;
+
+  background: #ffffff;
+  color: #7c5e05;
+
+  font: inherit;
+  font-size: var(--font-button);
+  font-weight: 800;
+
+  cursor: pointer;
+}
+
+.aiGenerateButton:hover {
+  background: #fff7df;
+}
+
+.aiGenerateButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+@media (max-width: 720px) {
+  .aiGenerateButton {
+    width: 100%;
+  }
+}
+
