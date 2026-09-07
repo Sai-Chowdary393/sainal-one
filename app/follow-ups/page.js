@@ -6,6 +6,11 @@ import {
   useState,
 } from "react";
 
+import {
+  useRouter,
+  useSearchParams,
+} from "next/navigation";
+
 import AppLayout from "../../components/layout/AppLayout";
 import ProtectedRoute from "../../components/ProtectedRoute";
 import StatusBadge from "../../components/StatusBadge";
@@ -114,6 +119,18 @@ const EMPTY_ACCESS = {
 // =========================================================
 
 export default function FollowUpsPage() {
+  const router =
+    useRouter();
+
+  const searchParams =
+    useSearchParams();
+
+  const dashboardView =
+    normalise(
+      searchParams.get(
+        "view"
+      )
+    );
   const [
     followUps,
     setFollowUps,
@@ -1003,10 +1020,17 @@ export default function FollowUpsPage() {
                   activityFilter
                 );
 
+            const matchesDashboardView =
+              matchesDashboardFilter(
+                item,
+                dashboardView
+              );
+
             return (
               matchesSearch &&
               matchesStatus &&
-              matchesActivity
+              matchesActivity &&
+              matchesDashboardView
             );
           }
         );
@@ -1017,6 +1041,7 @@ export default function FollowUpsPage() {
         search,
         statusFilter,
         activityFilter,
+        dashboardView,
       ]
     );
 
@@ -1593,7 +1618,8 @@ export default function FollowUpsPage() {
                 statusFilter !==
                   "All" ||
                 activityFilter !==
-                  "All") && (
+                  "All" ||
+                dashboardView) && (
                 <button
                   type="button"
                   className={
@@ -1611,9 +1637,17 @@ export default function FollowUpsPage() {
                     setActivityFilter(
                       "All"
                     );
+
+                    if (
+                      dashboardView
+                    ) {
+                      router.replace(
+                        "/follow-ups"
+                      );
+                    }
                   }}
                 >
-                  Clear
+                  Clear filters
                 </button>
               )}
             </div>
@@ -3122,6 +3156,110 @@ function getLeadForItem(
     ) ||
     null
   );
+}
+
+function matchesDashboardFilter(
+  item,
+  dashboardView
+) {
+  if (
+    !dashboardView
+  ) {
+    return true;
+  }
+
+  const closed =
+    [
+      "completed",
+      "cancelled",
+      "no answer",
+    ].includes(
+      normalise(
+        item.status
+      )
+    );
+
+  if (
+    dashboardView ===
+    "overdue"
+  ) {
+    return (
+      isActivityOverdue(
+        item
+      ) ||
+      isScheduledPast(
+        item
+      )
+    );
+  }
+
+  if (
+    dashboardView ===
+    "upcoming"
+  ) {
+    if (
+      closed ||
+      !item.scheduled_at
+    ) {
+      return false;
+    }
+
+    const scheduled =
+      new Date(
+        item.scheduled_at
+      );
+
+    return (
+      !Number.isNaN(
+        scheduled.getTime()
+      ) &&
+      scheduled >=
+        new Date()
+    );
+  }
+
+  if (
+    dashboardView ===
+    "calls-today"
+  ) {
+    if (
+      closed ||
+      normalise(
+        item.activity_type
+      ) !==
+        "call" ||
+      !item.scheduled_at
+    ) {
+      return false;
+    }
+
+    const scheduled =
+      new Date(
+        item.scheduled_at
+      );
+
+    if (
+      Number.isNaN(
+        scheduled.getTime()
+      )
+    ) {
+      return false;
+    }
+
+    const now =
+      new Date();
+
+    return (
+      scheduled.getFullYear() ===
+        now.getFullYear() &&
+      scheduled.getMonth() ===
+        now.getMonth() &&
+      scheduled.getDate() ===
+        now.getDate()
+    );
+  }
+
+  return true;
 }
 
 function activityIcon(
