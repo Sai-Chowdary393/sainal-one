@@ -53,11 +53,9 @@
 }
 
 .executiveHeader h2 {
-  margin:
-    8px 0;
+  margin: 8px 0;
 
-  color:
-    #ffffff;
+  color: #ffffff;
 
   font-size:
     clamp(
@@ -66,14 +64,11 @@
       38px
     );
 
-  font-weight:
-    800;
+  font-weight: 800;
 
-  line-height:
-    1.15;
+  line-height: 1.15;
 
-  letter-spacing:
-    -1px;
+  letter-spacing: -1px;
 }
 
 .executiveHeader p {
@@ -92,25 +87,20 @@
   font-size:
     var(--font-body);
 
-  line-height:
-    1.65;
+  line-height: 1.65;
 }
 
 .eyebrow {
-  color:
-    #dfbb46;
+  color: #dfbb46;
 
   font-size:
     var(--font-label);
 
-  font-weight:
-    900;
+  font-weight: 900;
 
-  letter-spacing:
-    1.15px;
+  letter-spacing: 1.15px;
 
-  text-transform:
-    uppercase;
+  text-transform: uppercase;
 }
 
 
@@ -126,15 +116,13 @@
 
   gap: 17px;
 
-  padding:
-    15px 18px;
+  padding: 15px 18px;
 
   border:
     1px solid
     rgba(255, 255, 255, 0.11);
 
-  border-radius:
-    17px;
+  border-radius: 17px;
 
   background:
     rgba(255, 255, 255, 0.06);
@@ -181,8 +169,7 @@
 
   border-radius: 50%;
 
-  background:
-    #29271f;
+  background: #29271f;
 
   content: "";
 }
@@ -197,17 +184,13 @@
 }
 
 .healthRing strong {
-  color:
-    #ffffff;
+  color: #ffffff;
 
-  font-size:
-    26px;
+  font-size: 26px;
 
-  font-weight:
-    800;
+  font-weight: 800;
 
-  line-height:
-    1;
+  line-height: 1;
 }
 
 .healthRing span {
@@ -221,13 +204,11 @@
       0.58
     );
 
-  font-size:
-    11px;
+  font-size: var(--font-meta);
 }
 
 .healthCard > div:last-child {
   display: grid;
-
   gap: 4px;
 }
 
@@ -241,27 +222,21 @@
     );
 
   font-size:
-    11px;
+    var(--font-label);
 
-  font-weight:
-    750;
+  font-weight: 750;
 
-  letter-spacing:
-    0.55px;
+  letter-spacing: 0.55px;
 
-  text-transform:
-    uppercase;
+  text-transform: uppercase;
 }
 
 .healthCard > div:last-child > strong {
-  color:
-    #ffffff;
+  color: #ffffff;
 
-  font-size:
-    19px;
+  font-size: 19px;
 
-  font-weight:
-    800;
+  font-weight: 800;
 }
 
 .healthCard small {
@@ -274,10 +249,9 @@
     );
 
   font-size:
-    12px;
+    var(--font-helper);
 
-  line-height:
-    1.45;
+  line-height: 1.45;
 }
 
 
@@ -312,8 +286,7 @@
     1px solid
     var(--color-border);
 
-  border-radius:
-    17px;
+  border-radius: 17px;
 
   color:
     var(--color-text);
@@ -386,11 +359,9 @@
   background:
     var(--kpi-soft);
 
-  font-size:
-    16px;
+  font-size: 16px;
 
-  font-weight:
-    900;
+  font-weight: 900;
 }
 
 .kpiArrow {
@@ -398,7 +369,7 @@
     var(--color-muted-light);
 
   font-size:
-    13px;
+    var(--font-helper);
 }
 
 .kpiCard p {
@@ -406,17 +377,15 @@
 
   z-index: 1;
 
-  margin:
-    17px 0 4px;
+  margin: 17px 0 4px;
 
   color:
     var(--color-muted);
 
   font-size:
-    12px;
+    var(--font-helper);
 
-  font-weight:
-    700;
+  font-weight: 700;
 }
 
 .kpiCard h3 {
@@ -438,20 +407,15 @@
       30px
     );
 
-  font-weight:
-    800;
+  font-weight: 800;
 
-  line-height:
-    1.15;
+  line-height: 1.15;
 
-  letter-spacing:
-    -0.65px;
+  letter-spacing: -0.65px;
 
-  text-overflow:
-    ellipsis;
+  text-overflow: ellipsis;
 
-  white-space:
-    nowrap;
+  white-space: nowrap;
 }
 
 .kpiCard small {
@@ -469,22 +433,18 @@
     var(--color-muted);
 
   font-size:
-    11px;
+    var(--font-meta);
 
-  line-height:
-    1.4;
+  line-height: 1.4;
 
-  text-overflow:
-    ellipsis;
+  text-overflow: ellipsis;
 
-  white-space:
-    nowrap;
+  white-space: nowrap;
 }
 
 
 /* =========================================================
-   KPI COLOUR TONES
-   Use colour only to classify information.
+   KPI COLOURS
 ========================================================= */
 
 .kpiToneGold {
@@ -503,8 +463,10 @@
 }
 
 .kpiToneGreen {
-  --kpi-colour: var(--color-success);
-  --kpi-soft: var(--color-success-bg);
+  --kpi-colour:
+    var(--color-success);
+  --kpi-soft:
+    var(--color-success-bg);
 }
 
 .kpiToneTeal {
@@ -513,13 +475,17 @@
 }
 
 .kpiToneOrange {
-  --kpi-colour: var(--color-warning);
-  --kpi-soft: var(--color-warning-bg);
+  --kpi-colour:
+    var(--color-warning);
+  --kpi-soft:
+    var(--color-warning-bg);
 }
 
 .kpiToneRed {
-  --kpi-colour: var(--color-danger);
-  --kpi-soft: var(--color-danger-bg);
+  --kpi-colour:
+    var(--color-danger);
+  --kpi-soft:
+    var(--color-danger-bg);
 }
 
 
@@ -556,7 +522,8 @@
 
 .chartPanel,
 .aiSummaryCard,
-.activityPanel {
+.activityPanel,
+.schedulePanel {
   min-width: 0;
 
   border:
@@ -588,51 +555,46 @@
 }
 
 .panelHeading h3,
-.activityPanelHeader h3 {
+.activityPanelHeader h3,
+.schedulePanelHeader h3 {
   margin: 0;
 
   color:
     var(--color-text);
 
   font-size:
-    17px;
+    var(--font-panel-title);
 
-  font-weight:
-    800;
+  font-weight: 800;
 
-  line-height:
-    1.3;
+  line-height: 1.3;
 
-  letter-spacing:
-    -0.2px;
+  letter-spacing: -0.2px;
 }
 
-.panelHeading p {
-  margin:
-    5px 0 0;
+.panelHeading p,
+.schedulePanelHeader p {
+  margin: 5px 0 0;
 
   color:
     var(--color-muted);
 
   font-size:
-    12px;
+    var(--font-helper);
 
-  line-height:
-    1.45;
+  line-height: 1.45;
 }
 
 .panelHeading > a,
 .activityPanelHeader a {
   flex: 0 0 auto;
 
-  color:
-    #8f6900;
+  color: #8f6900;
 
   font-size:
-    12px;
+    var(--font-button);
 
-  font-weight:
-    800;
+  font-weight: 800;
 
   transition:
     color var(--transition-fast);
@@ -666,21 +628,18 @@
     var(--color-muted);
 
   font-size:
-    12px;
+    var(--font-helper);
 }
 
 .chartTotal strong {
   color:
     var(--color-text);
 
-  font-size:
-    26px;
+  font-size: 26px;
 
-  font-weight:
-    800;
+  font-weight: 800;
 
-  letter-spacing:
-    -0.5px;
+  letter-spacing: -0.5px;
 }
 
 .lineChartSvg {
@@ -707,14 +666,11 @@
 }
 
 .chartLine {
-  stroke:
-    #b78808;
+  stroke: #b78808;
 
-  stroke-linecap:
-    round;
+  stroke-linecap: round;
 
-  stroke-linejoin:
-    round;
+  stroke-linejoin: round;
 
   stroke-width: 4;
 }
@@ -723,8 +679,7 @@
   fill:
     var(--color-surface);
 
-  stroke:
-    #b78808;
+  stroke: #b78808;
 
   stroke-width: 3;
 }
@@ -734,15 +689,14 @@
     var(--color-muted);
 
   font-size:
-    11px;
+    var(--font-meta);
 
-  font-weight:
-    700;
+  font-weight: 700;
 }
 
 
 /* =========================================================
-   PIPELINE CHART
+   PIPELINE
 ========================================================= */
 
 .pipelineChart {
@@ -750,8 +704,7 @@
 
   gap: 23px;
 
-  padding:
-    12px 0 11px;
+  padding: 12px 0 11px;
 }
 
 .pipelineRow {
@@ -769,29 +722,25 @@
     var(--color-muted);
 
   font-size:
-    13px;
+    var(--font-body);
 }
 
 .pipelineLabel strong {
   color:
     var(--color-text);
 
-  font-size:
-    14px;
+  font-size: 14px;
 
-  font-weight:
-    800;
+  font-weight: 800;
 }
 
 .pipelineTrack,
 .progressTrack {
   overflow: hidden;
 
-  border-radius:
-    999px;
+  border-radius: 999px;
 
-  background:
-    #edeae2;
+  background: #edeae2;
 }
 
 .pipelineTrack {
@@ -803,8 +752,7 @@
 
   min-width: 4px;
 
-  border-radius:
-    inherit;
+  border-radius: inherit;
 
   background:
     linear-gradient(
@@ -874,11 +822,9 @@
   color:
     var(--color-text);
 
-  font-size:
-    30px;
+  font-size: 30px;
 
-  font-weight:
-    800;
+  font-weight: 800;
 }
 
 .donutCentre span {
@@ -886,13 +832,11 @@
     var(--color-muted);
 
   font-size:
-    11px;
+    var(--font-label);
 
-  font-weight:
-    750;
+  font-weight: 750;
 
-  text-transform:
-    uppercase;
+  text-transform: uppercase;
 }
 
 .donutLegend {
@@ -948,18 +892,16 @@
     var(--color-muted);
 
   font-size:
-    12px;
+    var(--font-helper);
 }
 
 .legendItem strong {
   color:
     var(--color-text);
 
-  font-size:
-    14px;
+  font-size: 14px;
 
-  font-weight:
-    800;
+  font-weight: 800;
 }
 
 
@@ -1002,21 +944,17 @@
     var(--color-text);
 
   font-size:
-    13px;
+    var(--font-body);
 
-  font-weight:
-    750;
+  font-weight: 750;
 }
 
 .progressMetricHeader > strong {
-  color:
-    #977000;
+  color: #977000;
 
-  font-size:
-    14px;
+  font-size: 14px;
 
-  font-weight:
-    800;
+  font-weight: 800;
 }
 
 .progressMetricHeader span {
@@ -1024,7 +962,7 @@
     var(--color-muted);
 
   font-size:
-    12px;
+    var(--font-helper);
 }
 
 .progressTrack {
@@ -1034,8 +972,7 @@
 .progressFill {
   height: 100%;
 
-  border-radius:
-    inherit;
+  border-radius: inherit;
 
   background:
     linear-gradient(
@@ -1063,8 +1000,7 @@
 
   padding: 21px;
 
-  color:
-    #ffffff;
+  color: #ffffff;
 
   background:
     radial-gradient(
@@ -1093,8 +1029,7 @@
 
   border-radius: 12px;
 
-  color:
-    #201e18;
+  color: #201e18;
 
   background:
     linear-gradient(
@@ -1103,39 +1038,31 @@
       #bd8a05
     );
 
-  font-size:
-    18px;
+  font-size: 18px;
 }
 
 .aiSummaryHeader span {
-  color:
-    #d9b642;
+  color: #d9b642;
 
   font-size:
-    11px;
+    var(--font-label);
 
-  font-weight:
-    850;
+  font-weight: 850;
 
-  letter-spacing:
-    0.8px;
+  letter-spacing: 0.8px;
 
-  text-transform:
-    uppercase;
+  text-transform: uppercase;
 }
 
 .aiSummaryHeader h3 {
-  margin:
-    3px 0 0;
+  margin: 3px 0 0;
 
-  color:
-    #ffffff;
+  color: #ffffff;
 
   font-size:
-    17px;
+    var(--font-panel-title);
 
-  font-weight:
-    800;
+  font-weight: 800;
 }
 
 .aiSummaryList {
@@ -1143,8 +1070,7 @@
 
   gap: 12px;
 
-  margin:
-    20px 0;
+  margin: 20px 0;
 }
 
 .aiSummaryItem {
@@ -1154,8 +1080,7 @@
     9px
     minmax(0, 1fr);
 
-  align-items:
-    flex-start;
+  align-items: flex-start;
 
   gap: 10px;
 }
@@ -1174,13 +1099,11 @@
     );
 
   font-size:
-    12px;
+    var(--font-helper);
 
-  line-height:
-    1.6;
+  line-height: 1.6;
 
-  text-overflow:
-    ellipsis;
+  text-overflow: ellipsis;
 }
 
 .summaryIndicator {
@@ -1193,18 +1116,15 @@
 }
 
 .summaryIndicatorPositive {
-  background:
-    #69b789;
+  background: #69b789;
 }
 
 .summaryIndicatorWarning {
-  background:
-    #daa934;
+  background: #daa934;
 }
 
 .summaryIndicatorNeutral {
-  background:
-    #8aa4c1;
+  background: #8aa4c1;
 }
 
 .insightsButton {
@@ -1218,8 +1138,7 @@
 
   margin-top: auto;
 
-  padding:
-    0 13px;
+  padding: 0 13px;
 
   border:
     1px solid
@@ -1227,17 +1146,15 @@
 
   border-radius: 11px;
 
-  color:
-    #e1bd4a;
+  color: #e1bd4a;
 
   background:
     rgba(214, 165, 20, 0.09);
 
   font-size:
-    13px;
+    var(--font-button);
 
-  font-weight:
-    800;
+  font-weight: 800;
 
   transition:
     border-color
@@ -1266,10 +1183,10 @@
 
 
 /* =========================================================
-   RECENT ACTIVITY
+   OPERATIONAL ACTIVITY
 ========================================================= */
 
-.activitySection {
+.operationalSection {
   display: grid;
 
   gap: 16px;
@@ -1279,11 +1196,12 @@
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
+
+  gap: 20px;
 }
 
 .sectionHeading h2 {
-  margin:
-    6px 0 0;
+  margin: 6px 0 0;
 
   color:
     var(--color-text);
@@ -1291,11 +1209,514 @@
   font-size:
     var(--font-section-title);
 
-  font-weight:
-    800;
+  font-weight: 800;
 
-  letter-spacing:
-    -0.4px;
+  letter-spacing: -0.4px;
+}
+
+.sectionDescription {
+  margin: 5px 0 0;
+
+  color:
+    var(--color-muted);
+
+  font-size:
+    var(--font-helper);
+
+  line-height: 1.5;
+}
+
+.sectionAction {
+  flex: 0 0 auto;
+
+  color: #8f6900;
+
+  font-size:
+    var(--font-button);
+
+  font-weight: 800;
+}
+
+.sectionAction:hover {
+  color:
+    var(--color-brand-hover);
+}
+
+
+/* =========================================================
+   OPERATIONAL METRICS
+========================================================= */
+
+.activityMetricsGrid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      4,
+      minmax(0, 1fr)
+    );
+
+  gap: 13px;
+}
+
+.operationalMetric {
+  --activity-colour: #957000;
+  --activity-soft: #f6edcb;
+
+  min-width: 0;
+
+  display: flex;
+  align-items: center;
+
+  gap: 13px;
+
+  padding: 16px;
+
+  border:
+    1px solid
+    var(--color-border);
+
+  border-radius: 15px;
+
+  background:
+    var(--color-surface);
+
+  box-shadow:
+    var(--shadow-sm);
+}
+
+.operationalIcon {
+  width: 39px;
+  height: 39px;
+
+  flex: 0 0 39px;
+
+  display: grid;
+  place-items: center;
+
+  border-radius: 11px;
+
+  color:
+    var(--activity-colour);
+
+  background:
+    var(--activity-soft);
+
+  font-size: 15px;
+
+  font-weight: 900;
+}
+
+.operationalCopy {
+  min-width: 0;
+
+  display: grid;
+
+  gap: 2px;
+}
+
+.operationalCopy > span {
+  color:
+    var(--color-muted);
+
+  font-size:
+    var(--font-label);
+
+  font-weight: 850;
+
+  letter-spacing: 0.35px;
+
+  text-transform: uppercase;
+}
+
+.operationalCopy > strong {
+  overflow: hidden;
+
+  color:
+    var(--color-text);
+
+  font-size: 23px;
+
+  line-height: 1.15;
+
+  text-overflow: ellipsis;
+
+  white-space: nowrap;
+}
+
+.operationalCopy > small {
+  overflow: hidden;
+
+  color:
+    var(--color-muted);
+
+  font-size:
+    var(--font-meta);
+
+  line-height: 1.4;
+
+  text-overflow: ellipsis;
+
+  white-space: nowrap;
+}
+
+.operationalGold {
+  --activity-colour: #957000;
+  --activity-soft: #f6edcb;
+}
+
+.operationalBlue {
+  --activity-colour: #356f9f;
+  --activity-soft: #e7f0f8;
+}
+
+.operationalRed {
+  --activity-colour: #a44343;
+  --activity-soft: #f8e4e4;
+}
+
+.operationalGreen {
+  --activity-colour: #397451;
+  --activity-soft: #e5f1e9;
+}
+
+.operationalPurple {
+  --activity-colour: #705a8f;
+  --activity-soft: #eee9f5;
+}
+
+.nextActivityTitle {
+  font-size:
+    var(--font-body)
+    !important;
+}
+
+.nextActivityEmpty {
+  font-size:
+    18px
+    !important;
+}
+
+
+/* =========================================================
+   UPCOMING ACTIVITY PANEL
+========================================================= */
+
+.schedulePanel {
+  overflow: hidden;
+}
+
+.schedulePanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 18px;
+
+  padding: 18px 20px;
+
+  border-bottom:
+    1px solid
+    var(--color-border-soft);
+}
+
+.scheduleCount {
+  padding: 6px 9px;
+
+  border-radius: 999px;
+
+  color: #8d6900;
+
+  background: #f5edcf;
+
+  font-size:
+    var(--font-label);
+
+  font-weight: 850;
+
+  white-space: nowrap;
+}
+
+.scheduleList {
+  display: grid;
+}
+
+.scheduleRow {
+  display: grid;
+
+  grid-template-columns:
+    40px
+    minmax(230px, 1fr)
+    minmax(150px, auto)
+    auto
+    auto;
+
+  align-items: center;
+
+  gap: 14px;
+
+  min-height: 74px;
+
+  padding: 12px 20px;
+
+  border-bottom:
+    1px solid
+    var(--color-border-soft);
+}
+
+.scheduleRow:last-child {
+  border-bottom: 0;
+}
+
+.scheduleRow:hover {
+  background: #fcfaf5;
+}
+
+.scheduleActivityIcon {
+  width: 36px;
+  height: 36px;
+
+  display: grid;
+  place-items: center;
+
+  border-radius: 10px;
+
+  font-size: 13px;
+
+  font-weight: 900;
+}
+
+.scheduleCall {
+  color: #397451;
+  background: #e5f1e9;
+}
+
+.scheduleMeeting {
+  color: #416d95;
+  background: #e7eef6;
+}
+
+.scheduleDemo {
+  color: #8f6900;
+  background: #f6edcf;
+}
+
+.scheduleEmail {
+  color: #695598;
+  background: #eee9f5;
+}
+
+.scheduleFollowUp {
+  color: #927000;
+  background: #f5edcf;
+}
+
+.scheduleIdentity {
+  min-width: 0;
+
+  display: grid;
+
+  gap: 4px;
+}
+
+.scheduleTitleRow {
+  display: flex;
+  align-items: center;
+
+  gap: 7px;
+
+  min-width: 0;
+}
+
+.scheduleTitleRow > a {
+  overflow: hidden;
+
+  color:
+    var(--color-text);
+
+  font-size:
+    var(--font-body);
+
+  font-weight: 800;
+
+  text-overflow: ellipsis;
+
+  white-space: nowrap;
+}
+
+.scheduleTitleRow > a:hover {
+  color: #947000;
+}
+
+.scheduleType {
+  flex: 0 0 auto;
+
+  padding: 3px 6px;
+
+  border-radius: 999px;
+
+  color: #756f65;
+
+  background: #f1efe9;
+
+  font-size:
+    var(--font-meta);
+
+  font-weight: 800;
+}
+
+.scheduleIdentity p {
+  margin: 0;
+
+  overflow: hidden;
+
+  color:
+    var(--color-muted);
+
+  font-size:
+    var(--font-meta);
+
+  line-height: 1.4;
+
+  text-overflow: ellipsis;
+
+  white-space: nowrap;
+}
+
+.scheduleDate {
+  display: grid;
+
+  gap: 3px;
+
+  justify-items: start;
+}
+
+.scheduleDate strong {
+  color:
+    var(--color-muted);
+
+  font-size:
+    var(--font-helper);
+
+  font-weight: 700;
+
+  white-space: nowrap;
+}
+
+.scheduleDateOverdue {
+  color:
+    var(--color-danger)
+    !important;
+
+  font-weight: 850
+    !important;
+}
+
+.scheduleDate span {
+  padding: 3px 6px;
+
+  border-radius: 999px;
+
+  color:
+    var(--color-danger);
+
+  background:
+    var(--color-danger-bg);
+
+  font-size:
+    var(--font-meta);
+
+  font-weight: 850;
+}
+
+.scheduleOpenButton {
+  min-height: 34px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0 10px;
+
+  border:
+    1px solid
+    var(--color-border);
+
+  border-radius: 9px;
+
+  color: #8d6900;
+
+  background: #ffffff;
+
+  font-size:
+    var(--font-button);
+
+  font-weight: 800;
+
+  white-space: nowrap;
+}
+
+.scheduleOpenButton:hover {
+  border-color: #caa947;
+
+  background: #fbf7e9;
+}
+
+.scheduleEmpty {
+  min-height: 145px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 13px;
+
+  padding: 24px;
+}
+
+.scheduleEmpty > span {
+  width: 42px;
+  height: 42px;
+
+  display: grid;
+  place-items: center;
+
+  border-radius: 12px;
+
+  color: #397451;
+
+  background: #e5f1e9;
+
+  font-weight: 900;
+}
+
+.scheduleEmpty strong {
+  color:
+    var(--color-text);
+
+  font-size:
+    var(--font-body);
+}
+
+.scheduleEmpty p {
+  margin: 4px 0 0;
+
+  color:
+    var(--color-muted);
+
+  font-size:
+    var(--font-helper);
+}
+
+
+/* =========================================================
+   RECENT ACTIVITY
+========================================================= */
+
+.activitySection {
+  display: grid;
+
+  gap: 16px;
 }
 
 .activityGrid {
@@ -1326,8 +1747,7 @@
 
   gap: 16px;
 
-  padding-bottom:
-    13px;
+  padding-bottom: 13px;
 
   border-bottom:
     1px solid
@@ -1347,8 +1767,7 @@
 
   gap: 18px;
 
-  padding:
-    12px 0;
+  padding: 12px 0;
 
   border-bottom:
     1px solid
@@ -1373,27 +1792,22 @@
     var(--color-text);
 
   font-size:
-    13px;
+    var(--font-body);
 
-  font-weight:
-    800;
+  font-weight: 800;
 
-  text-overflow:
-    ellipsis;
+  text-overflow: ellipsis;
 
-  white-space:
-    nowrap;
+  white-space: nowrap;
 }
 
 .activityLink:hover {
-  color:
-    #967000;
+  color: #967000;
 }
 
 .activityRow p,
 .projectActivityItem p {
-  margin:
-    5px 0 0;
+  margin: 5px 0 0;
 
   overflow: hidden;
 
@@ -1401,16 +1815,13 @@
     var(--color-muted);
 
   font-size:
-    12px;
+    var(--font-helper);
 
-  line-height:
-    1.4;
+  line-height: 1.4;
 
-  text-overflow:
-    ellipsis;
+  text-overflow: ellipsis;
 
-  white-space:
-    nowrap;
+  white-space: nowrap;
 }
 
 .projectActivityItem {
@@ -1418,8 +1829,7 @@
 
   gap: 10px;
 
-  padding:
-    14px 0;
+  padding: 14px 0;
 
   border-bottom:
     1px solid
@@ -1473,7 +1883,7 @@
     var(--color-muted);
 
   font-size:
-    12px;
+    var(--font-helper);
 }
 
 
@@ -1502,63 +1912,54 @@
 }
 
 .errorPanel strong {
-  color:
-    #843737;
+  color: #843737;
 
-  font-size:
-    14px;
+  font-size: 14px;
 }
 
 .errorPanel p {
-  margin:
-    5px 0 0;
+  margin: 5px 0 0;
 
-  color:
-    #995656;
+  color: #995656;
 
   font-size:
-    12px;
+    var(--font-helper);
 
-  line-height:
-    1.45;
+  line-height: 1.45;
 }
 
 .retryButton {
   min-height: 39px;
 
-  padding:
-    0 15px;
+  padding: 0 15px;
 
   border: 0;
 
   border-radius: 9px;
 
-  color:
-    #ffffff;
+  color: #ffffff;
 
-  background:
-    #8f3939;
+  background: #8f3939;
 
   font-size:
-    13px;
+    var(--font-button);
 
-  font-weight:
-    800;
+  font-weight: 800;
 
   cursor: pointer;
 
   transition:
-    background var(--transition-fast);
+    background
+    var(--transition-fast);
 }
 
 .retryButton:hover {
-  background:
-    #7d3131;
+  background: #7d3131;
 }
 
 
 /* =========================================================
-   LOADING SKELETON
+   LOADING
 ========================================================= */
 
 .loadingDashboard {
@@ -1650,6 +2051,14 @@
         minmax(0, 1fr)
       );
   }
+
+  .activityMetricsGrid {
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
+  }
 }
 
 
@@ -1661,8 +2070,7 @@
   max-width: 1180px
 ) {
   .primaryChartsGrid {
-    grid-template-columns:
-      1fr;
+    grid-template-columns: 1fr;
   }
 
   .secondaryChartsGrid {
@@ -1677,6 +2085,20 @@
     grid-column:
       1 / -1;
   }
+
+  .scheduleRow {
+    grid-template-columns:
+      40px
+      minmax(200px, 1fr)
+      minmax(140px, auto)
+      auto;
+  }
+
+  .scheduleOpenButton {
+    grid-column: 2 / -1;
+
+    width: fit-content;
+  }
 }
 
 
@@ -1688,11 +2110,9 @@
   max-width: 850px
 ) {
   .executiveHeader {
-    align-items:
-      flex-start;
+    align-items: flex-start;
 
-    flex-direction:
-      column;
+    flex-direction: column;
   }
 
   .healthCard {
@@ -1711,13 +2131,11 @@
 
   .secondaryChartsGrid,
   .activityGrid {
-    grid-template-columns:
-      1fr;
+    grid-template-columns: 1fr;
   }
 
   .wideActivityPanel {
-    grid-column:
-      auto;
+    grid-column: auto;
   }
 
   .loadingCards {
@@ -1729,8 +2147,33 @@
   }
 
   .loadingCharts {
+    grid-template-columns: 1fr;
+  }
+
+  .sectionHeading {
+    align-items: flex-start;
+
+    flex-direction: column;
+  }
+
+  .scheduleRow {
     grid-template-columns:
-      1fr;
+      40px
+      minmax(0, 1fr)
+      auto;
+  }
+
+  .scheduleDate {
+    grid-column: 2;
+  }
+
+  .scheduleRow > :global(span[class*="status"]) {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .scheduleOpenButton {
+    grid-column: 2 / -1;
   }
 }
 
@@ -1757,12 +2200,12 @@
   }
 
   .executiveHeader p {
-    font-size: 13px;
+    font-size:
+      var(--font-body);
   }
 
   .healthCard {
-    align-items:
-      flex-start;
+    align-items: flex-start;
   }
 
   .healthRing {
@@ -1782,9 +2225,9 @@
   }
 
   .kpiGrid,
-  .loadingCards {
-    grid-template-columns:
-      1fr;
+  .loadingCards,
+  .activityMetricsGrid {
+    grid-template-columns: 1fr;
   }
 
   .kpiCard {
@@ -1808,16 +2251,13 @@
   }
 
   .donutLayout {
-    align-items:
-      flex-start;
+    align-items: flex-start;
 
-    flex-direction:
-      column;
+    flex-direction: column;
   }
 
   .donutChart {
-    align-self:
-      center;
+    align-self: center;
   }
 
   .donutLegend {
@@ -1830,20 +2270,59 @@
 
   .activityRow,
   .activityRowTop {
-    align-items:
-      flex-start;
+    align-items: flex-start;
   }
 
   .panelHeading {
-    align-items:
-      flex-start;
+    align-items: flex-start;
 
-    flex-direction:
-      column;
+    flex-direction: column;
   }
 
   .activityLink,
   .activityTitle {
-    font-size: 13px;
+    font-size:
+      var(--font-body);
+  }
+
+  .schedulePanelHeader {
+    align-items: flex-start;
+
+    flex-direction: column;
+  }
+
+  .scheduleRow {
+    grid-template-columns:
+      36px
+      minmax(0, 1fr);
+
+    gap: 10px;
+
+    padding: 13px 15px;
+  }
+
+  .scheduleActivityIcon {
+    width: 34px;
+    height: 34px;
+  }
+
+  .scheduleIdentity,
+  .scheduleDate,
+  .scheduleOpenButton {
+    grid-column: 2;
+  }
+
+  .scheduleOpenButton {
+    width: fit-content;
+  }
+
+  .scheduleTitleRow {
+    align-items: flex-start;
+
+    flex-direction: column;
+  }
+
+  .operationalMetric {
+    min-height: 86px;
   }
 }
