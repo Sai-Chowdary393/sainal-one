@@ -1,6 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import Link from "next/link";
 
 import AppLayout from "../../components/layout/AppLayout";
@@ -9,7 +14,15 @@ import StatusBadge from "../../components/StatusBadge";
 
 import styles from "./emails.module.css";
 
+// =========================================================
+// CONSTANTS
+// =========================================================
+
 const EMAIL_TYPE_OPTIONS = [
+  "General",
+  "Lead",
+  "Customer",
+  "Project",
   "Proposal",
   "Invoice",
 ];
@@ -19,24 +32,126 @@ const STATUS_OPTIONS = [
   "Failed",
 ];
 
-export default function EmailsPage() {
-  const [emailLogs, setEmailLogs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState("");
+const RELATED_TYPES = [
+  "General",
+  "Lead",
+  "Customer",
+  "Project",
+];
 
-  const [searchValue, setSearchValue] = useState("");
-  const [emailTypeFilter, setEmailTypeFilter] =
+const EMPTY_COMPOSE_FORM = {
+  related_type:
+    "General",
+
+  related_id:
+    "",
+
+  to:
+    "",
+
+  subject:
+    "",
+
+  message:
+    "",
+};
+
+// =========================================================
+// PAGE
+// =========================================================
+
+export default function EmailsPage() {
+  const [
+    emailLogs,
+    setEmailLogs,
+  ] =
+    useState([]);
+
+  const [
+    loading,
+    setLoading,
+  ] =
+    useState(true);
+
+  const [
+    errorMessage,
+    setErrorMessage,
+  ] =
+    useState("");
+
+  const [
+    searchValue,
+    setSearchValue,
+  ] =
+    useState("");
+
+  const [
+    emailTypeFilter,
+    setEmailTypeFilter,
+  ] =
     useState("All");
-  const [statusFilter, setStatusFilter] =
+
+  const [
+    statusFilter,
+    setStatusFilter,
+  ] =
     useState("All");
+
+  const [
+    showCompose,
+    setShowCompose,
+  ] =
+    useState(false);
+
+  const [
+    sending,
+    setSending,
+  ] =
+    useState(false);
+
+  const [
+    composeForm,
+    setComposeForm,
+  ] =
+    useState(
+      EMPTY_COMPOSE_FORM
+    );
+
+  const [
+    leads,
+    setLeads,
+  ] =
+    useState([]);
+
+  const [
+    customers,
+    setCustomers,
+  ] =
+    useState([]);
+
+  const [
+    projects,
+    setProjects,
+  ] =
+    useState([]);
+
+  // =======================================================
+  // LOAD
+  // =======================================================
 
   useEffect(() => {
-    const timeout = window.setTimeout(() => {
-      fetchEmailLogs();
-    }, 250);
+    const timeout =
+      window.setTimeout(
+        () => {
+          fetchEmailLogs();
+        },
+        250
+      );
 
     return () => {
-      window.clearTimeout(timeout);
+      window.clearTimeout(
+        timeout
+      );
     };
   }, [
     searchValue,
@@ -44,48 +159,76 @@ export default function EmailsPage() {
     statusFilter,
   ]);
 
+  useEffect(() => {
+    loadComposeData();
+  }, []);
+
   async function fetchEmailLogs() {
     try {
-      setLoading(true);
-      setErrorMessage("");
+      setLoading(
+        true
+      );
 
-      const params = new URLSearchParams();
+      setErrorMessage(
+        ""
+      );
 
-      if (searchValue.trim()) {
+      const params =
+        new URLSearchParams();
+
+      if (
+        searchValue.trim()
+      ) {
         params.set(
           "search",
           searchValue.trim()
         );
       }
 
-      if (emailTypeFilter !== "All") {
+      if (
+        emailTypeFilter !==
+        "All"
+      ) {
         params.set(
           "email_type",
           emailTypeFilter
         );
       }
 
-      if (statusFilter !== "All") {
+      if (
+        statusFilter !==
+        "All"
+      ) {
         params.set(
           "status",
           statusFilter
         );
       }
 
-      const query = params.toString();
+      const query =
+        params.toString();
 
-      const response = await fetch(
-        `/api/email-logs${
-          query ? `?${query}` : ""
-        }`,
-        {
-          cache: "no-store",
-        }
-      );
+      const response =
+        await fetch(
+          `/api/email-logs${
+            query
+              ? `?${query}`
+              : ""
+          }`,
+          {
+            cache:
+              "no-store",
+          }
+        );
 
-      const data = await response.json();
+      const data =
+        await safeJson(
+          response
+        );
 
-      if (!response.ok) {
+      if (
+        !response.ok
+      ) {
         throw new Error(
           data.error ||
             "Failed to load email history."
@@ -93,7 +236,11 @@ export default function EmailsPage() {
       }
 
       setEmailLogs(
-        Array.isArray(data) ? data : []
+        Array.isArray(
+          data
+        )
+          ? data
+          : []
       );
     } catch (error) {
       console.error(
@@ -101,61 +248,435 @@ export default function EmailsPage() {
         error
       );
 
+      setEmailLogs(
+        []
+      );
+
       setErrorMessage(
         error.message ||
           "We could not load the email history."
       );
     } finally {
-      setLoading(false);
+      setLoading(
+        false
+      );
     }
   }
 
-  const summary = useMemo(() => {
-    const sent = emailLogs.filter(
-      (log) =>
-        normaliseValue(log.status) ===
-        "sent"
-    ).length;
+  async function loadComposeData() {
+    try {
+      const [
+        leadsResponse,
+        customersResponse,
+        projectsResponse,
+      ] =
+        await Promise.all([
+          fetch(
+            "/api/leads",
+            {
+              cache:
+                "no-store",
+            }
+          ),
 
-    const failed = emailLogs.filter(
-      (log) =>
-        normaliseValue(log.status) ===
-        "failed"
-    ).length;
+          fetch(
+            "/api/customers",
+            {
+              cache:
+                "no-store",
+            }
+          ),
 
-    const proposals = emailLogs.filter(
-      (log) =>
-        normaliseValue(
-          log.email_type
-        ) === "proposal"
-    ).length;
+          fetch(
+            "/api/projects",
+            {
+              cache:
+                "no-store",
+            }
+          ),
+        ]);
 
-    const invoices = emailLogs.filter(
-      (log) =>
-        normaliseValue(
-          log.email_type
-        ) === "invoice"
-    ).length;
+      const [
+        leadsData,
+        customersData,
+        projectsData,
+      ] =
+        await Promise.all([
+          safeJson(
+            leadsResponse
+          ),
+          safeJson(
+            customersResponse
+          ),
+          safeJson(
+            projectsResponse
+          ),
+        ]);
 
-    return {
-      total: emailLogs.length,
-      sent,
-      failed,
-      proposals,
-      invoices,
-    };
-  }, [emailLogs]);
+      setLeads(
+        leadsResponse.ok &&
+          Array.isArray(
+            leadsData.leads
+          )
+          ? leadsData.leads
+          : []
+      );
+
+      setCustomers(
+        customersResponse.ok &&
+          Array.isArray(
+            customersData.customers
+          )
+          ? customersData.customers
+          : []
+      );
+
+      setProjects(
+        projectsResponse.ok &&
+          Array.isArray(
+            projectsData.projects
+          )
+          ? projectsData.projects
+          : []
+      );
+    } catch (error) {
+      console.error(
+        "Email compose data loading error:",
+        error
+      );
+    }
+  }
+
+  // =======================================================
+  // COMPOSE
+  // =======================================================
+
+  function openCompose() {
+    setComposeForm(
+      EMPTY_COMPOSE_FORM
+    );
+
+    setShowCompose(
+      true
+    );
+  }
+
+  function closeCompose() {
+    if (
+      sending
+    ) {
+      return;
+    }
+
+    setShowCompose(
+      false
+    );
+  }
+
+  function handleComposeChange(
+    event
+  ) {
+    const {
+      name,
+      value,
+    } =
+      event.target;
+
+    setComposeForm(
+      (
+        current
+      ) => {
+        const next = {
+          ...current,
+
+          [name]:
+            value,
+        };
+
+        if (
+          name ===
+          "related_type"
+        ) {
+          next.related_id =
+            "";
+
+          /*
+           * Do not clear a manually typed recipient when
+           * switching back to General.
+           */
+          if (
+            value !==
+            "General"
+          ) {
+            next.to =
+              "";
+          }
+        }
+
+        if (
+          name ===
+          "related_id"
+        ) {
+          const email =
+            getRelatedEmail({
+              relatedType:
+                current.related_type,
+
+              relatedId:
+                value,
+
+              leads,
+
+              customers,
+            });
+
+          if (
+            email
+          ) {
+            next.to =
+              email;
+          }
+        }
+
+        return next;
+      }
+    );
+  }
+
+  async function sendEmail(
+    event
+  ) {
+    event.preventDefault();
+
+    if (
+      !composeForm.to.trim()
+    ) {
+      alert(
+        "Recipient email is required."
+      );
+
+      return;
+    }
+
+    if (
+      !composeForm.subject.trim()
+    ) {
+      alert(
+        "Subject is required."
+      );
+
+      return;
+    }
+
+    if (
+      !composeForm.message.trim()
+    ) {
+      alert(
+        "Message is required."
+      );
+
+      return;
+    }
+
+    if (
+      composeForm.related_type !==
+        "General" &&
+      !composeForm.related_id
+    ) {
+      alert(
+        `Please select a ${composeForm.related_type.toLowerCase()}.`
+      );
+
+      return;
+    }
+
+    try {
+      setSending(
+        true
+      );
+
+      const response =
+        await fetch(
+          "/api/emails/send",
+          {
+            method:
+              "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify({
+                to:
+                  composeForm.to.trim(),
+
+                subject:
+                  composeForm.subject.trim(),
+
+                message:
+                  composeForm.message.trim(),
+
+                related_type:
+                  composeForm.related_type,
+
+                related_id:
+                  composeForm.related_id ||
+                  null,
+              }),
+          }
+        );
+
+      const data =
+        await safeJson(
+          response
+        );
+
+      if (
+        !response.ok
+      ) {
+        throw new Error(
+          data.error ||
+            "Unable to send email."
+        );
+      }
+
+      setShowCompose(
+        false
+      );
+
+      setComposeForm(
+        EMPTY_COMPOSE_FORM
+      );
+
+      await fetchEmailLogs();
+
+      alert(
+        data.message ||
+          "Email sent successfully."
+      );
+    } catch (error) {
+      alert(
+        error.message ||
+          "Unable to send email."
+      );
+
+      await fetchEmailLogs();
+    } finally {
+      setSending(
+        false
+      );
+    }
+  }
+
+  // =======================================================
+  // SUMMARY / FILTERS
+  // =======================================================
+
+  const summary =
+    useMemo(
+      () => {
+        const sent =
+          emailLogs.filter(
+            (
+              log
+            ) =>
+              normaliseValue(
+                log.status
+              ) ===
+              "sent"
+          ).length;
+
+        const failed =
+          emailLogs.filter(
+            (
+              log
+            ) =>
+              normaliseValue(
+                log.status
+              ) ===
+              "failed"
+          ).length;
+
+        const proposals =
+          emailLogs.filter(
+            (
+              log
+            ) =>
+              normaliseValue(
+                log.email_type
+              ) ===
+              "proposal"
+          ).length;
+
+        const invoices =
+          emailLogs.filter(
+            (
+              log
+            ) =>
+              normaliseValue(
+                log.email_type
+              ) ===
+              "invoice"
+          ).length;
+
+        return {
+          total:
+            emailLogs.length,
+
+          sent,
+
+          failed,
+
+          proposals,
+
+          invoices,
+        };
+      },
+      [
+        emailLogs,
+      ]
+    );
 
   const filtersActive =
-    Boolean(searchValue) ||
-    emailTypeFilter !== "All" ||
-    statusFilter !== "All";
+    Boolean(
+      searchValue
+    ) ||
+    emailTypeFilter !==
+      "All" ||
+    statusFilter !==
+      "All";
 
   function clearFilters() {
-    setSearchValue("");
-    setEmailTypeFilter("All");
-    setStatusFilter("All");
+    setSearchValue(
+      ""
+    );
+
+    setEmailTypeFilter(
+      "All"
+    );
+
+    setStatusFilter(
+      "All"
+    );
   }
+
+  const relatedRecords =
+    getRelatedRecords({
+      relatedType:
+        composeForm.related_type,
+
+      leads,
+
+      customers,
+
+      projects,
+    });
+
+  // =======================================================
+  // PAGE
+  // =======================================================
 
   return (
     <ProtectedRoute>
@@ -163,9 +684,15 @@ export default function EmailsPage() {
         title="Emails"
         description="Review business email delivery and document communication."
       >
-        <div className={styles.page}>
+        <div
+          className={
+            styles.page
+          }
+        >
           <section
-            className={styles.pageHeader}
+            className={
+              styles.pageHeader
+            }
           >
             <div
               className={
@@ -173,40 +700,69 @@ export default function EmailsPage() {
               }
             >
               <span
-                className={styles.eyebrow}
+                className={
+                  styles.eyebrow
+                }
               >
                 Communication workspace
               </span>
 
-              <h2>Email activity centre</h2>
+              <h2>
+                Email activity centre
+              </h2>
 
               <p>
-                Review proposal and invoice
-                emails sent from SaiNal One,
-                including recipients, delivery
-                status and related business
-                records.
+                Send business emails and review proposal, invoice and CRM communication from one place.
               </p>
             </div>
 
-            <Link
-              href="/ai-assistant"
+            <div
               className={
-                styles.primaryButton
+                styles.headerActions
               }
             >
-              <span>✦</span>
-              Create with AI
-            </Link>
+              <Link
+                href="/ai-assistant"
+                className={
+                  styles.secondaryButton
+                }
+              >
+                <span>
+                  ✦
+                </span>
+
+                Create with AI
+              </Link>
+
+              <button
+                type="button"
+                className={
+                  styles.primaryButton
+                }
+                onClick={
+                  openCompose
+                }
+              >
+                <span>
+                  ✉
+                </span>
+
+                + Compose email
+              </button>
+            </div>
           </section>
 
           <section
-            className={styles.summaryGrid}
+            className={
+              styles.summaryGrid
+            }
           >
             <SummaryCard
               icon="✉"
               label="Email records"
-              value={summary.total}
+              value={
+                summary.total
+              }
               detail="All delivery attempts"
               tone="Gold"
             />
@@ -214,7 +770,9 @@ export default function EmailsPage() {
             <SummaryCard
               icon="✓"
               label="Sent"
-              value={summary.sent}
+              value={
+                summary.sent
+              }
               detail="Successfully delivered"
               tone="Green"
             />
@@ -222,7 +780,9 @@ export default function EmailsPage() {
             <SummaryCard
               icon="!"
               label="Failed"
-              value={summary.failed}
+              value={
+                summary.failed
+              }
               detail="Require attention"
               tone="Red"
             />
@@ -240,20 +800,30 @@ export default function EmailsPage() {
           </section>
 
           <section
-            className={styles.toolbarPanel}
+            className={
+              styles.toolbarPanel
+            }
           >
             <label
-              className={styles.searchBox}
+              className={
+                styles.searchBox
+              }
             >
-              <span aria-hidden="true">
+              <span
+                aria-hidden="true"
+              >
                 ⌕
               </span>
 
               <input
                 type="search"
-                placeholder="Search recipient, subject or document number..."
-                value={searchValue}
-                onChange={(event) =>
+                placeholder="Search recipient, subject, status or related record..."
+                value={
+                  searchValue
+                }
+                onChange={(
+                  event
+                ) =>
                   setSearchValue(
                     event.target.value
                   )
@@ -262,13 +832,21 @@ export default function EmailsPage() {
               />
             </label>
 
-            <div className={styles.filters}>
+            <div
+              className={
+                styles.filters
+              }
+            >
               <select
                 className={
                   styles.filterSelect
                 }
-                value={emailTypeFilter}
-                onChange={(event) =>
+                value={
+                  emailTypeFilter
+                }
+                onChange={(
+                  event
+                ) =>
                   setEmailTypeFilter(
                     event.target.value
                   )
@@ -280,12 +858,20 @@ export default function EmailsPage() {
                 </option>
 
                 {EMAIL_TYPE_OPTIONS.map(
-                  (emailType) => (
+                  (
+                    emailType
+                  ) => (
                     <option
-                      key={emailType}
-                      value={emailType}
+                      key={
+                        emailType
+                      }
+                      value={
+                        emailType
+                      }
                     >
-                      {emailType}
+                      {
+                        emailType
+                      }
                     </option>
                   )
                 )}
@@ -295,8 +881,12 @@ export default function EmailsPage() {
                 className={
                   styles.filterSelect
                 }
-                value={statusFilter}
-                onChange={(event) =>
+                value={
+                  statusFilter
+                }
+                onChange={(
+                  event
+                ) =>
                   setStatusFilter(
                     event.target.value
                   )
@@ -308,12 +898,20 @@ export default function EmailsPage() {
                 </option>
 
                 {STATUS_OPTIONS.map(
-                  (status) => (
+                  (
+                    status
+                  ) => (
                     <option
-                      key={status}
-                      value={status}
+                      key={
+                        status
+                      }
+                      value={
+                        status
+                      }
                     >
-                      {status}
+                      {
+                        status
+                      }
                     </option>
                   )
                 )}
@@ -325,7 +923,9 @@ export default function EmailsPage() {
                   className={
                     styles.clearButton
                   }
-                  onClick={clearFilters}
+                  onClick={
+                    clearFilters
+                  }
                 >
                   Clear filters
                 </button>
@@ -337,14 +937,20 @@ export default function EmailsPage() {
             <LoadingState />
           ) : errorMessage ? (
             <section
-              className={styles.errorPanel}
+              className={
+                styles.errorPanel
+              }
             >
               <div>
                 <strong>
                   Unable to load emails
                 </strong>
 
-                <p>{errorMessage}</p>
+                <p>
+                  {
+                    errorMessage
+                  }
+                </p>
               </div>
 
               <button
@@ -352,45 +958,61 @@ export default function EmailsPage() {
                 className={
                   styles.secondaryButton
                 }
-                onClick={fetchEmailLogs}
+                onClick={
+                  fetchEmailLogs
+                }
               >
                 Try again
               </button>
             </section>
           ) : (
             <section
-              className={styles.tablePanel}
+              className={
+                styles.tablePanel
+              }
             >
               <div
-                className={styles.tableHeading}
+                className={
+                  styles.tableHeading
+                }
               >
                 <div>
-                  <h3>Email delivery records</h3>
+                  <h3>
+                    Email delivery records
+                  </h3>
 
                   <p>
-                    Open an email record to
-                    review delivery information
-                    and related documents.
+                    Open an email record to review delivery information and related business records.
                   </p>
                 </div>
 
                 <span
-                  className={styles.resultCount}
+                  className={
+                    styles.resultCount
+                  }
                 >
-                  {emailLogs.length} result
-                  {emailLogs.length === 1
+                  {
+                    emailLogs.length
+                  }{" "}
+                  result
+                  {emailLogs.length ===
+                  1
                     ? ""
                     : "s"}
                 </span>
               </div>
 
-              {emailLogs.length === 0 ? (
+              {emailLogs.length ===
+              0 ? (
                 <EmptyState
                   filtersActive={
                     filtersActive
                   }
                   onClearFilters={
                     clearFilters
+                  }
+                  onCompose={
+                    openCompose
                   }
                 />
               ) : (
@@ -406,12 +1028,30 @@ export default function EmailsPage() {
                   >
                     <thead>
                       <tr>
-                        <th>Email</th>
-                        <th>Recipient</th>
-                        <th>Type</th>
-                        <th>Status</th>
-                        <th>Related record</th>
-                        <th>Sent</th>
+                        <th>
+                          Email
+                        </th>
+
+                        <th>
+                          Recipient
+                        </th>
+
+                        <th>
+                          Type
+                        </th>
+
+                        <th>
+                          Status
+                        </th>
+
+                        <th>
+                          Related record
+                        </th>
+
+                        <th>
+                          Sent
+                        </th>
+
                         <th
                           aria-label="Open email"
                         />
@@ -420,10 +1060,16 @@ export default function EmailsPage() {
 
                     <tbody>
                       {emailLogs.map(
-                        (log) => (
+                        (
+                          log
+                        ) => (
                           <EmailRow
-                            key={log.id}
-                            log={log}
+                            key={
+                              log.id
+                            }
+                            log={
+                              log
+                            }
                           />
                         )
                       )}
@@ -433,28 +1079,397 @@ export default function EmailsPage() {
               )}
             </section>
           )}
+
+          {showCompose && (
+            <ComposeEmailModal
+              form={
+                composeForm
+              }
+              relatedRecords={
+                relatedRecords
+              }
+              sending={
+                sending
+              }
+              onChange={
+                handleComposeChange
+              }
+              onClose={
+                closeCompose
+              }
+              onSubmit={
+                sendEmail
+              }
+            />
+          )}
         </div>
       </AppLayout>
     </ProtectedRoute>
   );
 }
 
-function EmailRow({ log }) {
+// =========================================================
+// COMPOSE MODAL
+// =========================================================
+
+function ComposeEmailModal({
+  form,
+  relatedRecords,
+  sending,
+  onChange,
+  onClose,
+  onSubmit,
+}) {
+  return (
+    <div
+      className={
+        styles.modalOverlay
+      }
+      role="presentation"
+      onMouseDown={(
+        event
+      ) => {
+        if (
+          event.target ===
+          event.currentTarget
+        ) {
+          onClose();
+        }
+      }}
+    >
+      <section
+        className={
+          styles.composePanel
+        }
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="compose-email-title"
+      >
+        <div
+          className={
+            styles.composeHeader
+          }
+        >
+          <div>
+            <span
+              className={
+                styles.eyebrow
+              }
+            >
+              New email
+            </span>
+
+            <h3
+              id="compose-email-title"
+            >
+              Compose email
+            </h3>
+
+            <p>
+              Send a business email and optionally link it to a CRM record.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            className={
+              styles.modalClose
+            }
+            onClick={
+              onClose
+            }
+            disabled={
+              sending
+            }
+            aria-label="Close compose email"
+          >
+            ×
+          </button>
+        </div>
+
+        <form
+          className={
+            styles.composeForm
+          }
+          onSubmit={
+            onSubmit
+          }
+        >
+          <div
+            className={
+              styles.composeGrid
+            }
+          >
+            <label
+              className={
+                styles.composeField
+              }
+            >
+              <span>
+                Related to
+              </span>
+
+              <select
+                name="related_type"
+                value={
+                  form.related_type
+                }
+                onChange={
+                  onChange
+                }
+                disabled={
+                  sending
+                }
+              >
+                {RELATED_TYPES.map(
+                  (
+                    type
+                  ) => (
+                    <option
+                      key={
+                        type
+                      }
+                      value={
+                        type
+                      }
+                    >
+                      {
+                        type
+                      }
+                    </option>
+                  )
+                )}
+              </select>
+            </label>
+
+            {form.related_type ===
+            "General" ? (
+              <div
+                className={
+                  styles.composeContext
+                }
+              >
+                <strong>
+                  General email
+                </strong>
+
+                <span>
+                  This email will not be linked to a CRM record.
+                </span>
+              </div>
+            ) : (
+              <label
+                className={
+                  styles.composeField
+                }
+              >
+                <span>
+                  {
+                    form.related_type
+                  }
+                </span>
+
+                <select
+                  name="related_id"
+                  value={
+                    form.related_id
+                  }
+                  onChange={
+                    onChange
+                  }
+                  disabled={
+                    sending
+                  }
+                >
+                  <option value="">
+                    Select{" "}
+                    {form.related_type.toLowerCase()}
+                  </option>
+
+                  {relatedRecords.map(
+                    (
+                      record
+                    ) => (
+                      <option
+                        key={
+                          record.id
+                        }
+                        value={
+                          record.id
+                        }
+                      >
+                        {
+                          record.label
+                        }
+                      </option>
+                    )
+                  )}
+                </select>
+              </label>
+            )}
+
+            <label
+              className={`${styles.composeField} ${styles.composeFieldFull}`}
+            >
+              <span>
+                To
+              </span>
+
+              <input
+                type="email"
+                name="to"
+                value={
+                  form.to
+                }
+                onChange={
+                  onChange
+                }
+                disabled={
+                  sending
+                }
+                placeholder="recipient@example.com"
+              />
+
+              {form.related_type !==
+                "General" &&
+                !form.to && (
+                  <small>
+                    If the selected record has no email address, enter one manually.
+                  </small>
+                )}
+            </label>
+
+            <label
+              className={`${styles.composeField} ${styles.composeFieldFull}`}
+            >
+              <span>
+                Subject
+              </span>
+
+              <input
+                name="subject"
+                value={
+                  form.subject
+                }
+                onChange={
+                  onChange
+                }
+                disabled={
+                  sending
+                }
+                placeholder="Email subject"
+              />
+            </label>
+
+            <label
+              className={`${styles.composeField} ${styles.composeFieldFull}`}
+            >
+              <span>
+                Message
+              </span>
+
+              <textarea
+                name="message"
+                rows={10}
+                value={
+                  form.message
+                }
+                onChange={
+                  onChange
+                }
+                disabled={
+                  sending
+                }
+                placeholder="Write your message..."
+              />
+            </label>
+          </div>
+
+          <div
+            className={
+              styles.composeFooter
+            }
+          >
+            <Link
+              href="/ai-assistant"
+              className={
+                styles.aiDraftLink
+              }
+            >
+              ✦ Draft with AI
+            </Link>
+
+            <div
+              className={
+                styles.composeActions
+              }
+            >
+              <button
+                type="button"
+                className={
+                  styles.secondaryButton
+                }
+                onClick={
+                  onClose
+                }
+                disabled={
+                  sending
+                }
+              >
+                Cancel
+              </button>
+
+              <button
+                type="submit"
+                className={
+                  styles.primaryButton
+                }
+                disabled={
+                  sending
+                }
+              >
+                {sending
+                  ? "Sending..."
+                  : "Send email"}
+              </button>
+            </div>
+          </div>
+        </form>
+      </section>
+    </div>
+  );
+}
+
+// =========================================================
+// EMAIL ROW
+// =========================================================
+
+function EmailRow({
+  log,
+}) {
   const relatedLink =
-    getRelatedLink(log);
+    getRelatedLink(
+      log
+    );
 
   const failed =
-    normaliseValue(log.status) ===
+    normaliseValue(
+      log.status
+    ) ===
     "failed";
 
   return (
     <tr>
       <td>
         <div
-          className={styles.emailIdentity}
+          className={
+            styles.emailIdentity
+          }
         >
           <span
-            className={styles.emailIcon}
+            className={
+              styles.emailIcon
+            }
           >
             ✉
           </span>
@@ -466,7 +1481,9 @@ function EmailRow({ log }) {
           >
             <Link
               href={`/emails/${log.id}`}
-              className={styles.emailLink}
+              className={
+                styles.emailLink
+              }
             >
               {log.subject ||
                 "Email without subject"}
@@ -483,18 +1500,24 @@ function EmailRow({ log }) {
 
       <td>
         <span
-          className={styles.recipient}
+          className={
+            styles.recipient
+          }
         >
           {log.recipient ||
+            log.recipient_email ||
             "No recipient"}
         </span>
       </td>
 
       <td>
         <span
-          className={styles.typeBadge}
+          className={
+            styles.typeBadge
+          }
         >
           {log.email_type ||
+            log.record_type ||
             "General"}
         </span>
       </td>
@@ -502,7 +1525,8 @@ function EmailRow({ log }) {
       <td>
         <StatusBadge
           status={
-            log.status || "Unknown"
+            log.status ||
+            "Unknown"
           }
         />
       </td>
@@ -510,7 +1534,9 @@ function EmailRow({ log }) {
       <td>
         {relatedLink ? (
           <Link
-            href={relatedLink}
+            href={
+              relatedLink
+            }
             className={
               styles.relatedLink
             }
@@ -532,7 +1558,9 @@ function EmailRow({ log }) {
 
       <td>
         <span
-          className={styles.dateText}
+          className={
+            styles.dateText
+          }
         >
           {formatDateTime(
             log.sent_at ||
@@ -544,7 +1572,9 @@ function EmailRow({ log }) {
       <td>
         <Link
           href={`/emails/${log.id}`}
-          className={styles.openButton}
+          className={
+            styles.openButton
+          }
         >
           Open →
         </Link>
@@ -552,6 +1582,10 @@ function EmailRow({ log }) {
     </tr>
   );
 }
+
+// =========================================================
+// SUPPORTING COMPONENTS
+// =========================================================
 
 function SummaryCard({
   icon,
@@ -563,23 +1597,35 @@ function SummaryCard({
   return (
     <div
       className={`${styles.summaryCard} ${
-        styles[`summary${tone}`] || ""
+        styles[
+          `summary${tone}`
+        ] ||
+        ""
       }`}
     >
       <span
-        className={styles.summaryIcon}
+        className={
+          styles.summaryIcon
+        }
       >
         {icon}
       </span>
 
       <span
-        className={styles.summaryLabel}
+        className={
+          styles.summaryLabel
+        }
       >
         {label}
       </span>
 
-      <strong>{value}</strong>
-      <small>{detail}</small>
+      <strong>
+        {value}
+      </strong>
+
+      <small>
+        {detail}
+      </small>
     </div>
   );
 }
@@ -587,11 +1633,18 @@ function SummaryCard({
 function EmptyState({
   filtersActive,
   onClearFilters,
+  onCompose,
 }) {
   return (
-    <div className={styles.emptyState}>
+    <div
+      className={
+        styles.emptyState
+      }
+    >
       <span
-        className={styles.emptyIcon}
+        className={
+          styles.emptyIcon
+        }
       >
         ✉
       </span>
@@ -605,24 +1658,33 @@ function EmptyState({
       <p>
         {filtersActive
           ? "Try changing or clearing the current email filters."
-          : "Send a proposal or invoice to create your first email delivery record."}
+          : "Compose an email or send a proposal/invoice to create your first delivery record."}
       </p>
 
       {filtersActive ? (
         <button
           type="button"
-          className={styles.primaryButton}
-          onClick={onClearFilters}
+          className={
+            styles.primaryButton
+          }
+          onClick={
+            onClearFilters
+          }
         >
           Clear filters
         </button>
       ) : (
-        <Link
-          href="/proposals"
-          className={styles.primaryButton}
+        <button
+          type="button"
+          className={
+            styles.primaryButton
+          }
+          onClick={
+            onCompose
+          }
         >
-          Open proposals
-        </Link>
+          Compose email
+        </button>
       )}
     </div>
   );
@@ -631,59 +1693,266 @@ function EmptyState({
 function LoadingState() {
   return (
     <section
-      className={styles.loadingPanel}
+      className={
+        styles.loadingPanel
+      }
     >
       {Array.from({
-        length: 5,
-      }).map((_, index) => (
-        <div
-          key={index}
-          className={styles.loadingRow}
-        />
-      ))}
+        length:
+          5,
+      }).map(
+        (
+          _,
+          index
+        ) => (
+          <div
+            key={
+              index
+            }
+            className={
+              styles.loadingRow
+            }
+          />
+        )
+      )}
     </section>
   );
 }
 
-function getRelatedLink(log) {
-  if (!log.related_record_id) {
+// =========================================================
+// HELPERS
+// =========================================================
+
+async function safeJson(
+  response
+) {
+  try {
+    return await response.json();
+  } catch {
+    return {};
+  }
+}
+
+function getRelatedRecords({
+  relatedType,
+  leads,
+  customers,
+  projects,
+}) {
+  if (
+    relatedType ===
+    "Lead"
+  ) {
+    return leads.map(
+      (
+        lead
+      ) => ({
+        id:
+          lead.id,
+
+        label:
+          [
+            lead.name ||
+              "Unnamed lead",
+
+            lead.company,
+          ]
+            .filter(
+              Boolean
+            )
+            .join(
+              " — "
+            ),
+      })
+    );
+  }
+
+  if (
+    relatedType ===
+    "Customer"
+  ) {
+    return customers.map(
+      (
+        customer
+      ) => ({
+        id:
+          customer.id,
+
+        label:
+          customer.customer_name ||
+          customer.name ||
+          customer.company ||
+          "Unnamed customer",
+      })
+    );
+  }
+
+  if (
+    relatedType ===
+    "Project"
+  ) {
+    return projects.map(
+      (
+        project
+      ) => ({
+        id:
+          project.id,
+
+        label:
+          project.project_name ||
+          project.name ||
+          project.title ||
+          "Unnamed project",
+      })
+    );
+  }
+
+  return [];
+}
+
+function getRelatedEmail({
+  relatedType,
+  relatedId,
+  leads,
+  customers,
+}) {
+  if (
+    !relatedId
+  ) {
+    return "";
+  }
+
+  if (
+    relatedType ===
+    "Lead"
+  ) {
+    const lead =
+      leads.find(
+        (
+          item
+        ) =>
+          String(
+            item.id
+          ) ===
+          String(
+            relatedId
+          )
+      );
+
+    return lead?.email ||
+      "";
+  }
+
+  if (
+    relatedType ===
+    "Customer"
+  ) {
+    const customer =
+      customers.find(
+        (
+          item
+        ) =>
+          String(
+            item.id
+          ) ===
+          String(
+            relatedId
+          )
+      );
+
+    return customer?.email ||
+      "";
+  }
+
+  return "";
+}
+
+function getRelatedLink(
+  log
+) {
+  const id =
+    log.related_record_id ||
+    log.record_id;
+
+  if (
+    !id
+  ) {
     return null;
   }
 
-  if (
+  const type =
     normaliseValue(
-      log.email_type
-    ) === "proposal"
+      log.email_type ||
+      log.record_type
+    );
+
+  if (
+    type ===
+    "proposal"
   ) {
-    return `/proposals/${log.related_record_id}`;
+    return `/proposals/${id}`;
   }
 
   if (
-    normaliseValue(
-      log.email_type
-    ) === "invoice"
+    type ===
+    "invoice"
   ) {
-    return `/invoices/${log.related_record_id}`;
+    return `/invoices/${id}`;
+  }
+
+  if (
+    type ===
+    "lead"
+  ) {
+    return `/leads/${id}`;
+  }
+
+  if (
+    type ===
+    "customer"
+  ) {
+    return `/customers/${id}`;
+  }
+
+  if (
+    type ===
+    "project"
+  ) {
+    return `/projects/${id}`;
   }
 
   return null;
 }
 
-function normaliseValue(value) {
-  return String(value || "")
+function normaliseValue(
+  value
+) {
+  return String(
+    value ||
+      ""
+  )
     .trim()
     .toLowerCase();
 }
 
-function formatDateTime(value) {
-  if (!value) {
+function formatDateTime(
+  value
+) {
+  if (
+    !value
+  ) {
     return "Not available";
   }
 
-  const date = new Date(value);
+  const date =
+    new Date(
+      value
+    );
 
   if (
-    Number.isNaN(date.getTime())
+    Number.isNaN(
+      date.getTime()
+    )
   ) {
     return "Not available";
   }
@@ -691,11 +1960,20 @@ function formatDateTime(value) {
   return date.toLocaleString(
     "en-GB",
     {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
+      day:
+        "2-digit",
+
+      month:
+        "short",
+
+      year:
+        "numeric",
+
+      hour:
+        "2-digit",
+
+      minute:
+        "2-digit",
     }
   );
 }
