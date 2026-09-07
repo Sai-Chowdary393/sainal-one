@@ -3,6 +3,10 @@
   gap: 20px;
 }
 
+/* =========================================================
+   PAGE HEADER
+========================================================= */
+
 .pageHeader {
   display: flex;
   align-items: flex-start;
@@ -21,7 +25,7 @@
   align-items: center;
   gap: 6px;
   color: #947000;
-  font-size: 10px;
+  font-size: var(--font-label);
   font-weight: 800;
 }
 
@@ -31,7 +35,7 @@
 
 .eyebrow {
   color: #9b7508;
-  font-size: 10px;
+  font-size: var(--font-label);
   font-weight: 900;
   letter-spacing: 1.15px;
   text-transform: uppercase;
@@ -40,14 +44,16 @@
 .pageHeader h2 {
   margin: 0;
   color: #26231d;
-  font-size: 29px;
+  font-size: var(--font-workspace-title);
+  line-height: 1.2;
   letter-spacing: -0.75px;
 }
 
 .pageHeader p {
   margin: 0;
   color: #858178;
-  font-size: 11px;
+  font-size: var(--font-helper);
+  line-height: var(--line-helper);
 }
 
 .headerActions {
@@ -57,10 +63,16 @@
   gap: 9px;
 }
 
+/* =========================================================
+   BUTTONS
+========================================================= */
+
 .primaryButton,
 .secondaryButton,
 .dangerButton,
-.actionButton {
+.actionButton,
+.scheduleCallButton,
+.scheduleCallMiniButton {
   display: inline-flex;
   min-height: 41px;
   align-items: center;
@@ -69,7 +81,7 @@
   padding: 0 14px;
   border-radius: 10px;
   font: inherit;
-  font-size: 10px;
+  font-size: var(--font-button);
   font-weight: 800;
   cursor: pointer;
   transition:
@@ -81,12 +93,22 @@
 
 .primaryButton {
   border: 1px solid #bd8d08;
-  background: linear-gradient(145deg, #dfb83d, #c8940b);
+  background:
+    linear-gradient(
+      145deg,
+      #dfb83d,
+      #c8940b
+    );
   color: #1b1a16;
 }
 
 .primaryButton:hover:not(:disabled) {
-  background: linear-gradient(145deg, #e6c14a, #d1a01a);
+  background:
+    linear-gradient(
+      145deg,
+      #e6c14a,
+      #d1a01a
+    );
   transform: translateY(-1px);
 }
 
@@ -124,17 +146,130 @@
   background: #f7efd6;
 }
 
+.scheduleCallButton {
+  border: 1px solid #bddbc8;
+  background: #f2faf5;
+  color: #397451;
+}
+
+.scheduleCallButton:hover:not(:disabled) {
+  border-color: #8fc0a1;
+  background: #e8f5ec;
+}
+
+.scheduleCallMiniButton {
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid #bddbc8;
+  background: #f3faf5;
+  color: #397451;
+}
+
+.scheduleCallMiniButton:hover {
+  border-color: #8fc0a1;
+  background: #e8f5ec;
+}
+
 .primaryButton:disabled,
 .secondaryButton:disabled,
 .dangerButton:disabled,
-.actionButton:disabled {
+.actionButton:disabled,
+.scheduleCallButton:disabled {
   cursor: wait;
   opacity: 0.65;
 }
 
+/* =========================================================
+   SCHEDULE CALL PANEL
+========================================================= */
+
+.callPanel {
+  padding: 21px;
+  border: 1px solid #cfe3d6;
+  border-radius: 18px;
+  background:
+    radial-gradient(
+      circle at 95% 0,
+      rgba(75, 139, 96, 0.08),
+      transparent 28%
+    ),
+    #ffffff;
+  box-shadow:
+    0 10px 30px
+    rgba(43, 36, 17, 0.05);
+}
+
+.callPanelHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e8eee9;
+}
+
+.callPanelHeader h3 {
+  margin: 5px 0 0;
+  color: #2b2822;
+  font-size: var(--font-panel-title);
+}
+
+.callPanelHeader p {
+  margin: 5px 0 0;
+  color: #8d8980;
+  font-size: var(--font-helper);
+  line-height: var(--line-helper);
+}
+
+.callBadge {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #e7f3eb;
+  color: #397451;
+  font-size: var(--font-label);
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.callForm {
+  display: grid;
+  gap: 16px;
+  margin-top: 17px;
+}
+
+.callFormGrid {
+  display: grid;
+  grid-template-columns:
+    repeat(
+      3,
+      minmax(0, 1fr)
+    );
+  gap: 14px;
+}
+
+.callNotesField {
+  grid-column: 1 / -1;
+}
+
+.callFormActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+}
+
+/* =========================================================
+   HERO
+========================================================= */
+
 .heroCard {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns:
+    minmax(0, 1fr)
+    auto;
   align-items: center;
   gap: 22px;
   padding: 24px;
@@ -147,7 +282,9 @@
       transparent 28%
     ),
     #ffffff;
-  box-shadow: 0 10px 30px rgba(43, 36, 17, 0.05);
+  box-shadow:
+    0 10px 30px
+    rgba(43, 36, 17, 0.05);
 }
 
 .identity {
@@ -164,7 +301,12 @@
   place-items: center;
   flex: 0 0 58px;
   border-radius: 16px;
-  background: linear-gradient(145deg, #24231f, #3a3426);
+  background:
+    linear-gradient(
+      145deg,
+      #24231f,
+      #3a3426
+    );
   color: #deb840;
   font-size: 16px;
   font-weight: 900;
@@ -178,7 +320,8 @@
   margin: 0;
   overflow: hidden;
   color: #28251f;
-  font-size: 21px;
+  font-size: 24px;
+  line-height: 1.25;
   letter-spacing: -0.45px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -187,7 +330,8 @@
 .identityCopy p {
   margin: 5px 0 0;
   color: #8b877e;
-  font-size: 10px;
+  font-size: var(--font-helper);
+  line-height: var(--line-helper);
 }
 
 .identityMeta {
@@ -205,7 +349,7 @@
   border-radius: 999px;
   background: #f2f0ea;
   color: #6f6b63;
-  font-size: 9px;
+  font-size: var(--font-label);
   font-weight: 750;
 }
 
@@ -221,25 +365,32 @@
 
 .heroValue span {
   color: #8e8a81;
-  font-size: 9px;
+  font-size: var(--font-label);
   font-weight: 800;
   text-transform: uppercase;
 }
 
 .heroValue strong {
   color: #8e6900;
-  font-size: 25px;
+  font-size: 30px;
   letter-spacing: -0.6px;
 }
 
 .heroValue small {
   color: #aaa69d;
-  font-size: 9px;
+  font-size: var(--font-helper);
+  line-height: var(--line-helper);
 }
+
+/* =========================================================
+   PANELS
+========================================================= */
 
 .contentGrid {
   display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  grid-template-columns:
+    minmax(0, 1.05fr)
+    minmax(0, 0.95fr);
   align-items: start;
   gap: 18px;
 }
@@ -251,7 +402,9 @@
   border: 1px solid #dfdcd3;
   border-radius: 18px;
   background: #ffffff;
-  box-shadow: 0 10px 30px rgba(43, 36, 17, 0.05);
+  box-shadow:
+    0 10px 30px
+    rgba(43, 36, 17, 0.05);
 }
 
 .panel,
@@ -271,14 +424,19 @@
 .panelHeader h3 {
   margin: 0;
   color: #2b2822;
-  font-size: 16px;
+  font-size: var(--font-panel-title);
 }
 
 .panelHeader p {
   margin: 4px 0 0;
   color: #98948b;
-  font-size: 9px;
+  font-size: var(--font-helper);
+  line-height: var(--line-helper);
 }
+
+/* =========================================================
+   DETAILS
+========================================================= */
 
 .detailList {
   display: grid;
@@ -287,7 +445,9 @@
 
 .detailRow {
   display: grid;
-  grid-template-columns: 145px minmax(0, 1fr);
+  grid-template-columns:
+    145px
+    minmax(0, 1fr);
   gap: 18px;
   padding: 13px 0;
   border-bottom: 1px solid #f0eee8;
@@ -299,7 +459,7 @@
 
 .detailRow > span {
   color: #89857c;
-  font-size: 10px;
+  font-size: var(--font-helper);
   font-weight: 700;
 }
 
@@ -307,7 +467,8 @@
 .detailRow a {
   overflow-wrap: anywhere;
   color: #333029;
-  font-size: 11px;
+  font-size: var(--font-body);
+  line-height: 1.5;
 }
 
 .detailRow a:hover {
@@ -318,6 +479,10 @@
   color: #aaa69d !important;
   font-weight: 500 !important;
 }
+
+/* =========================================================
+   AI
+========================================================= */
 
 .aiHeader {
   display: flex;
@@ -332,7 +497,12 @@
   place-items: center;
   flex: 0 0 41px;
   border-radius: 12px;
-  background: linear-gradient(145deg, #dfb941, #bc8906);
+  background:
+    linear-gradient(
+      145deg,
+      #dfb941,
+      #bc8906
+    );
   color: #201e18;
   font-size: 17px;
 }
@@ -344,7 +514,7 @@
   gap: 6px;
   padding: 0 10px;
   border-radius: 999px;
-  font-size: 9px;
+  font-size: var(--font-label);
   font-weight: 850;
 }
 
@@ -385,7 +555,7 @@
   display: block;
   margin-bottom: 7px;
   color: #9b7509;
-  font-size: 9px;
+  font-size: var(--font-label);
   font-weight: 850;
   text-transform: uppercase;
 }
@@ -393,16 +563,24 @@
 .aiBlock p {
   margin: 0;
   color: #68645c;
-  font-size: 10px;
+  font-size: var(--font-body);
   line-height: 1.65;
 }
 
 .aiActions {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns:
+    repeat(
+      2,
+      minmax(0, 1fr)
+    );
   gap: 10px;
   margin-top: 16px;
 }
+
+/* =========================================================
+   EDIT FORM
+========================================================= */
 
 .editForm {
   display: grid;
@@ -412,7 +590,11 @@
 
 .formGrid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns:
+    repeat(
+      2,
+      minmax(0, 1fr)
+    );
   gap: 14px;
 }
 
@@ -427,7 +609,7 @@
 
 .field label {
   color: #4d4942;
-  font-size: 9px;
+  font-size: var(--font-helper);
   font-weight: 800;
 }
 
@@ -442,7 +624,7 @@
   background: #ffffff;
   color: #2c2923;
   font: inherit;
-  font-size: 11px;
+  font-size: var(--font-input);
   transition:
     border-color 150ms ease,
     box-shadow 150ms ease;
@@ -466,16 +648,26 @@
 .field textarea:focus,
 .draftTextarea:focus {
   border-color: #c69a1b;
-  box-shadow: 0 0 0 4px rgba(198, 154, 27, 0.1);
+  box-shadow:
+    0 0 0 4px
+    rgba(198, 154, 27, 0.1);
 }
+
+/* =========================================================
+   NOTES
+========================================================= */
 
 .notesText {
   margin: 15px 0 0;
   color: #69655d;
-  font-size: 11px;
+  font-size: var(--font-body);
   line-height: 1.7;
   white-space: pre-wrap;
 }
+
+/* =========================================================
+   TIMELINE
+========================================================= */
 
 .timeline {
   display: grid;
@@ -485,7 +677,9 @@
 
 .timelineItem {
   display: grid;
-  grid-template-columns: 12px minmax(0, 1fr);
+  grid-template-columns:
+    12px
+    minmax(0, 1fr);
   gap: 11px;
 }
 
@@ -496,20 +690,259 @@
   border: 2px solid #ffffff;
   border-radius: 50%;
   background: #c99b17;
-  box-shadow: 0 0 0 2px #e9ddba;
+  box-shadow:
+    0 0 0 2px
+    #e9ddba;
 }
 
 .timelineItem strong {
   display: block;
   color: #3a3730;
-  font-size: 10px;
+  font-size: var(--font-body);
 }
 
 .timelineItem p {
   margin: 4px 0 0;
   color: #98948b;
-  font-size: 9px;
+  font-size: var(--font-helper);
+  line-height: 1.5;
 }
+
+/* =========================================================
+   LEAD ACTIVITIES
+========================================================= */
+
+.activityList {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.activityCard {
+  display: grid;
+  grid-template-columns:
+    38px
+    minmax(0, 1fr);
+  gap: 11px;
+  padding: 13px;
+  border: 1px solid #ebe8e1;
+  border-radius: 12px;
+  background: #fcfbf8;
+}
+
+.activityCardIcon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 11px;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.activityFollowUp {
+  background: #f5edcf;
+  color: #927000;
+}
+
+.activityCall {
+  background: #e7f3eb;
+  color: #397451;
+}
+
+.activityMeeting {
+  background: #e8eef6;
+  color: #416d95;
+}
+
+.activityDemo {
+  background: #f7efd5;
+  color: #8f6900;
+}
+
+.activityEmail {
+  background: #eeeaf7;
+  color: #695598;
+}
+
+.activityCardCopy {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.activityCardTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.activityCardTop > div {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.activityCardTop strong {
+  overflow: hidden;
+  color: #36332c;
+  font-size: var(--font-body);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activityKind {
+  color: #8b867d;
+  font-size: var(--font-label);
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.activityCardCopy p {
+  margin: 0;
+  color: #858178;
+  font-size: var(--font-helper);
+  line-height: 1.5;
+}
+
+.activityCardCopy small {
+  color: #99958c;
+  font-size: var(--font-meta);
+  line-height: 1.5;
+}
+
+.activityOutcome {
+  color: #397451;
+  font-size: var(--font-meta);
+  font-weight: 800;
+}
+
+.activityEmptyState {
+  display: grid;
+  min-height: 185px;
+  place-items: center;
+  align-content: center;
+  gap: 7px;
+  margin-top: 15px;
+  text-align: center;
+}
+
+.activityEmptyState > span {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 12px;
+  background: #f5edcf;
+  color: #957000;
+  font-size: 17px;
+}
+
+.activityEmptyState strong {
+  color: #3a3730;
+  font-size: var(--font-body);
+}
+
+.activityEmptyState p {
+  max-width: 390px;
+  margin: 0;
+  color: #969289;
+  font-size: var(--font-helper);
+  line-height: 1.55;
+}
+
+/* =========================================================
+   ACTIVITY SUMMARY
+========================================================= */
+
+.activitySummaryGrid {
+  display: grid;
+  grid-template-columns:
+    repeat(
+      2,
+      minmax(0, 1fr)
+    );
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.activityMetric {
+  --metric-colour: #927000;
+  --metric-soft: #f5edcf;
+
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  padding: 13px;
+  border: 1px solid #e4e1d9;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.activityMetric > span {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  flex: 0 0 34px;
+  border-radius: 10px;
+  background: var(--metric-soft);
+  color: var(--metric-colour);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.activityMetric > div {
+  display: grid;
+  gap: 2px;
+}
+
+.activityMetric strong {
+  color: #302d27;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.activityMetric small {
+  color: #8f8b82;
+  font-size: var(--font-label);
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.activityMetricGold {
+  --metric-colour: #927000;
+  --metric-soft: #f5edcf;
+}
+
+.activityMetricBlue {
+  --metric-colour: #416d95;
+  --metric-soft: #e8eef6;
+}
+
+.activityMetricGreen {
+  --metric-colour: #397451;
+  --metric-soft: #e7f3eb;
+}
+
+.activitiesLink {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 15px;
+  color: #947000;
+  font-size: var(--font-button);
+  font-weight: 800;
+}
+
+.activitiesLink:hover {
+  color: #6f5400;
+}
+
+/* =========================================================
+   DRAFTS
+========================================================= */
 
 .draftPanel {
   display: grid;
@@ -526,13 +959,14 @@
 .draftHeader h3 {
   margin: 0;
   color: #29261f;
-  font-size: 16px;
+  font-size: var(--font-panel-title);
 }
 
 .draftHeader p {
   margin: 4px 0 0;
   color: #98948b;
-  font-size: 9px;
+  font-size: var(--font-helper);
+  line-height: var(--line-helper);
 }
 
 .successMessage {
@@ -542,9 +976,13 @@
   border-radius: 10px;
   background: #f3fbf6;
   color: #39734f;
-  font-size: 9px;
+  font-size: var(--font-helper);
   font-weight: 700;
 }
+
+/* =========================================================
+   LOADING / ERROR / NOT FOUND
+========================================================= */
 
 .loadingPanel {
   display: grid;
@@ -555,14 +993,18 @@
 .loadingRow {
   height: 65px;
   border-radius: 11px;
-  background: linear-gradient(
-    90deg,
-    #e9e6df 25%,
-    #f5f3ee 50%,
-    #e9e6df 75%
-  );
+  background:
+    linear-gradient(
+      90deg,
+      #e9e6df 25%,
+      #f5f3ee 50%,
+      #e9e6df 75%
+    );
   background-size: 200% 100%;
-  animation: loadingPulse 1.4s infinite;
+  animation:
+    loadingPulse
+    1.4s
+    infinite;
 }
 
 .errorPanel {
@@ -582,7 +1024,7 @@
 .errorPanel p {
   margin: 5px 0 0;
   color: #a36262;
-  font-size: 10px;
+  font-size: var(--font-helper);
 }
 
 .notFound {
@@ -608,13 +1050,13 @@
 .notFound h2 {
   margin: 0;
   color: #302d27;
-  font-size: 21px;
+  font-size: 24px;
 }
 
 .notFound p {
   margin: 0;
   color: #969289;
-  font-size: 10px;
+  font-size: var(--font-helper);
 }
 
 @keyframes loadingPulse {
@@ -627,7 +1069,13 @@
   }
 }
 
-@media (max-width: 1050px) {
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (
+  max-width: 1050px
+) {
   .contentGrid {
     grid-template-columns: 1fr;
   }
@@ -639,10 +1087,21 @@
   .heroValue {
     width: 100%;
   }
+
+  .callFormGrid {
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
+  }
 }
 
-@media (max-width: 760px) {
-  .pageHeader {
+@media (
+  max-width: 760px
+) {
+  .pageHeader,
+  .callPanelHeader {
     align-items: stretch;
     flex-direction: column;
   }
@@ -656,11 +1115,14 @@
   }
 
   .formGrid,
-  .aiActions {
+  .aiActions,
+  .callFormGrid,
+  .activitySummaryGrid {
     grid-template-columns: 1fr;
   }
 
-  .fieldFull {
+  .fieldFull,
+  .callNotesField {
     grid-column: auto;
   }
 
@@ -668,9 +1130,26 @@
     grid-template-columns: 1fr;
     gap: 6px;
   }
+
+  .callFormActions {
+    flex-direction: column-reverse;
+  }
+
+  .callFormActions button {
+    width: 100%;
+  }
+
+  .field input,
+  .field select,
+  .field textarea,
+  .draftTextarea {
+    font-size: 16px;
+  }
 }
 
-@media (max-width: 520px) {
+@media (
+  max-width: 520px
+) {
   .identity {
     align-items: flex-start;
   }
@@ -688,142 +1167,9 @@
   .headerActions button {
     width: 100%;
   }
-}
-/* ==================================================
-   SaiNal One Typography — Lead Details
-================================================== */
 
-.backLink,
-.eyebrow {
-  font-size: var(--font-label);
-}
-
-.pageHeader h2 {
-  font-size: var(--font-workspace-title);
-  line-height: 1.2;
-}
-
-.pageHeader p {
-  font-size: var(--font-helper);
-  line-height: var(--line-helper);
-}
-
-.primaryButton,
-.secondaryButton,
-.dangerButton,
-.actionButton {
-  font-size: var(--font-button);
-}
-
-.identityCopy h3 {
-  font-size: 24px;
-  line-height: 1.25;
-}
-
-.identityCopy p {
-  font-size: var(--font-helper);
-  line-height: var(--line-helper);
-}
-
-.metaBadge,
-.aiScore {
-  font-size: var(--font-label);
-}
-
-.heroValue span {
-  font-size: var(--font-label);
-}
-
-.heroValue strong {
-  font-size: 30px;
-}
-
-.heroValue small {
-  font-size: var(--font-helper);
-  line-height: var(--line-helper);
-}
-
-.panelHeader h3,
-.draftHeader h3 {
-  font-size: var(--font-panel-title);
-}
-
-.panelHeader p,
-.draftHeader p {
-  font-size: var(--font-helper);
-  line-height: var(--line-helper);
-}
-
-.detailRow > span {
-  font-size: var(--font-helper);
-}
-
-.detailRow strong,
-.detailRow a {
-  font-size: var(--font-body);
-  line-height: 1.5;
-}
-
-.aiBlock span {
-  font-size: var(--font-label);
-}
-
-.aiBlock p {
-  font-size: var(--font-body);
-  line-height: 1.65;
-}
-
-.field label {
-  font-size: var(--font-helper);
-}
-
-.field input,
-.field select,
-.field textarea,
-.draftTextarea {
-  font-size: var(--font-input);
-}
-
-.notesText {
-  font-size: var(--font-body);
-  line-height: 1.7;
-}
-
-.timelineItem strong {
-  font-size: var(--font-body);
-}
-
-.timelineItem p {
-  font-size: var(--font-helper);
-  line-height: 1.5;
-}
-
-.successMessage {
-  font-size: var(--font-helper);
-}
-
-.errorPanel p,
-.notFound p {
-  font-size: var(--font-helper);
-}
-
-.notFound h2 {
-  font-size: 24px;
-}
-
-@media (max-width: 760px) {
-  .pageHeader h2 {
-    font-size: 26px;
-  }
-
-  .identityCopy h3 {
-    font-size: 22px;
-  }
-
-  .field input,
-  .field select,
-  .field textarea,
-  .draftTextarea {
-    font-size: 16px;
+  .activityCardTop {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
