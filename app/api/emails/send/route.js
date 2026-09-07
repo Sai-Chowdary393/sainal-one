@@ -338,6 +338,7 @@ async function writeEmailLog({
   relatedRecord,
   recipientEmail,
   subject,
+  messageBody,
   status,
   providerEmailId,
   errorMessage,
@@ -373,6 +374,10 @@ async function writeEmailLog({
             recipientEmail,
 
           subject,
+
+          message_body:
+            messageBody ||
+            null,
 
           email_type:
             relatedType,
@@ -749,6 +754,9 @@ export async function POST(
           recipientEmail,
           subject,
 
+          messageBody:
+            message,
+
           status:
             "Failed",
 
@@ -784,6 +792,9 @@ export async function POST(
         relatedRecord,
         recipientEmail,
         subject,
+
+        messageBody:
+          message,
 
         status:
           "Sent",
