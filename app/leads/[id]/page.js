@@ -31,6 +31,24 @@ const STATUS_OPTIONS = [
   "Lost",
 ];
 
+const EMPTY_ACTIVITY_ACCESS = {
+  isOwner: false,
+  canViewAll: false,
+  canViewTeam: false,
+  canViewOwn: false,
+  canCreate: false,
+  canEdit: false,
+  canDelete: false,
+  canAssign: false,
+};
+
+const EMPTY_CALL_FORM = {
+  title: "",
+  scheduled_at: "",
+  assigned_employee_id: "",
+  note: "",
+};
+
 // =========================================================
 // PAGE
 // =========================================================
@@ -76,10 +94,52 @@ export default function LeadDetails() {
     canAssign: false,
   });
 
+  // =======================================================
+  // ACTIVITIES
+  // =======================================================
+
   const [
     followUps,
     setFollowUps,
   ] = useState([]);
+
+  const [
+    activityEmployees,
+    setActivityEmployees,
+  ] = useState([]);
+
+  const [
+    activityCurrentEmployee,
+    setActivityCurrentEmployee,
+  ] = useState(null);
+
+  const [
+    activityAccess,
+    setActivityAccess,
+  ] = useState(
+    EMPTY_ACTIVITY_ACCESS
+  );
+
+  const [
+    showCallForm,
+    setShowCallForm,
+  ] = useState(false);
+
+  const [
+    callForm,
+    setCallForm,
+  ] = useState(
+    EMPTY_CALL_FORM
+  );
+
+  const [
+    schedulingCall,
+    setSchedulingCall,
+  ] = useState(false);
+
+  // =======================================================
+  // PAGE STATE
+  // =======================================================
 
   const [
     loading,
@@ -170,7 +230,9 @@ export default function LeadDetails() {
         );
 
       const data =
-        await response.json();
+        await safeJson(
+          response
+        );
 
       if (
         !response.ok
@@ -267,7 +329,7 @@ export default function LeadDetails() {
           ),
       });
 
-      await fetchRelatedFollowUps(
+      await fetchRelatedActivities(
         data.lead?.id ||
           leadId
       );
@@ -299,10 +361,10 @@ export default function LeadDetails() {
   }
 
   // =======================================================
-  // RELATED FOLLOW-UPS
+  // RELATED ACTIVITIES
   // =======================================================
 
-  async function fetchRelatedFollowUps(
+  async function fetchRelatedActivities(
     currentLeadId = leadId
   ) {
     if (
@@ -310,6 +372,18 @@ export default function LeadDetails() {
     ) {
       setFollowUps(
         []
+      );
+
+      setActivityEmployees(
+        []
+      );
+
+      setActivityCurrentEmployee(
+        null
+      );
+
+      setActivityAccess(
+        EMPTY_ACTIVITY_ACCESS
       );
 
       return;
@@ -328,13 +402,15 @@ export default function LeadDetails() {
         );
 
       const data =
-        await response.json();
+        await safeJson(
+          response
+        );
 
       if (
         !response.ok
       ) {
         console.warn(
-          "Unable to load related follow-ups:",
+          "Unable to load lead activities:",
           data.error
         );
 
@@ -352,16 +428,257 @@ export default function LeadDetails() {
           ? data.followUps
           : []
       );
+
+      setActivityEmployees(
+        Array.isArray(
+          data.employees
+        )
+          ? data.employees
+          : []
+      );
+
+      setActivityCurrentEmployee(
+        data.currentEmployee ||
+          null
+      );
+
+      setActivityAccess(
+        buildActivityAccess(
+          data.access
+        )
+      );
     } catch (
       error
     ) {
       console.error(
-        "Related follow-up loading error:",
+        "Lead activity loading error:",
         error
       );
 
       setFollowUps(
         []
+      );
+    }
+  }
+
+  // =======================================================
+  // SCHEDULE CALL
+  // =======================================================
+
+  function openScheduleCall() {
+    if (
+      !activityAccess.canCreate ||
+      !lead
+    ) {
+      return;
+    }
+
+    setCallForm({
+      title:
+        `Call with ${
+          lead.name ||
+          "lead"
+        }`,
+
+      scheduled_at:
+        "",
+
+      assigned_employee_id:
+        activityAccess.canAssign
+          ? activityCurrentEmployee
+              ?.id ||
+            ""
+          : "",
+
+      note:
+        lead.ai_next_action ||
+        "",
+    });
+
+    setShowCallForm(
+      true
+    );
+  }
+
+  function closeScheduleCall() {
+    setShowCallForm(
+      false
+    );
+
+    setCallForm(
+      EMPTY_CALL_FORM
+    );
+  }
+
+  function handleCallFormChange(
+    event
+  ) {
+    const {
+      name,
+      value,
+    } =
+      event.target;
+
+    setCallForm(
+      (
+        current
+      ) => ({
+        ...current,
+
+        [name]:
+          value,
+      })
+    );
+  }
+
+  async function scheduleCall(
+    event
+  ) {
+    event.preventDefault();
+
+    if (
+      !lead ||
+      !activityAccess.canCreate
+    ) {
+      return;
+    }
+
+    if (
+      !callForm.title
+        .trim()
+    ) {
+      alert(
+        "Call title is required."
+      );
+
+      return;
+    }
+
+    if (
+      !callForm.scheduled_at
+    ) {
+      alert(
+        "Call date and time are required."
+      );
+
+      return;
+    }
+
+    const scheduledAt =
+      toIsoDateTime(
+        callForm.scheduled_at
+      );
+
+    if (
+      !scheduledAt
+    ) {
+      alert(
+        "Please choose a valid call date and time."
+      );
+
+      return;
+    }
+
+    try {
+      setSchedulingCall(
+        true
+      );
+
+      const payload = {
+        activity_type:
+          "Call",
+
+        related_type:
+          "Lead",
+
+        related_id:
+          lead.id,
+
+        title:
+          callForm.title
+            .trim(),
+
+        note:
+          callForm.note
+            .trim() ||
+          null,
+
+        due_date:
+          null,
+
+        scheduled_at:
+          scheduledAt,
+
+        status:
+          "Scheduled",
+      };
+
+      if (
+        activityAccess.canAssign &&
+        callForm.assigned_employee_id
+      ) {
+        payload.assigned_employee_id =
+          callForm.assigned_employee_id;
+      }
+
+      const response =
+        await fetch(
+          "/api/follow-ups",
+          {
+            method:
+              "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify(
+                payload
+              ),
+          }
+        );
+
+      const data =
+        await safeJson(
+          response
+        );
+
+      if (
+        !response.ok
+      ) {
+        throw new Error(
+          data.error ||
+            "Failed to schedule call."
+        );
+      }
+
+      closeScheduleCall();
+
+      await fetchRelatedActivities(
+        lead.id
+      );
+
+      alert(
+        data.message ||
+          "Call scheduled successfully."
+      );
+    } catch (
+      error
+    ) {
+      console.error(
+        "Call scheduling error:",
+        error
+      );
+
+      alert(
+        error.message ||
+          "Error scheduling call."
+      );
+    } finally {
+      setSchedulingCall(
+        false
       );
     }
   }
@@ -568,7 +885,9 @@ export default function LeadDetails() {
         );
 
       const data =
-        await response.json();
+        await safeJson(
+          response
+        );
 
       if (
         !response.ok
@@ -657,7 +976,9 @@ export default function LeadDetails() {
         );
 
       const data =
-        await response.json();
+        await safeJson(
+          response
+        );
 
       if (
         !response.ok
@@ -755,7 +1076,9 @@ The email should:
         );
 
       const data =
-        await response.json();
+        await safeJson(
+          response
+        );
 
       if (
         !response.ok
@@ -823,6 +1146,9 @@ The email should:
 
             body:
               JSON.stringify({
+                activity_type:
+                  "Follow-up",
+
                 related_type:
                   "Lead",
 
@@ -848,6 +1174,9 @@ The email should:
                 due_date:
                   null,
 
+                scheduled_at:
+                  null,
+
                 status:
                   "Pending",
               }),
@@ -855,7 +1184,9 @@ The email should:
         );
 
       const data =
-        await response.json();
+        await safeJson(
+          response
+        );
 
       if (
         !response.ok
@@ -866,12 +1197,13 @@ The email should:
         );
       }
 
-      await fetchRelatedFollowUps(
+      await fetchRelatedActivities(
         lead.id
       );
 
       alert(
-        "Follow-up task created successfully."
+        data.message ||
+          "Follow-up created successfully."
       );
     } catch (
       error
@@ -1007,7 +1339,9 @@ www.sainaltechnologies.com`;
         );
 
       const data =
-        await response.json();
+        await safeJson(
+          response
+        );
 
       if (
         !response.ok
@@ -1062,6 +1396,50 @@ www.sainaltechnologies.com`;
   const canManageLead =
     canEdit ||
     canAssign;
+
+  // =======================================================
+  // ACTIVITY METRICS
+  // =======================================================
+
+  const totalActivities =
+    followUps.length;
+
+  const callCount =
+    followUps.filter(
+      (
+        item
+      ) =>
+        normalise(
+          item.activity_type
+        ) ===
+        "call"
+    ).length;
+
+  const scheduledCount =
+    followUps.filter(
+      (
+        item
+      ) =>
+        [
+          "scheduled",
+          "rescheduled",
+        ].includes(
+          normalise(
+            item.status
+          )
+        )
+    ).length;
+
+  const completedActivityCount =
+    followUps.filter(
+      (
+        item
+      ) =>
+        normalise(
+          item.status
+        ) ===
+        "completed"
+    ).length;
 
   // =======================================================
   // LOADING
@@ -1160,9 +1538,7 @@ www.sainaltechnologies.com`;
             </h2>
 
             <p>
-              This lead may have been
-              deleted or you may not have
-              access to it.
+              This lead may have been deleted or you may not have access to it.
             </p>
 
             <Link
@@ -1236,9 +1612,7 @@ www.sainaltechnologies.com`;
               </h2>
 
               <p>
-                Sensitive contact and
-                commercial information is
-                shown only on this record.
+                Sensitive contact and commercial information is shown only on this record.
               </p>
             </div>
 
@@ -1296,6 +1670,20 @@ www.sainaltechnologies.com`;
                 </button>
               ) : null}
 
+              {activityAccess.canCreate && (
+                <button
+                  type="button"
+                  className={
+                    styles.scheduleCallButton
+                  }
+                  onClick={
+                    openScheduleCall
+                  }
+                >
+                  ☎ Schedule call
+                </button>
+              )}
+
               <button
                 type="button"
                 className={
@@ -1333,6 +1721,224 @@ www.sainaltechnologies.com`;
               )}
             </div>
           </section>
+
+          {/* =================================================
+              SCHEDULE CALL FORM
+          ================================================= */}
+
+          {showCallForm &&
+            activityAccess.canCreate && (
+              <section
+                className={
+                  styles.callPanel
+                }
+              >
+                <div
+                  className={
+                    styles.callPanelHeader
+                  }
+                >
+                  <div>
+                    <span
+                      className={
+                        styles.eyebrow
+                      }
+                    >
+                      Lead activity
+                    </span>
+
+                    <h3>
+                      Schedule a call
+                    </h3>
+
+                    <p>
+                      This call will automatically be linked to {lead.name || "this lead"}.
+                    </p>
+                  </div>
+
+                  <span
+                    className={
+                      styles.callBadge
+                    }
+                  >
+                    ☎ Call
+                  </span>
+                </div>
+
+                <form
+                  className={
+                    styles.callForm
+                  }
+                  onSubmit={
+                    scheduleCall
+                  }
+                >
+                  <div
+                    className={
+                      styles.callFormGrid
+                    }
+                  >
+                    <div
+                      className={
+                        styles.field
+                      }
+                    >
+                      <label
+                        htmlFor="call-title"
+                      >
+                        Call title
+                      </label>
+
+                      <input
+                        id="call-title"
+                        name="title"
+                        value={
+                          callForm.title
+                        }
+                        onChange={
+                          handleCallFormChange
+                        }
+                        placeholder="e.g. Discovery call"
+                      />
+                    </div>
+
+                    <div
+                      className={
+                        styles.field
+                      }
+                    >
+                      <label
+                        htmlFor="call-scheduled-at"
+                      >
+                        Date & time
+                      </label>
+
+                      <input
+                        id="call-scheduled-at"
+                        name="scheduled_at"
+                        type="datetime-local"
+                        value={
+                          callForm.scheduled_at
+                        }
+                        onChange={
+                          handleCallFormChange
+                        }
+                      />
+                    </div>
+
+                    {activityAccess.canAssign && (
+                      <div
+                        className={
+                          styles.field
+                        }
+                      >
+                        <label
+                          htmlFor="call-assignee"
+                        >
+                          Assigned employee
+                        </label>
+
+                        <select
+                          id="call-assignee"
+                          name="assigned_employee_id"
+                          value={
+                            callForm.assigned_employee_id
+                          }
+                          onChange={
+                            handleCallFormChange
+                          }
+                        >
+                          <option value="">
+                            Assign to me
+                          </option>
+
+                          {activityEmployees.map(
+                            (
+                              employee
+                            ) => (
+                              <option
+                                key={
+                                  employee.id
+                                }
+                                value={
+                                  employee.id
+                                }
+                              >
+                                {
+                                  employee.full_name
+                                }
+
+                                {employee.job_title
+                                  ? ` — ${employee.job_title}`
+                                  : ""}
+                              </option>
+                            )
+                          )}
+                        </select>
+                      </div>
+                    )}
+
+                    <div
+                      className={`${styles.field} ${styles.callNotesField}`}
+                    >
+                      <label
+                        htmlFor="call-note"
+                      >
+                        Call agenda / notes
+                      </label>
+
+                      <textarea
+                        id="call-note"
+                        name="note"
+                        rows={4}
+                        value={
+                          callForm.note
+                        }
+                        onChange={
+                          handleCallFormChange
+                        }
+                        placeholder="Add the topics to discuss, context or next steps..."
+                      />
+                    </div>
+                  </div>
+
+                  <div
+                    className={
+                      styles.callFormActions
+                    }
+                  >
+                    <button
+                      type="button"
+                      className={
+                        styles.secondaryButton
+                      }
+                      onClick={
+                        closeScheduleCall
+                      }
+                      disabled={
+                        schedulingCall
+                      }
+                    >
+                      Cancel
+                    </button>
+
+                    <button
+                      type="submit"
+                      className={
+                        styles.primaryButton
+                      }
+                      disabled={
+                        schedulingCall
+                      }
+                    >
+                      {schedulingCall
+                        ? "Scheduling..."
+                        : "Schedule call"}
+                    </button>
+                  </div>
+                </form>
+              </section>
+            )}
 
           {/* =================================================
               HERO
@@ -1418,8 +2024,7 @@ www.sainaltechnologies.com`;
               </strong>
 
               <small>
-                Visible only inside this
-                record
+                Visible only inside this record
               </small>
             </div>
           </section>
@@ -1449,9 +2054,7 @@ www.sainaltechnologies.com`;
                   </h3>
 
                   <p>
-                    Contact, ownership,
-                    company and commercial
-                    details
+                    Contact, ownership, company and commercial details
                   </p>
                 </div>
               </div>
@@ -1769,8 +2372,7 @@ www.sainaltechnologies.com`;
                     </h3>
 
                     <p>
-                      Qualification and
-                      recommended action
+                      Qualification and recommended action
                     </p>
                   </div>
                 </div>
@@ -1885,8 +2487,7 @@ www.sainaltechnologies.com`;
                   </h3>
 
                   <p>
-                    Internal information
-                    for your team
+                    Internal information for your team
                   </p>
                 </div>
               </div>
@@ -1917,8 +2518,7 @@ www.sainaltechnologies.com`;
                   </h3>
 
                   <p>
-                    Current lead journey
-                    overview
+                    Current lead journey overview
                   </p>
                 </div>
               </div>
@@ -1965,19 +2565,18 @@ www.sainaltechnologies.com`;
 
                 {followUps.map(
                   (
-                    followUp
+                    activity
                   ) => (
                     <TimelineItem
-                      key={`timeline-${followUp.id}`}
+                      key={`timeline-${activity.id}`}
                       title={
-                        `Follow-up: ${
-                          followUp.title ||
-                          "Follow-up"
-                        }`
+                        formatActivityTitle(
+                          activity
+                        )
                       }
                       description={
-                        formatFollowUpDescription(
-                          followUp
+                        formatActivityDescription(
+                          activity
                         )
                       }
                     />
@@ -1997,7 +2596,7 @@ www.sainaltechnologies.com`;
           </section>
 
           {/* =================================================
-              RELATED FOLLOW-UPS
+              LEAD ACTIVITIES
           ================================================= */}
 
           <section
@@ -2017,48 +2616,64 @@ www.sainaltechnologies.com`;
               >
                 <div>
                   <h3>
-                    Related follow-ups
+                    Lead activities
                   </h3>
 
                   <p>
-                    Customer actions linked
-                    to this lead
+                    Calls, meetings, demos and follow-ups linked to this lead
                   </p>
                 </div>
+
+                {activityAccess.canCreate && (
+                  <button
+                    type="button"
+                    className={
+                      styles.scheduleCallMiniButton
+                    }
+                    onClick={
+                      openScheduleCall
+                    }
+                  >
+                    ☎ Schedule call
+                  </button>
+                )}
               </div>
 
               {followUps.length ===
               0 ? (
-                <p
+                <div
                   className={
-                    styles.notesText
+                    styles.activityEmptyState
                   }
                 >
-                  No follow-ups are currently
-                  linked to this lead.
-                </p>
+                  <span>
+                    ◷
+                  </span>
+
+                  <strong>
+                    No lead activities yet
+                  </strong>
+
+                  <p>
+                    Schedule a call or create a follow-up to begin tracking engagement.
+                  </p>
+                </div>
               ) : (
                 <div
                   className={
-                    styles.timeline
+                    styles.activityList
                   }
                 >
                   {followUps.map(
                     (
-                      followUp
+                      activity
                     ) => (
-                      <TimelineItem
+                      <ActivityCard
                         key={
-                          followUp.id
+                          activity.id
                         }
-                        title={
-                          followUp.title ||
-                          "Follow-up"
-                        }
-                        description={
-                          formatFollowUpDescription(
-                            followUp
-                          )
+                        activity={
+                          activity
                         }
                       />
                     )
@@ -2066,6 +2681,10 @@ www.sainaltechnologies.com`;
                 </div>
               )}
             </section>
+
+            {/* =================================================
+                ACTIVITY SUMMARY
+            ================================================= */}
 
             <section
               className={
@@ -2079,89 +2698,65 @@ www.sainaltechnologies.com`;
               >
                 <div>
                   <h3>
-                    Follow-up summary
+                    Activity summary
                   </h3>
 
                   <p>
-                    Current lead activity
+                    Current engagement with this lead
                   </p>
                 </div>
               </div>
 
               <div
                 className={
-                  styles.detailList
+                  styles.activitySummaryGrid
                 }
               >
-                <DetailRow
+                <ActivityMetric
                   label="Total"
                   value={
-                    String(
-                      followUps.length
-                    )
+                    totalActivities
                   }
+                  icon="◎"
+                  tone="gold"
                 />
 
-                <DetailRow
-                  label="Pending"
+                <ActivityMetric
+                  label="Calls"
                   value={
-                    String(
-                      followUps.filter(
-                        (
-                          item
-                        ) =>
-                          String(
-                            item.status ||
-                            ""
-                          )
-                            .trim()
-                            .toLowerCase() ===
-                          "pending"
-                      ).length
-                    )
+                    callCount
                   }
+                  icon="☎"
+                  tone="blue"
                 />
 
-                <DetailRow
-                  label="In progress"
+                <ActivityMetric
+                  label="Scheduled"
                   value={
-                    String(
-                      followUps.filter(
-                        (
-                          item
-                        ) =>
-                          String(
-                            item.status ||
-                            ""
-                          )
-                            .trim()
-                            .toLowerCase() ===
-                          "in progress"
-                      ).length
-                    )
+                    scheduledCount
                   }
+                  icon="◷"
+                  tone="gold"
                 />
 
-                <DetailRow
+                <ActivityMetric
                   label="Completed"
                   value={
-                    String(
-                      followUps.filter(
-                        (
-                          item
-                        ) =>
-                          String(
-                            item.status ||
-                            ""
-                          )
-                            .trim()
-                            .toLowerCase() ===
-                          "completed"
-                      ).length
-                    )
+                    completedActivityCount
                   }
+                  icon="✓"
+                  tone="green"
                 />
               </div>
+
+              <Link
+                href="/follow-ups"
+                className={
+                  styles.activitiesLink
+                }
+              >
+                Open Activity Centre →
+              </Link>
             </section>
           </section>
 
@@ -2191,8 +2786,7 @@ www.sainaltechnologies.com`;
                     </h3>
 
                     <p>
-                      Review and copy the
-                      generated email
+                      Review and copy the generated email
                     </p>
                   </div>
 
@@ -2259,8 +2853,7 @@ www.sainaltechnologies.com`;
                     </h3>
 
                     <p>
-                      The quote is stored in
-                      the Quotes module
+                      The quote is stored in the Quotes module
                     </p>
                   </div>
 
@@ -2293,9 +2886,7 @@ www.sainaltechnologies.com`;
                       styles.successMessage
                     }
                   >
-                    Quote saved successfully.
-                    Open Quotes to review or
-                    convert it.
+                    Quote saved successfully. Open Quotes to review or convert it.
                   </p>
                 )}
               </div>
@@ -2304,6 +2895,141 @@ www.sainaltechnologies.com`;
         </div>
       </AppLayout>
     </ProtectedRoute>
+  );
+}
+
+// =========================================================
+// ACTIVITY CARD
+// =========================================================
+
+function ActivityCard({
+  activity,
+}) {
+  const type =
+    activity.activity_type ||
+    "Follow-up";
+
+  const showType =
+    normalise(
+      type
+    ) !==
+    "follow-up";
+
+  return (
+    <article
+      className={
+        styles.activityCard
+      }
+    >
+      <span
+        className={`${styles.activityCardIcon} ${getActivityToneClass(
+          type
+        )}`}
+      >
+        {activityIcon(
+          type
+        )}
+      </span>
+
+      <div
+        className={
+          styles.activityCardCopy
+        }
+      >
+        <div
+          className={
+            styles.activityCardTop
+          }
+        >
+          <div>
+            {showType && (
+              <span
+                className={
+                  styles.activityKind
+                }
+              >
+                {type}
+              </span>
+            )}
+
+            <strong>
+              {activity.title ||
+                "Activity"}
+            </strong>
+          </div>
+
+          <StatusBadge
+            status={
+              activity.status ||
+              "Pending"
+            }
+          />
+        </div>
+
+        <p>
+          {formatActivityDescription(
+            activity
+          )}
+        </p>
+
+        {activity.note && (
+          <small>
+            {activity.note}
+          </small>
+        )}
+
+        {activity.outcome && (
+          <span
+            className={
+              styles.activityOutcome
+            }
+          >
+            Outcome:{" "}
+            {activity.outcome}
+          </span>
+        )}
+      </div>
+    </article>
+  );
+}
+
+// =========================================================
+// ACTIVITY METRIC
+// =========================================================
+
+function ActivityMetric({
+  label,
+  value,
+  icon,
+  tone,
+}) {
+  const toneClass =
+    tone ===
+    "blue"
+      ? styles.activityMetricBlue
+      : tone ===
+          "green"
+        ? styles.activityMetricGreen
+        : styles.activityMetricGold;
+
+  return (
+    <div
+      className={`${styles.activityMetric} ${toneClass}`}
+    >
+      <span>
+        {icon}
+      </span>
+
+      <div>
+        <strong>
+          {value}
+        </strong>
+
+        <small>
+          {label}
+        </small>
+      </div>
+    </div>
   );
 }
 
@@ -2494,44 +3220,73 @@ function TimelineItem({
 }
 
 // =========================================================
-// FOLLOW-UP DESCRIPTION
+// ACTIVITY HELPERS
 // =========================================================
 
-function formatFollowUpDescription(
-  followUp
+function formatActivityTitle(
+  activity
+) {
+  const type =
+    activity?.activity_type ||
+    "Follow-up";
+
+  if (
+    normalise(
+      type
+    ) ===
+    "follow-up"
+  ) {
+    return (
+      activity?.title ||
+      "Follow-up"
+    );
+  }
+
+  return `${type}: ${
+    activity?.title ||
+    type
+  }`;
+}
+
+function formatActivityDescription(
+  activity
 ) {
   if (
-    !followUp
+    !activity
   ) {
-    return "Follow-up details unavailable";
+    return "Activity details unavailable";
   }
 
   const parts = [];
 
   if (
-    followUp.status
+    activity.status
   ) {
     parts.push(
-      followUp.status
+      activity.status
     );
   }
 
   if (
-    followUp.due_date
+    activity.scheduled_at
+  ) {
+    parts.push(
+      formatDateTime(
+        activity.scheduled_at
+      )
+    );
+  } else if (
+    activity.due_date
   ) {
     parts.push(
       `Due ${formatDate(
-        followUp.due_date
+        activity.due_date
       )}`
-    );
-  } else {
-    parts.push(
-      "No due date"
     );
   }
 
   const assignee =
-    followUp
+    activity
       .assigned_employee
       ?.full_name;
 
@@ -2543,17 +3298,156 @@ function formatFollowUpDescription(
     );
   }
 
-  if (
-    followUp.note
-  ) {
-    parts.push(
-      followUp.note
-    );
-  }
-
   return parts.join(
     " • "
-  );
+  ) ||
+    "No schedule information";
+}
+
+function activityIcon(
+  type
+) {
+  switch (
+    normalise(
+      type
+    )
+  ) {
+    case "call":
+      return "☎";
+
+    case "meeting":
+      return "◫";
+
+    case "demo":
+      return "▶";
+
+    case "email":
+      return "✉";
+
+    default:
+      return "✓";
+  }
+}
+
+function getActivityToneClass(
+  type
+) {
+  switch (
+    normalise(
+      type
+    )
+  ) {
+    case "call":
+      return styles.activityCall;
+
+    case "meeting":
+      return styles.activityMeeting;
+
+    case "demo":
+      return styles.activityDemo;
+
+    case "email":
+      return styles.activityEmail;
+
+    default:
+      return styles.activityFollowUp;
+  }
+}
+
+// =========================================================
+// ACCESS HELPERS
+// =========================================================
+
+function buildActivityAccess(
+  source
+) {
+  return {
+    isOwner:
+      Boolean(
+        source?.isOwner
+      ),
+
+    canViewAll:
+      Boolean(
+        source?.canViewAll
+      ),
+
+    canViewTeam:
+      Boolean(
+        source?.canViewTeam
+      ),
+
+    canViewOwn:
+      Boolean(
+        source?.canViewOwn
+      ),
+
+    canCreate:
+      Boolean(
+        source?.canCreate
+      ),
+
+    canEdit:
+      Boolean(
+        source?.canEdit
+      ),
+
+    canDelete:
+      Boolean(
+        source?.canDelete
+      ),
+
+    canAssign:
+      Boolean(
+        source?.canAssign
+      ),
+  };
+}
+
+// =========================================================
+// GENERAL HELPERS
+// =========================================================
+
+async function safeJson(
+  response
+) {
+  try {
+    return await response.json();
+  } catch {
+    return {};
+  }
+}
+
+function normalise(
+  value
+) {
+  return String(
+    value ||
+      ""
+  )
+    .trim()
+    .toLowerCase();
+}
+
+function toIsoDateTime(
+  value
+) {
+  if (
+    !value
+  ) {
+    return null;
+  }
+
+  const date =
+    new Date(
+      value
+    );
+
+  return Number.isNaN(
+    date.getTime()
+  )
+    ? null
+    : date.toISOString();
 }
 
 // =========================================================
