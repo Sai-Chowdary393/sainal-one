@@ -1187,9 +1187,15 @@
 ========================================================= */
 
 .operationalSection {
+  position: relative;
+
   display: grid;
 
   gap: 16px;
+
+  padding-top: 8px;
+
+  scroll-margin-top: 110px;
 }
 
 .sectionHeading {
@@ -1283,6 +1289,65 @@
 
   box-shadow:
     var(--shadow-sm);
+}
+
+.operationalMetricLink {
+  position: relative;
+
+  color: inherit;
+
+  text-decoration: none;
+
+  cursor: pointer;
+
+  transition:
+    border-color
+      var(--transition-fast),
+    box-shadow
+      var(--transition-fast),
+    transform
+      var(--transition-fast),
+    background
+      var(--transition-fast);
+}
+
+.operationalMetricLink:hover {
+  border-color:
+    var(--activity-colour);
+
+  box-shadow:
+    0 8px 24px
+    rgba(43, 36, 17, 0.08);
+
+  transform:
+    translateY(-2px);
+}
+
+.operationalArrow {
+  margin-left: auto;
+
+  color:
+    var(--activity-colour);
+
+  font-size: 14px;
+
+  font-weight: 900;
+
+  opacity: 0.55;
+
+  transition:
+    opacity
+      var(--transition-fast),
+    transform
+      var(--transition-fast);
+}
+
+.operationalMetricLink:hover
+.operationalArrow {
+  opacity: 1;
+
+  transform:
+    translateX(2px);
 }
 
 .operationalIcon {
