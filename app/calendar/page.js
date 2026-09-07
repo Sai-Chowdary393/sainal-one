@@ -3453,8 +3453,7 @@ function MonthView({
               );
 
             return (
-              <button
-                type="button"
+              <div
                 key={
                   date.toISOString()
                 }
@@ -3472,6 +3471,24 @@ function MonthView({
                     ? styles.dayCellSelected
                     : ""
                 }`}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(
+                  event
+                ) => {
+                  if (
+                    event.key ===
+                      "Enter" ||
+                    event.key ===
+                      " "
+                  ) {
+                    event.preventDefault();
+
+                    onSelectDate(
+                      date
+                    );
+                  }
+                }}
               >
                 <div
                   className={
@@ -3540,7 +3557,7 @@ function MonthView({
                     </span>
                   )}
                 </div>
-              </button>
+              </div>
             );
           }
         )}
@@ -3874,9 +3891,15 @@ function CalendarEvent({
       title={
         activity.title
       }
+      onMouseDown={(
+        event
+      ) => {
+        event.stopPropagation();
+      }}
       onClick={(
         event
       ) => {
+        event.preventDefault();
         event.stopPropagation();
 
         onOpenActivity(
