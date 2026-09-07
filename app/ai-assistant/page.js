@@ -156,6 +156,22 @@ export default function AIAssistantPage() {
 
           body: JSON.stringify({
             prompt: finalPrompt,
+
+            conversation:
+              messages
+                .filter(
+                  (message) =>
+                    (
+                      message.role === "user" ||
+                      message.role === "assistant"
+                    ) &&
+                    message.id !== "welcome"
+                )
+                .slice(-10)
+                .map((message) => ({
+                  role: message.role,
+                  content: message.content,
+                })),
           }),
         }
       );
@@ -337,7 +353,7 @@ export default function AIAssistantPage() {
 
                 <p>
                   Connected to SaiNal One
-                  business data
+                  business context
                 </p>
               </div>
             </div>
@@ -453,9 +469,9 @@ export default function AIAssistantPage() {
                   </h3>
 
                   <p>
-                    Ask one question at a time
-                    for the clearest business
-                    recommendation.
+                    Ask naturally and continue
+                    with follow-up questions in
+                    the same conversation.
                   </p>
                 </div>
 
