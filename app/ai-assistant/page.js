@@ -1,63 +1,85 @@
-“use client”;
+"use client";
 
-import { useMemo, useRef, useState } from “react”;
+import { useMemo, useRef, useState } from "react";
 
-import AppLayout from “../../components/layout/AppLayout”; import
-ProtectedRoute from “../../components/ProtectedRoute”;
+import AppLayout from "../../components/layout/AppLayout";
+import ProtectedRoute from "../../components/ProtectedRoute";
 
-import styles from “./ai-assistant.module.css”;
+import styles from "./ai-assistant.module.css";
 
-const QUICK_ACTIONS = [ { icon: “◎”, title: “Review hot leads”,
-description: “Identify high-priority leads that need immediate action.”,
-prompt: “Show me the hot leads that need follow-up and tell me what
-action I should take for each one.” }, { icon: “◷”, title: “Schedule a
-call”, description: “Create a CRM-linked call directly from natural
-language.”, prompt: “Schedule a call with Daniel Reed tomorrow at
-11:00.” }, { icon: “▰”, title: “Check project risks”, description: “Find
-delayed, blocked or overdue project work.”, prompt: “Which projects need
-attention? Include delayed projects, overdue tasks and recommended next
-actions.” }, { icon: “✉”, title: “Send follow-up email”, description:
-“Prepare and send a CRM-linked follow-up email with confirmation.”,
-prompt: “Send Daniel Reed a professional follow-up email asking whether
-he has any questions and what the next step should be.” }, { icon: “◇”,
-title: “Convert a lead”, description: “Convert a qualified lead into a
-customer and project.”, prompt: “Convert Daniel Reed to a customer and
-create the related project.” }, { icon: “✦”, title: “Today’s
-priorities”, description: “Get a management summary of what needs
-attention.”, prompt: “What should I focus on today? Prioritise leads,
-projects, invoices, follow-ups and recent communication.” },];
+const QUICK_ACTIONS = [
+  { icon: "◎", title: "Review hot leads", description: "Identify high-priority leads that need immediate action.", prompt: "Show me the hot leads that need follow-up and tell me what action I should take for each one." },
+  { icon: "◷", title: "Schedule a call", description: "Create a CRM-linked call directly from natural language.", prompt: "Schedule a call with Daniel Reed tomorrow at 11:00." },
+  { icon: "▰", title: "Check project risks", description: "Find delayed, blocked or overdue project work.", prompt: "Which projects need attention? Include delayed projects, overdue tasks and recommended next actions." },
+  { icon: "✉", title: "Send follow-up email", description: "Prepare and send a CRM-linked follow-up email with confirmation.", prompt: "Send Daniel Reed a professional follow-up email asking whether he has any questions and what the next step should be." },
+  { icon: "◇", title: "Convert a lead", description: "Convert a qualified lead into a customer and project.", prompt: "Convert Daniel Reed to a customer and create the related project." },
+  { icon: "✦", title: "Today's priorities", description: "Get a management summary of what needs attention.", prompt: "What should I focus on today? Prioritise leads, projects, invoices, follow-ups and recent communication." },
+];
 
-const CAPABILITIES = [ { icon: “◎”, title: “Sales intelligence”,
-description: “Analyse leads, quotes, proposals and conversion
-opportunities.”, }, { icon: “£”, title: “Finance intelligence”,
-description: “Review invoices, payment risk and outstanding revenue.”,
-}, { icon: “▰”, title: “Delivery intelligence”, description: “Identify
-delayed projects, blocked tasks and delivery risks.”, }, { icon: “◷”,
-title: “Action intelligence”, description: “Review follow-ups, overdue
-actions and next priorities.”, },];
+const CAPABILITIES = [
+  {
+    icon: "◎",
+    title: "Sales intelligence",
+    description:
+      "Analyse leads, quotes, proposals and conversion opportunities.",
+  },
+  {
+    icon: "£",
+    title: "Finance intelligence",
+    description:
+      "Review invoices, payment risk and outstanding revenue.",
+  },
+  {
+    icon: "▰",
+    title: "Delivery intelligence",
+    description:
+      "Identify delayed projects, blocked tasks and delivery risks.",
+  },
+  {
+    icon: "◷",
+    title: "Action intelligence",
+    description:
+      "Review follow-ups, overdue actions and next priorities.",
+  },
+];
 
-const WELCOME_MESSAGE = { id: “welcome”, role: “assistant”, content: “I
-can analyse your SaiNal One business data and help you decide what to do
-next. Ask about leads, quotes, customers, projects, invoices, follow-ups
-or overall business priorities.”, createdAt: new Date().toISOString(),
+const WELCOME_MESSAGE = {
+  id: "welcome",
+  role: "assistant",
+  content:
+    "I can analyse your SaiNal One business data and help you decide what to do next. Ask about leads, quotes, customers, projects, invoices, follow-ups or overall business priorities.",
+  createdAt: new Date().toISOString(),
 };
 
-export default function AIAssistantPage() { const [prompt, setPrompt] =
-useState(““); const [messages, setMessages] = useState([
-WELCOME_MESSAGE, ]); const [loading, setLoading] = useState(false);
-const [errorMessage, setErrorMessage] = useState(”“); const
-[executingPlan, setExecutingPlan] = useState(false);
+export default function AIAssistantPage() {
+  const [prompt, setPrompt] = useState("");
+  const [messages, setMessages] = useState([
+    WELCOME_MESSAGE,
+  ]);
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] =
+    useState("");
+  const [executingPlan, setExecutingPlan] =
+    useState(false);
 
-const textareaRef = useRef(null);
+  const textareaRef = useRef(null);
 
-const latestAssistantMessage = useMemo(() => { return […messages]
-.reverse() .find( (message) => message.role === “assistant” &&
-message.id !== “welcome” ); }, [messages]);
+  const latestAssistantMessage = useMemo(() => {
+    return [...messages]
+      .reverse()
+      .find(
+        (message) =>
+          message.role === "assistant" &&
+          message.id !== "welcome"
+      );
+  }, [messages]);
 
-async function askAI(customPrompt) { const finalPrompt =
-String(customPrompt || prompt).trim(); if (!finalPrompt || loading ||
-executingPlan) { if (!finalPrompt) alert(“Please enter your question.”);
-return; }
+  async function askAI(customPrompt) {
+    const finalPrompt = String(customPrompt || prompt).trim();
+    if (!finalPrompt || loading || executingPlan) {
+      if (!finalPrompt) alert("Please enter your question.");
+      return;
+    }
 
     const userMessage = {
       id: createMessageId(),
@@ -117,13 +139,14 @@ return; }
       setLoading(false);
       window.setTimeout(() => textareaRef.current?.focus(), 50);
     }
+  }
 
-}
-
-async function confirmPlan(message) { if (!message?.plan ||
-executingPlan || loading) return; try { setExecutingPlan(true);
-setErrorMessage(““); setMessages((current) => current.map((item) =>
-item.id === message.id ? { …item, planStatus:”running” } : item));
+  async function confirmPlan(message) {
+    if (!message?.plan || executingPlan || loading) return;
+    try {
+      setExecutingPlan(true);
+      setErrorMessage("");
+      setMessages((current) => current.map((item) => item.id === message.id ? { ...item, planStatus: "running" } : item));
 
       const response = await fetch("/api/ai-assistant", {
         method: "POST",
@@ -147,20 +170,34 @@ item.id === message.id ? { …item, planStatus:”running” } : item));
     } finally {
       setExecutingPlan(false);
     }
+  }
 
-}
+  function cancelPlan(message) {
+    if (!message?.plan) return;
+    setMessages((current) => current.map((item) => item.id === message.id ? { ...item, planStatus: "cancelled" } : item));
+  }
 
-function cancelPlan(message) { if (!message?.plan) return;
-setMessages((current) => current.map((item) => item.id === message.id ?
-{ …item, planStatus: “cancelled” } : item)); }
+  function handlePromptChange(event) {
+    setPrompt(event.target.value);
+  }
 
-function handlePromptChange(event) { setPrompt(event.target.value); }
+  function handlePromptKeyDown(event) {
+    if (
+      event.key === "Enter" &&
+      !event.shiftKey
+    ) {
+      event.preventDefault();
+      askAI();
+    }
+  }
 
-function handlePromptKeyDown(event) { if ( event.key === “Enter” &&
-!event.shiftKey ) { event.preventDefault(); askAI(); } }
-
-function clearConversation() { if ( messages.length === 1 &&
-messages[0].id === “welcome” ) { return; }
+  function clearConversation() {
+    if (
+      messages.length === 1 &&
+      messages[0].id === "welcome"
+    ) {
+      return;
+    }
 
     const confirmed = window.confirm(
       "Clear the current AI conversation?"
@@ -173,10 +210,12 @@ messages[0].id === “welcome” ) { return; }
     setMessages([WELCOME_MESSAGE]);
     setPrompt("");
     setErrorMessage("");
+  }
 
-}
-
-async function copyResponse(content) { if (!content) { return; }
+  async function copyResponse(content) {
+    if (!content) {
+      return;
+    }
 
     try {
       await navigator.clipboard.writeText(
@@ -194,18 +233,23 @@ async function copyResponse(content) { if (!content) { return; }
         "Unable to copy the AI response."
       );
     }
+  }
 
-}
-
-function reusePrompt(content) { setPrompt(content);
+  function reusePrompt(content) {
+    setPrompt(content);
 
     window.setTimeout(() => {
       textareaRef.current?.focus();
     }, 50);
+  }
 
-}
-
-return (
+  return (
+    <ProtectedRoute>
+      <AppLayout
+        title="AI Assistant"
+        description="Analyse business data, identify risks and decide what to do next."
+      >
+        <div className={styles.page}>
           <section
             className={styles.heroSection}
           >
@@ -623,8 +667,8 @@ return (
                 </p>
 
                 <strong>
-                  “Which invoices are overdue
-                  and what should I do next?”
+                  "Which invoices are overdue
+                  and what should I do next?"
                 </strong>
               </div>
 
@@ -678,20 +722,46 @@ return (
         </div>
       </AppLayout>
     </ProtectedRoute>
+  );
+}
 
-); }
+function MessageBubble({
+  message,
+  onCopy,
+  onReusePrompt,
+  onConfirmPlan,
+  onCancelPlan,
+  executingPlan,
+}) {
+  const isUser =
+    message.role === "user";
 
-function MessageBubble({ message, onCopy, onReusePrompt, onConfirmPlan,
-onCancelPlan, executingPlan, }) { const isUser = message.role ===
-“user”;
+  const isError =
+    message.role === "error";
 
-const isError = message.role === “error”;
-
-return ( <article
-className={${styles.messageRow} ${         isUser           ? styles.messageRowUser           : ""       }} >
-<span
-className={${styles.messageAvatar} ${           isUser             ? styles.userAvatar             : isError               ? styles.errorAvatar               : styles.aiAvatar         }} >
-{isUser ? “YO” : isError ? “!” : “✦”}
+  return (
+    <article
+      className={`${styles.messageRow} ${
+        isUser
+          ? styles.messageRowUser
+          : ""
+      }`}
+    >
+      <span
+        className={`${styles.messageAvatar} ${
+          isUser
+            ? styles.userAvatar
+            : isError
+              ? styles.errorAvatar
+              : styles.aiAvatar
+        }`}
+      >
+        {isUser
+          ? "YO"
+          : isError
+            ? "!"
+            : "✦"}
+      </span>
 
       <div
         className={`${styles.messageBubble} ${
@@ -776,11 +846,13 @@ className={${styles.messageAvatar} ${           isUser             ? styles.user
         )}
       </div>
     </article>
-
-); }
+  );
+}
 
 function ActionPlanCard({ message, onConfirm, onCancel, disabled }) {
-const status = message.planStatus || “pending”; return (
+  const status = message.planStatus || "pending";
+  return (
+    <div className={styles.actionPlan}>
       <div className={styles.actionPlanHeader}>
         <div>
           <span>AI AGENT PLAN</span>
@@ -812,12 +884,21 @@ const status = message.planStatus || “pending”; return (
         </div>
       )}
     </div>
+  );
+}
 
-); }
-
-function ThinkingMessage() { return ( <article className={
-styles.messageRow } > <span
-className={${styles.messageAvatar} ${styles.aiAvatar}} > ✦
+function ThinkingMessage() {
+  return (
+    <article
+      className={
+        styles.messageRow
+      }
+    >
+      <span
+        className={`${styles.messageAvatar} ${styles.aiAvatar}`}
+      >
+        ✦
+      </span>
 
       <div
         className={`${styles.messageBubble} ${styles.aiBubble}`}
@@ -847,13 +928,16 @@ className={${styles.messageAvatar} ${styles.aiAvatar}} > ✦
         </div>
       </div>
     </article>
+  );
+}
 
-); }
+function formatMessageContent(content) {
+  const lines = String(
+    content || ""
+  ).split("\n");
 
-function formatMessageContent(content) { const lines = String( content
-|| “” ).split(“”);
-
-return lines.map((line, index) => { const cleanLine = line.trim();
+  return lines.map((line, index) => {
+    const cleanLine = line.trim();
 
     if (!cleanLine) {
       return (
@@ -886,27 +970,55 @@ return lines.map((line, index) => { const cleanLine = line.trim();
         {cleanLine}
       </p>
     );
+  });
+}
 
-}); }
+async function safeJson(response) {
+  try { return await response.json(); } catch { return {}; }
+}
 
-async function safeJson(response) { try { return await response.json();
-} catch { return {}; } }
+function createMessageId() {
+  return `${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2)}`;
+}
 
-function createMessageId() { return
-${Date.now()}-${Math.random()     .toString(36)     .slice(2)}; }
+function formatMessageTime(value) {
+  if (!value) {
+    return "";
+  }
 
-function formatMessageTime(value) { if (!value) { return ““; }
+  const date = new Date(value);
 
-const date = new Date(value);
+  if (
+    Number.isNaN(date.getTime())
+  ) {
+    return "";
+  }
 
-if ( Number.isNaN(date.getTime()) ) { return ““; }
+  return date.toLocaleTimeString(
+    "en-GB",
+    {
+      hour: "2-digit",
+      minute: "2-digit",
+    }
+  );
+}
 
-return date.toLocaleTimeString( “en-GB”, { hour: “2-digit”, minute:
-“2-digit”, } ); }
+function truncateText(
+  value,
+  maximumLength
+) {
+  const text = String(value || "");
 
-function truncateText( value, maximumLength ) { const text =
-String(value || ““);
+  if (
+    text.length <= maximumLength
+  ) {
+    return text;
+  }
 
-if ( text.length <= maximumLength ) { return text; }
-
-return ${text.slice(     0,     maximumLength   )}...; }
+  return `${text.slice(
+    0,
+    maximumLength
+  )}...`;
+}
