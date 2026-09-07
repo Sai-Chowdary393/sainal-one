@@ -2054,6 +2054,7 @@ function OperationalMetric({
   value,
   detail,
   tone,
+  href = "/follow-ups",
 }) {
   const toneClass =
     tone ===
@@ -2068,8 +2069,9 @@ function OperationalMetric({
           : styles.operationalGold;
 
   return (
-    <article
-      className={`${styles.operationalMetric} ${toneClass}`}
+    <Link
+      href={href}
+      className={`${styles.operationalMetric} ${styles.operationalMetricLink} ${toneClass}`}
     >
       <span
         className={
@@ -2096,7 +2098,15 @@ function OperationalMetric({
           {detail}
         </small>
       </div>
-    </article>
+
+      <span
+        className={
+          styles.operationalArrow
+        }
+      >
+        →
+      </span>
+    </Link>
   );
 }
 
@@ -2108,8 +2118,9 @@ function NextActivityMetric({
     !activity
   ) {
     return (
-      <article
-        className={`${styles.operationalMetric} ${styles.operationalGreen}`}
+      <Link
+        href="/follow-ups"
+        className={`${styles.operationalMetric} ${styles.operationalMetricLink} ${styles.operationalGreen}`}
       >
         <span
           className={
@@ -2140,7 +2151,15 @@ function NextActivityMetric({
             Nothing currently scheduled
           </small>
         </div>
-      </article>
+
+        <span
+          className={
+            styles.operationalArrow
+          }
+        >
+          →
+        </span>
+      </Link>
     );
   }
 
@@ -2150,9 +2169,15 @@ function NextActivityMetric({
       leads
     );
 
+  const href =
+    lead?.id
+      ? `/leads/${lead.id}`
+      : "/follow-ups";
+
   return (
-    <article
-      className={`${styles.operationalMetric} ${styles.operationalPurple}`}
+    <Link
+      href={href}
+      className={`${styles.operationalMetric} ${styles.operationalMetricLink} ${styles.operationalPurple}`}
     >
       <span
         className={
@@ -2192,7 +2217,15 @@ function NextActivityMetric({
             : ""}
         </small>
       </div>
-    </article>
+
+      <span
+        className={
+          styles.operationalArrow
+        }
+      >
+        →
+      </span>
+    </Link>
   );
 }
 
