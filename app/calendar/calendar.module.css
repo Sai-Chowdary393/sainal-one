@@ -915,3 +915,264 @@
     padding: 10px 6px;
   }
 }
+
+/* =========================================================
+   CALENDAR CREATE ACTIVITY MODAL
+========================================================= */
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+
+  display: grid;
+  place-items: center;
+
+  padding: 24px;
+
+  background: rgba(28, 26, 21, 0.42);
+  backdrop-filter: blur(2px);
+}
+
+.modalPanel {
+  width: min(760px, 100%);
+  max-height: calc(100vh - 48px);
+
+  overflow-y: auto;
+
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+
+  background: var(--color-surface);
+
+  box-shadow:
+    0 24px 70px rgba(30, 27, 19, 0.22);
+}
+
+.modalHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+
+  gap: 20px;
+
+  padding: 20px 22px;
+
+  border-bottom: 1px solid var(--color-border-soft);
+}
+
+.modalHeader h3 {
+  margin: 5px 0 0;
+
+  color: var(--color-text);
+
+  font-size: var(--font-section-title);
+  line-height: 1.25;
+}
+
+.modalHeader p {
+  margin: 6px 0 0;
+
+  color: var(--color-muted);
+
+  font-size: var(--font-helper);
+  line-height: var(--line-helper);
+}
+
+.modalClose {
+  width: 36px;
+  height: 36px;
+
+  flex: 0 0 36px;
+
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+
+  background: #ffffff;
+  color: var(--color-text);
+
+  font-size: 20px;
+  line-height: 1;
+
+  cursor: pointer;
+}
+
+.modalClose:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.modalForm {
+  display: grid;
+  gap: 18px;
+
+  padding: 20px 22px 22px;
+}
+
+.modalGrid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      2,
+      minmax(0, 1fr)
+    );
+
+  gap: 14px;
+}
+
+.modalField {
+  display: grid;
+  gap: 7px;
+
+  min-width: 0;
+}
+
+.modalField > span {
+  color: var(--color-text);
+
+  font-size: var(--font-helper);
+  font-weight: 800;
+}
+
+.modalField input,
+.modalField select,
+.modalField textarea {
+  width: 100%;
+
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+
+  background: #ffffff;
+  color: var(--color-text);
+
+  font: inherit;
+  font-size: var(--font-input);
+
+  outline: none;
+}
+
+.modalField input,
+.modalField select {
+  min-height: 42px;
+
+  padding: 0 11px;
+}
+
+.modalField textarea {
+  min-height: 104px;
+
+  resize: vertical;
+
+  padding: 11px;
+}
+
+.modalField input:focus,
+.modalField select:focus,
+.modalField textarea:focus {
+  border-color: #c99b16;
+
+  box-shadow:
+    0 0 0 3px rgba(201, 155, 22, 0.12);
+}
+
+.modalField input:disabled,
+.modalField select:disabled,
+.modalField textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.modalFieldFull {
+  grid-column: 1 / -1;
+}
+
+.modalContext {
+  display: grid;
+  align-content: center;
+  gap: 4px;
+
+  min-height: 67px;
+
+  padding: 11px 13px;
+
+  border: 1px dashed var(--color-border);
+  border-radius: 10px;
+
+  background: #faf9f5;
+}
+
+.modalContext strong {
+  color: var(--color-text);
+
+  font-size: var(--font-helper);
+}
+
+.modalContext span {
+  color: var(--color-muted);
+
+  font-size: var(--font-meta);
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+
+  gap: 9px;
+
+  padding-top: 3px;
+}
+
+.modalActions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.emptyAgendaAction {
+  padding: 0;
+
+  border: 0;
+
+  background: transparent;
+  color: #8d6900;
+
+  font-size: var(--font-button);
+  font-weight: 800;
+
+  cursor: pointer;
+}
+
+@media (max-width: 700px) {
+  .headerActions button {
+    flex: 1;
+  }
+
+  .modalOverlay {
+    align-items: end;
+
+    padding: 12px;
+  }
+
+  .modalPanel {
+    max-height: calc(100vh - 24px);
+
+    border-radius: 16px;
+  }
+
+  .modalGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .modalFieldFull {
+    grid-column: auto;
+  }
+
+  .modalActions {
+    flex-direction: column-reverse;
+  }
+
+  .modalActions button {
+    width: 100%;
+  }
+}
+
