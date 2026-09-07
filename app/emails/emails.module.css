@@ -937,3 +937,66 @@
   }
 }
 
+/* =========================================================
+   INLINE AI EMAIL DRAFT
+========================================================= */
+
+.aiDraftArea {
+  display: grid;
+  gap: 5px;
+}
+
+.aiDraftButton {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0;
+
+  border: 0;
+
+  background: transparent;
+  color: #8d6900;
+
+  font: inherit;
+  font-size: var(--font-button);
+  font-weight: 800;
+
+  cursor: pointer;
+}
+
+.aiDraftButton:hover {
+  color: #634a00;
+}
+
+.aiDraftButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.aiDraftError {
+  max-width: 360px;
+
+  color: #a14545;
+
+  font-size: var(--font-meta);
+  line-height: 1.4;
+}
+
+@media (max-width: 720px) {
+  .aiDraftArea {
+    width: 100%;
+  }
+
+  .aiDraftButton {
+    width: 100%;
+    min-height: 42px;
+
+    border: 1px solid #dedbd2;
+    border-radius: 11px;
+
+    background: #ffffff;
+  }
+}
+
