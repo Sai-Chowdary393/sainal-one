@@ -1,8 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useState,
+} from "react";
+
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import {
+  useParams,
+} from "next/navigation";
 
 import AppLayout from "../../../components/layout/AppLayout";
 import ProtectedRoute from "../../../components/ProtectedRoute";
@@ -10,852 +16,602 @@ import StatusBadge from "../../../components/StatusBadge";
 
 import styles from "./email-details.module.css";
 
-export default function EmailDetailsPage() {
-  const params = useParams();
-  const emailLogId = params?.id;
+// =========================================================
+// PAGE
+// =========================================================
 
-  const [emailLog, setEmailLog] =
+export default function EmailDetailsPage() {
+  const params =
+    useParams();
+
+  const emailId =
+    params?.id;
+
+  const [
+    email,
+    setEmail,
+  ] =
     useState(null);
 
-  const [loading, setLoading] =
+  const [
+    loading,
+    setLoading,
+  ] =
     useState(true);
 
-  const [errorMessage, setErrorMessage] =
+  const [
+    errorMessage,
+    setErrorMessage,
+  ] =
     useState("");
 
   useEffect(() => {
-    if (emailLogId) {
-      fetchEmailLog();
+    if (
+      emailId
+    ) {
+      loadEmail();
     }
-  }, [emailLogId]);
+  }, [
+    emailId,
+  ]);
 
-  async function fetchEmailLog() {
+  async function loadEmail() {
     try {
-      setLoading(true);
-      setErrorMessage("");
-
-      const response = await fetch(
-        "/api/email-logs",
-        {
-          cache: "no-store",
-        }
+      setLoading(
+        true
       );
 
-      const data = await response.json();
+      setErrorMessage(
+        ""
+      );
 
-      if (!response.ok) {
+      const response =
+        await fetch(
+          `/api/email-logs/${emailId}`,
+          {
+            cache:
+              "no-store",
+          }
+        );
+
+      const data =
+        await safeJson(
+          response
+        );
+
+      if (
+        !response.ok
+      ) {
         throw new Error(
           data.error ||
-            "Failed to load email record."
+            "Unable to load email details."
         );
       }
 
-      const selectedEmail = (
-        Array.isArray(data) ? data : []
-      ).find(
-        (log) =>
-          String(log.id) ===
-          String(emailLogId)
-      );
-
-      setEmailLog(
-        selectedEmail || null
+      setEmail(
+        data.email ||
+          null
       );
     } catch (error) {
-      console.error(
-        "Email record loading error:",
-        error
+      setEmail(
+        null
       );
 
       setErrorMessage(
         error.message ||
-          "We could not load this email record."
+          "Unable to load email details."
       );
     } finally {
-      setLoading(false);
-    }
-  }
-
-  async function copyValue(
-    value,
-    label
-  ) {
-    if (!value) {
-      alert(`${label} is not available.`);
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(
-        String(value)
-      );
-
-      alert(`${label} copied.`);
-    } catch (error) {
-      console.error(
-        "Clipboard error:",
-        error
-      );
-
-      alert(
-        `Unable to copy ${label.toLowerCase()}.`
+      setLoading(
+        false
       );
     }
   }
-
-  const relatedLink = useMemo(
-    () =>
-      emailLog
-        ? getRelatedLink(emailLog)
-        : null,
-    [emailLog]
-  );
-
-  if (loading) {
-    return (
-      <ProtectedRoute>
-        <AppLayout
-          title="Email Workspace"
-          description="Loading email delivery information."
-        >
-          <LoadingState />
-        </AppLayout>
-      </ProtectedRoute>
-    );
-  }
-
-  if (errorMessage) {
-    return (
-      <ProtectedRoute>
-        <AppLayout
-          title="Email Workspace"
-          description="Review communication delivery."
-        >
-          <section
-            className={styles.errorPanel}
-          >
-            <div>
-              <strong>
-                Unable to load email
-              </strong>
-
-              <p>{errorMessage}</p>
-            </div>
-
-            <button
-              type="button"
-              className={
-                styles.secondaryButton
-              }
-              onClick={fetchEmailLog}
-            >
-              Try again
-            </button>
-          </section>
-        </AppLayout>
-      </ProtectedRoute>
-    );
-  }
-
-  if (!emailLog) {
-    return (
-      <ProtectedRoute>
-        <AppLayout
-          title="Email Workspace"
-          description="Review communication delivery."
-        >
-          <section
-            className={styles.notFound}
-          >
-            <span
-              className={
-                styles.notFoundIcon
-              }
-            >
-              ✉
-            </span>
-
-            <h2>Email record not found</h2>
-
-            <p>
-              This email record may have been
-              removed or is no longer
-              available.
-            </p>
-
-            <Link
-              href="/emails"
-              className={
-                styles.primaryButton
-              }
-            >
-              Return to emails
-            </Link>
-          </section>
-        </AppLayout>
-      </ProtectedRoute>
-    );
-  }
-
-  const failed =
-    normaliseValue(
-      emailLog.status
-    ) === "failed";
-
-  const sent =
-    normaliseValue(
-      emailLog.status
-    ) === "sent";
-
-  const recommendations =
-    buildRecommendations(emailLog);
 
   return (
     <ProtectedRoute>
       <AppLayout
-        title={
-          emailLog.subject ||
-          "Email Workspace"
-        }
-        description="Review recipient, delivery status and related business records."
+        title="Email details"
+        description="Review business email delivery information and related CRM context."
       >
-        <div className={styles.page}>
-          <section
-            className={styles.pageHeader}
+        <div
+          className={
+            styles.page
+          }
+        >
+          <div
+            className={
+              styles.topRow
+            }
           >
-            <div
-              className={styles.headerCopy}
-            >
-              <Link
-                href="/emails"
-                className={styles.backLink}
-              >
-                ← Back to emails
-              </Link>
-
-              <span
-                className={styles.eyebrow}
-              >
-                Communication workspace
-              </span>
-
-              <h2>
-                {emailLog.subject ||
-                  "Email without subject"}
-              </h2>
-
-              <p>
-                Review email delivery,
-                recipient details and the
-                related business document.
-              </p>
-            </div>
-
-            <div
+            <Link
+              href="/emails"
               className={
-                styles.headerActions
+                styles.backLink
               }
             >
-              <button
-                type="button"
+              ← Back to Emails
+            </Link>
+
+            {email && (
+              <div
                 className={
-                  styles.secondaryButton
-                }
-                onClick={() =>
-                  copyValue(
-                    emailLog.recipient,
-                    "Recipient"
-                  )
+                  styles.topActions
                 }
               >
-                Copy recipient
-              </button>
+                {getRelatedLink(
+                  email
+                ) && (
+                  <Link
+                    href={
+                      getRelatedLink(
+                        email
+                      )
+                    }
+                    className={
+                      styles.secondaryButton
+                    }
+                  >
+                    Open related record
+                  </Link>
+                )}
 
-              <button
-                type="button"
-                className={
-                  styles.secondaryButton
-                }
-                onClick={() =>
-                  copyValue(
-                    emailLog.subject,
-                    "Subject"
-                  )
-                }
-              >
-                Copy subject
-              </button>
-
-              {relatedLink && (
                 <Link
-                  href={relatedLink}
+                  href="/emails"
                   className={
                     styles.primaryButton
                   }
                 >
-                  Open related record
+                  Compose email
                 </Link>
-              )}
-            </div>
-          </section>
+              </div>
+            )}
+          </div>
 
-          <section
-            className={styles.heroCard}
-          >
-            <div
+          {loading ? (
+            <LoadingState />
+          ) : errorMessage ? (
+            <section
               className={
-                styles.emailIdentity
+                styles.errorCard
               }
             >
-              <span
-                className={styles.emailIcon}
-              >
-                ✉
-              </span>
+              <strong>
+                Unable to load email
+              </strong>
 
-              <div
-                className={styles.identityCopy}
+              <p>
+                {
+                  errorMessage
+                }
+              </p>
+
+              <button
+                type="button"
+                className={
+                  styles.secondaryButton
+                }
+                onClick={
+                  loadEmail
+                }
               >
-                <span
+                Try again
+              </button>
+            </section>
+          ) : email ? (
+            <>
+              <section
+                className={
+                  styles.heroCard
+                }
+              >
+                <div
                   className={
-                    styles.identityLabel
+                    styles.heroIcon
                   }
                 >
-                  Business email
-                </span>
-
-                <h3>
-                  {emailLog.subject ||
-                    "Email without subject"}
-                </h3>
-
-                <p>
-                  Sent to{" "}
-                  {emailLog.recipient ||
-                    "an unknown recipient"}
-                </p>
+                  ✉
+                </div>
 
                 <div
                   className={
-                    styles.identityMeta
+                    styles.heroCopy
                   }
                 >
-                  <StatusBadge
-                    status={
-                      emailLog.status ||
+                  <span
+                    className={
+                      styles.eyebrow
+                    }
+                  >
+                    {email.email_type ||
+                      "Email"}
+                  </span>
+
+                  <h1>
+                    {email.subject ||
+                      "Email without subject"}
+                  </h1>
+
+                  <div
+                    className={
+                      styles.heroMeta
+                    }
+                  >
+                    <StatusBadge
+                      status={
+                        email.status ||
+                        "Unknown"
+                      }
+                    />
+
+                    <span>
+                      {formatDateTime(
+                        email.sent_at ||
+                          email.created_at
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </section>
+
+              <div
+                className={
+                  styles.contentGrid
+                }
+              >
+                <section
+                  className={
+                    styles.messageCard
+                  }
+                >
+                  <div
+                    className={
+                      styles.sectionHeader
+                    }
+                  >
+                    <div>
+                      <h2>
+                        Email message
+                      </h2>
+
+                      <p>
+                        The message content stored when this email was sent.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div
+                    className={
+                      styles.messageEnvelope
+                    }
+                  >
+                    <div
+                      className={
+                        styles.addressRow
+                      }
+                    >
+                      <span>
+                        To
+                      </span>
+
+                      <strong>
+                        {email.recipient ||
+                          "Not available"}
+                      </strong>
+                    </div>
+
+                    <div
+                      className={
+                        styles.addressRow
+                      }
+                    >
+                      <span>
+                        Subject
+                      </span>
+
+                      <strong>
+                        {email.subject ||
+                          "No subject"}
+                      </strong>
+                    </div>
+
+                    <div
+                      className={
+                        styles.messageBody
+                      }
+                    >
+                      {email.message_body ? (
+                        <p>
+                          {
+                            email.message_body
+                          }
+                        </p>
+                      ) : (
+                        <div
+                          className={
+                            styles.noMessage
+                          }
+                        >
+                          <strong>
+                            Message body not stored
+                          </strong>
+
+                          <span>
+                            This is an older email record created before message-body history was enabled.
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </section>
+
+                <aside
+                  className={
+                    styles.detailsCard
+                  }
+                >
+                  <div
+                    className={
+                      styles.sectionHeader
+                    }
+                  >
+                    <div>
+                      <h2>
+                        Delivery details
+                      </h2>
+
+                      <p>
+                        Email status and CRM linkage.
+                      </p>
+                    </div>
+                  </div>
+
+                  <DetailRow
+                    label="Recipient"
+                    value={
+                      email.recipient ||
+                      "Not available"
+                    }
+                  />
+
+                  <DetailRow
+                    label="Type"
+                    value={
+                      email.email_type ||
+                      "General"
+                    }
+                  />
+
+                  <DetailRow
+                    label="Status"
+                    value={
+                      email.status ||
                       "Unknown"
                     }
                   />
 
-                  <span
-                    className={
-                      styles.metaBadge
+                  <DetailRow
+                    label="Related record"
+                    value={
+                      email.related_record_number ||
+                      getRelatedRecordName(
+                        email
+                      ) ||
+                      "Not linked"
                     }
-                  >
-                    {emailLog.email_type ||
-                      "General"}
-                  </span>
+                  />
 
-                  <span
-                    className={
-                      failed
-                        ? styles.failedBadge
-                        : styles.metaBadge
+                  <DetailRow
+                    label="Provider"
+                    value={
+                      email.provider ||
+                      "Not available"
                     }
-                  >
-                    {failed
-                      ? "Delivery failed"
-                      : `Sent ${formatDateTime(
-                          emailLog.sent_at ||
-                            emailLog.created_at
-                        )}`}
-                  </span>
-                </div>
-              </div>
-            </div>
+                  />
 
-            <div
-              className={styles.heroMetrics}
-            >
-              <HeroMetric
-                label="Delivery"
-                value={
-                  emailLog.status ||
-                  "Unknown"
-                }
-                danger={failed}
-                success={sent}
-              />
+                  <DetailRow
+                    label="Provider email ID"
+                    value={
+                      email.provider_email_id ||
+                      "Not available"
+                    }
+                  />
 
-              <HeroMetric
-                label="Email type"
-                value={
-                  emailLog.email_type ||
-                  "General"
-                }
-              />
+                  <DetailRow
+                    label="Sent"
+                    value={
+                      formatDateTime(
+                        email.sent_at ||
+                          email.created_at
+                      )
+                    }
+                  />
 
-              <HeroMetric
-                label="Related record"
-                value={
-                  emailLog.related_record_number ||
-                  "Not linked"
-                }
-              />
-            </div>
-          </section>
-
-          <section
-            className={styles.workspaceGrid}
-          >
-            <section className={styles.panel}>
-              <div
-                className={styles.panelHeader}
-              >
-                <div>
-                  <h3>Email information</h3>
-
-                  <p>
-                    Recipient, subject and
-                    document relationship
-                  </p>
-                </div>
-              </div>
-
-              <div
-                className={styles.detailList}
-              >
-                <DetailRow
-                  label="Recipient"
-                  value={emailLog.recipient}
-                  href={
-                    emailLog.recipient
-                      ? `mailto:${emailLog.recipient}`
-                      : null
-                  }
-                />
-
-                <DetailRow
-                  label="Subject"
-                  value={emailLog.subject}
-                />
-
-                <DetailRow
-                  label="Email type"
-                  value={
-                    emailLog.email_type
-                  }
-                />
-
-                <DetailRow
-                  label="Delivery status"
-                  customValue={
-                    <StatusBadge
-                      status={
-                        emailLog.status ||
-                        "Unknown"
-                      }
-                    />
-                  }
-                />
-
-                <DetailRow
-                  label="Related record"
-                  customValue={
-                    relatedLink ? (
-                      <Link
-                        href={relatedLink}
-                        className={
-                          styles.relatedLink
-                        }
-                      >
-                        {emailLog.related_record_number ||
-                          "Open record"}{" "}
-                        →
-                      </Link>
-                    ) : (
-                      <strong
-                        className={
-                          styles.emptyValue
-                        }
-                      >
-                        {emailLog.related_record_number ||
-                          "Not linked"}
-                      </strong>
-                    )
-                  }
-                />
-
-                <DetailRow
-                  label="Sent"
-                  value={formatDateTime(
-                    emailLog.sent_at
-                  )}
-                />
-
-                <DetailRow
-                  label="Created"
-                  value={formatDateTime(
-                    emailLog.created_at
-                  )}
-                />
-              </div>
-            </section>
-
-            <section className={styles.aiPanel}>
-              <div
-                className={styles.aiHeader}
-              >
-                <span
-                  className={styles.aiIcon}
-                >
-                  ✦
-                </span>
-
-                <div>
-                  <span>
-                    Communication intelligence
-                  </span>
-
-                  <h3>
-                    Delivery overview
-                  </h3>
-                </div>
-              </div>
-
-              <div className={styles.riskGrid}>
-                <RiskMetric
-                  label="Delivery"
-                  value={
-                    emailLog.status ||
-                    "Unknown"
-                  }
-                />
-
-                <RiskMetric
-                  label="Recipient"
-                  value={
-                    emailLog.recipient
-                      ? "Available"
-                      : "Missing"
-                  }
-                />
-
-                <RiskMetric
-                  label="Document"
-                  value={
-                    relatedLink
-                      ? "Linked"
-                      : "Not linked"
-                  }
-                />
-
-                <RiskMetric
-                  label="Error"
-                  value={
-                    emailLog.error_message
-                      ? "Recorded"
-                      : "None"
-                  }
-                />
-              </div>
-
-              <div
-                className={
-                  styles.aiRecommendations
-                }
-              >
-                <span>
-                  Recommended actions
-                </span>
-
-                {recommendations.map(
-                  (
-                    recommendation,
-                    index
-                  ) => (
+                  {email.error_message && (
                     <div
-                      key={`${recommendation}-${index}`}
                       className={
-                        styles.recommendationItem
+                        styles.errorDetail
                       }
                     >
-                      <span>→</span>
+                      <span>
+                        Delivery error
+                      </span>
 
                       <p>
-                        {recommendation}
+                        {
+                          email.error_message
+                        }
                       </p>
                     </div>
-                  )
-                )}
+                  )}
+                </aside>
               </div>
-            </section>
-          </section>
-
-          {emailLog.error_message && (
-            <section
-              className={styles.errorDetail}
-            >
-              <div
-                className={
-                  styles.errorDetailHeader
-                }
-              >
-                <span>!</span>
-
-                <div>
-                  <h3>Delivery error</h3>
-
-                  <p>
-                    The email service returned
-                    the following information.
-                  </p>
-                </div>
-              </div>
-
-              <pre>
-                {emailLog.error_message}
-              </pre>
-            </section>
-          )}
-
-          <section className={styles.panel}>
-            <div
-              className={styles.panelHeader}
-            >
-              <div>
-                <h3>Email activity</h3>
-
-                <p>
-                  Delivery lifecycle for this
-                  communication
-                </p>
-              </div>
-            </div>
-
-            <div className={styles.timeline}>
-              <TimelineItem
-                title="Email record created"
-                description="SaiNal One created the email delivery record."
-                date={emailLog.created_at}
-              />
-
-              {sent && (
-                <TimelineItem
-                  title="Email sent"
-                  description={`The ${emailLog.email_type || "business"} email was successfully sent to ${emailLog.recipient || "the recipient"}.`}
-                  date={
-                    emailLog.sent_at ||
-                    emailLog.created_at
-                  }
-                />
-              )}
-
-              {failed && (
-                <TimelineItem
-                  title="Delivery failed"
-                  description="The email provider could not complete delivery."
-                  date={
-                    emailLog.sent_at ||
-                    emailLog.created_at
-                  }
-                  danger
-                />
-              )}
-            </div>
-          </section>
+            </>
+          ) : null}
         </div>
       </AppLayout>
     </ProtectedRoute>
   );
 }
 
+// =========================================================
+// COMPONENTS
+// =========================================================
+
 function DetailRow({
   label,
   value,
-  href,
-  customValue,
-}) {
-  return (
-    <div className={styles.detailRow}>
-      <span>{label}</span>
-
-      {customValue ? (
-        customValue
-      ) : href && value ? (
-        <a href={href}>{value}</a>
-      ) : (
-        <strong
-          className={
-            value
-              ? ""
-              : styles.emptyValue
-          }
-        >
-          {value || "Not available"}
-        </strong>
-      )}
-    </div>
-  );
-}
-
-function HeroMetric({
-  label,
-  value,
-  danger = false,
-  success = false,
 }) {
   return (
     <div
-      className={`${styles.heroMetric} ${
-        danger
-          ? styles.heroMetricDanger
-          : ""
-      } ${
-        success
-          ? styles.heroMetricSuccess
-          : ""
-      }`}
+      className={
+        styles.detailRow
+      }
     >
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
-}
+      <span>
+        {label}
+      </span>
 
-function RiskMetric({
-  label,
-  value,
-}) {
-  return (
-    <div className={styles.riskMetric}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
-}
-
-function TimelineItem({
-  title,
-  description,
-  date,
-  danger = false,
-}) {
-  return (
-    <div className={styles.timelineItem}>
-      <span
-        className={`${styles.timelineDot} ${
-          danger
-            ? styles.timelineDotDanger
-            : ""
-        }`}
-      />
-
-      <div>
-        <strong>{title}</strong>
-        <p>{description}</p>
-      </div>
-
-      <time>
-        {formatDateTime(date)}
-      </time>
+      <strong>
+        {value}
+      </strong>
     </div>
   );
 }
 
 function LoadingState() {
   return (
-    <section
-      className={styles.loadingPanel}
+    <div
+      className={
+        styles.loadingState
+      }
     >
-      {Array.from({
-        length: 5,
-      }).map((_, index) => (
-        <div
-          key={index}
-          className={styles.loadingRow}
-        />
-      ))}
-    </section>
+      <div />
+      <div />
+      <div />
+    </div>
   );
 }
 
-function getRelatedLink(log) {
-  if (!log.related_record_id) {
+// =========================================================
+// HELPERS
+// =========================================================
+
+async function safeJson(
+  response
+) {
+  try {
+    return await response.json();
+  } catch {
+    return {};
+  }
+}
+
+function normalise(
+  value
+) {
+  return String(
+    value ||
+      ""
+  )
+    .trim()
+    .toLowerCase();
+}
+
+function getRelatedLink(
+  email
+) {
+  if (
+    !email?.related_record_id
+  ) {
     return null;
   }
 
+  const type =
+    normalise(
+      email.email_type
+    );
+
   if (
-    normaliseValue(
-      log.email_type
-    ) === "proposal"
+    type ===
+    "lead"
   ) {
-    return `/proposals/${log.related_record_id}`;
+    return `/leads/${email.related_record_id}`;
   }
 
   if (
-    normaliseValue(
-      log.email_type
-    ) === "invoice"
+    type ===
+    "customer"
   ) {
-    return `/invoices/${log.related_record_id}`;
+    return `/customers/${email.related_record_id}`;
+  }
+
+  if (
+    type ===
+    "project"
+  ) {
+    return `/projects/${email.related_record_id}`;
+  }
+
+  if (
+    type ===
+    "proposal"
+  ) {
+    return `/proposals/${email.related_record_id}`;
+  }
+
+  if (
+    type ===
+    "invoice"
+  ) {
+    return `/invoices/${email.related_record_id}`;
   }
 
   return null;
 }
 
-function buildRecommendations(log) {
-  const recommendations = [];
+function getRelatedRecordName(
+  email
+) {
+  const record =
+    email?.related_record;
 
   if (
-    normaliseValue(log.status) ===
-    "failed"
+    !record
   ) {
-    recommendations.push(
-      "Confirm the recipient address and retry sending from the related record."
-    );
-  } else {
-    recommendations.push(
-      "No delivery action is currently required."
-    );
+    return "";
   }
 
-  if (!log.recipient) {
-    recommendations.push(
-      "Add a valid recipient address before attempting another send."
-    );
-  }
-
-  if (!log.related_record_id) {
-    recommendations.push(
-      "Link the email to a proposal or invoice for a complete business history."
-    );
-  }
-
-  if (log.error_message) {
-    recommendations.push(
-      "Review the provider error before retrying delivery."
-    );
-  }
-
-  return recommendations.slice(0, 4);
+  return (
+    record.name ||
+    record.customer_name ||
+    record.project_name ||
+    record.title ||
+    record.company ||
+    record.proposal_number ||
+    record.invoice_number ||
+    ""
+  );
 }
 
-function normaliseValue(value) {
-  return String(value || "")
-    .trim()
-    .toLowerCase();
-}
-
-function formatDateTime(value) {
-  if (!value) {
+function formatDateTime(
+  value
+) {
+  if (
+    !value
+  ) {
     return "Not available";
   }
 
-  const date = new Date(value);
+  const date =
+    new Date(
+      value
+    );
 
   if (
-    Number.isNaN(date.getTime())
+    Number.isNaN(
+      date.getTime()
+    )
   ) {
     return "Not available";
   }
@@ -863,11 +619,20 @@ function formatDateTime(value) {
   return date.toLocaleString(
     "en-GB",
     {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
+      day:
+        "2-digit",
+
+      month:
+        "short",
+
+      year:
+        "numeric",
+
+      hour:
+        "2-digit",
+
+      minute:
+        "2-digit",
     }
   );
 }
