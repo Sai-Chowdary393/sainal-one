@@ -8,7 +8,6 @@ import {
 
 import {
   useRouter,
-  useSearchParams,
 } from "next/navigation";
 
 import AppLayout from "../../components/layout/AppLayout";
@@ -122,15 +121,11 @@ export default function FollowUpsPage() {
   const router =
     useRouter();
 
-  const searchParams =
-    useSearchParams();
-
-  const dashboardView =
-    normalise(
-      searchParams.get(
-        "view"
-      )
-    );
+  const [
+    dashboardView,
+    setDashboardView,
+  ] =
+    useState("");
   const [
     followUps,
     setFollowUps,
@@ -230,6 +225,44 @@ export default function FollowUpsPage() {
   // =======================================================
   // LOAD
   // =======================================================
+
+  useEffect(() => {
+    function syncDashboardViewFromUrl() {
+      if (
+        typeof window ===
+        "undefined"
+      ) {
+        return;
+      }
+
+      const params =
+        new URLSearchParams(
+          window.location.search
+        );
+
+      setDashboardView(
+        normalise(
+          params.get(
+            "view"
+          )
+        )
+      );
+    }
+
+    syncDashboardViewFromUrl();
+
+    window.addEventListener(
+      "popstate",
+      syncDashboardViewFromUrl
+    );
+
+    return () => {
+      window.removeEventListener(
+        "popstate",
+        syncDashboardViewFromUrl
+      );
+    };
+  }, []);
 
   useEffect(() => {
     loadPageData();
@@ -1641,6 +1674,10 @@ export default function FollowUpsPage() {
                     if (
                       dashboardView
                     ) {
+                      setDashboardView(
+                        ""
+                      );
+
                       router.replace(
                         "/follow-ups"
                       );
