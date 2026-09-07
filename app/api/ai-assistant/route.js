@@ -14,6 +14,10 @@ import {
 } from "../../../lib/recordAccess";
 
 import {
+  createAdminSupabaseClient,
+} from "../../../lib/supabaseAdmin";
+
+import {
   getBusinessProfile,
   businessProfilePrompt,
 } from "../../../lib/ai/businessProfile";
@@ -225,6 +229,124 @@ function canView(
   );
 }
 
+function cleanText(
+  value
+) {
+  return typeof value === "string"
+    ? value.trim()
+    : "";
+}
+
+function normalise(
+  value
+) {
+  return String(value || "")
+    .trim()
+    .toLowerCase();
+}
+
+function safeConversation(
+  value
+) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter(
+      (message) =>
+        message &&
+        (
+          message.role === "user" ||
+          message.role === "assistant"
+        ) &&
+        cleanText(message.content)
+    )
+    .slice(-10)
+    .map((message) => ({
+      role: message.role,
+      content: cleanText(
+        message.content
+      ).slice(0, 5000),
+    }));
+}
+
+function pickFields(
+  record,
+  keys
+) {
+  const result = {};
+
+  for (const key of keys) {
+    const value =
+      record?.[key];
+
+    if (
+      value !== undefined &&
+      value !== null &&
+      value !== ""
+    ) {
+      result[key] = value;
+    }
+  }
+
+  return result;
+}
+
+function compactRecords(
+  records,
+  keys,
+  maximum = 100
+) {
+  return (
+    Array.isArray(records)
+      ? records
+      : []
+  )
+    .slice(0, maximum)
+    .map((record) =>
+      pickFields(
+        record,
+        keys
+      )
+    );
+}
+
+function truncateText(
+  value,
+  maximum = 600
+) {
+  const text =
+    cleanText(value);
+
+  if (
+    text.length <= maximum
+  ) {
+    return text;
+  }
+
+  return `${text.slice(
+    0,
+    maximum
+  )}…`;
+}
+
+function accessibleIds(
+  records
+) {
+  return new Set(
+    (
+      Array.isArray(records)
+        ? records
+        : []
+    )
+      .map((record) =>
+        record?.id
+      )
+      .filter(Boolean)
+  );
+}
+
 // =========================================================
 // LOAD ONE MODULE USING RBAC
 // =========================================================
@@ -358,6 +480,107 @@ async function loadBusinessProfile({
 }
 
 // =========================================================
+// LOAD EMAIL HISTORY USING ACCESSIBLE CRM RECORDS
+// =========================================================
+
+async function loadAccessibleEmailLogs({
+  access,
+  leads,
+  quotes,
+  proposals,
+  customers,
+  projects,
+  invoices,
+}) {
+  const organizationId =
+    access.employee.organization_id;
+
+  const supabase =
+    createAdminSupabaseClient();
+
+  const {
+    data,
+    error,
+  } =
+    await supabase
+      .from("email_logs")
+      .select(
+        "id, recipient, subject, email_type, related_record_id, related_record_number, status, provider, provider_email_id, error_message, sent_at, created_at, message_body"
+      )
+      .eq(
+        "organization_id",
+        organizationId
+      )
+      .order(
+        "created_at",
+        {
+          ascending: false,
+        }
+      )
+      .limit(150);
+
+  if (error) {
+    console.error(
+      "AI email history loading error:",
+      error
+    );
+
+    return [];
+  }
+
+  if (
+    access.employee
+      .is_organization_owner
+  ) {
+    return data || [];
+  }
+
+  const allowed = {
+    lead:
+      accessibleIds(leads),
+
+    quote:
+      accessibleIds(quotes),
+
+    proposal:
+      accessibleIds(proposals),
+
+    customer:
+      accessibleIds(customers),
+
+    project:
+      accessibleIds(projects),
+
+    invoice:
+      accessibleIds(invoices),
+  };
+
+  return (
+    data || []
+  ).filter((log) => {
+    if (
+      !log.related_record_id
+    ) {
+      return false;
+    }
+
+    const ids =
+      allowed[
+        normalise(
+          log.email_type
+        )
+      ];
+
+    return Boolean(
+      ids &&
+      ids.has(
+        log.related_record_id
+      )
+    );
+  });
+}
+
+// =========================================================
 // LOAD ALL AI BUSINESS DATA
 // =========================================================
 
@@ -429,6 +652,29 @@ async function loadBusinessData({
       }),
     ]);
 
+  const emails =
+    await loadAccessibleEmailLogs({
+      access,
+
+      leads:
+        leadsResult.records,
+
+      quotes:
+        quotesResult.records,
+
+      proposals:
+        proposalsResult.records,
+
+      customers:
+        customersResult.records,
+
+      projects:
+        projectsResult.records,
+
+      invoices:
+        invoicesResult.records,
+    });
+
   return {
     profile,
 
@@ -455,6 +701,8 @@ async function loadBusinessData({
 
     followUps:
       followUpsResult.records,
+
+    emails,
 
     permissions: {
       leads:
@@ -490,6 +738,7 @@ async function loadBusinessData({
 
 async function answerGeneralQuestion({
   prompt,
+  conversation,
   profile,
   leads,
   quotes,
@@ -499,7 +748,204 @@ async function answerGeneralQuestion({
   tasks,
   invoices,
   followUps,
+  emails,
 }) {
+  const compactData = {
+    leads:
+      compactRecords(
+        leads,
+        [
+          "id",
+          "name",
+          "company",
+          "email",
+          "phone",
+          "status",
+          "source",
+          "value",
+          "ai_score",
+          "ai_summary",
+          "ai_next_action",
+          "created_at",
+        ]
+      ),
+
+    quotes:
+      compactRecords(
+        quotes,
+        [
+          "id",
+          "quote_number",
+          "client",
+          "contact",
+          "company",
+          "service",
+          "amount",
+          "total_amount",
+          "status",
+          "valid_until",
+          "created_at",
+        ]
+      ),
+
+    proposals:
+      compactRecords(
+        proposals,
+        [
+          "id",
+          "proposal_number",
+          "title",
+          "client",
+          "contact",
+          "company",
+          "service",
+          "amount",
+          "status",
+          "created_at",
+        ]
+      ),
+
+    customers:
+      compactRecords(
+        customers,
+        [
+          "id",
+          "customer_name",
+          "name",
+          "company",
+          "email",
+          "phone",
+          "status",
+          "created_at",
+        ]
+      ),
+
+    projects:
+      compactRecords(
+        projects,
+        [
+          "id",
+          "project_name",
+          "name",
+          "title",
+          "customer_id",
+          "company",
+          "status",
+          "start_date",
+          "due_date",
+          "end_date",
+          "budget",
+          "value",
+          "progress",
+          "created_at",
+        ]
+      ),
+
+    tasks:
+      compactRecords(
+        tasks,
+        [
+          "id",
+          "task_name",
+          "title",
+          "project_id",
+          "status",
+          "priority",
+          "due_date",
+          "assigned_employee_id",
+          "created_at",
+        ],
+        150
+      ),
+
+    invoices:
+      compactRecords(
+        invoices,
+        [
+          "id",
+          "invoice_number",
+          "client",
+          "contact",
+          "company",
+          "status",
+          "amount",
+          "total_amount",
+          "amount_paid",
+          "balance_due",
+          "issue_date",
+          "due_date",
+          "paid_at",
+          "created_at",
+        ]
+      ),
+
+    followUps:
+      compactRecords(
+        followUps,
+        [
+          "id",
+          "title",
+          "activity_type",
+          "related_type",
+          "related_id",
+          "related_name",
+          "status",
+          "due_date",
+          "scheduled_at",
+          "note",
+          "assigned_employee_id",
+          "created_at",
+        ],
+        150
+      ),
+
+    emails:
+      (
+        Array.isArray(emails)
+          ? emails
+          : []
+      )
+        .slice(0, 100)
+        .map((log) => ({
+          id:
+            log.id,
+
+          recipient:
+            log.recipient,
+
+          subject:
+            log.subject,
+
+          email_type:
+            log.email_type,
+
+          related_record_id:
+            log.related_record_id,
+
+          related_record_number:
+            log.related_record_number,
+
+          status:
+            log.status,
+
+          sent_at:
+            log.sent_at ||
+            log.created_at,
+
+          message_body:
+            truncateText(
+              log.message_body,
+              600
+            ),
+
+          error_message:
+            truncateText(
+              log.error_message,
+              300
+            ),
+        })),
+  };
+
   const completion =
     await openai.chat.completions.create({
       model:
@@ -513,17 +959,22 @@ async function answerGeneralQuestion({
           content: `
 You are SaiNal One AI Operations Manager.
 
+Current server date/time:
+${new Date().toISOString()}
+
 You work for this specific business:
 
 ${businessProfilePrompt(profile)}
 
-You may only use the business records supplied below.
+You may only use the business records supplied below and the recent conversation.
 
 Important security rules:
 - The supplied records have already been filtered according to the signed-in employee's permissions.
 - Never imply that other hidden records exist.
 - Never invent inaccessible records.
 - Never reveal information that is not present in the supplied business data.
+- Previous conversation turns are conversational context only, not proof of business facts.
+- If previous conversation conflicts with current supplied records, use the current records.
 
 You can analyse:
 - Leads
@@ -534,17 +985,18 @@ You can analyse:
 - Tasks
 - Invoices
 - Follow-ups
+- Email communication history
 
 Instructions:
-- Tailor recommendations to the company's industry.
-- Tailor advice to its business type and configured services.
+- Understand follow-up questions from the recent conversation.
+- Resolve references such as "him", "her", "that customer", "that project" or "what should I do next?" when the recent conversation makes the reference clear.
+- Tailor recommendations to the company's industry, business type and configured services.
 - Consider its target customers.
 - Do not assume the company provides website development or technology services unless configured.
-- Use generic terms such as service, work, project, client requirement and deliverables where appropriate.
-- Give practical recommendations.
-- Highlight urgent actions.
+- Give practical recommendations and highlight urgent actions first.
 - Mention names, values, dates and statuses where useful.
 - Use professional UK business language.
+- Be concise but specific.
 - Do not invent records.
 - Follow the company's custom AI instructions.
           `,
@@ -555,35 +1007,20 @@ Instructions:
             "user",
 
           content: `
-Business Data available to this employee:
+Current business data available to this employee:
 
-Leads:
-${JSON.stringify(leads)}
-
-Quotes:
-${JSON.stringify(quotes)}
-
-Proposals:
-${JSON.stringify(proposals)}
-
-Customers:
-${JSON.stringify(customers)}
-
-Projects:
-${JSON.stringify(projects)}
-
-Tasks:
-${JSON.stringify(tasks)}
-
-Invoices:
-${JSON.stringify(invoices)}
-
-Follow-ups:
-${JSON.stringify(followUps)}
-
-User Question:
-${prompt}
+${JSON.stringify(compactData)}
           `,
+        },
+
+        ...conversation,
+
+        {
+          role:
+            "user",
+
+          content:
+            prompt,
         },
       ],
     });
@@ -600,6 +1037,7 @@ ${prompt}
 // =========================================================
 // POST
 // =========================================================
+
 
 export async function POST(
   request
@@ -639,8 +1077,14 @@ export async function POST(
       );
     }
 
-    const body =
-      await request.json();
+    let body = {};
+
+    try {
+      body =
+        await request.json();
+    } catch {
+      body = {};
+    }
 
     if (
       !body.prompt?.trim()
@@ -664,6 +1108,11 @@ export async function POST(
       originalPrompt
         .toLowerCase();
 
+    const conversation =
+      safeConversation(
+        body.conversation
+      );
+
     const organizationId =
       access.employee
         .organization_id;
@@ -681,6 +1130,7 @@ export async function POST(
       tasks,
       invoices,
       followUps,
+      emails,
       permissions,
     } =
       await loadBusinessData({
@@ -1441,6 +1891,8 @@ Next Action: ${result.created.ai_next_action}`,
         prompt:
           originalPrompt,
 
+        conversation,
+
         profile,
         leads,
         quotes,
@@ -1450,6 +1902,7 @@ Next Action: ${result.created.ai_next_action}`,
         tasks,
         invoices,
         followUps,
+        emails,
       });
 
     return NextResponse.json({
