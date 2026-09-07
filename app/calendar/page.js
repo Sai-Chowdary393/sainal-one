@@ -485,7 +485,11 @@ export default function CalendarPage() {
               </Link>
 
               <Link
-                href="/follow-ups"
+                href={
+                  buildCreateActivityHref(
+                    selectedDate
+                  )
+                }
                 className={
                   styles.primaryButton
                 }
@@ -905,7 +909,11 @@ export default function CalendarPage() {
                     </p>
 
                     <Link
-                      href="/follow-ups"
+                      href={
+                        buildCreateActivityHref(
+                          selectedDate
+                        )
+                      }
                     >
                       Add activity →
                     </Link>
@@ -1959,6 +1967,35 @@ function buildMonthGrid(
         index
       )
   );
+}
+
+function formatDateForQuery(
+  date
+) {
+  const pad = (
+    value
+  ) =>
+    String(
+      value
+    ).padStart(
+      2,
+      "0"
+    );
+
+  return `${date.getFullYear()}-${pad(
+    date.getMonth() +
+      1
+  )}-${pad(
+    date.getDate()
+  )}`;
+}
+
+function buildCreateActivityHref(
+  date
+) {
+  return `/follow-ups?create=1&date=${formatDateForQuery(
+    date
+  )}`;
 }
 
 function formatPeriodTitle(
