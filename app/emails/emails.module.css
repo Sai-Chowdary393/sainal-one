@@ -633,3 +633,307 @@
 .errorPanel p {
   font-size: var(--font-helper);
 }
+
+/* =========================================================
+   EMAIL COMPOSE
+========================================================= */
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+
+  display: grid;
+  place-items: center;
+
+  padding: 24px;
+
+  background: rgba(28, 26, 21, 0.44);
+  backdrop-filter: blur(2px);
+}
+
+.composePanel {
+  width: min(800px, 100%);
+  max-height: calc(100vh - 48px);
+
+  overflow-y: auto;
+
+  border: 1px solid #dedbd2;
+  border-radius: 18px;
+
+  background: #ffffff;
+
+  box-shadow:
+    0 24px 70px rgba(30, 27, 19, 0.24);
+}
+
+.composeHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+
+  gap: 20px;
+
+  padding: 20px 22px;
+
+  border-bottom: 1px solid #ebe8e1;
+}
+
+.composeHeader h3 {
+  margin: 5px 0 0;
+
+  color: #29261f;
+
+  font-size: var(--font-section-title);
+  line-height: 1.25;
+}
+
+.composeHeader p {
+  margin: 6px 0 0;
+
+  color: #817d74;
+
+  font-size: var(--font-helper);
+  line-height: 1.55;
+}
+
+.modalClose {
+  width: 36px;
+  height: 36px;
+
+  flex: 0 0 36px;
+
+  border: 1px solid #dedbd2;
+  border-radius: 10px;
+
+  background: #ffffff;
+  color: #4c4942;
+
+  font-size: 20px;
+  line-height: 1;
+
+  cursor: pointer;
+}
+
+.modalClose:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.composeForm {
+  display: grid;
+  gap: 18px;
+
+  padding: 20px 22px 22px;
+}
+
+.composeGrid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      2,
+      minmax(0, 1fr)
+    );
+
+  gap: 14px;
+}
+
+.composeField {
+  display: grid;
+  gap: 7px;
+
+  min-width: 0;
+}
+
+.composeField > span {
+  color: #37342e;
+
+  font-size: var(--font-helper);
+  font-weight: 800;
+}
+
+.composeField input,
+.composeField select,
+.composeField textarea {
+  width: 100%;
+
+  border: 1px solid #dedbd2;
+  border-radius: 10px;
+
+  background: #ffffff;
+  color: #2b2924;
+
+  font: inherit;
+  font-size: var(--font-input);
+
+  outline: none;
+}
+
+.composeField input,
+.composeField select {
+  min-height: 42px;
+
+  padding: 0 11px;
+}
+
+.composeField textarea {
+  min-height: 190px;
+
+  resize: vertical;
+
+  padding: 11px;
+
+  line-height: 1.55;
+}
+
+.composeField input:focus,
+.composeField select:focus,
+.composeField textarea:focus {
+  border-color: #c99b16;
+
+  box-shadow:
+    0 0 0 3px rgba(201, 155, 22, 0.12);
+}
+
+.composeField input:disabled,
+.composeField select:disabled,
+.composeField textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.composeField small {
+  color: #97938a;
+
+  font-size: var(--font-meta);
+}
+
+.composeFieldFull {
+  grid-column: 1 / -1;
+}
+
+.composeContext {
+  display: grid;
+  align-content: center;
+  gap: 4px;
+
+  min-height: 67px;
+
+  padding: 11px 13px;
+
+  border: 1px dashed #dedbd2;
+  border-radius: 10px;
+
+  background: #faf9f5;
+}
+
+.composeContext strong {
+  color: #37342e;
+
+  font-size: var(--font-helper);
+}
+
+.composeContext span {
+  color: #817d74;
+
+  font-size: var(--font-meta);
+}
+
+.composeFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 14px;
+
+  padding-top: 3px;
+}
+
+.composeActions {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.aiDraftLink {
+  color: #8d6900;
+
+  font-size: var(--font-button);
+  font-weight: 800;
+
+  text-decoration: none;
+}
+
+.aiDraftLink:hover {
+  color: #634a00;
+}
+
+.composeActions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+@media (max-width: 720px) {
+  .headerActions {
+    width: 100%;
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .headerActions a,
+  .headerActions button {
+    width: 100%;
+  }
+
+  .modalOverlay {
+    align-items: end;
+    padding: 12px;
+  }
+
+  .composePanel {
+    max-height: calc(100vh - 24px);
+    border-radius: 16px;
+  }
+
+  .composeGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .composeFieldFull {
+    grid-column: auto;
+  }
+
+  .composeFooter {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .composeActions {
+    flex-direction: column-reverse;
+  }
+
+  .composeActions button,
+  .aiDraftLink {
+    width: 100%;
+  }
+
+  .aiDraftLink {
+    display: inline-flex;
+    min-height: 42px;
+    align-items: center;
+    justify-content: center;
+
+    border: 1px solid #dedbd2;
+    border-radius: 11px;
+
+    background: #ffffff;
+  }
+}
+
