@@ -31,6 +31,77 @@ const CLOSED_STATUSES =
     "no answer",
   ]);
 
+const ACTIVITY_TYPES = [
+  "Follow-up",
+  "Call",
+  "Meeting",
+  "Demo",
+  "Email",
+];
+
+const RELATED_TYPES = [
+  "General",
+  "Lead",
+  "Customer",
+  "Project",
+];
+
+const SCHEDULED_ACTIVITY_TYPES =
+  new Set([
+    "Call",
+    "Meeting",
+    "Demo",
+  ]);
+
+const EMPTY_ACCESS = {
+  isOwner:
+    false,
+
+  canCreate:
+    false,
+
+  canAssign:
+    false,
+};
+
+function buildEmptyCreateForm(
+  date
+) {
+  const dateValue =
+    formatDateForQuery(
+      date
+    );
+
+  return {
+    activity_type:
+      "Follow-up",
+
+    title:
+      "",
+
+    note:
+      "",
+
+    due_date:
+      dateValue,
+
+    scheduled_at:
+      "",
+
+    status:
+      "Pending",
+
+    related_type:
+      "General",
+
+    related_id:
+      "",
+
+    assigned_employee_id:
+      "",
+  };
+}
+
 // =========================================================
 // PAGE
 // =========================================================
@@ -104,6 +175,54 @@ export default function CalendarPage() {
   ] =
     useState("All");
 
+  const [
+    access,
+    setAccess,
+  ] =
+    useState(
+      EMPTY_ACCESS
+    );
+
+  const [
+    leads,
+    setLeads,
+  ] =
+    useState([]);
+
+  const [
+    customers,
+    setCustomers,
+  ] =
+    useState([]);
+
+  const [
+    projects,
+    setProjects,
+  ] =
+    useState([]);
+
+  const [
+    showCreateModal,
+    setShowCreateModal,
+  ] =
+    useState(false);
+
+  const [
+    savingActivity,
+    setSavingActivity,
+  ] =
+    useState(false);
+
+  const [
+    createForm,
+    setCreateForm,
+  ] =
+    useState(
+      buildEmptyCreateForm(
+        new Date()
+      )
+    );
+
   // =======================================================
   // LOAD
   // =======================================================
@@ -122,48 +241,142 @@ export default function CalendarPage() {
         ""
       );
 
-      const response =
-        await fetch(
-          "/api/follow-ups",
-          {
-            cache:
-              "no-store",
-          }
-        );
+      const [
+        followUpResponse,
+        leadsResponse,
+        customersResponse,
+        projectsResponse,
+      ] =
+        await Promise.all([
+          fetch(
+            "/api/follow-ups",
+            {
+              cache:
+                "no-store",
+            }
+          ),
 
-      const data =
-        await safeJson(
-          response
-        );
+          fetch(
+            "/api/leads",
+            {
+              cache:
+                "no-store",
+            }
+          ),
+
+          fetch(
+            "/api/customers",
+            {
+              cache:
+                "no-store",
+            }
+          ),
+
+          fetch(
+            "/api/projects",
+            {
+              cache:
+                "no-store",
+            }
+          ),
+        ]);
+
+      const [
+        followUpData,
+        leadsData,
+        customersData,
+        projectsData,
+      ] =
+        await Promise.all([
+          safeJson(
+            followUpResponse
+          ),
+          safeJson(
+            leadsResponse
+          ),
+          safeJson(
+            customersResponse
+          ),
+          safeJson(
+            projectsResponse
+          ),
+        ]);
 
       if (
-        !response.ok
+        !followUpResponse.ok
       ) {
         throw new Error(
-          data.error ||
+          followUpData.error ||
             "Unable to load calendar activities."
         );
       }
 
       setActivities(
         Array.isArray(
-          data.followUps
+          followUpData.followUps
         )
-          ? data.followUps
+          ? followUpData.followUps
           : []
       );
 
       setEmployees(
         Array.isArray(
-          data.employees
+          followUpData.employees
         )
-          ? data.employees
+          ? followUpData.employees
           : []
       );
 
       setCurrentEmployee(
-        data.currentEmployee ||
+        followUpData.currentEmployee ||
           null
+      );
+
+      setAccess({
+        isOwner:
+          Boolean(
+            followUpData.access
+              ?.isOwner
+          ),
+
+        canCreate:
+          Boolean(
+            followUpData.access
+              ?.canCreate
+          ),
+
+        canAssign:
+          Boolean(
+            followUpData.access
+              ?.canAssign
+          ),
+      });
+
+      setLeads(
+        leadsResponse.ok &&
+          Array.isArray(
+            leadsData.leads
+          )
+          ? leadsData.leads
+          : []
+      );
+
+      setCustomers(
+        customersResponse.ok &&
+          Array.isArray(
+            customersData.customers
+          )
+          ? customersData.customers
+          : []
+      );
+
+      setProjects(
+        projectsResponse.ok &&
+          Array.isArray(
+            projectsData.projects
+          )
+          ? projectsData.projects
+          : []
       );
     } catch (error) {
       console.error(
@@ -179,12 +392,332 @@ export default function CalendarPage() {
         []
       );
 
+      setLeads(
+        []
+      );
+
+      setCustomers(
+        []
+      );
+
+      setProjects(
+        []
+      );
+
       setErrorMessage(
         error.message ||
           "Unable to load calendar."
       );
     } finally {
       setLoading(
+        false
+      );
+    }
+  }
+
+  // =======================================================
+  // CREATE ACTIVITY
+  // =======================================================
+
+  function openCreateActivity(
+    date =
+      selectedDate
+  ) {
+    if (
+      !access.canCreate
+    ) {
+      return;
+    }
+
+    setSelectedDate(
+      startOfDay(
+        date
+      )
+    );
+
+    setCreateForm({
+      ...buildEmptyCreateForm(
+        date
+      ),
+
+      assigned_employee_id:
+        access.canAssign
+          ? currentEmployee?.id ||
+            ""
+          : "",
+    });
+
+    setShowCreateModal(
+      true
+    );
+  }
+
+  function closeCreateActivity() {
+    if (
+      savingActivity
+    ) {
+      return;
+    }
+
+    setShowCreateModal(
+      false
+    );
+  }
+
+  function handleCreateChange(
+    event
+  ) {
+    const {
+      name,
+      value,
+    } =
+      event.target;
+
+    setCreateForm(
+      (
+        current
+      ) => {
+        const next = {
+          ...current,
+
+          [name]:
+            value,
+        };
+
+        if (
+          name ===
+          "activity_type"
+        ) {
+          const scheduled =
+            SCHEDULED_ACTIVITY_TYPES.has(
+              value
+            );
+
+          next.status =
+            scheduled
+              ? "Scheduled"
+              : "Pending";
+
+          if (
+            scheduled
+          ) {
+            const date =
+              current.due_date ||
+              String(
+                current.scheduled_at ||
+                  ""
+              ).slice(
+                0,
+                10
+              ) ||
+              formatDateForQuery(
+                selectedDate
+              );
+
+            next.scheduled_at =
+              current.scheduled_at ||
+              `${date}T09:00`;
+
+            next.due_date =
+              "";
+          } else {
+            const date =
+              current.due_date ||
+              String(
+                current.scheduled_at ||
+                  ""
+              ).slice(
+                0,
+                10
+              ) ||
+              formatDateForQuery(
+                selectedDate
+              );
+
+            next.due_date =
+              date;
+
+            next.scheduled_at =
+              "";
+          }
+
+          if (
+            value ===
+              "Call" &&
+            current.related_type ===
+              "General"
+          ) {
+            next.related_type =
+              "Lead";
+
+            next.related_id =
+              "";
+          }
+        }
+
+        if (
+          name ===
+          "related_type"
+        ) {
+          next.related_id =
+            "";
+        }
+
+        return next;
+      }
+    );
+  }
+
+  async function createActivity(
+    event
+  ) {
+    event.preventDefault();
+
+    if (
+      !createForm.title.trim()
+    ) {
+      alert(
+        "Activity title is required."
+      );
+
+      return;
+    }
+
+    if (
+      createForm.related_type !==
+        "General" &&
+      !createForm.related_id
+    ) {
+      alert(
+        `Please select a ${createForm.related_type.toLowerCase()}.`
+      );
+
+      return;
+    }
+
+    const scheduled =
+      SCHEDULED_ACTIVITY_TYPES.has(
+        createForm.activity_type
+      );
+
+    if (
+      scheduled &&
+      !createForm.scheduled_at
+    ) {
+      alert(
+        `${createForm.activity_type} date and time are required.`
+      );
+
+      return;
+    }
+
+    if (
+      !scheduled &&
+      !createForm.due_date
+    ) {
+      alert(
+        "Due date is required."
+      );
+
+      return;
+    }
+
+    try {
+      setSavingActivity(
+        true
+      );
+
+      const payload = {
+        activity_type:
+          createForm.activity_type,
+
+        title:
+          createForm.title.trim(),
+
+        note:
+          createForm.note.trim(),
+
+        due_date:
+          scheduled
+            ? null
+            : createForm.due_date,
+
+        scheduled_at:
+          scheduled
+            ? toIsoDateTime(
+                createForm.scheduled_at
+              )
+            : null,
+
+        status:
+          scheduled
+            ? "Scheduled"
+            : "Pending",
+
+        related_type:
+          createForm.related_type,
+
+        related_id:
+          createForm.related_id ||
+          null,
+
+        outcome:
+          null,
+      };
+
+      if (
+        access.canAssign &&
+        createForm.assigned_employee_id
+      ) {
+        payload.assigned_employee_id =
+          createForm.assigned_employee_id;
+      }
+
+      const response =
+        await fetch(
+          "/api/follow-ups",
+          {
+            method:
+              "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify(
+                payload
+              ),
+          }
+        );
+
+      const data =
+        await safeJson(
+          response
+        );
+
+      if (
+        !response.ok
+      ) {
+        throw new Error(
+          data.error ||
+            "Unable to create activity."
+        );
+      }
+
+      setShowCreateModal(
+        false
+      );
+
+      await loadCalendar();
+    } catch (error) {
+      alert(
+        error.message ||
+          "Unable to create activity."
+      );
+    } finally {
+      setSavingActivity(
         false
       );
     }
@@ -484,18 +1017,21 @@ export default function CalendarPage() {
                 Open Activity Centre
               </Link>
 
-              <Link
-                href={
-                  buildCreateActivityHref(
-                    selectedDate
-                  )
-                }
-                className={
-                  styles.primaryButton
-                }
-              >
-                + Add activity
-              </Link>
+              {access.canCreate && (
+                <button
+                  type="button"
+                  className={
+                    styles.primaryButton
+                  }
+                  onClick={() =>
+                    openCreateActivity(
+                      selectedDate
+                    )
+                  }
+                >
+                  + Add activity
+                </button>
+              )}
             </div>
           </section>
 
@@ -908,15 +1444,21 @@ export default function CalendarPage() {
                       There are no visible activities for this date.
                     </p>
 
-                    <Link
-                      href={
-                        buildCreateActivityHref(
-                          selectedDate
-                        )
-                      }
-                    >
-                      Add activity →
-                    </Link>
+                    {access.canCreate && (
+                      <button
+                        type="button"
+                        className={
+                          styles.emptyAgendaAction
+                        }
+                        onClick={() =>
+                          openCreateActivity(
+                            selectedDate
+                          )
+                        }
+                      >
+                        Add activity →
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <div
@@ -1000,9 +1542,503 @@ export default function CalendarPage() {
               </aside>
             </section>
           )}
+
+          {showCreateModal &&
+            access.canCreate && (
+              <CreateActivityModal
+                form={
+                  createForm
+                }
+                selectedDate={
+                  selectedDate
+                }
+                employees={
+                  employees
+                }
+                leads={
+                  leads
+                }
+                customers={
+                  customers
+                }
+                projects={
+                  projects
+                }
+                canAssign={
+                  access.canAssign
+                }
+                saving={
+                  savingActivity
+                }
+                onChange={
+                  handleCreateChange
+                }
+                onClose={
+                  closeCreateActivity
+                }
+                onSubmit={
+                  createActivity
+                }
+              />
+            )}
         </div>
       </AppLayout>
     </ProtectedRoute>
+  );
+}
+
+// =========================================================
+// CREATE ACTIVITY MODAL
+// =========================================================
+
+function CreateActivityModal({
+  form,
+  selectedDate,
+  employees,
+  leads,
+  customers,
+  projects,
+  canAssign,
+  saving,
+  onChange,
+  onClose,
+  onSubmit,
+}) {
+  const scheduled =
+    SCHEDULED_ACTIVITY_TYPES.has(
+      form.activity_type
+    );
+
+  const relatedRecords =
+    getRelatedRecords({
+      relatedType:
+        form.related_type,
+
+      leads,
+
+      customers,
+
+      projects,
+    });
+
+  return (
+    <div
+      className={
+        styles.modalOverlay
+      }
+      role="presentation"
+      onMouseDown={(
+        event
+      ) => {
+        if (
+          event.target ===
+          event.currentTarget
+        ) {
+          onClose();
+        }
+      }}
+    >
+      <section
+        className={
+          styles.modalPanel
+        }
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="calendar-create-title"
+      >
+        <div
+          className={
+            styles.modalHeader
+          }
+        >
+          <div>
+            <span
+              className={
+                styles.eyebrow
+              }
+            >
+              New activity
+            </span>
+
+            <h3
+              id="calendar-create-title"
+            >
+              Add to{" "}
+              {formatSelectedDate(
+                selectedDate
+              )}
+            </h3>
+
+            <p>
+              Create a call, meeting, demo or follow-up without leaving Calendar.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            className={
+              styles.modalClose
+            }
+            onClick={
+              onClose
+            }
+            disabled={
+              saving
+            }
+            aria-label="Close activity form"
+          >
+            ×
+          </button>
+        </div>
+
+        <form
+          className={
+            styles.modalForm
+          }
+          onSubmit={
+            onSubmit
+          }
+        >
+          <div
+            className={
+              styles.modalGrid
+            }
+          >
+            <label
+              className={
+                styles.modalField
+              }
+            >
+              <span>
+                Activity type
+              </span>
+
+              <select
+                name="activity_type"
+                value={
+                  form.activity_type
+                }
+                onChange={
+                  onChange
+                }
+                disabled={
+                  saving
+                }
+              >
+                {ACTIVITY_TYPES.map(
+                  (
+                    type
+                  ) => (
+                    <option
+                      key={
+                        type
+                      }
+                      value={
+                        type
+                      }
+                    >
+                      {type}
+                    </option>
+                  )
+                )}
+              </select>
+            </label>
+
+            <label
+              className={
+                styles.modalField
+              }
+            >
+              <span>
+                Title
+              </span>
+
+              <input
+                name="title"
+                value={
+                  form.title
+                }
+                onChange={
+                  onChange
+                }
+                disabled={
+                  saving
+                }
+                placeholder={
+                  activityTitlePlaceholder(
+                    form.activity_type
+                  )
+                }
+              />
+            </label>
+
+            <label
+              className={
+                styles.modalField
+              }
+            >
+              <span>
+                Related to
+              </span>
+
+              <select
+                name="related_type"
+                value={
+                  form.related_type
+                }
+                onChange={
+                  onChange
+                }
+                disabled={
+                  saving
+                }
+              >
+                {RELATED_TYPES.map(
+                  (
+                    type
+                  ) => (
+                    <option
+                      key={
+                        type
+                      }
+                      value={
+                        type
+                      }
+                    >
+                      {type}
+                    </option>
+                  )
+                )}
+              </select>
+            </label>
+
+            {form.related_type ===
+            "General" ? (
+              <div
+                className={
+                  styles.modalContext
+                }
+              >
+                <strong>
+                  General activity
+                </strong>
+
+                <span>
+                  This activity will not be linked to a CRM record.
+                </span>
+              </div>
+            ) : (
+              <label
+                className={
+                  styles.modalField
+                }
+              >
+                <span>
+                  {
+                    form.related_type
+                  }
+                </span>
+
+                <select
+                  name="related_id"
+                  value={
+                    form.related_id
+                  }
+                  onChange={
+                    onChange
+                  }
+                  disabled={
+                    saving
+                  }
+                >
+                  <option value="">
+                    Select{" "}
+                    {form.related_type.toLowerCase()}
+                  </option>
+
+                  {relatedRecords.map(
+                    (
+                      record
+                    ) => (
+                      <option
+                        key={
+                          record.id
+                        }
+                        value={
+                          record.id
+                        }
+                      >
+                        {
+                          record.label
+                        }
+                      </option>
+                    )
+                  )}
+                </select>
+              </label>
+            )}
+
+            {scheduled ? (
+              <label
+                className={
+                  styles.modalField
+                }
+              >
+                <span>
+                  Scheduled date & time
+                </span>
+
+                <input
+                  type="datetime-local"
+                  name="scheduled_at"
+                  value={
+                    form.scheduled_at
+                  }
+                  onChange={
+                    onChange
+                  }
+                  disabled={
+                    saving
+                  }
+                />
+              </label>
+            ) : (
+              <label
+                className={
+                  styles.modalField
+                }
+              >
+                <span>
+                  Due date
+                </span>
+
+                <input
+                  type="date"
+                  name="due_date"
+                  value={
+                    form.due_date
+                  }
+                  onChange={
+                    onChange
+                  }
+                  disabled={
+                    saving
+                  }
+                />
+              </label>
+            )}
+
+            {canAssign && (
+              <label
+                className={
+                  styles.modalField
+                }
+              >
+                <span>
+                  Assigned employee
+                </span>
+
+                <select
+                  name="assigned_employee_id"
+                  value={
+                    form.assigned_employee_id
+                  }
+                  onChange={
+                    onChange
+                  }
+                  disabled={
+                    saving
+                  }
+                >
+                  <option value="">
+                    Unassigned
+                  </option>
+
+                  {employees.map(
+                    (
+                      employee
+                    ) => (
+                      <option
+                        key={
+                          employee.id
+                        }
+                        value={
+                          employee.id
+                        }
+                      >
+                        {
+                          employee.full_name
+                        }
+                      </option>
+                    )
+                  )}
+                </select>
+              </label>
+            )}
+
+            <label
+              className={`${styles.modalField} ${styles.modalFieldFull}`}
+            >
+              <span>
+                Notes
+              </span>
+
+              <textarea
+                name="note"
+                rows={4}
+                value={
+                  form.note
+                }
+                onChange={
+                  onChange
+                }
+                disabled={
+                  saving
+                }
+                placeholder="Add context, agenda or next steps..."
+              />
+            </label>
+          </div>
+
+          <div
+            className={
+              styles.modalActions
+            }
+          >
+            <button
+              type="button"
+              className={
+                styles.secondaryButton
+              }
+              onClick={
+                onClose
+              }
+              disabled={
+                saving
+              }
+            >
+              Cancel
+            </button>
+
+            <button
+              type="submit"
+              className={
+                styles.primaryButton
+              }
+              disabled={
+                saving
+              }
+            >
+              {saving
+                ? "Saving..."
+                : scheduled
+                  ? `Schedule ${form.activity_type.toLowerCase()}`
+                  : "Save activity"}
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
   );
 }
 
@@ -1990,12 +3026,127 @@ function formatDateForQuery(
   )}`;
 }
 
-function buildCreateActivityHref(
-  date
+function toIsoDateTime(
+  value
 ) {
-  return `/follow-ups?create=1&date=${formatDateForQuery(
-    date
-  )}`;
+  if (
+    !value
+  ) {
+    return null;
+  }
+
+  const date =
+    new Date(
+      value
+    );
+
+  return Number.isNaN(
+    date.getTime()
+  )
+    ? null
+    : date.toISOString();
+}
+
+function getRelatedRecords({
+  relatedType,
+  leads,
+  customers,
+  projects,
+}) {
+  if (
+    relatedType ===
+    "Lead"
+  ) {
+    return leads.map(
+      (
+        lead
+      ) => ({
+        id:
+          lead.id,
+
+        label:
+          [
+            lead.name ||
+              "Unnamed lead",
+
+            lead.company,
+          ]
+            .filter(
+              Boolean
+            )
+            .join(
+              " — "
+            ),
+      })
+    );
+  }
+
+  if (
+    relatedType ===
+    "Customer"
+  ) {
+    return customers.map(
+      (
+        customer
+      ) => ({
+        id:
+          customer.id,
+
+        label:
+          customer.customer_name ||
+          customer.name ||
+          customer.company ||
+          "Unnamed customer",
+      })
+    );
+  }
+
+  if (
+    relatedType ===
+    "Project"
+  ) {
+    return projects.map(
+      (
+        project
+      ) => ({
+        id:
+          project.id,
+
+        label:
+          project.project_name ||
+          project.name ||
+          project.title ||
+          "Unnamed project",
+      })
+    );
+  }
+
+  return [];
+}
+
+function activityTitlePlaceholder(
+  type
+) {
+  switch (
+    normalise(
+      type
+    )
+  ) {
+    case "call":
+      return "e.g. Discovery call";
+
+    case "meeting":
+      return "e.g. Customer review meeting";
+
+    case "demo":
+      return "e.g. Product demo";
+
+    case "email":
+      return "e.g. Send proposal follow-up";
+
+    default:
+      return "e.g. Follow up on proposal";
+  }
 }
 
 function formatPeriodTitle(
