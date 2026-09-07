@@ -1339,21 +1339,46 @@ export default function CalendarPage() {
     );
 
   // =======================================================
-  // NAVIGATION
+  // VIEW + NAVIGATION
   // =======================================================
+
+  function changeCalendarView(
+    nextView
+  ) {
+    setView(
+      nextView
+    );
+
+    /*
+     * Keep the date the user has selected when changing
+     * between Month / Week / Day.
+     */
+    setCurrentDate(
+      startOfDay(
+        selectedDate
+      )
+    );
+  }
 
   function goPrevious() {
     if (
       view ===
       "Month"
     ) {
-      setCurrentDate(
+      const previousMonth =
         new Date(
           currentDate.getFullYear(),
           currentDate.getMonth() -
             1,
           1
-        )
+        );
+
+      setCurrentDate(
+        previousMonth
+      );
+
+      setSelectedDate(
+        previousMonth
       );
 
       return;
@@ -1363,9 +1388,19 @@ export default function CalendarPage() {
       view ===
       "Week"
     ) {
-      setCurrentDate(
+      const previousWeekDate =
         addDays(
           currentDate,
+          -7
+        );
+
+      setCurrentDate(
+        previousWeekDate
+      );
+
+      setSelectedDate(
+        addDays(
+          selectedDate,
           -7
         )
       );
@@ -1373,18 +1408,18 @@ export default function CalendarPage() {
       return;
     }
 
-    setCurrentDate(
+    const previousDay =
       addDays(
         currentDate,
         -1
-      )
+      );
+
+    setCurrentDate(
+      previousDay
     );
 
     setSelectedDate(
-      addDays(
-        currentDate,
-        -1
-      )
+      previousDay
     );
   }
 
@@ -1393,13 +1428,20 @@ export default function CalendarPage() {
       view ===
       "Month"
     ) {
-      setCurrentDate(
+      const nextMonth =
         new Date(
           currentDate.getFullYear(),
           currentDate.getMonth() +
             1,
           1
-        )
+        );
+
+      setCurrentDate(
+        nextMonth
+      );
+
+      setSelectedDate(
+        nextMonth
       );
 
       return;
@@ -1409,9 +1451,19 @@ export default function CalendarPage() {
       view ===
       "Week"
     ) {
-      setCurrentDate(
+      const nextWeekDate =
         addDays(
           currentDate,
+          7
+        );
+
+      setCurrentDate(
+        nextWeekDate
+      );
+
+      setSelectedDate(
+        addDays(
+          selectedDate,
           7
         )
       );
@@ -1419,18 +1471,18 @@ export default function CalendarPage() {
       return;
     }
 
-    setCurrentDate(
+    const nextDay =
       addDays(
         currentDate,
         1
-      )
+      );
+
+    setCurrentDate(
+      nextDay
     );
 
     setSelectedDate(
-      addDays(
-        currentDate,
-        1
-      )
+      nextDay
     );
   }
 
@@ -1447,6 +1499,28 @@ export default function CalendarPage() {
     setSelectedDate(
       today
     );
+  }
+
+  function selectCalendarDate(
+    date
+  ) {
+    const selected =
+      startOfDay(
+        date
+      );
+
+    setSelectedDate(
+      selected
+    );
+
+    if (
+      view !==
+      "Month"
+    ) {
+      setCurrentDate(
+        selected
+      );
+    }
   }
 
   // =======================================================
@@ -1753,15 +1827,11 @@ export default function CalendarPage() {
                       key={
                         option
                       }
-                      onClick={() => {
-                        setView(
+                      onClick={() =>
+                        changeCalendarView(
                           option
-                        );
-
-                        setSelectedDate(
-                          currentDate
-                        );
-                      }}
+                        )
+                      }
                       className={
                         view ===
                         option
@@ -1836,12 +1906,8 @@ export default function CalendarPage() {
                     activities={
                       calendarActivities
                     }
-                    onSelectDate={(
-                      date
-                    ) =>
-                      setSelectedDate(
-                        date
-                      )
+                    onSelectDate={
+                      selectCalendarDate
                     }
                     onOpenActivity={
                       openActivityDetails
@@ -1859,12 +1925,8 @@ export default function CalendarPage() {
                     activities={
                       calendarActivities
                     }
-                    onSelectDate={(
-                      date
-                    ) =>
-                      setSelectedDate(
-                        date
-                      )
+                    onSelectDate={
+                      selectCalendarDate
                     }
                     onOpenActivity={
                       openActivityDetails
@@ -1873,7 +1935,7 @@ export default function CalendarPage() {
                 ) : (
                   <DayView
                     currentDate={
-                      currentDate
+                      selectedDate
                     }
                     activities={
                       calendarActivities
@@ -3735,17 +3797,78 @@ function DayView({
         compareActivityDates
       );
 
+  const scheduledActivities =
+    dayActivities.filter(
+      (
+        activity
+      ) =>
+        Boolean(
+          activity.scheduled_at
+        )
+    );
+
+  const dueActivities =
+    dayActivities.filter(
+      (
+        activity
+      ) =>
+        !activity.scheduled_at
+    );
+
+  const scheduledHours =
+    scheduledActivities
+      .map(
+        (
+          activity
+        ) =>
+          getActivityDate(
+            activity
+          )?.getHours()
+      )
+      .filter(
+        (
+          hour
+        ) =>
+          Number.isInteger(
+            hour
+          )
+      );
+
+  const firstHour =
+    scheduledHours.length
+      ? Math.max(
+          0,
+          Math.min(
+            7,
+            ...scheduledHours
+          )
+        )
+      : 7;
+
+  const lastHour =
+    scheduledHours.length
+      ? Math.min(
+          23,
+          Math.max(
+            20,
+            ...scheduledHours
+          )
+        )
+      : 20;
+
   const hours =
     Array.from({
       length:
-        12,
+        lastHour -
+        firstHour +
+        1,
     }).map(
       (
         _,
         index
       ) =>
-        index +
-        8
+        firstHour +
+        index
     );
 
   return (
@@ -3754,12 +3877,43 @@ function DayView({
         styles.dayView
       }
     >
+      {dueActivities.length >
+        0 && (
+        <section
+          className={
+            styles.allDaySection
+          }
+        >
+          <strong>
+            Due today
+          </strong>
+
+          {dueActivities.map(
+            (
+              activity
+            ) => (
+              <WeekEvent
+                key={
+                  activity.id
+                }
+                activity={
+                  activity
+                }
+                onOpenActivity={
+                  onOpenActivity
+                }
+              />
+            )
+          )}
+        </section>
+      )}
+
       {hours.map(
         (
           hour
         ) => {
           const hourActivities =
-            dayActivities.filter(
+            scheduledActivities.filter(
               (
                 activity
               ) => {
@@ -3827,44 +3981,25 @@ function DayView({
         }
       )}
 
-      {dayActivities.filter(
-        (
-          activity
-        ) =>
-          !activity.scheduled_at
-      ).length >
+      {dayActivities.length ===
         0 && (
-        <section
+        <div
           className={
-            styles.allDaySection
+            styles.emptyDayView
           }
         >
+          <span>
+            ◷
+          </span>
+
           <strong>
-            Due today
+            No activity scheduled
           </strong>
 
-          {dayActivities
-            .filter(
-              (
-                activity
-              ) =>
-                !activity.scheduled_at
-            )
-            .map(
-              (
-                activity
-              ) => (
-                <WeekEvent
-                  key={
-                    activity.id
-                  }
-                  activity={
-                    activity
-                  }
-                />
-              )
-            )}
-        </section>
+          <p>
+            Select Add activity to schedule work for this day.
+          </p>
+        </div>
       )}
     </div>
   );
