@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+
 import {
   usePathname,
 } from "next/navigation";
@@ -177,6 +178,29 @@ const navigationGroups = [
 
         icon:
           "◷",
+
+        modules: [
+          "Follow-ups",
+          "Follow Ups",
+          "Tasks",
+        ],
+
+        prefixes: [
+          "followups.",
+          "follow-ups.",
+          "tasks.",
+        ],
+      },
+
+      {
+        label:
+          "Calendar",
+
+        href:
+          "/calendar",
+
+        icon:
+          "▦",
 
         modules: [
           "Follow-ups",
