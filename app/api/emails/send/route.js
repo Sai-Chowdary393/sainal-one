@@ -174,6 +174,54 @@ function getEmailPermissions(
   );
 }
 
+function getRelatedRecordLabel({
+  relatedType,
+  record,
+}) {
+  if (
+    !record
+  ) {
+    return null;
+  }
+
+  if (
+    relatedType ===
+    "Lead"
+  ) {
+    return (
+      record.name ||
+      record.company ||
+      "Lead"
+    );
+  }
+
+  if (
+    relatedType ===
+    "Customer"
+  ) {
+    return (
+      record.customer_name ||
+      record.name ||
+      record.company ||
+      "Customer"
+    );
+  }
+
+  if (
+    relatedType ===
+    "Project"
+  ) {
+    return (
+      record.project_name ||
+      record.name ||
+      record.title ||
+      "Project"
+    );
+  }
+
+  return null;
+}
+
 async function validateRelatedRecord({
   supabase,
   access,
@@ -280,20 +328,35 @@ async function validateRelatedRecord({
     );
   }
 
-  return record.id;
+  return record;
 }
 
 async function writeEmailLog({
   supabase,
   organizationId,
-  access,
   relatedType,
-  relatedId,
+  relatedRecord,
   recipientEmail,
   subject,
   status,
-  providerMessageId,
+  providerEmailId,
+  errorMessage,
 }) {
+  const now =
+    new Date()
+      .toISOString();
+
+  const relatedRecordId =
+    relatedRecord?.id ||
+    null;
+
+  const relatedRecordNumber =
+    getRelatedRecordLabel({
+      relatedType,
+      record:
+        relatedRecord,
+    });
+
   const {
     error,
   } =
@@ -306,42 +369,41 @@ async function writeEmailLog({
           organization_id:
             organizationId,
 
-          record_type:
-            relatedType ===
-              "General"
-              ? "general"
-              : normalise(
-                  relatedType
-                ),
-
-          record_id:
-            relatedId ||
-            null,
-
-          recipient_email:
+          recipient:
             recipientEmail,
 
           subject,
+
+          email_type:
+            relatedType,
+
+          related_record_id:
+            relatedRecordId,
+
+          related_record_number:
+            relatedRecordNumber,
 
           status,
 
           provider:
             "Resend",
 
-          provider_message_id:
-            providerMessageId ||
+          provider_email_id:
+            providerEmailId ||
             null,
 
-          sent_by_user_id:
-            access.user?.id ||
+          error_message:
+            errorMessage ||
             null,
 
-          sent_by_employee_id:
-            access.employee.id,
+          sent_at:
+            status ===
+            "Sent"
+              ? now
+              : null,
 
           created_at:
-            new Date()
-              .toISOString(),
+            now,
         },
       ]);
 
@@ -352,7 +414,23 @@ async function writeEmailLog({
       "General email log error:",
       error
     );
+
+    return {
+      ok:
+        false,
+
+      error:
+        error.message,
+    };
   }
+
+  return {
+    ok:
+      true,
+
+    error:
+      null,
+  };
 }
 
 // =========================================================
@@ -535,11 +613,11 @@ export async function POST(
       access.employee
         .organization_id;
 
-    let validatedRelatedId =
+    let relatedRecord =
       null;
 
     try {
-      validatedRelatedId =
+      relatedRecord =
         await validateRelatedRecord({
           supabase,
           access,
@@ -662,30 +740,34 @@ export async function POST(
     if (
       sendError
     ) {
-      await writeEmailLog({
-        supabase,
-        organizationId,
-        access,
-        relatedType,
+      const logResult =
+        await writeEmailLog({
+          supabase,
+          organizationId,
+          relatedType,
+          relatedRecord,
+          recipientEmail,
+          subject,
 
-        relatedId:
-          validatedRelatedId,
+          status:
+            "Failed",
 
-        recipientEmail,
-        subject,
+          providerEmailId:
+            null,
 
-        status:
-          "Failed",
-
-        providerMessageId:
-          null,
-      });
+          errorMessage:
+            sendError.message ||
+            "The email could not be sent.",
+        });
 
       return NextResponse.json(
         {
           error:
             sendError.message ||
             "The email could not be sent.",
+
+          history_logged:
+            logResult.ok,
         },
         {
           status:
@@ -694,29 +776,37 @@ export async function POST(
       );
     }
 
-    await writeEmailLog({
-      supabase,
-      organizationId,
-      access,
-      relatedType,
+    const logResult =
+      await writeEmailLog({
+        supabase,
+        organizationId,
+        relatedType,
+        relatedRecord,
+        recipientEmail,
+        subject,
 
-      relatedId:
-        validatedRelatedId,
+        status:
+          "Sent",
 
-      recipientEmail,
-      subject,
+        providerEmailId:
+          emailResult?.id ||
+          null,
 
-      status:
-        "Sent",
-
-      providerMessageId:
-        emailResult?.id ||
-        null,
-    });
+        errorMessage:
+          null,
+      });
 
     return NextResponse.json({
       message:
-        "Email sent successfully.",
+        logResult.ok
+          ? "Email sent successfully."
+          : "Email sent successfully, but the email history could not be recorded.",
+
+      history_logged:
+        logResult.ok,
+
+      history_error:
+        logResult.error,
 
       email: {
         id:
