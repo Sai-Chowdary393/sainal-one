@@ -22,14 +22,31 @@ function cleanText(value) {
 }
 
 function pickFirst(...values) {
-  return values.find(
-    (
-      value
-    ) =>
-      cleanText(
+  return (
+    values.find(
+      (
         value
-      )
-  ) || "";
+      ) =>
+        cleanText(
+          value
+        )
+    ) ||
+    ""
+  );
+}
+
+function firstName(value) {
+  const text =
+    cleanText(
+      value
+    );
+
+  return (
+    text.split(
+      /\s+/
+    )[0] ||
+    ""
+  );
 }
 
 function relatedName(
@@ -77,14 +94,175 @@ function relatedName(
   return "";
 }
 
+function getGreetingName(
+  relatedType,
+  record
+) {
+  if (
+    relatedType ===
+    "Lead"
+  ) {
+    return firstName(
+      record?.name
+    );
+  }
+
+  if (
+    relatedType ===
+    "Customer"
+  ) {
+    return firstName(
+      pickFirst(
+        record?.contact_name,
+        record?.customer_name,
+        record?.name
+      )
+    );
+  }
+
+  return "";
+}
+
+function sentenceFromInstruction(
+  instruction
+) {
+  const value =
+    cleanText(
+      instruction
+    );
+
+  if (
+    !value
+  ) {
+    return "";
+  }
+
+  return (
+    value.charAt(0).toUpperCase() +
+    value.slice(1)
+  ).replace(
+    /[.!?]+$/,
+    ""
+  );
+}
+
+function toneClosing(
+  tone
+) {
+  if (
+    tone ===
+    "Friendly"
+  ) {
+    return "Best regards";
+  }
+
+  if (
+    tone ===
+    "Sales"
+  ) {
+    return "Best regards";
+  }
+
+  return "Kind regards";
+}
+
+function defaultSubject({
+  relatedType,
+  name,
+  project,
+  instruction,
+}) {
+  const instructionText =
+    cleanText(
+      instruction
+    ).toLowerCase();
+
+  if (
+    instructionText.includes(
+      "demo"
+    )
+  ) {
+    return name
+      ? `Following up after our demo, ${name}`
+      : "Following up after our demo";
+  }
+
+  if (
+    instructionText.includes(
+      "proposal"
+    )
+  ) {
+    return name
+      ? `Following up on the proposal for ${name}`
+      : "Following up on our proposal";
+  }
+
+  if (
+    instructionText.includes(
+      "meeting"
+    )
+  ) {
+    return name
+      ? `Following up after our meeting with ${name}`
+      : "Following up after our meeting";
+  }
+
+  if (
+    instructionText.includes(
+      "quote"
+    )
+  ) {
+    return name
+      ? `Following up on your quote, ${name}`
+      : "Following up on your quote";
+  }
+
+  if (
+    relatedType ===
+    "Lead"
+  ) {
+    return name
+      ? `Following up with ${name}`
+      : "Following up";
+  }
+
+  if (
+    relatedType ===
+    "Customer"
+  ) {
+    return name
+      ? `Quick update for ${name}`
+      : "Quick update";
+  }
+
+  if (
+    relatedType ===
+    "Project"
+  ) {
+    return project
+      ? `Project update – ${project}`
+      : "Project update";
+  }
+
+  return "Quick follow-up";
+}
+
 function buildDraft({
   relatedType,
   record,
   currentSubject,
   currentMessage,
+  instruction,
+  tone,
 }) {
   const name =
     relatedName(
+      relatedType,
+      record
+    );
+
+  const greetingName =
+    getGreetingName(
       relatedType,
       record
     );
@@ -109,95 +287,125 @@ function buildDraft({
 
   const subject =
     currentSubject ||
-    (
-      relatedType ===
-      "Lead"
-        ? `Following up${name ? ` with ${name}` : ""}`
-        : relatedType ===
-            "Customer"
-          ? `Quick update${name ? ` for ${name}` : ""}`
-          : relatedType ===
-              "Project"
-            ? `Project update${project ? ` – ${project}` : ""}`
-            : "Quick follow-up"
-    );
+    defaultSubject({
+      relatedType,
+      name,
+      project,
+      instruction,
+    });
 
+  /*
+   * Preserve an existing user-written message. This lets
+   * Draft with AI fill empty fields without unexpectedly
+   * replacing work the user already entered.
+   */
   if (
     currentMessage
   ) {
     return {
       subject,
-
       message:
         currentMessage,
     };
   }
 
-  let message =
-    "Hello,\n\n";
+  const greeting =
+    greetingName
+      ? `Hi ${greetingName},`
+      : "Hello,";
+
+  const requestedPurpose =
+    sentenceFromInstruction(
+      instruction
+    );
+
+  let core = "";
 
   if (
+    requestedPurpose
+  ) {
+    if (
+      tone ===
+      "Friendly"
+    ) {
+      core =
+        `I hope you're well. ${requestedPurpose}.`;
+    } else if (
+      tone ===
+      "Concise"
+    ) {
+      core =
+        `${requestedPurpose}.`;
+    } else if (
+      tone ===
+      "Sales"
+    ) {
+      core =
+        `${requestedPurpose}. I wanted to make sure you have everything you need to move forward and see whether we can help with the next step.`;
+    } else {
+      core =
+        `${requestedPurpose}. Please let me know if you have any questions or if there is anything else you need from us.`;
+    }
+  } else if (
     relatedType ===
     "Lead"
   ) {
-    message +=
-      `I wanted to follow up${name ? ` regarding ${name}` : ""}`;
-
-    if (
-      company &&
-      company !==
-        name
-    ) {
-      message +=
-        ` at ${company}`;
-    }
-
-    message +=
-      ". I wanted to check whether you had any questions and whether there is anything else we can provide to help with the next steps.\n\n";
+    core =
+      `I wanted to follow up regarding our conversation${
+        company
+          ? ` about ${company}`
+          : ""
+      }. Please let me know if you have any questions or if there is anything else we can provide to help with the next steps.`;
   } else if (
     relatedType ===
     "Customer"
   ) {
-    message +=
-      `I wanted to share a quick update${name ? ` regarding ${name}` : ""}`;
-
-    if (
-      status
-    ) {
-      message +=
-        ` and the current status (${status})`;
-    }
-
-    message +=
-      ". Please let us know if you have any questions or if there is anything you would like us to review.\n\n";
+    core =
+      `I wanted to share a quick update${
+        status
+          ? ` regarding the current status (${status})`
+          : ""
+      }. Please let us know if you have any questions or if there is anything you would like us to review.`;
   } else if (
     relatedType ===
     "Project"
   ) {
-    message +=
-      `I wanted to share a quick update${project ? ` on ${project}` : " on the project"}`;
-
-    if (
-      status
-    ) {
-      message +=
-        `, which is currently marked as ${status}`;
-    }
-
-    message +=
-      ". Please let us know if you would like to discuss any of the next steps or outstanding items.\n\n";
+    core =
+      `I wanted to share a quick update${
+        project
+          ? ` on ${project}`
+          : " on the project"
+      }${
+        status
+          ? `, which is currently marked as ${status}`
+          : ""
+      }. Please let us know if you would like to discuss any next steps or outstanding items.`;
   } else {
-    message +=
-      "I wanted to get in touch with a quick follow-up. Please let me know if you have any questions or if there is anything else we can help with.\n\n";
+    core =
+      "I wanted to get in touch with a quick follow-up. Please let me know if you have any questions or if there is anything else we can help with.";
   }
 
-  message +=
-    "Kind regards";
+  if (
+    tone ===
+    "Concise"
+  ) {
+    core =
+      core.replace(
+        / Please let me know if you have any questions or if there is anything else you need from us\./,
+        " Please let me know if you need anything else."
+      );
+  }
+
+  const closing =
+    toneClosing(
+      tone
+    );
 
   return {
     subject,
 
-    message,
+    message:
+      `${greeting}\n\n${core}\n\n${closing}`,
   };
 }
 
@@ -257,6 +465,27 @@ export async function POST(
         body.current_message
       );
 
+    const instruction =
+      cleanText(
+        body.instruction
+      );
+
+    const tone =
+      [
+        "Professional",
+        "Friendly",
+        "Concise",
+        "Sales",
+      ].includes(
+        cleanText(
+          body.tone
+        )
+      )
+        ? cleanText(
+            body.tone
+          )
+        : "Professional";
+
     if (
       ![
         "General",
@@ -286,11 +515,6 @@ export async function POST(
         ? body.related_record
         : null;
 
-    /*
-     * Fetch from the database when a related record ID is supplied.
-     * This keeps the draft grounded in current CRM data instead of
-     * relying only on client-provided context.
-     */
     if (
       relatedType !==
         "General" &&
@@ -350,6 +574,8 @@ export async function POST(
         record,
         currentSubject,
         currentMessage,
+        instruction,
+        tone,
       });
 
     return NextResponse.json(
