@@ -1676,6 +1676,7 @@ export default function Dashboard() {
                       : `${callsToday.length} calls scheduled today`
                   }
                   tone="blue"
+                  href="/follow-ups?view=calls-today"
                 />
 
                 <OperationalMetric
@@ -1686,6 +1687,7 @@ export default function Dashboard() {
                   }
                   detail="Future scheduled activities"
                   tone="gold"
+                  href="/follow-ups?view=upcoming"
                 />
 
                 <OperationalMetric
@@ -1701,6 +1703,7 @@ export default function Dashboard() {
                       ? "red"
                       : "green"
                   }
+                  href="/follow-ups?view=overdue"
                 />
 
                 <NextActivityMetric
