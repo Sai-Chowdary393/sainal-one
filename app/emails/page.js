@@ -39,6 +39,13 @@ const RELATED_TYPES = [
   "Project",
 ];
 
+const AI_TONES = [
+  "Professional",
+  "Friendly",
+  "Concise",
+  "Sales",
+];
+
 const EMPTY_COMPOSE_FORM = {
   related_type:
     "General",
@@ -102,6 +109,26 @@ export default function EmailsPage() {
     setShowCompose,
   ] =
     useState(false);
+
+  const [
+    aiComposerMode,
+    setAiComposerMode,
+  ] =
+    useState(false);
+
+  const [
+    aiInstruction,
+    setAiInstruction,
+  ] =
+    useState("");
+
+  const [
+    aiTone,
+    setAiTone,
+  ] =
+    useState(
+      "Professional"
+    );
 
   const [
     sending,
@@ -368,6 +395,44 @@ export default function EmailsPage() {
       EMPTY_COMPOSE_FORM
     );
 
+    setAiComposerMode(
+      false
+    );
+
+    setAiInstruction(
+      ""
+    );
+
+    setAiTone(
+      "Professional"
+    );
+
+    setAiDraftError(
+      ""
+    );
+
+    setShowCompose(
+      true
+    );
+  }
+
+  function openAiComposer() {
+    setComposeForm(
+      EMPTY_COMPOSE_FORM
+    );
+
+    setAiComposerMode(
+      true
+    );
+
+    setAiInstruction(
+      ""
+    );
+
+    setAiTone(
+      "Professional"
+    );
+
     setAiDraftError(
       ""
     );
@@ -386,6 +451,14 @@ export default function EmailsPage() {
     }
 
     setAiDraftError(
+      ""
+    );
+
+    setAiComposerMode(
+      false
+    );
+
+    setAiInstruction(
       ""
     );
 
@@ -530,6 +603,12 @@ export default function EmailsPage() {
 
                 current_message:
                   composeForm.message.trim(),
+
+                instruction:
+                  aiInstruction.trim(),
+
+                tone:
+                  aiTone,
 
                 related_record:
                   relatedRecord,
@@ -856,10 +935,13 @@ export default function EmailsPage() {
                 styles.headerActions
               }
             >
-              <Link
-                href="/ai-assistant"
+              <button
+                type="button"
                 className={
                   styles.secondaryButton
+                }
+                onClick={
+                  openAiComposer
                 }
               >
                 <span>
@@ -867,7 +949,7 @@ export default function EmailsPage() {
                 </span>
 
                 Create with AI
-              </Link>
+              </button>
 
               <button
                 type="button"
@@ -1232,6 +1314,21 @@ export default function EmailsPage() {
               aiDraftError={
                 aiDraftError
               }
+              aiComposerMode={
+                aiComposerMode
+              }
+              aiInstruction={
+                aiInstruction
+              }
+              aiTone={
+                aiTone
+              }
+              onAiInstructionChange={
+                setAiInstruction
+              }
+              onAiToneChange={
+                setAiTone
+              }
               onChange={
                 handleComposeChange
               }
@@ -1262,6 +1359,11 @@ function ComposeEmailModal({
   sending,
   generatingDraft,
   aiDraftError,
+  aiComposerMode,
+  aiInstruction,
+  aiTone,
+  onAiInstructionChange,
+  onAiToneChange,
   onChange,
   onClose,
   onGenerateDraft,
@@ -1303,17 +1405,23 @@ function ComposeEmailModal({
                 styles.eyebrow
               }
             >
-              New email
+              {aiComposerMode
+                ? "AI email"
+                : "New email"}
             </span>
 
             <h3
               id="compose-email-title"
             >
-              Compose email
+              {aiComposerMode
+                ? "Create email with AI"
+                : "Compose email"}
             </h3>
 
             <p>
-              Send a business email and optionally link it to a CRM record.
+              {aiComposerMode
+                ? "Describe what you want to say, choose a tone and let SaiNal One prepare the draft."
+                : "Send a business email and optionally link it to a CRM record."}
             </p>
           </div>
 
@@ -1456,6 +1564,118 @@ function ComposeEmailModal({
               </label>
             )}
 
+            {aiComposerMode && (
+              <>
+                <label
+                  className={`${styles.composeField} ${styles.composeFieldFull}`}
+                >
+                  <span>
+                    What should the email say?
+                  </span>
+
+                  <textarea
+                    className={
+                      styles.aiInstructionInput
+                    }
+                    rows={4}
+                    value={
+                      aiInstruction
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      onAiInstructionChange(
+                        event.target.value
+                      )
+                    }
+                    disabled={
+                      sending ||
+                      generatingDraft
+                    }
+                    placeholder="e.g. Follow up after yesterday's demo, thank them for their time and ask if they can confirm the next step this week."
+                  />
+                </label>
+
+                <label
+                  className={
+                    styles.composeField
+                  }
+                >
+                  <span>
+                    Tone
+                  </span>
+
+                  <select
+                    value={
+                      aiTone
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      onAiToneChange(
+                        event.target.value
+                      )
+                    }
+                    disabled={
+                      sending ||
+                      generatingDraft
+                    }
+                  >
+                    {AI_TONES.map(
+                      (
+                        tone
+                      ) => (
+                        <option
+                          key={
+                            tone
+                          }
+                          value={
+                            tone
+                          }
+                        >
+                          {
+                            tone
+                          }
+                        </option>
+                      )
+                    )}
+                  </select>
+                </label>
+
+                <div
+                  className={
+                    styles.aiGenerateBox
+                  }
+                >
+                  <strong>
+                    AI draft
+                  </strong>
+
+                  <span>
+                    Generate a subject and message, then review or edit before sending.
+                  </span>
+
+                  <button
+                    type="button"
+                    className={
+                      styles.aiGenerateButton
+                    }
+                    onClick={
+                      onGenerateDraft
+                    }
+                    disabled={
+                      sending ||
+                      generatingDraft
+                    }
+                  >
+                    {generatingDraft
+                      ? "✦ Generating..."
+                      : "✦ Generate draft"}
+                  </button>
+                </div>
+              </>
+            )}
+
             <label
               className={`${styles.composeField} ${styles.composeFieldFull}`}
             >
@@ -1543,23 +1763,25 @@ function ComposeEmailModal({
                 styles.aiDraftArea
               }
             >
-              <button
-                type="button"
-                className={
-                  styles.aiDraftButton
-                }
-                onClick={
-                  onGenerateDraft
-                }
-                disabled={
-                  sending ||
-                  generatingDraft
-                }
-              >
-                {generatingDraft
-                  ? "✦ Drafting..."
-                  : "✦ Draft with AI"}
-              </button>
+              {!aiComposerMode && (
+                <button
+                  type="button"
+                  className={
+                    styles.aiDraftButton
+                  }
+                  onClick={
+                    onGenerateDraft
+                  }
+                  disabled={
+                    sending ||
+                    generatingDraft
+                  }
+                >
+                  {generatingDraft
+                    ? "✦ Drafting..."
+                    : "✦ Draft with AI"}
+                </button>
+              )}
 
               {aiDraftError && (
                 <small
