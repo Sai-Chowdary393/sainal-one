@@ -222,12 +222,18 @@ export default function FollowUpsPage() {
   ] =
     useState("All");
 
+  const [
+    calendarCreateRequest,
+    setCalendarCreateRequest,
+  ] =
+    useState(null);
+
   // =======================================================
   // LOAD
   // =======================================================
 
   useEffect(() => {
-    function syncDashboardViewFromUrl() {
+    function syncNavigationFromUrl() {
       if (
         typeof window ===
         "undefined"
@@ -247,19 +253,53 @@ export default function FollowUpsPage() {
           )
         )
       );
+
+      const shouldCreate =
+        params.get(
+          "create"
+        ) ===
+        "1";
+
+      const requestedDate =
+        normaliseCalendarDateParam(
+          params.get(
+            "date"
+          )
+        );
+
+      const requestedType =
+        normaliseRequestedActivityType(
+          params.get(
+            "type"
+          )
+        );
+
+      if (
+        shouldCreate &&
+        requestedDate
+      ) {
+        setCalendarCreateRequest({
+          date:
+            requestedDate,
+
+          activityType:
+            requestedType ||
+            "Follow-up",
+        });
+      }
     }
 
-    syncDashboardViewFromUrl();
+    syncNavigationFromUrl();
 
     window.addEventListener(
       "popstate",
-      syncDashboardViewFromUrl
+      syncNavigationFromUrl
     );
 
     return () => {
       window.removeEventListener(
         "popstate",
-        syncDashboardViewFromUrl
+        syncNavigationFromUrl
       );
     };
   }, []);
@@ -267,6 +307,34 @@ export default function FollowUpsPage() {
   useEffect(() => {
     loadPageData();
   }, []);
+
+  useEffect(() => {
+    if (
+      loading ||
+      !calendarCreateRequest ||
+      !access.canCreate
+    ) {
+      return;
+    }
+
+    openCreateForm(
+      calendarCreateRequest.activityType,
+      calendarCreateRequest.date
+    );
+
+    setCalendarCreateRequest(
+      null
+    );
+
+    router.replace(
+      "/follow-ups"
+    );
+  }, [
+    loading,
+    calendarCreateRequest,
+    access.canCreate,
+    currentEmployee?.id,
+  ]);
 
   async function loadPageData() {
     try {
@@ -385,7 +453,9 @@ export default function FollowUpsPage() {
 
   function openCreateForm(
     activityType =
-      "Follow-up"
+      "Follow-up",
+    presetDate =
+      ""
   ) {
     const scheduled =
       SCHEDULED_ACTIVITY_TYPES.has(
@@ -408,6 +478,18 @@ export default function FollowUpsPage() {
         "Call"
           ? "Lead"
           : "General",
+
+      due_date:
+        !scheduled &&
+        presetDate
+          ? presetDate
+          : "",
+
+      scheduled_at:
+        scheduled &&
+        presetDate
+          ? `${presetDate}T09:00`
+          : "",
 
       assigned_employee_id:
         access.canAssign
@@ -464,6 +546,29 @@ export default function FollowUpsPage() {
             scheduled
               ? "Scheduled"
               : "Pending";
+
+          if (
+            scheduled &&
+            !current.scheduled_at &&
+            current.due_date
+          ) {
+            next.scheduled_at =
+              `${current.due_date}T09:00`;
+          }
+
+          if (
+            !scheduled &&
+            !current.due_date &&
+            current.scheduled_at
+          ) {
+            next.due_date =
+              String(
+                current.scheduled_at
+              ).slice(
+                0,
+                10
+              );
+          }
 
           if (
             value ===
@@ -537,6 +642,11 @@ export default function FollowUpsPage() {
         true
       );
 
+      const scheduledActivity =
+        SCHEDULED_ACTIVITY_TYPES.has(
+          form.activity_type
+        );
+
       const payload = {
         activity_type:
           form.activity_type,
@@ -548,13 +658,17 @@ export default function FollowUpsPage() {
           form.note.trim(),
 
         due_date:
-          form.due_date ||
-          null,
+          scheduledActivity
+            ? null
+            : form.due_date ||
+              null,
 
         scheduled_at:
-          toIsoDateTime(
-            form.scheduled_at
-          ),
+          scheduledActivity
+            ? toIsoDateTime(
+                form.scheduled_at
+              )
+            : null,
 
         status:
           form.status,
@@ -793,14 +907,23 @@ export default function FollowUpsPage() {
         payload.note =
           editForm.note.trim();
 
+        const scheduledActivity =
+          SCHEDULED_ACTIVITY_TYPES.has(
+            editForm.activity_type
+          );
+
         payload.due_date =
-          editForm.due_date ||
-          null;
+          scheduledActivity
+            ? null
+            : editForm.due_date ||
+              null;
 
         payload.scheduled_at =
-          toIsoDateTime(
-            editForm.scheduled_at
-          );
+          scheduledActivity
+            ? toIsoDateTime(
+                editForm.scheduled_at
+              )
+            : null;
 
         payload.status =
           editForm.status;
@@ -2930,6 +3053,59 @@ function normalise(
   )
     .trim()
     .toLowerCase();
+}
+
+function normaliseCalendarDateParam(
+  value
+) {
+  const text =
+    String(
+      value ||
+        ""
+    ).trim();
+
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(
+      text
+    )
+  ) {
+    return "";
+  }
+
+  const date =
+    new Date(
+      `${text}T12:00:00`
+    );
+
+  return Number.isNaN(
+    date.getTime()
+  )
+    ? ""
+    : text;
+}
+
+function normaliseRequestedActivityType(
+  value
+) {
+  const requested =
+    String(
+      value ||
+        ""
+    )
+      .trim()
+      .toLowerCase();
+
+  const match =
+    ACTIVITY_TYPES.find(
+      (
+        type
+      ) =>
+        type.toLowerCase() ===
+        requested
+    );
+
+  return match ||
+    "";
 }
 
 function normaliseDateInput(
