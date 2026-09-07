@@ -133,15 +133,15 @@ export default function EmailDetailsPage() {
               ← Back to Emails
             </Link>
 
-            {email && (
-              <div
-                className={
-                  styles.topActions
-                }
-              >
-                {getRelatedLink(
-                  email
-                ) && (
+            {email &&
+              getRelatedLink(
+                email
+              ) && (
+                <div
+                  className={
+                    styles.topActions
+                  }
+                >
                   <Link
                     href={
                       getRelatedLink(
@@ -154,18 +154,8 @@ export default function EmailDetailsPage() {
                   >
                     Open related record
                   </Link>
-                )}
-
-                <Link
-                  href="/emails"
-                  className={
-                    styles.primaryButton
-                  }
-                >
-                  Compose email
-                </Link>
-              </div>
-            )}
+                </div>
+              )}
           </div>
 
           {loading ? (
