@@ -60,6 +60,12 @@ const EMPTY_ACCESS = {
   canCreate:
     false,
 
+  canEdit:
+    false,
+
+  canDelete:
+    false,
+
   canAssign:
     false,
 };
@@ -223,6 +229,30 @@ export default function CalendarPage() {
       )
     );
 
+  const [
+    selectedActivity,
+    setSelectedActivity,
+  ] =
+    useState(null);
+
+  const [
+    editingActivity,
+    setEditingActivity,
+  ] =
+    useState(false);
+
+  const [
+    editForm,
+    setEditForm,
+  ] =
+    useState(null);
+
+  const [
+    updatingActivity,
+    setUpdatingActivity,
+  ] =
+    useState(false);
+
   // =======================================================
   // LOAD
   // =======================================================
@@ -343,6 +373,18 @@ export default function CalendarPage() {
           Boolean(
             followUpData.access
               ?.canCreate
+          ),
+
+        canEdit:
+          Boolean(
+            followUpData.access
+              ?.canEdit
+          ),
+
+        canDelete:
+          Boolean(
+            followUpData.access
+              ?.canDelete
           ),
 
         canAssign:
@@ -718,6 +760,452 @@ export default function CalendarPage() {
       );
     } finally {
       setSavingActivity(
+        false
+      );
+    }
+  }
+
+  // =======================================================
+  // ACTIVITY DETAILS / EDIT
+  // =======================================================
+
+  function openActivityDetails(
+    activity
+  ) {
+    setSelectedActivity(
+      activity
+    );
+
+    setEditingActivity(
+      false
+    );
+
+    setEditForm(
+      buildEditForm(
+        activity
+      )
+    );
+  }
+
+  function closeActivityDetails() {
+    if (
+      updatingActivity
+    ) {
+      return;
+    }
+
+    setSelectedActivity(
+      null
+    );
+
+    setEditingActivity(
+      false
+    );
+
+    setEditForm(
+      null
+    );
+  }
+
+  function startActivityEdit() {
+    if (
+      !selectedActivity ||
+      !access.canEdit
+    ) {
+      return;
+    }
+
+    setEditForm(
+      buildEditForm(
+        selectedActivity
+      )
+    );
+
+    setEditingActivity(
+      true
+    );
+  }
+
+  function handleEditChange(
+    event
+  ) {
+    const {
+      name,
+      value,
+    } =
+      event.target;
+
+    setEditForm(
+      (
+        current
+      ) => {
+        const next = {
+          ...current,
+
+          [name]:
+            value,
+        };
+
+        if (
+          name ===
+          "activity_type"
+        ) {
+          const scheduled =
+            SCHEDULED_ACTIVITY_TYPES.has(
+              value
+            );
+
+          next.status =
+            scheduled &&
+            normalise(
+              current.status
+            ) ===
+              "pending"
+              ? "Scheduled"
+              : current.status;
+
+          if (
+            scheduled
+          ) {
+            const date =
+              current.due_date ||
+              String(
+                current.scheduled_at ||
+                  ""
+              ).slice(
+                0,
+                10
+              ) ||
+              formatDateForQuery(
+                selectedDate
+              );
+
+            next.scheduled_at =
+              current.scheduled_at ||
+              `${date}T09:00`;
+
+            next.due_date =
+              "";
+          } else {
+            const date =
+              current.due_date ||
+              String(
+                current.scheduled_at ||
+                  ""
+              ).slice(
+                0,
+                10
+              ) ||
+              formatDateForQuery(
+                selectedDate
+              );
+
+            next.due_date =
+              date;
+
+            next.scheduled_at =
+              "";
+          }
+        }
+
+        if (
+          name ===
+          "related_type"
+        ) {
+          next.related_id =
+            "";
+        }
+
+        return next;
+      }
+    );
+  }
+
+  async function saveEditedActivity() {
+    if (
+      !selectedActivity ||
+      !editForm ||
+      !access.canEdit
+    ) {
+      return;
+    }
+
+    if (
+      !editForm.title.trim()
+    ) {
+      alert(
+        "Activity title is required."
+      );
+
+      return;
+    }
+
+    if (
+      editForm.related_type !==
+        "General" &&
+      !editForm.related_id
+    ) {
+      alert(
+        `Please select a ${editForm.related_type.toLowerCase()}.`
+      );
+
+      return;
+    }
+
+    const scheduled =
+      SCHEDULED_ACTIVITY_TYPES.has(
+        editForm.activity_type
+      );
+
+    if (
+      scheduled &&
+      !editForm.scheduled_at
+    ) {
+      alert(
+        `${editForm.activity_type} date and time are required.`
+      );
+
+      return;
+    }
+
+    try {
+      setUpdatingActivity(
+        true
+      );
+
+      const payload = {
+        activity_type:
+          editForm.activity_type,
+
+        title:
+          editForm.title.trim(),
+
+        note:
+          editForm.note.trim(),
+
+        due_date:
+          scheduled
+            ? null
+            : editForm.due_date ||
+              null,
+
+        scheduled_at:
+          scheduled
+            ? toIsoDateTime(
+                editForm.scheduled_at
+              )
+            : null,
+
+        status:
+          editForm.status,
+
+        related_type:
+          editForm.related_type,
+
+        related_id:
+          editForm.related_id ||
+          null,
+      };
+
+      if (
+        access.canAssign
+      ) {
+        payload.assigned_employee_id =
+          editForm.assigned_employee_id ||
+          "";
+      }
+
+      const response =
+        await fetch(
+          `/api/follow-ups/${selectedActivity.id}`,
+          {
+            method:
+              "PATCH",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify(
+                payload
+              ),
+          }
+        );
+
+      const data =
+        await safeJson(
+          response
+        );
+
+      if (
+        !response.ok
+      ) {
+        throw new Error(
+          data.error ||
+            "Unable to update activity."
+        );
+      }
+
+      await loadCalendar();
+
+      setSelectedActivity(
+        data.followUp ||
+          {
+            ...selectedActivity,
+            ...payload,
+          }
+      );
+
+      setEditingActivity(
+        false
+      );
+    } catch (error) {
+      alert(
+        error.message ||
+          "Unable to update activity."
+      );
+    } finally {
+      setUpdatingActivity(
+        false
+      );
+    }
+  }
+
+  async function patchActivityStatus(
+    status
+  ) {
+    if (
+      !selectedActivity ||
+      !access.canEdit
+    ) {
+      return;
+    }
+
+    try {
+      setUpdatingActivity(
+        true
+      );
+
+      const response =
+        await fetch(
+          `/api/follow-ups/${selectedActivity.id}`,
+          {
+            method:
+              "PATCH",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify({
+                status,
+              }),
+          }
+        );
+
+      const data =
+        await safeJson(
+          response
+        );
+
+      if (
+        !response.ok
+      ) {
+        throw new Error(
+          data.error ||
+            "Unable to update activity."
+        );
+      }
+
+      await loadCalendar();
+
+      setSelectedActivity(
+        (
+          current
+        ) => ({
+          ...current,
+          status,
+        })
+      );
+    } catch (error) {
+      alert(
+        error.message ||
+          "Unable to update activity."
+      );
+    } finally {
+      setUpdatingActivity(
+        false
+      );
+    }
+  }
+
+  async function deleteSelectedActivity() {
+    if (
+      !selectedActivity ||
+      !access.canDelete
+    ) {
+      return;
+    }
+
+    const confirmed =
+      window.confirm(
+        `Delete "${selectedActivity.title}"?`
+      );
+
+    if (
+      !confirmed
+    ) {
+      return;
+    }
+
+    try {
+      setUpdatingActivity(
+        true
+      );
+
+      const response =
+        await fetch(
+          `/api/follow-ups/${selectedActivity.id}`,
+          {
+            method:
+              "DELETE",
+          }
+        );
+
+      const data =
+        await safeJson(
+          response
+        );
+
+      if (
+        !response.ok
+      ) {
+        throw new Error(
+          data.error ||
+            "Unable to delete activity."
+        );
+      }
+
+      setSelectedActivity(
+        null
+      );
+
+      setEditingActivity(
+        false
+      );
+
+      await loadCalendar();
+    } catch (error) {
+      alert(
+        error.message ||
+          "Unable to delete activity."
+      );
+    } finally {
+      setUpdatingActivity(
         false
       );
     }
@@ -1355,6 +1843,9 @@ export default function CalendarPage() {
                         date
                       )
                     }
+                    onOpenActivity={
+                      openActivityDetails
+                    }
                   />
                 ) : view ===
                   "Week" ? (
@@ -1375,6 +1866,9 @@ export default function CalendarPage() {
                         date
                       )
                     }
+                    onOpenActivity={
+                      openActivityDetails
+                    }
                   />
                 ) : (
                   <DayView
@@ -1383,6 +1877,9 @@ export default function CalendarPage() {
                     }
                     activities={
                       calendarActivities
+                    }
+                    onOpenActivity={
+                      openActivityDetails
                     }
                   />
                 )}
@@ -1477,6 +1974,9 @@ export default function CalendarPage() {
                           activity={
                             activity
                           }
+                          onOpenActivity={
+                            openActivityDetails
+                          }
                         />
                       )
                     )}
@@ -1522,6 +2022,9 @@ export default function CalendarPage() {
                             key={`upcoming-${activity.id}`}
                             activity={
                               activity
+                            }
+                            onOpenActivity={
+                              openActivityDetails
                             }
                           />
                         )
@@ -1581,6 +2084,61 @@ export default function CalendarPage() {
                 }
               />
             )}
+
+          {selectedActivity && (
+            <ActivityDetailsModal
+              activity={
+                selectedActivity
+              }
+              editing={
+                editingActivity
+              }
+              editForm={
+                editForm
+              }
+              employees={
+                employees
+              }
+              leads={
+                leads
+              }
+              customers={
+                customers
+              }
+              projects={
+                projects
+              }
+              access={
+                access
+              }
+              saving={
+                updatingActivity
+              }
+              onClose={
+                closeActivityDetails
+              }
+              onEdit={
+                startActivityEdit
+              }
+              onCancelEdit={() =>
+                setEditingActivity(
+                  false
+                )
+              }
+              onChange={
+                handleEditChange
+              }
+              onSave={
+                saveEditedActivity
+              }
+              onStatus={
+                patchActivityStatus
+              }
+              onDelete={
+                deleteSelectedActivity
+              }
+            />
+          )}
         </div>
       </AppLayout>
     </ProtectedRoute>
@@ -2043,6 +2601,766 @@ function CreateActivityModal({
 }
 
 // =========================================================
+// ACTIVITY DETAILS MODAL
+// =========================================================
+
+function ActivityDetailsModal({
+  activity,
+  editing,
+  editForm,
+  employees,
+  leads,
+  customers,
+  projects,
+  access,
+  saving,
+  onClose,
+  onEdit,
+  onCancelEdit,
+  onChange,
+  onSave,
+  onStatus,
+  onDelete,
+}) {
+  const type =
+    editing
+      ? editForm?.activity_type
+      : activity.activity_type ||
+        "Follow-up";
+
+  const scheduled =
+    SCHEDULED_ACTIVITY_TYPES.has(
+      type
+    );
+
+  const relatedType =
+    editing
+      ? editForm?.related_type
+      : activity.related_type ||
+        "General";
+
+  const relatedRecords =
+    getRelatedRecords({
+      relatedType,
+
+      leads,
+
+      customers,
+
+      projects,
+    });
+
+  const closed =
+    CLOSED_STATUSES.has(
+      normalise(
+        activity.status
+      )
+    );
+
+  return (
+    <div
+      className={
+        styles.modalOverlay
+      }
+      role="presentation"
+      onMouseDown={(
+        event
+      ) => {
+        if (
+          event.target ===
+          event.currentTarget
+        ) {
+          onClose();
+        }
+      }}
+    >
+      <section
+        className={`${styles.modalPanel} ${styles.detailModalPanel}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="calendar-activity-title"
+      >
+        <div
+          className={
+            styles.modalHeader
+          }
+        >
+          <div>
+            <span
+              className={
+                styles.eyebrow
+              }
+            >
+              {editing
+                ? "Edit activity"
+                : type}
+            </span>
+
+            <h3
+              id="calendar-activity-title"
+            >
+              {editing
+                ? "Update activity"
+                : activity.title ||
+                  "Activity"}
+            </h3>
+
+            <p>
+              {formatActivityDateLine(
+                activity
+              )}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            className={
+              styles.modalClose
+            }
+            onClick={
+              onClose
+            }
+            disabled={
+              saving
+            }
+            aria-label="Close activity details"
+          >
+            ×
+          </button>
+        </div>
+
+        {editing &&
+        editForm ? (
+          <div
+            className={
+              styles.modalForm
+            }
+          >
+            <div
+              className={
+                styles.modalGrid
+              }
+            >
+              <label
+                className={
+                  styles.modalField
+                }
+              >
+                <span>
+                  Activity type
+                </span>
+
+                <select
+                  name="activity_type"
+                  value={
+                    editForm.activity_type
+                  }
+                  onChange={
+                    onChange
+                  }
+                  disabled={
+                    saving
+                  }
+                >
+                  {ACTIVITY_TYPES.map(
+                    (
+                      option
+                    ) => (
+                      <option
+                        key={
+                          option
+                        }
+                        value={
+                          option
+                        }
+                      >
+                        {
+                          option
+                        }
+                      </option>
+                    )
+                  )}
+                </select>
+              </label>
+
+              <label
+                className={
+                  styles.modalField
+                }
+              >
+                <span>
+                  Title
+                </span>
+
+                <input
+                  name="title"
+                  value={
+                    editForm.title
+                  }
+                  onChange={
+                    onChange
+                  }
+                  disabled={
+                    saving
+                  }
+                />
+              </label>
+
+              <label
+                className={
+                  styles.modalField
+                }
+              >
+                <span>
+                  Related to
+                </span>
+
+                <select
+                  name="related_type"
+                  value={
+                    editForm.related_type
+                  }
+                  onChange={
+                    onChange
+                  }
+                  disabled={
+                    saving
+                  }
+                >
+                  {RELATED_TYPES.map(
+                    (
+                      option
+                    ) => (
+                      <option
+                        key={
+                          option
+                        }
+                        value={
+                          option
+                        }
+                      >
+                        {
+                          option
+                        }
+                      </option>
+                    )
+                  )}
+                </select>
+              </label>
+
+              {editForm.related_type ===
+              "General" ? (
+                <div
+                  className={
+                    styles.modalContext
+                  }
+                >
+                  <strong>
+                    General activity
+                  </strong>
+
+                  <span>
+                    No CRM record is linked.
+                  </span>
+                </div>
+              ) : (
+                <label
+                  className={
+                    styles.modalField
+                  }
+                >
+                  <span>
+                    {
+                      editForm.related_type
+                    }
+                  </span>
+
+                  <select
+                    name="related_id"
+                    value={
+                      editForm.related_id
+                    }
+                    onChange={
+                      onChange
+                    }
+                    disabled={
+                      saving
+                    }
+                  >
+                    <option value="">
+                      Select{" "}
+                      {editForm.related_type.toLowerCase()}
+                    </option>
+
+                    {relatedRecords.map(
+                      (
+                        record
+                      ) => (
+                        <option
+                          key={
+                            record.id
+                          }
+                          value={
+                            record.id
+                          }
+                        >
+                          {
+                            record.label
+                          }
+                        </option>
+                      )
+                    )}
+                  </select>
+                </label>
+              )}
+
+              {scheduled ? (
+                <label
+                  className={
+                    styles.modalField
+                  }
+                >
+                  <span>
+                    Scheduled date & time
+                  </span>
+
+                  <input
+                    type="datetime-local"
+                    name="scheduled_at"
+                    value={
+                      editForm.scheduled_at
+                    }
+                    onChange={
+                      onChange
+                    }
+                    disabled={
+                      saving
+                    }
+                  />
+                </label>
+              ) : (
+                <label
+                  className={
+                    styles.modalField
+                  }
+                >
+                  <span>
+                    Due date
+                  </span>
+
+                  <input
+                    type="date"
+                    name="due_date"
+                    value={
+                      editForm.due_date
+                    }
+                    onChange={
+                      onChange
+                    }
+                    disabled={
+                      saving
+                    }
+                  />
+                </label>
+              )}
+
+              <label
+                className={
+                  styles.modalField
+                }
+              >
+                <span>
+                  Status
+                </span>
+
+                <select
+                  name="status"
+                  value={
+                    editForm.status
+                  }
+                  onChange={
+                    onChange
+                  }
+                  disabled={
+                    saving
+                  }
+                >
+                  {[
+                    "Pending",
+                    "Scheduled",
+                    "In Progress",
+                    "Completed",
+                    "No Answer",
+                    "Rescheduled",
+                    "Cancelled",
+                  ].map(
+                    (
+                      status
+                    ) => (
+                      <option
+                        key={
+                          status
+                        }
+                        value={
+                          status
+                        }
+                      >
+                        {
+                          status
+                        }
+                      </option>
+                    )
+                  )}
+                </select>
+              </label>
+
+              {access.canAssign && (
+                <label
+                  className={
+                    styles.modalField
+                  }
+                >
+                  <span>
+                    Assigned employee
+                  </span>
+
+                  <select
+                    name="assigned_employee_id"
+                    value={
+                      editForm.assigned_employee_id
+                    }
+                    onChange={
+                      onChange
+                    }
+                    disabled={
+                      saving
+                    }
+                  >
+                    <option value="">
+                      Unassigned
+                    </option>
+
+                    {employees.map(
+                      (
+                        employee
+                      ) => (
+                        <option
+                          key={
+                            employee.id
+                          }
+                          value={
+                            employee.id
+                          }
+                        >
+                          {
+                            employee.full_name
+                          }
+                        </option>
+                      )
+                    )}
+                  </select>
+                </label>
+              )}
+
+              <label
+                className={`${styles.modalField} ${styles.modalFieldFull}`}
+              >
+                <span>
+                  Notes
+                </span>
+
+                <textarea
+                  name="note"
+                  rows={4}
+                  value={
+                    editForm.note
+                  }
+                  onChange={
+                    onChange
+                  }
+                  disabled={
+                    saving
+                  }
+                />
+              </label>
+            </div>
+
+            <div
+              className={
+                styles.modalActions
+              }
+            >
+              <button
+                type="button"
+                className={
+                  styles.secondaryButton
+                }
+                onClick={
+                  onCancelEdit
+                }
+                disabled={
+                  saving
+                }
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                className={
+                  styles.primaryButton
+                }
+                onClick={
+                  onSave
+                }
+                disabled={
+                  saving
+                }
+              >
+                {saving
+                  ? "Saving..."
+                  : "Save changes"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div
+              className={
+                styles.activityDetailBody
+              }
+            >
+              <div
+                className={
+                  styles.activityDetailHero
+                }
+              >
+                <span
+                  className={`${styles.activityDetailIcon} ${getEventToneClass(
+                    type
+                  )}`}
+                >
+                  {activityIcon(
+                    type
+                  )}
+                </span>
+
+                <div>
+                  <strong>
+                    {type}
+                  </strong>
+
+                  <StatusBadge
+                    status={
+                      activity.status ||
+                      "Pending"
+                    }
+                  />
+                </div>
+              </div>
+
+              <div
+                className={
+                  styles.activityDetailGrid
+                }
+              >
+                <DetailRow
+                  label="Date / time"
+                  value={
+                    formatActivityDateLine(
+                      activity
+                    )
+                  }
+                />
+
+                <DetailRow
+                  label="Assigned to"
+                  value={
+                    activity.assigned_employee
+                      ?.full_name ||
+                    "Unassigned"
+                  }
+                />
+
+                <DetailRow
+                  label="Related to"
+                  value={
+                    activity.related_type ||
+                    "General"
+                  }
+                />
+
+                <DetailRow
+                  label="Status"
+                  value={
+                    activity.status ||
+                    "Pending"
+                  }
+                />
+              </div>
+
+              {activity.note && (
+                <div
+                  className={
+                    styles.activityDetailNotes
+                  }
+                >
+                  <span>
+                    Notes
+                  </span>
+
+                  <p>
+                    {
+                      activity.note
+                    }
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div
+              className={
+                styles.activityDetailActions
+              }
+            >
+              <div
+                className={
+                  styles.activityDetailActionsLeft
+                }
+              >
+                {access.canEdit &&
+                  !closed && (
+                    <button
+                      type="button"
+                      className={
+                        styles.detailCompleteButton
+                      }
+                      onClick={() =>
+                        onStatus(
+                          "Completed"
+                        )
+                      }
+                      disabled={
+                        saving
+                      }
+                    >
+                      Complete
+                    </button>
+                  )}
+
+                {access.canEdit &&
+                  normalise(
+                    type
+                  ) ===
+                    "call" &&
+                  !closed && (
+                    <button
+                      type="button"
+                      className={
+                        styles.secondaryButton
+                      }
+                      onClick={() =>
+                        onStatus(
+                          "No Answer"
+                        )
+                      }
+                      disabled={
+                        saving
+                      }
+                    >
+                      No answer
+                    </button>
+                  )}
+
+                {access.canEdit &&
+                  scheduled &&
+                  !closed && (
+                    <button
+                      type="button"
+                      className={
+                        styles.secondaryButton
+                      }
+                      onClick={
+                        onEdit
+                      }
+                      disabled={
+                        saving
+                      }
+                    >
+                      Reschedule
+                    </button>
+                  )}
+              </div>
+
+              <div
+                className={
+                  styles.activityDetailActionsRight
+                }
+              >
+                {access.canDelete && (
+                  <button
+                    type="button"
+                    className={
+                      styles.detailDeleteButton
+                    }
+                    onClick={
+                      onDelete
+                    }
+                    disabled={
+                      saving
+                    }
+                  >
+                    Delete
+                  </button>
+                )}
+
+                {access.canEdit && (
+                  <button
+                    type="button"
+                    className={
+                      styles.primaryButton
+                    }
+                    onClick={
+                      onEdit
+                    }
+                    disabled={
+                      saving
+                    }
+                  >
+                    Edit
+                  </button>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function DetailRow({
+  label,
+  value,
+}) {
+  return (
+    <div
+      className={
+        styles.activityDetailRow
+      }
+    >
+      <span>
+        {label}
+      </span>
+
+      <strong>
+        {value}
+      </strong>
+    </div>
+  );
+}
+
+// =========================================================
 // MONTH VIEW
 // =========================================================
 
@@ -2051,6 +3369,7 @@ function MonthView({
   selectedDate,
   activities,
   onSelectDate,
+  onOpenActivity,
 }) {
   const days =
     buildMonthGrid(
@@ -2200,6 +3519,9 @@ function MonthView({
                           activity={
                             activity
                           }
+                          onOpenActivity={
+                            onOpenActivity
+                          }
                         />
                       )
                     )}
@@ -2236,6 +3558,7 @@ function WeekView({
   selectedDate,
   activities,
   onSelectDate,
+  onOpenActivity,
 }) {
   const start =
     startOfWeek(
@@ -2343,6 +3666,9 @@ function WeekView({
                       activity={
                         activity
                       }
+                      onOpenActivity={
+                        onOpenActivity
+                      }
                     />
                   )
                 )}
@@ -2373,6 +3699,7 @@ function WeekView({
 function DayView({
   currentDate,
   activities,
+  onOpenActivity,
 }) {
   const dayActivities =
     activities
@@ -2471,6 +3798,9 @@ function DayView({
                       activity={
                         activity
                       }
+                      onOpenActivity={
+                        onOpenActivity
+                      }
                     />
                   )
                 )}
@@ -2529,19 +3859,30 @@ function DayView({
 
 function CalendarEvent({
   activity,
+  onOpenActivity,
 }) {
   const type =
     activity.activity_type ||
     "Follow-up";
 
   return (
-    <span
+    <button
+      type="button"
       className={`${styles.calendarEvent} ${getEventToneClass(
         type
       )}`}
       title={
         activity.title
       }
+      onClick={(
+        event
+      ) => {
+        event.stopPropagation();
+
+        onOpenActivity(
+          activity
+        );
+      }}
     >
       <span>
         {activityIcon(
@@ -2561,26 +3902,25 @@ function CalendarEvent({
         {activity.title ||
           "Activity"}
       </strong>
-    </span>
+    </button>
   );
 }
 
 function WeekEvent({
   activity,
+  onOpenActivity,
 }) {
-  const href =
-    getActivityHref(
-      activity
-    );
-
   return (
-    <Link
-      href={
-        href
-      }
+    <button
+      type="button"
       className={`${styles.weekEvent} ${getEventToneClass(
         activity.activity_type
       )}`}
+      onClick={() =>
+        onOpenActivity(
+          activity
+        )
+      }
     >
       <span
         className={
@@ -2611,7 +3951,7 @@ function WeekEvent({
             : ""}
         </small>
       </div>
-    </Link>
+    </button>
   );
 }
 
@@ -2621,23 +3961,22 @@ function WeekEvent({
 
 function AgendaItem({
   activity,
+  onOpenActivity,
 }) {
   const type =
     activity.activity_type ||
     "Follow-up";
 
-  const href =
-    getActivityHref(
-      activity
-    );
-
   return (
-    <Link
-      href={
-        href
-      }
+    <button
+      type="button"
       className={
         styles.agendaItem
+      }
+      onClick={() =>
+        onOpenActivity(
+          activity
+        )
       }
     >
       <span
@@ -2693,22 +4032,24 @@ function AgendaItem({
           </small>
         )}
       </div>
-    </Link>
+    </button>
   );
 }
 
 function UpcomingItem({
   activity,
+  onOpenActivity,
 }) {
   return (
-    <Link
-      href={
-        getActivityHref(
-          activity
-        )
-      }
+    <button
+      type="button"
       className={
         styles.upcomingItem
+      }
+      onClick={() =>
+        onOpenActivity(
+          activity
+        )
       }
     >
       <span>
@@ -2731,7 +4072,7 @@ function UpcomingItem({
           )}
         </small>
       </div>
-    </Link>
+    </button>
   );
 }
 
@@ -3147,6 +4488,172 @@ function activityTitlePlaceholder(
     default:
       return "e.g. Follow up on proposal";
   }
+}
+
+function normaliseDateTimeInput(
+  value
+) {
+  if (
+    !value
+  ) {
+    return "";
+  }
+
+  const date =
+    new Date(
+      value
+    );
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return "";
+  }
+
+  const pad = (
+    part
+  ) =>
+    String(
+      part
+    ).padStart(
+      2,
+      "0"
+    );
+
+  return `${date.getFullYear()}-${pad(
+    date.getMonth() +
+      1
+  )}-${pad(
+    date.getDate()
+  )}T${pad(
+    date.getHours()
+  )}:${pad(
+    date.getMinutes()
+  )}`;
+}
+
+function buildEditForm(
+  activity
+) {
+  return {
+    activity_type:
+      activity.activity_type ||
+      "Follow-up",
+
+    title:
+      activity.title ||
+      "",
+
+    note:
+      activity.note ||
+      "",
+
+    due_date:
+      activity.due_date
+        ? String(
+            activity.due_date
+          ).slice(
+            0,
+            10
+          )
+        : "",
+
+    scheduled_at:
+      normaliseDateTimeInput(
+        activity.scheduled_at
+      ),
+
+    status:
+      activity.status ||
+      "Pending",
+
+    related_type:
+      activity.related_type ||
+      "General",
+
+    related_id:
+      activity.related_id ||
+      "",
+
+    assigned_employee_id:
+      activity.assigned_employee_id ||
+      "",
+  };
+}
+
+function formatActivityDateLine(
+  activity
+) {
+  if (
+    activity?.scheduled_at
+  ) {
+    const date =
+      new Date(
+        activity.scheduled_at
+      );
+
+    if (
+      !Number.isNaN(
+        date.getTime()
+      )
+    ) {
+      return date.toLocaleString(
+        "en-GB",
+        {
+          weekday:
+            "short",
+          day:
+            "2-digit",
+          month:
+            "short",
+          year:
+            "numeric",
+          hour:
+            "2-digit",
+          minute:
+            "2-digit",
+        }
+      );
+    }
+  }
+
+  if (
+    activity?.due_date
+  ) {
+    const date =
+      new Date(
+        `${String(
+          activity.due_date
+        ).slice(
+          0,
+          10
+        )}T12:00:00`
+      );
+
+    if (
+      !Number.isNaN(
+        date.getTime()
+      )
+    ) {
+      return `Due ${date.toLocaleDateString(
+        "en-GB",
+        {
+          weekday:
+            "short",
+          day:
+            "2-digit",
+          month:
+            "short",
+          year:
+            "numeric",
+        }
+      )}`;
+    }
+  }
+
+  return "No date set";
 }
 
 function formatPeriodTitle(
