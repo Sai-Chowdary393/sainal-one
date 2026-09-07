@@ -8,54 +8,12 @@ import ProtectedRoute from "../../components/ProtectedRoute";
 import styles from "./ai-assistant.module.css";
 
 const QUICK_ACTIONS = [
-  {
-    icon: "◎",
-    title: "Review hot leads",
-    description:
-      "Identify high-priority leads that need immediate action.",
-    prompt:
-      "Show me the hot leads that need follow-up and tell me what action I should take for each one.",
-  },
-  {
-    icon: "£",
-    title: "Review unpaid invoices",
-    description:
-      "Find unpaid invoices and potential payment risks.",
-    prompt:
-      "Show me unpaid invoices, pending payments and any payment risks that need attention.",
-  },
-  {
-    icon: "▰",
-    title: "Check project risks",
-    description:
-      "Find delayed, blocked or overdue project work.",
-    prompt:
-      "Which projects need attention? Include delayed projects, overdue tasks and recommended next actions.",
-  },
-  {
-    icon: "✉",
-    title: "Draft follow-up email",
-    description:
-      "Create a professional customer follow-up email.",
-    prompt:
-      "Write a professional follow-up email for Patric about the ecommerce website requirements and project timeline.",
-  },
-  {
-    icon: "◇",
-    title: "Summarise sales pipeline",
-    description:
-      "Review leads, quotes and sales opportunities.",
-    prompt:
-      "Summarise my sales pipeline, including hot leads, quote values and the most important sales actions.",
-  },
-  {
-    icon: "✦",
-    title: "Today's priorities",
-    description:
-      "Get a management summary of what needs attention.",
-    prompt:
-      "What should I focus on today? Prioritise leads, projects, invoices and follow-ups.",
-  },
+  { icon: "◎", title: "Review hot leads", description: "Identify high-priority leads that need immediate action.", prompt: "Show me the hot leads that need follow-up and tell me what action I should take for each one." },
+  { icon: "◷", title: "Schedule a call", description: "Create a CRM-linked call directly from natural language.", prompt: "Schedule a call with Daniel Reed tomorrow at 11:00." },
+  { icon: "▰", title: "Check project risks", description: "Find delayed, blocked or overdue project work.", prompt: "Which projects need attention? Include delayed projects, overdue tasks and recommended next actions." },
+  { icon: "✉", title: "Send follow-up email", description: "Prepare and send a CRM-linked follow-up email with confirmation.", prompt: "Send Daniel Reed a professional follow-up email asking whether he has any questions and what the next step should be." },
+  { icon: "◇", title: "Convert a lead", description: "Convert a qualified lead into a customer and project.", prompt: "Convert Daniel Reed to a customer and create the related project." },
+  { icon: "✦", title: "Today's priorities", description: "Get a management summary of what needs attention.", prompt: "What should I focus on today? Prioritise leads, projects, invoices, follow-ups and recent communication." },
 ];
 
 const CAPABILITIES = [
@@ -101,6 +59,8 @@ export default function AIAssistantPage() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] =
     useState("");
+  const [executingPlan, setExecutingPlan] =
+    useState(false);
 
   const textareaRef = useRef(null);
 
@@ -115,15 +75,9 @@ export default function AIAssistantPage() {
   }, [messages]);
 
   async function askAI(customPrompt) {
-    const finalPrompt = String(
-      customPrompt || prompt
-    ).trim();
-
-    if (!finalPrompt || loading) {
-      if (!finalPrompt) {
-        alert("Please enter your question.");
-      }
-
+    const finalPrompt = String(customPrompt || prompt).trim();
+    if (!finalPrompt || loading || executingPlan) {
+      if (!finalPrompt) alert("Please enter your question.");
       return;
     }
 
@@ -134,101 +88,93 @@ export default function AIAssistantPage() {
       createdAt: new Date().toISOString(),
     };
 
-    setMessages((currentMessages) => [
-      ...currentMessages,
-      userMessage,
-    ]);
+    const conversation = messages
+      .filter((message) =>
+        (message.role === "user" || message.role === "assistant") &&
+        message.id !== "welcome"
+      )
+      .slice(-10)
+      .map((message) => ({ role: message.role, content: message.content }));
 
+    setMessages((currentMessages) => [...currentMessages, userMessage]);
     setPrompt("");
     setLoading(true);
     setErrorMessage("");
 
     try {
-      const response = await fetch(
-        "/api/ai-assistant",
-        {
-          method: "POST",
+      const response = await fetch("/api/ai-assistant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: finalPrompt,
+          conversation,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+        }),
+      });
 
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-
-          body: JSON.stringify({
-            prompt: finalPrompt,
-
-            conversation:
-              messages
-                .filter(
-                  (message) =>
-                    (
-                      message.role === "user" ||
-                      message.role === "assistant"
-                    ) &&
-                    message.id !== "welcome"
-                )
-                .slice(-10)
-                .map((message) => ({
-                  role: message.role,
-                  content: message.content,
-                })),
-          }),
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.error ||
-            "The AI request could not be completed."
-        );
-      }
-
-      const answer =
-        data.answer ||
-        "The AI completed the request but returned no response.";
-
-      const assistantMessage = {
-        id: createMessageId(),
-        role: "assistant",
-        content: answer,
-        createdAt: new Date().toISOString(),
-      };
-
-      setMessages((currentMessages) => [
-        ...currentMessages,
-        assistantMessage,
-      ]);
-    } catch (error) {
-      console.error(
-        "AI Assistant request error:",
-        error
-      );
-
-      setErrorMessage(
-        error.message ||
-          "Unable to contact the AI Assistant."
-      );
+      const data = await safeJson(response);
+      if (!response.ok) throw new Error(data.error || "The AI request could not be completed.");
 
       setMessages((currentMessages) => [
         ...currentMessages,
         {
           id: createMessageId(),
-          role: "error",
-          content:
-            error.message ||
-            "Unable to contact the AI Assistant.",
+          role: "assistant",
+          content: data.answer || "The AI completed the request but returned no response.",
           createdAt: new Date().toISOString(),
+          plan: data.requires_confirmation ? data.plan : null,
+          planDisplay: data.requires_confirmation ? data.plan_display : null,
+          confirmationReason: data.confirmation_reason || "",
+          planStatus: data.requires_confirmation ? "pending" : null,
         },
+      ]);
+    } catch (error) {
+      console.error("AI Assistant request error:", error);
+      setErrorMessage(error.message || "Unable to contact the AI Assistant.");
+      setMessages((currentMessages) => [
+        ...currentMessages,
+        { id: createMessageId(), role: "error", content: error.message || "Unable to contact the AI Assistant.", createdAt: new Date().toISOString() },
       ]);
     } finally {
       setLoading(false);
-
-      window.setTimeout(() => {
-        textareaRef.current?.focus();
-      }, 50);
+      window.setTimeout(() => textareaRef.current?.focus(), 50);
     }
+  }
+
+  async function confirmPlan(message) {
+    if (!message?.plan || executingPlan || loading) return;
+    try {
+      setExecutingPlan(true);
+      setErrorMessage("");
+      setMessages((current) => current.map((item) => item.id === message.id ? { ...item, planStatus: "running" } : item));
+
+      const response = await fetch("/api/ai-assistant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "execute_plan",
+          plan: message.plan,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+        }),
+      });
+
+      const data = await safeJson(response);
+      if (!response.ok) throw new Error(data.error || "The AI Agent could not complete the actions.");
+
+      setMessages((current) => current
+        .map((item) => item.id === message.id ? { ...item, planStatus: data.success ? "completed" : "failed" } : item)
+        .concat({ id: createMessageId(), role: "assistant", content: data.answer || "AI Agent execution completed.", createdAt: new Date().toISOString() }));
+    } catch (error) {
+      setErrorMessage(error.message || "Unable to execute the AI Agent actions.");
+      setMessages((current) => current.map((item) => item.id === message.id ? { ...item, planStatus: "failed" } : item));
+    } finally {
+      setExecutingPlan(false);
+    }
+  }
+
+  function cancelPlan(message) {
+    if (!message?.plan) return;
+    setMessages((current) => current.map((item) => item.id === message.id ? { ...item, planStatus: "cancelled" } : item));
   }
 
   function handlePromptChange(event) {
@@ -326,8 +272,9 @@ export default function AIAssistantPage() {
                 customers, finance, projects
                 and follow-ups. SaiNal One can
                 analyse your current business
-                data and recommend the next
-                best action.
+                data, recommend the next action
+                and perform permitted CRM work
+                for you.
               </p>
             </div>
 
@@ -353,7 +300,7 @@ export default function AIAssistantPage() {
 
                 <p>
                   Connected to SaiNal One
-                  business context
+                  business operations
                 </p>
               </div>
             </div>
@@ -400,7 +347,7 @@ export default function AIAssistantPage() {
                     className={
                       styles.quickActionCard
                     }
-                    disabled={loading}
+                    disabled={loading || executingPlan}
                     onClick={() =>
                       askAI(action.prompt)
                     }
@@ -505,9 +452,10 @@ export default function AIAssistantPage() {
                       onCopy={
                         copyResponse
                       }
-                      onReusePrompt={
-                        reusePrompt
-                      }
+                      onReusePrompt={reusePrompt}
+                      onConfirmPlan={confirmPlan}
+                      onCancelPlan={cancelPlan}
+                      executingPlan={executingPlan}
                     />
                   )
                 )}
@@ -578,6 +526,7 @@ export default function AIAssistantPage() {
                       }
                       disabled={
                         loading ||
+                        executingPlan ||
                         !prompt.trim()
                       }
                       onClick={() => askAI()}
@@ -780,6 +729,9 @@ function MessageBubble({
   message,
   onCopy,
   onReusePrompt,
+  onConfirmPlan,
+  onCancelPlan,
+  executingPlan,
 }) {
   const isUser =
     message.role === "user";
@@ -850,6 +802,15 @@ function MessageBubble({
           )}
         </div>
 
+        {message.planDisplay && (
+          <ActionPlanCard
+            message={message}
+            onConfirm={onConfirmPlan}
+            onCancel={onCancelPlan}
+            disabled={executingPlan}
+          />
+        )}
+
         {!isError && (
           <div
             className={
@@ -885,6 +846,44 @@ function MessageBubble({
         )}
       </div>
     </article>
+  );
+}
+
+function ActionPlanCard({ message, onConfirm, onCancel, disabled }) {
+  const status = message.planStatus || "pending";
+  return (
+    <div className={styles.actionPlan}>
+      <div className={styles.actionPlanHeader}>
+        <div>
+          <span>AI AGENT PLAN</span>
+          <strong>{message.planDisplay?.summary || "Review actions"}</strong>
+        </div>
+        <span className={`${styles.actionPlanStatus} ${styles[`actionPlanStatus${status.charAt(0).toUpperCase()}${status.slice(1)}`] || ""}`}>
+          {status === "pending" ? "Needs confirmation" : status === "running" ? "Running" : status === "completed" ? "Completed" : status === "cancelled" ? "Cancelled" : "Failed"}
+        </span>
+      </div>
+
+      <div className={styles.actionPlanList}>
+        {(message.planDisplay?.actions || []).map((action) => (
+          <div key={`${message.id}-${action.index}`} className={styles.actionPlanItem}>
+            <span>{action.index}</span>
+            <div>
+              <strong>{action.label}</strong>
+              {action.reason && <p>{action.reason}</p>}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {message.confirmationReason && <p className={styles.actionPlanReason}>{message.confirmationReason}</p>}
+
+      {status === "pending" && (
+        <div className={styles.actionPlanActions}>
+          <button type="button" className={styles.actionPlanCancel} disabled={disabled} onClick={() => onCancel(message)}>Cancel</button>
+          <button type="button" className={styles.actionPlanConfirm} disabled={disabled} onClick={() => onConfirm(message)}>✦ Confirm & Run</button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -972,6 +971,10 @@ function formatMessageContent(content) {
       </p>
     );
   });
+}
+
+async function safeJson(response) {
+  try { return await response.json(); } catch { return {}; }
 }
 
 function createMessageId() {
