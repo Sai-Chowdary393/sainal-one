@@ -4,7 +4,7 @@ import { getServerAccess } from "../../../lib/serverAccess";
 import { getRecordPermissions, getTeamEmployeeIds, loadAssignableEmployees } from "../../../lib/recordAccess";
 import { createAdminSupabaseClient } from "../../../lib/supabaseAdmin";
 import { getBusinessProfile, businessProfilePrompt } from "../../../lib/ai/businessProfile";
-import { planRequest, sanitisePlan, confirmationForPlan, clientPlan, executePlan } from "../../../lib/ai/agentEngine";
+import { planRequest, sanitisePlan, resolvePlanAgainstBusinessData, buildDeterministicPlan, confirmationForPlan, clientPlan, executePlan } from "../../../lib/ai/agentEngine";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -203,13 +203,29 @@ export async function POST(request) {
       forceActions: actionIntent,
     };
     let plan = await planRequest(plannerArgs);
+    plan = resolvePlanAgainstBusinessData({
+      plan,
+      prompt,
+      conversation,
+      businessData: compactBusiness(businessData),
+      employees: plannerArgs.employees,
+      timezone,
+    });
 
-    // Never allow a clear CRM write request to fall through to conversational prose.
+    // A clear CRM action must never fall through to conversational prose.
+    // If the LLM planner cannot produce a usable action, resolve common CRM
+    // actions deterministically from the permission-filtered business data.
     if (actionIntent && (plan.mode !== "actions" || !plan.actions.length)) {
-      plan = await planRequest({ ...plannerArgs, forceActions: true });
+      plan = buildDeterministicPlan({
+        prompt,
+        conversation,
+        businessData: compactBusiness(businessData),
+        timezone,
+      });
+
       if (plan.mode !== "actions" || !plan.actions.length) {
         return NextResponse.json({
-          error: "I understood this as a CRM action request, but I could not build a safe executable plan. No changes were made. Please make the record/action slightly more specific."
+          error: plan.summary || "I understood this as a CRM action request, but I could not uniquely match the record needed to perform it. No changes were made."
         }, { status: 422 });
       }
     }
