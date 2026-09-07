@@ -110,6 +110,18 @@ export default function EmailsPage() {
     useState(false);
 
   const [
+    generatingDraft,
+    setGeneratingDraft,
+  ] =
+    useState(false);
+
+  const [
+    aiDraftError,
+    setAiDraftError,
+  ] =
+    useState("");
+
+  const [
     composeForm,
     setComposeForm,
   ] =
@@ -356,6 +368,10 @@ export default function EmailsPage() {
       EMPTY_COMPOSE_FORM
     );
 
+    setAiDraftError(
+      ""
+    );
+
     setShowCompose(
       true
     );
@@ -363,10 +379,15 @@ export default function EmailsPage() {
 
   function closeCompose() {
     if (
-      sending
+      sending ||
+      generatingDraft
     ) {
       return;
     }
+
+    setAiDraftError(
+      ""
+    );
 
     setShowCompose(
       false
@@ -441,6 +462,120 @@ export default function EmailsPage() {
         return next;
       }
     );
+  }
+
+  async function generateAiDraft() {
+    if (
+      composeForm.related_type !==
+        "General" &&
+      !composeForm.related_id
+    ) {
+      alert(
+        `Please select a ${composeForm.related_type.toLowerCase()} first.`
+      );
+
+      return;
+    }
+
+    try {
+      setGeneratingDraft(
+        true
+      );
+
+      setAiDraftError(
+        ""
+      );
+
+      const relatedRecord =
+        getSelectedRelatedRecord({
+          relatedType:
+            composeForm.related_type,
+
+          relatedId:
+            composeForm.related_id,
+
+          leads,
+
+          customers,
+
+          projects,
+        });
+
+      const response =
+        await fetch(
+          "/api/emails/ai-draft",
+          {
+            method:
+              "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify({
+                related_type:
+                  composeForm.related_type,
+
+                related_id:
+                  composeForm.related_id ||
+                  null,
+
+                to:
+                  composeForm.to.trim(),
+
+                current_subject:
+                  composeForm.subject.trim(),
+
+                current_message:
+                  composeForm.message.trim(),
+
+                related_record:
+                  relatedRecord,
+              }),
+          }
+        );
+
+      const data =
+        await safeJson(
+          response
+        );
+
+      if (
+        !response.ok
+      ) {
+        throw new Error(
+          data.error ||
+            "Unable to generate an AI email draft."
+        );
+      }
+
+      setComposeForm(
+        (
+          current
+        ) => ({
+          ...current,
+
+          subject:
+            data.subject ||
+            current.subject,
+
+          message:
+            data.message ||
+            current.message,
+        })
+      );
+    } catch (error) {
+      setAiDraftError(
+        error.message ||
+          "Unable to generate an AI email draft."
+      );
+    } finally {
+      setGeneratingDraft(
+        false
+      );
+    }
   }
 
   async function sendEmail(
@@ -1091,11 +1226,20 @@ export default function EmailsPage() {
               sending={
                 sending
               }
+              generatingDraft={
+                generatingDraft
+              }
+              aiDraftError={
+                aiDraftError
+              }
               onChange={
                 handleComposeChange
               }
               onClose={
                 closeCompose
+              }
+              onGenerateDraft={
+                generateAiDraft
               }
               onSubmit={
                 sendEmail
@@ -1116,8 +1260,11 @@ function ComposeEmailModal({
   form,
   relatedRecords,
   sending,
+  generatingDraft,
+  aiDraftError,
   onChange,
   onClose,
+  onGenerateDraft,
   onSubmit,
 }) {
   return (
@@ -1179,7 +1326,8 @@ function ComposeEmailModal({
               onClose
             }
             disabled={
-              sending
+              sending ||
+              generatingDraft
             }
             aria-label="Close compose email"
           >
@@ -1390,14 +1538,41 @@ function ComposeEmailModal({
               styles.composeFooter
             }
           >
-            <Link
-              href="/ai-assistant"
+            <div
               className={
-                styles.aiDraftLink
+                styles.aiDraftArea
               }
             >
-              ✦ Draft with AI
-            </Link>
+              <button
+                type="button"
+                className={
+                  styles.aiDraftButton
+                }
+                onClick={
+                  onGenerateDraft
+                }
+                disabled={
+                  sending ||
+                  generatingDraft
+                }
+              >
+                {generatingDraft
+                  ? "✦ Drafting..."
+                  : "✦ Draft with AI"}
+              </button>
+
+              {aiDraftError && (
+                <small
+                  className={
+                    styles.aiDraftError
+                  }
+                >
+                  {
+                    aiDraftError
+                  }
+                </small>
+              )}
+            </div>
 
             <div
               className={
@@ -1425,7 +1600,8 @@ function ComposeEmailModal({
                   styles.primaryButton
                 }
                 disabled={
-                  sending
+                  sending ||
+                  generatingDraft
                 }
               >
                 {sending
@@ -1808,6 +1984,47 @@ function getRelatedRecords({
   }
 
   return [];
+}
+
+function getSelectedRelatedRecord({
+  relatedType,
+  relatedId,
+  leads,
+  customers,
+  projects,
+}) {
+  if (
+    !relatedId
+  ) {
+    return null;
+  }
+
+  const source =
+    relatedType ===
+    "Lead"
+      ? leads
+      : relatedType ===
+          "Customer"
+        ? customers
+        : relatedType ===
+            "Project"
+          ? projects
+          : [];
+
+  return (
+    source.find(
+      (
+        item
+      ) =>
+        String(
+          item.id
+        ) ===
+        String(
+          relatedId
+        )
+    ) ||
+    null
+  );
 }
 
 function getRelatedEmail({
