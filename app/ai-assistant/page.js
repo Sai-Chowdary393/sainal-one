@@ -1,6 +1,11 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import AppLayout from "../../components/layout/AppLayout";
 import ProtectedRoute from "../../components/ProtectedRoute";
@@ -8,12 +13,54 @@ import ProtectedRoute from "../../components/ProtectedRoute";
 import styles from "./ai-assistant.module.css";
 
 const QUICK_ACTIONS = [
-  { icon: "◎", title: "Review hot leads", description: "Identify high-priority leads that need immediate action.", prompt: "Show me the hot leads that need follow-up and tell me what action I should take for each one." },
-  { icon: "◷", title: "Schedule a call", description: "Create a CRM-linked call directly from natural language.", prompt: "Schedule a call with Daniel Reed tomorrow at 11:00." },
-  { icon: "▰", title: "Check project risks", description: "Find delayed, blocked or overdue project work.", prompt: "Which projects need attention? Include delayed projects, overdue tasks and recommended next actions." },
-  { icon: "✉", title: "Send follow-up email", description: "Prepare and send a CRM-linked follow-up email with confirmation.", prompt: "Send Daniel Reed a professional follow-up email asking whether he has any questions and what the next step should be." },
-  { icon: "◇", title: "Convert a lead", description: "Convert a qualified lead into a customer and project.", prompt: "Convert Daniel Reed to a customer and create the related project." },
-  { icon: "✦", title: "Today's priorities", description: "Get a management summary of what needs attention.", prompt: "What should I focus on today? Prioritise leads, projects, invoices, follow-ups and recent communication." },
+  {
+    icon: "◎",
+    title: "Review hot leads",
+    description:
+      "Identify high-priority leads that need immediate action.",
+    prompt:
+      "Show me the hot leads that need follow-up and tell me what action I should take for each one.",
+  },
+  {
+    icon: "◷",
+    title: "Schedule a call",
+    description:
+      "Create a CRM-linked call directly from natural language.",
+    prompt:
+      "Schedule a call with Daniel Reed tomorrow at 11:00.",
+  },
+  {
+    icon: "▰",
+    title: "Check project risks",
+    description:
+      "Find delayed, blocked or overdue project work.",
+    prompt:
+      "Which projects need attention? Include delayed projects, overdue tasks and recommended next actions.",
+  },
+  {
+    icon: "✉",
+    title: "Send follow-up email",
+    description:
+      "Prepare and send a CRM-linked follow-up email with confirmation.",
+    prompt:
+      "Send Daniel Reed a professional follow-up email asking whether he has any questions and what the next step should be.",
+  },
+  {
+    icon: "◇",
+    title: "Convert a lead",
+    description:
+      "Convert a qualified lead into a customer and project.",
+    prompt:
+      "Convert Daniel Reed to a customer and create the related project.",
+  },
+  {
+    icon: "✦",
+    title: "Today's priorities",
+    description:
+      "Get a management summary of what needs attention.",
+    prompt:
+      "What should I focus on today? Prioritise leads, projects, invoices, follow-ups and recent communication.",
+  },
 ];
 
 const CAPABILITIES = [
@@ -43,145 +90,540 @@ const CAPABILITIES = [
   },
 ];
 
-const WELCOME_MESSAGE = {
-  id: "welcome",
-  role: "assistant",
-  content:
-    "I can analyse your SaiNal One business data and help you decide what to do next. Ask about leads, quotes, customers, projects, invoices, follow-ups or overall business priorities.",
-  createdAt: new Date().toISOString(),
-};
+function createWelcomeMessage() {
+  return {
+    id: "welcome",
+    role: "assistant",
+    content:
+      "I can analyse your SaiNal One business data and help you decide what to do next. Ask about leads, quotes, customers, projects, invoices, follow-ups or overall business priorities.",
+    createdAt:
+      new Date().toISOString(),
+  };
+}
 
 export default function AIAssistantPage() {
-  const [prompt, setPrompt] = useState("");
-  const [messages, setMessages] = useState([
-    WELCOME_MESSAGE,
+  const [
+    prompt,
+    setPrompt,
+  ] = useState("");
+
+  const [
+    messages,
+    setMessages,
+  ] = useState([
+    createWelcomeMessage(),
   ]);
-  const [loading, setLoading] = useState(false);
-  const [errorMessage, setErrorMessage] =
-    useState("");
-  const [executingPlan, setExecutingPlan] =
-    useState(false);
 
-  const textareaRef = useRef(null);
+  const [
+    conversationId,
+    setConversationId,
+  ] = useState(null);
 
-  const latestAssistantMessage = useMemo(() => {
-    return [...messages]
-      .reverse()
-      .find(
-        (message) =>
-          message.role === "assistant" &&
-          message.id !== "welcome"
+  const [
+    restoringConversation,
+    setRestoringConversation,
+  ] = useState(true);
+
+  const [
+    loading,
+    setLoading,
+  ] = useState(false);
+
+  const [
+    errorMessage,
+    setErrorMessage,
+  ] = useState("");
+
+  const [
+    executingPlan,
+    setExecutingPlan,
+  ] = useState(false);
+
+  const textareaRef =
+    useRef(null);
+
+  // =======================================================
+  // RESTORE PERSISTED CONVERSATION
+  // =======================================================
+
+  useEffect(() => {
+    restoreConversation();
+  }, []);
+
+  async function restoreConversation() {
+    try {
+      setRestoringConversation(
+        true
       );
-  }, [messages]);
 
-  async function askAI(customPrompt) {
-    const finalPrompt = String(customPrompt || prompt).trim();
-    if (!finalPrompt || loading || executingPlan) {
-      if (!finalPrompt) alert("Please enter your question.");
+      const response =
+        await fetch(
+          "/api/ai-assistant",
+          {
+            method: "GET",
+            cache: "no-store",
+          }
+        );
+
+      const data =
+        await safeJson(
+          response
+        );
+
+      if (!response.ok) {
+        throw new Error(
+          data.error ||
+            "Unable to restore the AI conversation."
+        );
+      }
+
+      setConversationId(
+        data.conversation_id ||
+          null
+      );
+
+      const restoredMessages =
+        Array.isArray(
+          data.messages
+        )
+          ? data.messages
+          : [];
+
+      setMessages(
+        restoredMessages.length
+          ? [
+              createWelcomeMessage(),
+              ...restoredMessages,
+            ]
+          : [
+              createWelcomeMessage(),
+            ]
+      );
+    } catch (error) {
+      console.error(
+        "AI conversation restore error:",
+        error
+      );
+
+      setMessages([
+        createWelcomeMessage(),
+      ]);
+
+      setErrorMessage(
+        error.message ||
+          "Unable to restore the AI conversation."
+      );
+    } finally {
+      setRestoringConversation(
+        false
+      );
+    }
+  }
+
+  const latestAssistantMessage =
+    useMemo(() => {
+      return [...messages]
+        .reverse()
+        .find(
+          (message) =>
+            message.role ===
+              "assistant" &&
+            message.id !==
+              "welcome"
+        );
+    }, [messages]);
+
+  // =======================================================
+  // ASK AI
+  // =======================================================
+
+  async function askAI(
+    customPrompt
+  ) {
+    const finalPrompt =
+      String(
+        customPrompt ||
+          prompt
+      ).trim();
+
+    if (
+      !finalPrompt ||
+      loading ||
+      executingPlan ||
+      restoringConversation
+    ) {
+      if (!finalPrompt) {
+        alert(
+          "Please enter your question."
+        );
+      }
+
       return;
     }
 
+    const optimisticId =
+      createMessageId();
+
     const userMessage = {
-      id: createMessageId(),
+      id: optimisticId,
       role: "user",
       content: finalPrompt,
-      createdAt: new Date().toISOString(),
+      createdAt:
+        new Date().toISOString(),
     };
 
-    const conversation = messages
-      .filter((message) =>
-        (message.role === "user" || message.role === "assistant") &&
-        message.id !== "welcome"
-      )
-      .slice(-10)
-      .map((message) => ({ role: message.role, content: message.content }));
+    setMessages(
+      (currentMessages) => [
+        ...currentMessages,
+        userMessage,
+      ]
+    );
 
-    setMessages((currentMessages) => [...currentMessages, userMessage]);
     setPrompt("");
     setLoading(true);
     setErrorMessage("");
 
     try {
-      const response = await fetch("/api/ai-assistant", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt: finalPrompt,
-          conversation,
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
-        }),
-      });
+      const response =
+        await fetch(
+          "/api/ai-assistant",
+          {
+            method: "POST",
 
-      const data = await safeJson(response);
-      if (!response.ok) throw new Error(data.error || "The AI request could not be completed.");
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
 
-      setMessages((currentMessages) => [
-        ...currentMessages,
-        {
-          id: createMessageId(),
-          role: "assistant",
-          content: data.answer || "The AI completed the request but returned no response.",
-          createdAt: new Date().toISOString(),
-          plan: data.requires_confirmation ? data.plan : null,
-          planDisplay: data.requires_confirmation ? data.plan_display : null,
-          confirmationReason: data.confirmation_reason || "",
-          planStatus: data.requires_confirmation ? "pending" : null,
-        },
-      ]);
+            body:
+              JSON.stringify({
+                prompt:
+                  finalPrompt,
+
+                conversation_id:
+                  conversationId,
+
+                timezone:
+                  Intl.DateTimeFormat()
+                    .resolvedOptions()
+                    .timeZone ||
+                  "UTC",
+              }),
+          }
+        );
+
+      const data =
+        await safeJson(
+          response
+        );
+
+      if (
+        data.conversation_id
+      ) {
+        setConversationId(
+          data.conversation_id
+        );
+      }
+
+      if (
+        data.user_message_id
+      ) {
+        setMessages(
+          (current) =>
+            current.map(
+              (item) =>
+                item.id ===
+                optimisticId
+                  ? {
+                      ...item,
+                      id:
+                        data.user_message_id,
+                    }
+                  : item
+            )
+        );
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          data.error ||
+            "The AI request could not be completed."
+        );
+      }
+
+      setMessages(
+        (currentMessages) => [
+          ...currentMessages,
+          {
+            id:
+              data.message_id ||
+              createMessageId(),
+
+            role:
+              "assistant",
+
+            content:
+              data.answer ||
+              "The AI completed the request but returned no response.",
+
+            createdAt:
+              data.created_at ||
+              new Date()
+                .toISOString(),
+
+            plan:
+              data.requires_confirmation
+                ? data.plan
+                : null,
+
+            planDisplay:
+              data.requires_confirmation
+                ? data.plan_display
+                : null,
+
+            confirmationReason:
+              data.confirmation_reason ||
+              "",
+
+            planStatus:
+              data.requires_confirmation
+                ? "pending"
+                : null,
+          },
+        ]
+      );
     } catch (error) {
-      console.error("AI Assistant request error:", error);
-      setErrorMessage(error.message || "Unable to contact the AI Assistant.");
-      setMessages((currentMessages) => [
-        ...currentMessages,
-        { id: createMessageId(), role: "error", content: error.message || "Unable to contact the AI Assistant.", createdAt: new Date().toISOString() },
-      ]);
+      console.error(
+        "AI Assistant request error:",
+        error
+      );
+
+      setErrorMessage(
+        error.message ||
+          "Unable to contact the AI Assistant."
+      );
+
+      setMessages(
+        (currentMessages) => [
+          ...currentMessages,
+          {
+            id:
+              createMessageId(),
+
+            role:
+              "error",
+
+            content:
+              error.message ||
+              "Unable to contact the AI Assistant.",
+
+            createdAt:
+              new Date()
+                .toISOString(),
+          },
+        ]
+      );
     } finally {
       setLoading(false);
-      window.setTimeout(() => textareaRef.current?.focus(), 50);
+
+      window.setTimeout(
+        () =>
+          textareaRef.current?.focus(),
+        50
+      );
     }
   }
 
-  async function confirmPlan(message) {
-    if (!message?.plan || executingPlan || loading) return;
+  // =======================================================
+  // CONFIRM / CANCEL PLAN
+  // =======================================================
+
+  async function confirmPlan(
+    message
+  ) {
+    if (
+      !message?.plan ||
+      executingPlan ||
+      loading
+    ) {
+      return;
+    }
+
     try {
-      setExecutingPlan(true);
+      setExecutingPlan(
+        true
+      );
+
       setErrorMessage("");
-      setMessages((current) => current.map((item) => item.id === message.id ? { ...item, planStatus: "running" } : item));
 
-      const response = await fetch("/api/ai-assistant", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mode: "execute_plan",
-          plan: message.plan,
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
-        }),
-      });
+      setMessages(
+        (current) =>
+          current.map(
+            (item) =>
+              item.id ===
+              message.id
+                ? {
+                    ...item,
+                    planStatus:
+                      "running",
+                  }
+                : item
+          )
+      );
 
-      const data = await safeJson(response);
-      if (!response.ok) throw new Error(data.error || "The AI Agent could not complete the actions.");
+      const response =
+        await fetch(
+          "/api/ai-assistant",
+          {
+            method: "POST",
 
-      setMessages((current) => current
-        .map((item) => item.id === message.id ? { ...item, planStatus: data.success ? "completed" : "failed" } : item)
-        .concat({ id: createMessageId(), role: "assistant", content: data.answer || "AI Agent execution completed.", createdAt: new Date().toISOString() }));
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify({
+                mode:
+                  "execute_plan",
+
+                plan:
+                  message.plan,
+
+                plan_message_id:
+                  message.id,
+
+                conversation_id:
+                  conversationId,
+
+                timezone:
+                  Intl.DateTimeFormat()
+                    .resolvedOptions()
+                    .timeZone ||
+                  "UTC",
+              }),
+          }
+        );
+
+      const data =
+        await safeJson(
+          response
+        );
+
+      if (!response.ok) {
+        throw new Error(
+          data.error ||
+            "The AI Agent could not complete the actions."
+        );
+      }
+
+      if (
+        data.conversation_id
+      ) {
+        setConversationId(
+          data.conversation_id
+        );
+      }
+
+      setMessages(
+        (current) =>
+          current
+            .map(
+              (item) =>
+                item.id ===
+                message.id
+                  ? {
+                      ...item,
+                      planStatus:
+                        data.success
+                          ? "completed"
+                          : "failed",
+                    }
+                  : item
+            )
+            .concat({
+              id:
+                data.message_id ||
+                createMessageId(),
+
+              role:
+                "assistant",
+
+              content:
+                data.answer ||
+                "AI Agent execution completed.",
+
+              createdAt:
+                data.created_at ||
+                new Date()
+                  .toISOString(),
+            })
+      );
     } catch (error) {
-      setErrorMessage(error.message || "Unable to execute the AI Agent actions.");
-      setMessages((current) => current.map((item) => item.id === message.id ? { ...item, planStatus: "failed" } : item));
+      setErrorMessage(
+        error.message ||
+          "Unable to execute the AI Agent actions."
+      );
+
+      setMessages(
+        (current) =>
+          current.map(
+            (item) =>
+              item.id ===
+              message.id
+                ? {
+                    ...item,
+                    planStatus:
+                      "failed",
+                  }
+                : item
+          )
+      );
     } finally {
-      setExecutingPlan(false);
+      setExecutingPlan(
+        false
+      );
     }
   }
 
-  function cancelPlan(message) {
-    if (!message?.plan) return;
-    setMessages((current) => current.map((item) => item.id === message.id ? { ...item, planStatus: "cancelled" } : item));
+  function cancelPlan(
+    message
+  ) {
+    if (!message?.plan) {
+      return;
+    }
+
+    setMessages(
+      (current) =>
+        current.map(
+          (item) =>
+            item.id ===
+            message.id
+              ? {
+                  ...item,
+                  planStatus:
+                    "cancelled",
+                }
+              : item
+        )
+    );
   }
 
-  function handlePromptChange(event) {
-    setPrompt(event.target.value);
+  // =======================================================
+  // INPUT
+  // =======================================================
+
+  function handlePromptChange(
+    event
+  ) {
+    setPrompt(
+      event.target.value
+    );
   }
 
-  function handlePromptKeyDown(event) {
+  function handlePromptKeyDown(
+    event
+  ) {
     if (
       event.key === "Enter" &&
       !event.shiftKey
@@ -191,28 +633,94 @@ export default function AIAssistantPage() {
     }
   }
 
-  function clearConversation() {
+  // =======================================================
+  // CLEAR CONVERSATION
+  // =======================================================
+
+  async function clearConversation() {
     if (
       messages.length === 1 &&
-      messages[0].id === "welcome"
+      messages[0].id ===
+        "welcome"
     ) {
       return;
     }
 
-    const confirmed = window.confirm(
-      "Clear the current AI conversation?"
-    );
+    const confirmed =
+      window.confirm(
+        "Clear the current AI conversation?"
+      );
 
     if (!confirmed) {
       return;
     }
 
-    setMessages([WELCOME_MESSAGE]);
-    setPrompt("");
-    setErrorMessage("");
+    try {
+      setLoading(true);
+
+      const response =
+        await fetch(
+          "/api/ai-assistant",
+          {
+            method: "DELETE",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify({
+                conversation_id:
+                  conversationId,
+              }),
+          }
+        );
+
+      const data =
+        await safeJson(
+          response
+        );
+
+      if (!response.ok) {
+        throw new Error(
+          data.error ||
+            "Unable to clear the AI conversation."
+        );
+      }
+
+      setConversationId(
+        null
+      );
+
+      setMessages([
+        createWelcomeMessage(),
+      ]);
+
+      setPrompt("");
+      setErrorMessage("");
+    } catch (error) {
+      console.error(
+        "Unable to clear AI conversation:",
+        error
+      );
+
+      alert(
+        error.message ||
+          "Unable to clear the AI conversation."
+      );
+    } finally {
+      setLoading(false);
+    }
   }
 
-  async function copyResponse(content) {
+  // =======================================================
+  // COPY / REUSE
+  // =======================================================
+
+  async function copyResponse(
+    content
+  ) {
     if (!content) {
       return;
     }
@@ -222,7 +730,9 @@ export default function AIAssistantPage() {
         content
       );
 
-      alert("AI response copied.");
+      alert(
+        "AI response copied."
+      );
     } catch (error) {
       console.error(
         "Unable to copy AI response:",
@@ -235,7 +745,9 @@ export default function AIAssistantPage() {
     }
   }
 
-  function reusePrompt(content) {
+  function reusePrompt(
+    content
+  ) {
     setPrompt(content);
 
     window.setTimeout(() => {
@@ -243,21 +755,35 @@ export default function AIAssistantPage() {
     }, 50);
   }
 
+  // =======================================================
+  // PAGE
+  // =======================================================
+
   return (
     <ProtectedRoute>
       <AppLayout
         title="AI Assistant"
         description="Analyse business data, identify risks and decide what to do next."
       >
-        <div className={styles.page}>
+        <div
+          className={
+            styles.page
+          }
+        >
           <section
-            className={styles.heroSection}
+            className={
+              styles.heroSection
+            }
           >
             <div
-              className={styles.heroCopy}
+              className={
+                styles.heroCopy
+              }
             >
               <span
-                className={styles.eyebrow}
+                className={
+                  styles.eyebrow
+                }
               >
                 AI operations workspace
               </span>
@@ -284,7 +810,9 @@ export default function AIAssistantPage() {
               }
             >
               <span
-                className={styles.aiOrb}
+                className={
+                  styles.aiOrb
+                }
               >
                 ✦
               </span>
@@ -295,12 +823,15 @@ export default function AIAssistantPage() {
                 </small>
 
                 <strong>
-                  Ready to assist
+                  {restoringConversation
+                    ? "Restoring conversation"
+                    : "Ready to assist"}
                 </strong>
 
                 <p>
-                  Connected to SaiNal One
-                  business operations
+                  {conversationId
+                    ? "Conversation memory is active"
+                    : "Connected to SaiNal One business operations"}
                 </p>
               </div>
             </div>
@@ -312,7 +843,9 @@ export default function AIAssistantPage() {
             }
           >
             <div
-              className={styles.sectionHeader}
+              className={
+                styles.sectionHeader
+              }
             >
               <div>
                 <span
@@ -342,14 +875,22 @@ export default function AIAssistantPage() {
               {QUICK_ACTIONS.map(
                 (action) => (
                   <button
-                    key={action.title}
+                    key={
+                      action.title
+                    }
                     type="button"
                     className={
                       styles.quickActionCard
                     }
-                    disabled={loading || executingPlan}
+                    disabled={
+                      loading ||
+                      executingPlan ||
+                      restoringConversation
+                    }
                     onClick={() =>
-                      askAI(action.prompt)
+                      askAI(
+                        action.prompt
+                      )
                     }
                   >
                     <span
@@ -366,11 +907,15 @@ export default function AIAssistantPage() {
                       }
                     >
                       <strong>
-                        {action.title}
+                        {
+                          action.title
+                        }
                       </strong>
 
                       <small>
-                        {action.description}
+                        {
+                          action.description
+                        }
                       </small>
                     </span>
 
@@ -417,8 +962,9 @@ export default function AIAssistantPage() {
 
                   <p>
                     Ask naturally and continue
-                    with follow-up questions in
-                    the same conversation.
+                    with follow-up questions.
+                    Your latest conversation is
+                    restored when you return.
                   </p>
                 </div>
 
@@ -432,7 +978,9 @@ export default function AIAssistantPage() {
                   }
                   disabled={
                     loading ||
-                    messages.length === 1
+                    restoringConversation ||
+                    messages.length ===
+                      1
                   }
                 >
                   Clear conversation
@@ -447,22 +995,41 @@ export default function AIAssistantPage() {
                 {messages.map(
                   (message) => (
                     <MessageBubble
-                      key={message.id}
-                      message={message}
+                      key={
+                        message.id
+                      }
+                      message={
+                        message
+                      }
                       onCopy={
                         copyResponse
                       }
-                      onReusePrompt={reusePrompt}
-                      onConfirmPlan={confirmPlan}
-                      onCancelPlan={cancelPlan}
-                      executingPlan={executingPlan}
+                      onReusePrompt={
+                        reusePrompt
+                      }
+                      onConfirmPlan={
+                        confirmPlan
+                      }
+                      onCancelPlan={
+                        cancelPlan
+                      }
+                      executingPlan={
+                        executingPlan
+                      }
                     />
                   )
                 )}
 
-                {loading && (
-                  <ThinkingMessage />
+                {restoringConversation && (
+                  <ThinkingMessage
+                    text="Restoring your latest conversation..."
+                  />
                 )}
+
+                {loading &&
+                  !restoringConversation && (
+                    <ThinkingMessage />
+                  )}
               </div>
 
               <div
@@ -476,9 +1043,13 @@ export default function AIAssistantPage() {
                   }
                 >
                   <textarea
-                    ref={textareaRef}
+                    ref={
+                      textareaRef
+                    }
                     rows={4}
-                    value={prompt}
+                    value={
+                      prompt
+                    }
                     onChange={
                       handlePromptChange
                     }
@@ -486,7 +1057,10 @@ export default function AIAssistantPage() {
                       handlePromptKeyDown
                     }
                     placeholder="Ask about leads, quotes, customers, projects, invoices or follow-ups..."
-                    disabled={loading}
+                    disabled={
+                      loading ||
+                      restoringConversation
+                    }
                     aria-label="Ask the AI Operations Manager"
                   />
 
@@ -509,15 +1083,22 @@ export default function AIAssistantPage() {
                       disabled={
                         loading ||
                         executingPlan ||
+                        restoringConversation ||
                         !prompt.trim()
                       }
-                      onClick={() => askAI()}
+                      onClick={() =>
+                        askAI()
+                      }
                     >
-                      <span>✦</span>
+                      <span>
+                        ✦
+                      </span>
 
                       {loading
                         ? "Thinking..."
-                        : "Ask AI"}
+                        : restoringConversation
+                          ? "Restoring..."
+                          : "Ask AI"}
                     </button>
                   </div>
                 </label>
@@ -604,7 +1185,9 @@ export default function AIAssistantPage() {
                 {CAPABILITIES.map(
                   (capability) => (
                     <div
-                      key={capability.title}
+                      key={
+                        capability.title
+                      }
                       className={
                         styles.capabilityItem
                       }
@@ -614,12 +1197,16 @@ export default function AIAssistantPage() {
                           styles.capabilityIcon
                         }
                       >
-                        {capability.icon}
+                        {
+                          capability.icon
+                        }
                       </span>
 
                       <div>
                         <strong>
-                          {capability.title}
+                          {
+                            capability.title
+                          }
                         </strong>
 
                         <p>
@@ -691,7 +1278,9 @@ export default function AIAssistantPage() {
               styles.disclaimerPanel
             }
           >
-            <span>i</span>
+            <span>
+              i
+            </span>
 
             <p>
               AI recommendations are based on
@@ -706,6 +1295,10 @@ export default function AIAssistantPage() {
     </ProtectedRoute>
   );
 }
+
+// =========================================================
+// MESSAGE COMPONENTS
+// =========================================================
 
 function MessageBubble({
   message,
@@ -786,10 +1379,18 @@ function MessageBubble({
 
         {message.planDisplay && (
           <ActionPlanCard
-            message={message}
-            onConfirm={onConfirmPlan}
-            onCancel={onCancelPlan}
-            disabled={executingPlan}
+            message={
+              message
+            }
+            onConfirm={
+              onConfirmPlan
+            }
+            onCancel={
+              onCancelPlan
+            }
+            disabled={
+              executingPlan
+            }
           />
         )}
 
@@ -831,45 +1432,162 @@ function MessageBubble({
   );
 }
 
-function ActionPlanCard({ message, onConfirm, onCancel, disabled }) {
-  const status = message.planStatus || "pending";
+function ActionPlanCard({
+  message,
+  onConfirm,
+  onCancel,
+  disabled,
+}) {
+  const status =
+    message.planStatus ||
+    "pending";
+
   return (
-    <div className={styles.actionPlan}>
-      <div className={styles.actionPlanHeader}>
+    <div
+      className={
+        styles.actionPlan
+      }
+    >
+      <div
+        className={
+          styles.actionPlanHeader
+        }
+      >
         <div>
-          <span>AI AGENT PLAN</span>
-          <strong>{message.planDisplay?.summary || "Review actions"}</strong>
+          <span>
+            AI AGENT PLAN
+          </span>
+
+          <strong>
+            {message.planDisplay
+              ?.summary ||
+              "Review actions"}
+          </strong>
         </div>
-        <span className={`${styles.actionPlanStatus} ${styles[`actionPlanStatus${status.charAt(0).toUpperCase()}${status.slice(1)}`] || ""}`}>
-          {status === "pending" ? "Needs confirmation" : status === "running" ? "Running" : status === "completed" ? "Completed" : status === "cancelled" ? "Cancelled" : "Failed"}
+
+        <span
+          className={`${styles.actionPlanStatus} ${
+            styles[
+              `actionPlanStatus${status
+                .charAt(0)
+                .toUpperCase()}${status.slice(
+                1
+              )}`
+            ] || ""
+          }`}
+        >
+          {status === "pending"
+            ? "Needs confirmation"
+            : status === "running"
+              ? "Running"
+              : status === "completed"
+                ? "Completed"
+                : status === "cancelled"
+                  ? "Cancelled"
+                  : "Failed"}
         </span>
       </div>
 
-      <div className={styles.actionPlanList}>
-        {(message.planDisplay?.actions || []).map((action) => (
-          <div key={`${message.id}-${action.index}`} className={styles.actionPlanItem}>
-            <span>{action.index}</span>
-            <div>
-              <strong>{action.label}</strong>
-              {action.reason && <p>{action.reason}</p>}
+      <div
+        className={
+          styles.actionPlanList
+        }
+      >
+        {(message.planDisplay
+          ?.actions ||
+          []).map(
+          (action) => (
+            <div
+              key={`${message.id}-${action.index}`}
+              className={
+                styles.actionPlanItem
+              }
+            >
+              <span>
+                {action.index}
+              </span>
+
+              <div>
+                <strong>
+                  {
+                    action.label
+                  }
+                </strong>
+
+                {action.reason && (
+                  <p>
+                    {
+                      action.reason
+                    }
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        )}
       </div>
 
-      {message.confirmationReason && <p className={styles.actionPlanReason}>{message.confirmationReason}</p>}
+      {message.confirmationReason && (
+        <p
+          className={
+            styles.actionPlanReason
+          }
+        >
+          {
+            message.confirmationReason
+          }
+        </p>
+      )}
 
       {status === "pending" && (
-        <div className={styles.actionPlanActions}>
-          <button type="button" className={styles.actionPlanCancel} disabled={disabled} onClick={() => onCancel(message)}>Cancel</button>
-          <button type="button" className={styles.actionPlanConfirm} disabled={disabled} onClick={() => onConfirm(message)}>✦ Confirm & Run</button>
+        <div
+          className={
+            styles.actionPlanActions
+          }
+        >
+          <button
+            type="button"
+            className={
+              styles.actionPlanCancel
+            }
+            disabled={
+              disabled
+            }
+            onClick={() =>
+              onCancel(
+                message
+              )
+            }
+          >
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            className={
+              styles.actionPlanConfirm
+            }
+            disabled={
+              disabled
+            }
+            onClick={() =>
+              onConfirm(
+                message
+              )
+            }
+          >
+            ✦ Confirm & Run
+          </button>
         </div>
       )}
     </div>
   );
 }
 
-function ThinkingMessage() {
+function ThinkingMessage({
+  text =
+    "Analysing your business data...",
+}) {
   return (
     <article
       className={
@@ -905,7 +1623,7 @@ function ThinkingMessage() {
           <span />
 
           <p>
-            Analysing your business data...
+            {text}
           </p>
         </div>
       </div>
@@ -913,50 +1631,74 @@ function ThinkingMessage() {
   );
 }
 
-function formatMessageContent(content) {
-  const lines = String(
-    content || ""
-  ).split("\n");
+// =========================================================
+// HELPERS
+// =========================================================
 
-  return lines.map((line, index) => {
-    const cleanLine = line.trim();
+function formatMessageContent(
+  content
+) {
+  const lines =
+    String(
+      content || ""
+    ).split("\n");
 
-    if (!cleanLine) {
-      return (
-        <br
-          key={`space-${index}`}
-        />
-      );
-    }
+  return lines.map(
+    (line, index) => {
+      const cleanLine =
+        line.trim();
 
-    const isBullet =
-      cleanLine.startsWith("- ") ||
-      cleanLine.startsWith("• ") ||
-      /^\d+\.\s/.test(cleanLine);
+      if (!cleanLine) {
+        return (
+          <br
+            key={`space-${index}`}
+          />
+        );
+      }
 
-    if (isBullet) {
+      const isBullet =
+        cleanLine.startsWith(
+          "- "
+        ) ||
+        cleanLine.startsWith(
+          "• "
+        ) ||
+        /^\d+\.\s/.test(
+          cleanLine
+        );
+
+      if (isBullet) {
+        return (
+          <p
+            key={`line-${index}`}
+            className={
+              styles.messageBullet
+            }
+          >
+            {cleanLine}
+          </p>
+        );
+      }
+
       return (
         <p
           key={`line-${index}`}
-          className={
-            styles.messageBullet
-          }
         >
           {cleanLine}
         </p>
       );
     }
-
-    return (
-      <p key={`line-${index}`}>
-        {cleanLine}
-      </p>
-    );
-  });
+  );
 }
 
-async function safeJson(response) {
-  try { return await response.json(); } catch { return {}; }
+async function safeJson(
+  response
+) {
+  try {
+    return await response.json();
+  } catch {
+    return {};
+  }
 }
 
 function createMessageId() {
@@ -965,15 +1707,20 @@ function createMessageId() {
     .slice(2)}`;
 }
 
-function formatMessageTime(value) {
+function formatMessageTime(
+  value
+) {
   if (!value) {
     return "";
   }
 
-  const date = new Date(value);
+  const date =
+    new Date(value);
 
   if (
-    Number.isNaN(date.getTime())
+    Number.isNaN(
+      date.getTime()
+    )
   ) {
     return "";
   }
@@ -991,10 +1738,12 @@ function truncateText(
   value,
   maximumLength
 ) {
-  const text = String(value || "");
+  const text =
+    String(value || "");
 
   if (
-    text.length <= maximumLength
+    text.length <=
+    maximumLength
   ) {
     return text;
   }
