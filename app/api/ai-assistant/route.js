@@ -40,7 +40,7 @@ function looksLikeActionRequest(prompt) {
   const text = normalise(prompt);
   if (!text) return false;
   const actionPatterns = [
-    /\b(create|add|schedule|book|send|email|convert|update|change|edit|assign|reassign|complete|finish|cancel|reopen|reschedule|mark|record|generate|prepare|make)\b/,
+    /\b(create|add|schedule|book|send|email|convert|update|change|edit|assign|reassign|complete|finish|cancel|reopen|reschedule|mark|record|generate|prepare|make|accept|approve|reject|submit|log)\b/,
     /\b(set up|follow up with|move .* to|turn .* into)\b/,
   ];
   const analysisPatterns = [/^(what|who|when|where|why|how|which|show|tell|give me|summari[sz]e|review|check|list|find|analyse|analyze)\b/];
@@ -133,17 +133,17 @@ async function loadBusinessData(access) {
 
 function compactBusiness(data) {
   return {
-    leads: compact(data.leads, ["id","name","company","email","phone","status","value","source","ai_score","ai_summary","ai_next_action"]),
-    customers: compact(data.customers, ["id","customer_name","company","email","phone","status","lead_id"]),
-    projects: compact(data.projects, ["id","project_name","customer_id","description","status","start_date","due_date","amount"]),
+    leads: compact(data.leads, ["id","name","company","email","phone","status","value","source","ai_score","ai_summary","ai_next_action","owner_employee_id"]),
+    customers: compact(data.customers, ["id","customer_name","company","email","phone","status","lead_id","owner_employee_id"]),
+    projects: compact(data.projects, ["id","project_name","customer_id","description","status","start_date","due_date","amount","owner_employee_id"]),
     tasks: compact(data.tasks, ["id","task_name","project_id","status","priority","due_date","assigned_employee_id"], 150),
-    quotes: compact(data.quotes, ["id","quote_number","lead_id","customer_id","client","contact","email","service","amount","status"]),
-    proposals: compact(data.proposals, ["id","proposal_number","lead_id","customer_id","quote_id","client","contact","email","title","service","amount","status"]),
+    quotes: compact(data.quotes, ["id","quote_number","lead_id","customer_id","client","contact","email","service","amount","status","owner_employee_id"]),
+    proposals: compact(data.proposals, ["id","proposal_number","lead_id","customer_id","quote_id","client","contact","email","title","service","amount","status","owner_employee_id"]),
     invoices: (data.invoices || []).slice(0, 100).map((invoice) => {
       const payments = (data.invoicePayments || []).filter((payment) => String(payment.invoice_id) === String(invoice.id));
       const paid = payments.reduce((sum, payment) => sum + money(payment.amount), 0);
       const total = money(invoice.total_amount ?? invoice.amount ?? invoice.total);
-      return { ...pick(invoice, ["id","invoice_number","customer_id","project_id","quote_id","client","service","amount","total_amount","status","due_date"]), payment_summary: { paid, outstanding: Math.max(0, Math.round((total - paid) * 100) / 100), payment_count: payments.length } };
+      return { ...pick(invoice, ["id","invoice_number","customer_id","project_id","quote_id","client","service","amount","total_amount","status","due_date","owner_employee_id"]), payment_summary: { paid, outstanding: Math.max(0, Math.round((total - paid) * 100) / 100), payment_count: payments.length } };
     }),
     invoicePayments: compact(data.invoicePayments, ["id","invoice_id","amount","payment_date","payment_method","reference","created_at"], 150),
     followUps: compact(data.followUps, ["id","activity_type","related_type","related_id","title","note","due_date","scheduled_at","status","assigned_employee_id"], 150),
