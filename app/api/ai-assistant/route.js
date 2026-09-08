@@ -19,6 +19,7 @@ import {
   sanitisePlan,
   resolvePlanAgainstBusinessData,
   buildDeterministicPlan,
+  ensureRequestedActionCoverage,
   confirmationForPlan,
   clientPlan,
   executePlan,
@@ -129,7 +130,7 @@ function looksLikeActionRequest(prompt) {
   if (!text) return false;
 
   const actionPatterns = [
-    /\b(create|add|schedule|book|send|email|convert|update|change|edit|assign|reassign|complete|finish|cancel|reopen|reschedule|mark|record|generate|prepare|make|accept|approve|reject|submit|log)\b/,
+    /\b(create|add|schedule|book|send|email|draft|write|compose|convert|update|change|edit|assign|reassign|complete|finish|cancel|reopen|reschedule|mark|record|generate|prepare|make|accept|approve|reject|submit|log)\b/,
     /\b(set up|follow up with|move .* to|turn .* into)\b/,
   ];
 
@@ -1331,6 +1332,26 @@ export async function POST(request) {
           plannerArgs.employees,
         timezone,
       });
+
+    /*
+     * Multi-action completeness guard:
+     * merge deterministic actions that are clearly requested
+     * but were omitted by the LLM planner.
+     */
+    if (actionIntent) {
+      plan =
+        ensureRequestedActionCoverage({
+          plan,
+          prompt,
+          conversation:
+            conversationContext,
+          businessData:
+            compactBusiness(
+              businessData
+            ),
+          timezone,
+        });
+    }
 
     if (
       actionIntent &&
